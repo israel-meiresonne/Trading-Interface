@@ -1,11 +1,11 @@
-# coding:utf-8
+from controller.Controller import Controller
 
-import structure.log
-import math
 
 def main():
-    print(math.pi)
-    # l = Log()
+    """
+    The application's main
+    """
+    Controller().start()
 
-main()    
 
+main()
