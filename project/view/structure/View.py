@@ -1,5 +1,6 @@
 from view.ViewInterface import ViewInterface
 from view.tools.Buffer import Buffer
+from model.tools.Map import Map
 
 
 class View(ViewInterface):
@@ -43,13 +44,15 @@ class View(ViewInterface):
                     v = input()
         return v
 
-    def menu(self, cs: list) -> str:
+    def menu(self, msg: str, cs: list) -> str:
         """
         To display a list as menu choices
         :param cs: list of choices
+        :param msg: message to display
         :return: the menu choice selected
         """
-        self.output("menu", cs)
+        dv_mp = Map({Map.msg: msg, Map.cs: cs})
+        self.output("menu", dv_mp)
         s = False
         while not s:
             v = self.input("int")

@@ -1,7 +1,12 @@
-def menu(m: list):
-    print("Choose an option")
-    for i in range(len(m)):
-        o = "{}. {}".format(i, m[i])
+from model.tools.Map import Map
+
+
+def menu(mp: Map):
+    msg = mp.get(Map.msg)
+    cs = mp.get(Map.cs)
+    print(msg)
+    for i in range(len(cs)):
+        o = "{}. {}".format(i, cs[i])
         print(o)
 
 
