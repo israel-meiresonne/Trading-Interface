@@ -24,7 +24,7 @@ class Broker(ModelFeature):
         :return: list of available Broker
         """
         p = Config.get(Config.DIR_BROKERS)
-        return FileManager.get_dirs(p)
+        return FileManager.get_dirs(p, False)
 
     @staticmethod
     def retrieve(bkr: str, cfs: dict):

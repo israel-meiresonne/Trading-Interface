@@ -25,14 +25,16 @@ class FileManager(ABC):
         return fs
 
     @staticmethod
-    def get_dirs(p: str, all=False) -> list:
+    def get_dirs(p: str, include: bool) -> list:
         """
          To get directories of a directory\n
          :param p: the path of the directory
+         :param include: set True to include special files else False
+                     supported special file: .ignore, __pychache__
          :return: list of directories
          """
         _, drs, _ = next(walk(p))
-        if not all:
+        if not include:
             ptr = "^__[\w]*__$|^\.[\w]"
             ndrs = []
             for i in range(len(drs)):

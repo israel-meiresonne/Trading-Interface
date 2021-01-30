@@ -16,7 +16,7 @@ class Strategy(ModelFeature):
         :return: list of available Strategy
         """
         p = Config.get(Config.DIR_STRATEGIES)
-        return FileManager.get_dirs(p)
+        return FileManager.get_dirs(p, False)
 
     @staticmethod
     def retrieve(stg: str):
