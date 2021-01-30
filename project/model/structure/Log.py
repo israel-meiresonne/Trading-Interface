@@ -1,6 +1,8 @@
 from model.ModelInterface import ModelInterface
 from model.structure.database.ModelFeature import ModelFeature
-from model.structure import Bot
+from model.structure.Bot import Bot
+from model.structure.Broker import Broker
+from model.structure.Strategy import Strategy
 
 
 class Log(ModelInterface, ModelFeature):
@@ -31,8 +33,11 @@ class Log(ModelInterface, ModelFeature):
         """
         pass
 
-    def create_bot(self):
-        pass
+    def create_bot(self, bkr: str, stg: str, prcd: str, cfs={}):
+        bt = Bot(bkr, stg, prcd, cfs)
+        bt_id = bt.get_id()
+        bts = self.__get_bots()
+        bts[bt_id] = bt
 
     def start_bot(self, bot_id):
         pass
@@ -42,3 +47,13 @@ class Log(ModelInterface, ModelFeature):
 
     def stop_bots(self):
         pass
+
+    def list_brokers(self):
+        return Broker.list_brokers()
+
+    def list_paires(self, bkr: str):
+        exec("from model.API.brokers."+bkr+"."+bkr+" import "+bkr)
+        return eval(bkr+".list_paires()")
+
+    def list_strategies(self):
+        return Strategy.list_strategies()

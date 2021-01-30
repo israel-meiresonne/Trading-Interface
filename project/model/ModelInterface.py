@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from model.tools.Map import Map
+# from model.tools.Map import Map
 
 
 class ModelInterface(ABC):
@@ -8,14 +8,15 @@ class ModelInterface(ABC):
         self.log_id = "xxx"
 
     @abstractmethod
-    def create_bot(self, broker: str, strategy: str, buy_code: str, sell_code: str, config_map: Map) -> None:
+    def create_bot(self, bkr: str, stg: str, prcd: str, cfs={}) -> None:
         """
         To create a new Bot\n
-        :param broker:      name of a supported Broker
-        :param strategy:    name of a supported Strategy
-        :param buy_code:    code of the supported Currency to buy
-        :param sell_code:   code of the supported Currency to buy
-        :param config_map:  holds additional config for the Bot
+        :param bkr: name of a supported Broker
+        :param stg: name of a supported Strategy
+        :param prcd: code of the pair to Trade, i.e.: "BTC/USDT"
+        :param cfs: holds additional configs for the Bot
+                    cfs[{Bot}]    => Bot configs
+                    cfs[{Broker}] => Broker configs
         """
         pass
 
