@@ -16,7 +16,7 @@ class Log(ModelInterface, ModelFeature):
     def __set_bots(self):
         self.bots = {}
 
-    def __get_bots(self):
+    def get_bots(self) -> dict:
         """
          To get Log's set of Bot\n
          @:return\n
@@ -31,16 +31,20 @@ class Log(ModelInterface, ModelFeature):
         :param bot_id: a Bot's id
         :return: the Bot of the given id
         """
-        pass
+        bots = self.get_bots()
+        if bot_id not in bots:
+            raise Exception(f"There's no Bot with this id '{bot_id}'")
+        return bots[bot_id]
 
     def create_bot(self, bkr: str, stg: str, prcd: str, cfs={}):
-        bt = Bot(bkr, stg, prcd, cfs)
-        bt_id = bt.get_id()
-        bts = self.__get_bots()
-        bts[bt_id] = bt
+        bot = Bot(bkr, stg, prcd, cfs)
+        bt_id = bot.get_id()
+        bts = self.get_bots()
+        bts[bt_id] = bot
 
     def start_bot(self, bot_id):
-        pass
+        bot = self.__get_bot(bot_id)
+        bot.start()
 
     def stop_bot(self, bot_id):
         pass

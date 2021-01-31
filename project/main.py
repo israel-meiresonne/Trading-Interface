@@ -1,9 +1,9 @@
 from controller.Controller import Controller
 
 
-def main():
+def main() -> None:
     """
-    The application's main
+    The application's main\n
     """
     Controller().start()
 

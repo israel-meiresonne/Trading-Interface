@@ -2,6 +2,7 @@ from model.structure.Log import Log
 from view.structure.View import View
 from model.structure.Strategy import Strategy
 
+
 class Controller:
     def __init__(self):
         self.model = Log()
@@ -25,43 +26,45 @@ class Controller:
         """
         To start the application\n
         """
-        v = self.__get_view()
+        vw = self.__get_view()
         m_home = "home"
         ied = False
         ms = View.get_menus()
         cs = ms[m_home][View.MENUS_KEY_TXT]
         while not ied:
-            i = v.menu("Choose an execution", cs)
+            i = vw.menu("Choose an execution", cs)
             fc = ms[m_home][View.MENUS_KEY_FUNC][i]
-            ied = eval("self."+fc+"()")
+            ied = eval("self." + fc + "()")
 
     def quit(self):
         return True
-    
+
     def new_bot(self):
         md = self.__get_model()
         vw = self.__get_view()
         bkrs = md.list_brokers()
         stgs = md.list_strategies()
-        bkr = bkrs[vw.menu("Choose a Broker", bkrs)]
-        stg = stgs[vw.menu("Choose a Strategy", stgs)]
+        bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
+        stg = stgs[vw.menu("Choose a Strategy:", stgs)]
         prcds = md.list_paires(bkr)
-        prcd = prcds[vw.menu("Choose a Pair to trade", prcds)]
-        # print
-        vw.output(View.FILE_MESSAGE, "Broker: "+bkr)
-        vw.output(View.FILE_MESSAGE, "Strategy: "+stg)
-        vw.output(View.FILE_MESSAGE, "Pair to trade: "+prcd)
-
+        prcd = prcds[vw.menu("Choose a Pair to trade:", prcds)]
         md.create_bot(bkr, stg, prcd)
-        self.__get_view().output(View.FILE_MESSAGE, "✅ new Bot created!")
+        vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
 
-    
     def start_bot(self):
-        pass
-    
+        md = self.__get_model()
+        vw = self.__get_view()
+        bt_ids = list(md.get_bots().keys())
+        if len(bt_ids) <= 0:
+            vw.output(View.FILE_ERROR, "You have no Bot created")
+            return None
+        # bt_ids = ["hello"]
+        bt_id = bt_ids[vw.menu("Choose the Bot to start:", bt_ids)]
+        md.start_bot(bt_id)
+        vw.output(View.FILE_MESSAGE, f"❌ Bot stopped: {bt_id}!")
+
     def stop_bot(self):
         pass
-    
+
     def stop_bots(self):
         pass
-    
