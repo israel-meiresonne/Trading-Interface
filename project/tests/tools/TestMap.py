@@ -15,6 +15,10 @@ class TestMap(unittest.TestCase, Map):
         self.val3 = "val3"
         self.val4 = "val4"
         self.mp1 = Map()
+        self.mp2 = Map()
+        self.mp2.put(self.val2, self.key1)
+        self.mp2.put(self.val2, self.key2, self.key1)
+        self.mp2.put(self.val2, self.key3, self.key1, self.key2)
 
     def tearDown(self) -> None:
         self.mp1 = Map()
@@ -62,6 +66,12 @@ class TestMap(unittest.TestCase, Map):
         self.assertEqual(self.mp1.get(self.key3, self.key1, self.key2), self.val1)
         self.mp1.put(self.val2, self.key3, self.key1)
         self.assertEqual(self.mp1.get(self.key3, self.key1), self.val2)
+
+    def test_get_keys(self):
+        exp = [self.key1, self.key2, self.key3]
+        result = self.mp2.get_keys()
+        self.assertEqual(type(exp), type(result))
+        self.assertListEqual(exp, result)
 
 
 if __name__ == '__main__':

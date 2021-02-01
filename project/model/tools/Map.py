@@ -2,6 +2,26 @@ class Map:
     # keys
     msg = "msg"
     cs = "cs"
+    # BinanceAPI
+    signed = "signed"
+    path = "path"
+    mandatory = "mandatory"
+    params = "params"
+    method = "method"
+    GET = "GET"
+    POST = "POST"
+    type = "type"
+    timestamp = "timestamp"
+    startTime = "startTime"
+    endTime = "endTime"
+    limit = "limit"
+    recvWindow = "recvWindow"
+    symbol = "symbol"
+    interval = "interval"
+    signature = "signature"
+    api = "api"
+    test = "test"
+    websocket = "websocket"
 
     def __init__(self, mp={}):
         self.map = mp
@@ -44,11 +64,11 @@ class Map:
         if nb == 1:
             key = keys[0]
             val = mp[key] if (
-                (type(mp).__name__ == "dict") and key in mp) else None
+                    (type(mp).__name__ == "dict") and key in mp) else None
         else:
             key = keys[0]
             val = self.get_rec(mp[key], keys, 1) if (
-                (type(mp).__name__ == "dict") and key in mp) else None
+                    (type(mp).__name__ == "dict") and key in mp) else None
         return val
 
     def get_rec(self, mp: dict, keys: list, i: int):
@@ -59,3 +79,9 @@ class Map:
             key = keys[i]
             i += 1
             return self.get_rec(mp[key], keys, i) if ((type(mp).__name__ == "dict") and key in mp) else None
+
+    def get_map(self) -> dict:
+        return self.map
+
+    def get_keys(self) -> list:
+        return list(self.map.keys())

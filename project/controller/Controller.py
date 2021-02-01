@@ -1,6 +1,5 @@
 from model.structure.Log import Log
 from view.structure.View import View
-from model.structure.Strategy import Strategy
 
 
 class Controller:
