@@ -85,7 +85,7 @@ class BinanceAPI:
         return BinanceAPI._RQ_CONF
 
     @staticmethod
-    def _get_request_config(rq: str) -> dict:
+    def get_request_config(rq: str) -> dict:
         """
         To get config of the supported request given\n
         :param rq: a supported request
@@ -142,7 +142,7 @@ class BinanceAPI:
         :return: url where to send the given request
         """
         endp = self.__get_endpoint(i)
-        rq_cfg = BinanceAPI._get_request_config(rq)
+        rq_cfg = BinanceAPI.get_request_config(rq)
         path = rq_cfg[Map.path]
         return endp + path
 
@@ -175,7 +175,7 @@ class BinanceAPI:
         :exception Exception: there is params not available for this request
         :return:True if all params are correct else raise IndexError
         """
-        rq_cfg = BinanceAPI._get_request_config(rq)
+        rq_cfg = BinanceAPI.get_request_config(rq)
         prms = prms_map.get_map()
         mdtr = rq_cfg[Map.mandatory]
         for k in mdtr:
@@ -194,7 +194,7 @@ class BinanceAPI:
         :param prms_map: params to send
         :return: API's response
         """
-        rq_cfg = BinanceAPI._get_request_config(rq)
+        rq_cfg = BinanceAPI.get_request_config(rq)
         self._check_params(rq, prms_map)
         if rq_cfg[Map.signed]:
             self.__sign(prms_map)
@@ -207,7 +207,7 @@ class BinanceAPI:
         :param prms_map: params to send
         :return: API's response
         """
-        rq_cfg = BinanceAPI._get_request_config(rq)
+        rq_cfg = BinanceAPI.get_request_config(rq)
         hdrs = self.__generate_headers()
         url = self._generate_url(rq)
         mtd = rq_cfg[Map.method]

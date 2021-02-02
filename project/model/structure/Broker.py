@@ -12,9 +12,10 @@ class Broker(ModelFeature):
         pass
 
     @abstractmethod
-    def get_market_price(self) -> MarketPrice:
+    def get_market_price(self, prms: dict) -> MarketPrice:
         """
         To get the MarketPrice\n
+        :param prms: parameters required
         :return: the current MarketPrice
         """
         pass

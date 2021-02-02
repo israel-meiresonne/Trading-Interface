@@ -8,7 +8,7 @@ class ModelInterface(ABC):
         self.log_id = "xxx"
 
     @abstractmethod
-    def create_bot(self, bkr: str, stg: str, prcd: str, cfs={}) -> None:
+    def create_bot(self, bkr: str, stg: str, prcd: str, cfs=None) -> None:
         """
         To create a new Bot\n
         :param bkr: name of a supported Broker

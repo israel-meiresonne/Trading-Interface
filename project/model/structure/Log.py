@@ -36,7 +36,8 @@ class Log(ModelInterface, ModelFeature):
             raise Exception(f"There's no Bot with this id '{bot_id}'")
         return bots[bot_id]
 
-    def create_bot(self, bkr: str, stg: str, prcd: str, cfgs={}):
+    def create_bot(self, bkr: str, stg: str, prcd: str, cfgs=None):
+        cfgs = {} if cfgs is None else cfgs
         cfgs[bkr] = {} if bkr not in cfgs else cfgs[bkr]
         bot = Bot(bkr, stg, prcd, cfgs)
         bt_id = bot.get_id()

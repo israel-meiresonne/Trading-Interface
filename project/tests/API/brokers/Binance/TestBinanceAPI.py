@@ -20,12 +20,12 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
 
     def test_if_return_correct_config__get_request_config(self):
         exp = BinanceAPI._RQ_CONF[self.rq]
-        result = self._get_request_config(self.rq)
+        result = self.get_request_config(self.rq)
         self.assertEqual(exp, result)
 
     def test_if_raise_erorr__get_request_config(self):
         with self.assertRaises(IndexError):
-            self._get_request_config(4)
+            self.get_request_config(4)
 
     def test_if_return_true__check_params(self):
         self.assertTrue(self._check_params(self.rq_with_required, self.prms_with_required))
@@ -51,14 +51,14 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
         self.assertTrue(self._check_params(self.rq_with_required, self.prms_with_required))
 
     def test_mode_test__generate_url(self):
-        path = Map(self._get_request_config(self.rq)).get(Map.path)
+        path = Map(self.get_request_config(self.rq)).get(Map.path)
         endp = BinanceAPI._ENDPOINTS[Map.test][0]
         exp = endp + path
         result = self.bapi_test._generate_url(self.rq)
         self.assertEqual(exp, result)
 
     def test_mode_prod__generate_url(self):
-        path = Map(self._get_request_config(self.rq)).get(Map.path)
+        path = Map(self.get_request_config(self.rq)).get(Map.path)
         endp0 = BinanceAPI._ENDPOINTS[Map.api][0]
         exp1 = endp0 + path
         result1 = self.bapi_prod._generate_url(self.rq)
@@ -69,7 +69,7 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
         self.assertEqual(exp2, result2)
 
     def test__send_request(self):
-        rq_cfg_map = BinanceAPI._get_request_config(self.rq_with_required)
+        rq_cfg_map = BinanceAPI.get_request_config(self.rq_with_required)
         del rq_cfg_map[Map.method]
         with self.assertRaises(Exception):
             self.bapi_test._send_request(self.rq_with_required, self.prms_with_required)

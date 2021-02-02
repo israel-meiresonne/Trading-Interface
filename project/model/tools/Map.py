@@ -27,7 +27,8 @@ class Map:
     test = "test"
     websocket = "websocket"
 
-    def __init__(self, mp={}):
+    def __init__(self, mp=None):
+        mp = {} if mp is None else mp
         self.__map = mp
 
     def get_map(self):

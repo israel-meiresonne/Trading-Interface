@@ -26,3 +26,16 @@ class ModelFeature(ModelAccess):
         else:
             raise Exception(f"This time unit '{unit}' is not supported")
         return ts
+
+    @staticmethod
+    def keys_exist(ks: list, mp: dict) -> [None, str]:
+        """
+        Check all keys exist in map\n
+        :param ks: list of keys
+        :param mp: map where to check if keys exist in
+        :return: None if all keys exist else the value of the missing key
+        """
+        for k in ks:
+            if k not in mp:
+                return k
+        return None
