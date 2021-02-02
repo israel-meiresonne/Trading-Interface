@@ -7,6 +7,7 @@ from hashlib import sha256 as hashlib_sha256
 
 from model.structure.database.ModelFeature import ModelFeature as MDFT
 from model.tools.Map import Map
+from model.tools.BrokerResponse import BrokerResponse
 
 
 class BinanceAPI:
@@ -75,9 +76,9 @@ class BinanceAPI:
     }
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
-        self.api_public_key = api_pb
-        self.api_secret_key = api_sk
-        self.test_mode = test_mode
+        self.__api_public_key = api_pb
+        self.__api_secret_key = api_sk
+        self.__test_mode = test_mode
 
     @staticmethod
     def __get_request_configs() -> dict:
@@ -114,17 +115,17 @@ class BinanceAPI:
         To get API's public key\n
         :return: API's public key
         """
-        return self.api_public_key
+        return self.__api_public_key
 
     def __is_test_mode(self) -> bool:
-        return self.test_mode
+        return self.__test_mode
 
     def __get_api_secret_key(self) -> str:
         """
         To get API's secret key\n
         :return: API's secret key
         """
-        return self.api_secret_key
+        return self.__api_secret_key
 
     def __generate_headers(self) -> dict:
         """
@@ -186,12 +187,12 @@ class BinanceAPI:
                 raise Exception(f"This param '{k}' is not available for this request '{rq}'")
         return True
 
-    def request_api(self, rq: str, prms_map: Map):
+    def request_api(self, rq: str, prms_map: Map) -> BrokerResponse:
         """
         To config and send a request to the API\n
         :param rq: a supported request
         :param prms_map: params to send
-        :return:
+        :return: API's response
         """
         rq_cfg = BinanceAPI._get_request_config(rq)
         self._check_params(rq, prms_map)
@@ -199,12 +200,12 @@ class BinanceAPI:
             self.__sign(prms_map)
         return self._send_request(rq, prms_map)
 
-    def _send_request(self, rq: str, prms_map: Map):
+    def _send_request(self, rq: str, prms_map: Map) -> BrokerResponse:
         """
         To send a request to the API\n
         :param rq: a supported request
         :param prms_map: params to send
-        :return:
+        :return: API's response
         """
         rq_cfg = BinanceAPI._get_request_config(rq)
         hdrs = self.__generate_headers()
@@ -216,4 +217,4 @@ class BinanceAPI:
             rsp = rq_post(url, prms_map.get_map(), headers=hdrs)
         else:
             raise Exception(f"The request method {mtd} is not supported")
-        return rsp
+        return BrokerResponse(rsp)
