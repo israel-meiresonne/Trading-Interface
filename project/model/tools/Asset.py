@@ -1,4 +1,4 @@
-class Currency:
+class Asset:
     def __init__(self, cd: str):
-        self.code = cd
+        self.code = cd.lower()
         self.name = None

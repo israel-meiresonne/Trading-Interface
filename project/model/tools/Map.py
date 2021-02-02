@@ -24,10 +24,10 @@ class Map:
     websocket = "websocket"
 
     def __init__(self, mp={}):
-        self.map = mp
+        self.__map = mp
 
     def get_map(self):
-        return self.map
+        return self.__map
 
     def put(self, val, *keys):
         nb = len(keys)
@@ -81,7 +81,7 @@ class Map:
             return self.get_rec(mp[key], keys, i) if ((type(mp).__name__ == "dict") and key in mp) else None
 
     def get_map(self) -> dict:
-        return self.map
+        return self.__map
 
     def get_keys(self) -> list:
-        return list(self.map.keys())
+        return list(self.__map.keys())
