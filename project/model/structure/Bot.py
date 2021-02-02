@@ -8,19 +8,18 @@ from model.tools.Paire import Pair
 class Bot(ModelFeature):
     SEPARATOR = "-"
 
-    def __init__(self, bkr: str, stg: str, prcd: str, cfs: dict):
+    def __init__(self, bkr: str, stg: str, prcd: str, cfgs: dict):
         """
         To create a new Bot\n
         :param bkr: name of a supported Broker
         :param stg: name of a supported Strategy
         :param prcd: code of the pair to Trade, i.e.: "BTC/USDT"
-        :param cfs: holds additional configs for the Bot
-                    cfs[{Bot}]    => Bot configs
-                    cfs[{Broker}] => Broker configs
+        :param cfgs: holds additional configs for the Bot
+                    cfgs[{Bot}]    => Bot configs
+                    cfgs[{Broker}] => Broker configs
         """
-        cfs[bkr] = {} if bkr not in cfs else cfs[bkr]
         self.__id = Bot.__generate_id(bkr, stg, prcd)
-        self.__broker = Broker.retrieve(bkr, cfs[bkr])
+        self.__broker = Broker.retrieve(bkr, cfgs[bkr])
         self.__strategy = Strategy.retrieve(stg)
         self.__pair = Pair(prcd)
 

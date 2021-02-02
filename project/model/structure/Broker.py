@@ -53,12 +53,12 @@ class Broker(ModelFeature):
         return FileManager.get_dirs(p, False)
 
     @staticmethod
-    def retrieve(bkr: str, cfs: dict):
+    def retrieve(bkr: str, cfgs: dict):
         """
         To get access to a Broker\n
         :param bkr: name of a supported Broker
-        :param cfs: additional configs for the Broker
+        :param cfgs: additional configs for the Broker
         :return: access to a Broker
         """
         exec("from model.API.brokers."+bkr+"."+bkr+" import "+bkr)
-        return eval(bkr+"(cfs)")
+        return eval(bkr+"(cfgs)")

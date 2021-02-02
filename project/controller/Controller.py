@@ -1,6 +1,8 @@
 from model.structure.Log import Log
+from model.tools.Map import Map
 from view.structure.View import View
 
+# from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 
 class Controller:
     def __init__(self):
@@ -25,6 +27,27 @@ class Controller:
         """
         To start the application\n
         """
+        """
+        api_pb = "mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5"
+        api_sk = "xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr"
+        rq = BinanceAPI.RQ_KLINES
+        prms_map = Map()
+        prms_map.put("BTCUSDT", Map.symbol)
+        prms_map.put("1m", Map.interval)
+        prms_map.put(10, Map.limit)
+
+        bapi = BinanceAPI(api_pb, api_sk, True)
+        brq = bapi.request_api(rq, prms_map)
+        print("type: ", type(brq))
+        hdrs = brq.get_headers()
+        ctnt = brq.get_content()
+        cd = brq.get_status_code()
+        url = brq.get_url()
+        print(f"status code: {type(cd)}", cd)
+        print(f"url: {type(url)}", url)
+        print(f"header({type(hdrs)}): ", hdrs)
+        print(f"content: {type(ctnt)}", ctnt)
+        """
         vw = self.__get_view()
         m_home = "home"
         ied = False
@@ -41,13 +64,23 @@ class Controller:
     def new_bot(self):
         md = self.__get_model()
         vw = self.__get_view()
+        # params
         bkrs = md.list_brokers()
         stgs = md.list_strategies()
         bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
         stg = stgs[vw.menu("Choose a Strategy:", stgs)]
         prcds = md.list_paires(bkr)
         prcd = prcds[vw.menu("Choose a Pair to trade:", prcds)]
-        md.create_bot(bkr, stg, prcd)
+        # configs
+        cfgs_map = Map()
+        cfgs_map.put(vw.input(f"Enter the public key for {bkr}"), bkr, Map.api_pb)
+        cfgs_map.put(vw.input(f"Enter the secret key for {bkr}"), bkr, Map.api_sk)
+        mds = {"Test mode": True, "Real mode": False}
+        mds_ks = list(mds.keys())
+        cfgs_map.put(mds[mds_ks[vw.menu("Choose your mode:", mds_ks)]], bkr, Map.test_mode)
+        print(cfgs_map.get_map())
+        # create Bot
+        md.create_bot(bkr, stg, prcd, cfgs_map.get_map())
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
 
     def start_bot(self):

@@ -2,6 +2,10 @@ class Map:
     # keys
     msg = "msg"
     cs = "cs"
+    # Binance
+    api_pb = "api_pb"
+    api_sk = "api_sk"
+    test_mode = "test_mode"
     # BinanceAPI
     signed = "signed"
     path = "path"
