@@ -30,7 +30,8 @@ class View(ViewInterface):
     def get_menus():
         return View.__MENUS
 
-    def input(self, t=None):
+    def input(self, msg=None, t=None) -> [str, int, float, bool]:
+        print(msg) if msg is not None else None
         v = input()
         if t is not None:
             s = False
@@ -44,7 +45,7 @@ class View(ViewInterface):
                     v = input()
         return v
 
-    def menu(self, msg: str, cs: list) -> str:
+    def menu(self, msg: str, cs: list) -> int:
         """
         To display a list as menu choices
         :param cs: list of choices
@@ -55,7 +56,7 @@ class View(ViewInterface):
         self.output("menu", dv_mp)
         s = False
         while not s:
-            v = self.input("int")
+            v = self.input(t="int")
             s = (0 <= v < len(cs))
             self.output(View.FILE_ERROR, "Option '{}' don't exit in menu".format(v)) \
                 if not s else None
