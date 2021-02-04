@@ -39,6 +39,7 @@ class Log(ModelInterface, ModelFeature):
     def create_bot(self, bkr: str, stg: str, prcd: str, cfgs=None):
         cfgs = {} if cfgs is None else cfgs
         cfgs[bkr] = {} if bkr not in cfgs else cfgs[bkr]
+        print(cfgs)
         bot = Bot(bkr, stg, prcd, cfgs)
         bt_id = bot.get_id()
         bts = self.get_bots()

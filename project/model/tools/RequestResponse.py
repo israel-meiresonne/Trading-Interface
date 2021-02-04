@@ -5,6 +5,9 @@ class RequestResponse:
     def __init__(self, rsp: Response):
         self.__response = rsp
 
+    def _get_response(self) -> Response:
+        return self.__response
+
     def get_status_code(self) -> int:
         return self.__response.status_code
 

@@ -16,7 +16,17 @@ class BinanceAPI:
     RQ_EXCG_INFOS = "RQ_EXCG_INFOS"
     RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
+    RQ_ORDER_LIMIT = "RQ_ORDER_LIMIT"
+    RQ_ORDER_MARKET_qty = "RQ_ORDER_MARKET_qty"
+    RQ_ORDER_MARKET_amount = "RQ_ORDER_MARKET_amount"
+    RQ_ORDER_STOP_LOSS = "RQ_ORDER_STOP_LOSS"
+    RQ_ORDER_STOP_LOSS_LIMIT = "RQ_ORDER_STOP_LOSS_LIMIT"
+    RQ_ORDER_TAKE_PROFIT = "RQ_ORDER_TAKE_PROFIT"
+    RQ_ORDER_TAKE_PROFIT_LIMIT = "RQ_ORDER_TAKE_PROFIT_LIMIT"
+    RQ_ORDER_LIMIT_MAKER = "RQ_ORDER_LIMIT_MAKER"
     # Configs
+    # __PATH_ORDER = "/api/v3/order"
+    __PATH_ORDER = "/api/v3/order/test"
     _RQ_CONF = {
         RQ_SYS_STATUS: {
             Map.signed: False,
@@ -59,6 +69,174 @@ class BinanceAPI:
                 Map.limit,
                 Map.recvWindow
             ]
+        },
+        RQ_ORDER_LIMIT: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.timeInForce,
+                Map.quantity,
+                Map.price,
+            ],
+            Map.params: [
+                Map.quoteOrderQty,
+                Map.newClientOrderId,
+                Map.stopPrice,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow,
+            ]
+        },
+        RQ_ORDER_MARKET_qty: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.quantity
+            ],
+            Map.params: [
+                # Map.timeInForce,
+                Map.quoteOrderQty,
+                Map.price,
+                Map.newClientOrderId,
+                Map.stopPrice,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow,
+            ]
+        },
+        RQ_ORDER_MARKET_amount: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.quoteOrderQty
+            ],
+            Map.params: [
+                # Map.timeInForce,
+                Map.quantity,
+                Map.price,
+                Map.newClientOrderId,
+                Map.stopPrice,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow,
+            ]
+        },
+        RQ_ORDER_STOP_LOSS: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.quantity,
+                Map.stopPrice
+            ],
+            Map.params: [
+                Map.timeInForce,
+                Map.quoteOrderQty,
+                Map.price,
+                Map.newClientOrderId,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow
+            ]
+        },
+        RQ_ORDER_STOP_LOSS_LIMIT: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.timeInForce,
+                Map.quantity,
+                Map.price,
+                Map.stopPrice
+            ],
+            Map.params: [
+                Map.quoteOrderQty,
+                Map.newClientOrderId,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow
+            ]
+        },
+        RQ_ORDER_TAKE_PROFIT: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.quantity,
+                Map.price
+            ],
+            Map.params: [
+                Map.timeInForce,
+                Map.quoteOrderQty,
+                Map.newClientOrderId,
+                Map.stopPrice,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow
+            ]
+        },
+        RQ_ORDER_TAKE_PROFIT_LIMIT: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.timeInForce,
+                Map.quantity,
+                Map.price,
+                Map.stopPrice
+            ],
+            Map.params: [
+                Map.quoteOrderQty,
+                Map.newClientOrderId,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow
+            ]
+        },
+        RQ_ORDER_LIMIT_MAKER: {
+            Map.signed: True,
+            Map.method: Map.POST,
+            Map.path: __PATH_ORDER,
+            Map.mandatory: [
+                Map.symbol,
+                Map.side,
+                Map.type,
+                Map.quantity,
+                Map.price
+            ],
+            Map.params: [
+                Map.timeInForce,
+                Map.quoteOrderQty,
+                Map.newClientOrderId,
+                Map.stopPrice,
+                Map.icebergQty,
+                Map.newOrderRespType,
+                Map.recvWindow
+            ]
         }
     }
     # endpoints
@@ -74,6 +252,10 @@ class BinanceAPI:
         ],
         Map.websocket: []
     }
+    # ENUM
+    SIDE_BUY = "BUY"
+    SIDE_SELL = "SELL"
+    TYPE_MARKET = "MARKET"
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
         self.__api_public_key = api_pb
@@ -180,7 +362,7 @@ class BinanceAPI:
         mdtr = rq_cfg[Map.mandatory]
         for k in mdtr:
             if k not in prms:
-                raise IndexError(f"This request {rq} require the parameter {k}")
+                raise IndexError(f"This request '{rq}' require the parameter '{k}'")
         rq_prms = rq_cfg[Map.params]
         for k, _ in prms.items():
             if (k not in mdtr) and (k not in rq_prms):

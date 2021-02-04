@@ -26,6 +26,19 @@ class Map:
     api = "api"
     test = "test"
     websocket = "websocket"
+    side = "side"
+    timeInForce = "timeInForce"
+    quantity = "quantity"
+    price = "price"
+    quoteOrderQty = "quoteOrderQty"
+    newClientOrderId = "newClientOrderId"
+    stopPrice = "stopPrice"
+    icebergQty = "icebergQty"
+    newOrderRespType = "newOrderRespType"
+    # BinanceOrder
+    move = "move"
+    pair = "pair"
+    market = "market"
 
     def __init__(self, mp=None):
         mp = {} if mp is None else mp

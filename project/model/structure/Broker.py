@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from model.structure.database.ModelFeature import ModelFeature
+from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
@@ -21,10 +22,11 @@ class Broker(ModelFeature):
         pass
 
     @abstractmethod
-    def execute(self, odr: Order) -> None:
+    def execute(self, odr: Order) -> BrokerResponse:
         """
-        To excute a trade Order\n
-        :param odr: Order to execute
+        To submit a Order request to Broker's API\n
+        :param odr: the Order to execute
+        :return: the response of the Order request
         """
         pass
 

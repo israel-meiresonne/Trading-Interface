@@ -39,3 +39,13 @@ class ModelFeature(ModelAccess):
             if k not in mp:
                 return k
         return None
+
+    @staticmethod
+    def clean(tab: [list, dict]) -> [list, dict]:
+        t = type(tab)
+        if t == list:
+            return [v for v in tab if (v != '') and (v is not None)]
+        elif t == dict:
+            return {k: v for k, v in tab.items() if (v != '') and (v is not None)}
+        else:
+            raise ValueError(f"Can't clean this type '{t}'")
