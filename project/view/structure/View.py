@@ -1,3 +1,5 @@
+import getpass
+
 from view.ViewInterface import ViewInterface
 from view.tools.Buffer import Buffer
 from model.tools.Map import Map
@@ -30,10 +32,13 @@ class View(ViewInterface):
     def get_menus():
         return View.__MENUS
 
-    def input(self, msg=None, t=None) -> [str, int, float, bool]:
-        print(msg) if msg is not None else None
-        v = input()
-        if t is not None:
+    def input(self, msg=None, t=None, secure=False) -> [str, int, float, bool]:
+        msg = msg if msg is not None else ""
+        if secure:
+            v = getpass.getpass(msg)
+        else:
+            v = input(msg)
+        if not secure and t is not None:
             s = False
             while not s:
                 try:
