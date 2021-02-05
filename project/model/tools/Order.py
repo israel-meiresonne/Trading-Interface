@@ -13,7 +13,7 @@ class Order(ABC):
         Constructor\n
         :param tp: type of Order
         :param params: Order's params
-                        params[Map.pair]        => {pair}
+                        params[Map.pair]        => {Pair}
                         params[Map.move]        => {str}
                         params[Map.market]      => {Price}
                         params[Map.limit]       => {Price}

@@ -21,6 +21,9 @@ class BinanceOrder(Order):
         """
         To set Order for a market Order\n
         :param params: params to make a market Order
+                        params[Map.pair]    => {Pair}
+                        params[Map.move]    => {str}
+                        params[Map.market]  => {Price}
         """
         mkt_prms = self._extract_market_params(params)
         self.__set_api_request(self._exract_market_request(mkt_prms))

@@ -1,4 +1,6 @@
 import unittest
+from random import random as random_random
+
 from model.tools.Map import Map
 
 
@@ -59,11 +61,13 @@ class TestMap(unittest.TestCase, Map):
         self.mp1.put(self.val1, self.key3, self.key1)
         self.assertEqual(self.mp1.get(self.key3, self.key1), self.val1)
         self.mp1.put(self.val2, self.key3, self.key1, self.key2)
-        self.assertEqual(self.mp1.get(self.key3, self.key1, self.key2), self.val2)
+        self.assertEqual(self.mp1.get(
+            self.key3, self.key1, self.key2), self.val2)
 
     def test_update_deeper_map_in_value(self):
         self.mp1.put(self.val1, self.key3, self.key1, self.key2)
-        self.assertEqual(self.mp1.get(self.key3, self.key1, self.key2), self.val1)
+        self.assertEqual(self.mp1.get(
+            self.key3, self.key1, self.key2), self.val1)
         self.mp1.put(self.val2, self.key3, self.key1)
         self.assertEqual(self.mp1.get(self.key3, self.key1), self.val2)
 
@@ -72,6 +76,217 @@ class TestMap(unittest.TestCase, Map):
         result = self.mp2.get_keys()
         self.assertEqual(type(exp), type(result))
         self.assertListEqual(exp, result)
+
+    def test_speed_MAP(self):
+        val = "xxx"
+        mp = Map()
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        mp.put(val, random_random(), random_random())
+        print(len(mp.get_map()))
+
+    def test_speed_dict(self):
+        val = "xxx"
+        dct = {
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val},
+            random_random(): {random_random(): val}
+        }
+        print(len(dct))
 
 
 if __name__ == '__main__':
