@@ -11,7 +11,7 @@ class FileManager(ABC):
     @staticmethod
     def get_files(p: str, ex=True) -> list:
         """
-        To get files of a directory\n
+        To list files of a directory\n
         :param p: the path of the directory
         :param ex: set True to get files with their extension else False
         :return: list of files
@@ -27,10 +27,10 @@ class FileManager(ABC):
     @staticmethod
     def get_dirs(p: str, include: bool) -> list:
         """
-         To get directories of a directory\n
+         To list directories of a directory\n
          :param p: the path of the directory
-         :param include: set True to include special files else False
-                     supported special file: .ignore, __pychache__
+         :param include: set True to include special directories else False.
+                        Special file supported: .ignore, __pychache__
          :return: list of directories
          """
         _, drs, _ = next(walk(p))
