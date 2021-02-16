@@ -1,7 +1,9 @@
 from abc import abstractmethod
 from model.structure.database.ModelFeature import ModelFeature
+from model.tools.BrokerRequest import BrokerRequest
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
+from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
 from config.Config import Config
@@ -9,24 +11,35 @@ from config.Config import Config
 
 class Broker(ModelFeature):
     @abstractmethod
-    def __init__(self):
+    def get_account_snapshot(self, bkr_rq: BrokerRequest) -> None:
+        """
+        To get a snapshot\n
+        :param bkr_rq: holds params for the request
+        :return: the result is stored the given BrokerRequest
+        """
         pass
 
     @abstractmethod
-    def get_market_price(self, prms: dict) -> MarketPrice:
+    def get_market_price(self, bkr_rq: BrokerRequest) -> None:
         """
         To get the MarketPrice\n
-        :param prms: parameters required
-        :return: the current MarketPrice
+        :param bkr_rq: holds parameters required
         """
         pass
 
     @abstractmethod
-    def execute(self, odr: Order) -> BrokerResponse:
+    def execute(self, odrs: Map) -> None:
         """
-        To submit a Order request to Broker's API\n
-        :param odr: the Order to execute
-        :return: the response of the Order request
+        To submit Order requests to Broker's API\n
+        :param odrs: the Orders to execute
+        """
+        pass
+
+    @abstractmethod
+    def cancel(self, odr: Order) -> None:
+        """
+        To cancel an Order\n
+        :param odr: the order to cancel
         """
         pass
 

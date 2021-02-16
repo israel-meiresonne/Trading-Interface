@@ -68,11 +68,59 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
         result2 = self.bapi_prod._generate_url(self.rq, 2)
         self.assertEqual(exp2, result2)
 
-    def test__send_request(self):
+    def test_send_request(self):
         rq_cfg_map = BinanceAPI.get_request_config(self.rq_with_required)
         del rq_cfg_map[Map.method]
         with self.assertRaises(Exception):
             self.bapi_test._send_request(self.rq_with_required, self.prms_with_required)
+
+    def test_get_interval(self):
+        # value returned
+        self.assertEqual(60, self.get_interval('1m'))
+        self.assertEqual(60*3, self.get_interval('3m'))
+        self.assertEqual(60*5, self.get_interval('5m'))
+        self.assertEqual(50*15, self.get_interval('15m'))
+        self.assertEqual(60*30, self.get_interval('30m'))
+        self.assertEqual(60*60, self.get_interval('1h'))
+        self.assertEqual(60*60*2, self.get_interval('2h'))
+        self.assertEqual(60*60*4, self.get_interval('4h'))
+        self.assertEqual(60*60*6, self.get_interval('6h'))
+        self.assertEqual(60*60*8, self.get_interval('8h'))
+        self.assertEqual(60*60*12, self.get_interval('12h'))
+        self.assertEqual(60*60*24, self.get_interval('1d'))
+        self.assertEqual(60*60*24*3, self.get_interval('3d'))
+        self.assertEqual(60*60*24*7, self.get_interval('1w'))
+        self.assertEqual(int(60*60*24*31.5), self.get_interval('1M'))
+        # reference
+        map_id = id(self._INTERVALS_INT)
+        dict_id = id(self._INTERVALS_INT.get_map())
+        new_map = self.get_intervals()
+        new_map_id = id(new_map)
+        new_dict_id = id(new_map.get_map())
+        self.assertNotEqual(map_id, new_map_id)
+        self.assertNotEqual(dict_id, new_dict_id)
+
+    def test_convert_interval(self):
+        # simple test
+        prd1 = 60*20
+        exp1 = self.INTERVAL_30MIN
+        result1 = self.convert_interval(prd1)
+        self.assertEqual(exp1, result1)
+        # period = 0
+        prd2 = 0
+        exp2 = self.INTERVAL_1MIN
+        result2 = self.convert_interval(prd2)
+        self.assertEqual(exp2, result2)
+        # period < 0
+        prd3 = -1
+        exp3 = self.INTERVAL_1MIN
+        result3 = self.convert_interval(prd3)
+        self.assertEqual(exp3, result3)
+        # period > higher supported
+        prd4 = 60*60*24*35
+        exp4 = self.INTERVAL_1MONTH
+        result4 = self.convert_interval(prd4)
+        self.assertEqual(exp4, result4)
 
 
 if __name__ == "__main__":

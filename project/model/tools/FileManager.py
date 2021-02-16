@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 from os import walk
+from os import path as os_path
 import re as rgx
 
 
 class FileManager(ABC):
+    ROOT_DIR = os_path.abspath(__file__).replace("FileManager.py", "../../")
+
     @abstractmethod
     def __init__(self):
         pass
@@ -16,7 +19,8 @@ class FileManager(ABC):
         :param ex: set True to get files with their extension else False
         :return: list of files
         """
-        _, _, fs = next(walk(p))
+        root = FileManager.ROOT_DIR
+        _, _, fs = next(walk(root + p))
         if not ex:
             ptr = "\.[A-z]*$"
             for i in range(len(fs)):
@@ -33,7 +37,8 @@ class FileManager(ABC):
                         Special file supported: .ignore, __pychache__
          :return: list of directories
          """
-        _, drs, _ = next(walk(p))
+        root = FileManager.ROOT_DIR
+        _, drs, _ = next(walk(root + p))
         if not include:
             ptr = "^__[\w]*__$|^\.[\w]"
             ndrs = []

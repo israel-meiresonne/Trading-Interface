@@ -14,6 +14,7 @@ class Map:
     method = "method"
     GET = "GET"
     POST = "POST"
+    DELETE = "DELETE"
     type = "type"
     timestamp = "timestamp"
     startTime = "startTime"
@@ -29,19 +30,42 @@ class Map:
     side = "side"
     timeInForce = "timeInForce"
     quantity = "quantity"
+    amount = "amount"
     price = "price"
     quoteOrderQty = "quoteOrderQty"
     newClientOrderId = "newClientOrderId"
     stopPrice = "stopPrice"
     icebergQty = "icebergQty"
     newOrderRespType = "newOrderRespType"
+    orderId = "orderId"
+    origClientOrderId = "origClientOrderId"
     # BinanceOrder
     move = "move"
     pair = "pair"
     market = "market"
+    # BinanceRequest
+    period = "period"
+    number = "number"
+    begin_time = "begin_time"
+    end_time = "end_time"
+    account = "account"
+    timeout = "timeout"
+    snapshotVos = "snapshotVos"
+    data = "data"
+    balance = "balance"
+    asset = "asset"
+    free = "free"
+    # MinMax
+    stop = "stop"
+    # Order
+    left = "left"
+    right = "right"
+    # Strategy
+    capital = "capital"
+    rate = "rate"
 
     def __init__(self, mp=None):
-        mp = {} if mp is None else mp
+        mp = {} if mp is None else dict(mp)
         self.__map = mp
 
     def get_map(self):

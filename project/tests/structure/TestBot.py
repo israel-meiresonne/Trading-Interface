@@ -23,5 +23,6 @@ class TestBot(unittest.TestCase, Bot):
         self.assertEqual(self.bt._get_pair().__class__.__name__, Pair.__name__)
     """
 
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

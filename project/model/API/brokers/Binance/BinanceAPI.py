@@ -1,21 +1,25 @@
-# from datetime import datetime
-# from time import time as time_time
 from requests import get as rq_get
 from requests import post as rq_post
+from requests import delete as rq_delete
 from hmac import new as new_hmac
 from hashlib import sha256 as hashlib_sha256
 
-from model.structure.database.ModelFeature import ModelFeature as MDFT
+from model.structure.database.ModelFeature import ModelFeature as ModelFeat
 from model.tools.Map import Map
 from model.tools.BrokerResponse import BrokerResponse
 
 
 class BinanceAPI:
+    # Const
+    ORDER_TEST_PATH = "/api/v3/order/test"
+    ORDER_REAL_PATH = "/api/v3/order"
     # Requests
     RQ_SYS_STATUS = "RQ_SYS_STATUS"
     RQ_EXCG_INFOS = "RQ_EXCG_INFOS"
     RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
+    # Orders
+    RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
     RQ_ORDER_LIMIT = "RQ_ORDER_LIMIT"
     RQ_ORDER_MARKET_qty = "RQ_ORDER_MARKET_qty"
     RQ_ORDER_MARKET_amount = "RQ_ORDER_MARKET_amount"
@@ -25,8 +29,7 @@ class BinanceAPI:
     RQ_ORDER_TAKE_PROFIT_LIMIT = "RQ_ORDER_TAKE_PROFIT_LIMIT"
     RQ_ORDER_LIMIT_MAKER = "RQ_ORDER_LIMIT_MAKER"
     # Configs
-    # __PATH_ORDER = "/api/v3/order"
-    __PATH_ORDER = "/api/v3/order/test"
+    __PATH_ORDER = None
     _RQ_CONF = {
         RQ_SYS_STATUS: {
             Map.signed: False,
@@ -42,6 +45,20 @@ class BinanceAPI:
             Map.mandatory: [],
             Map.params: []
         },
+        RQ_ACCOUNT_SNAP: {
+            Map.signed: True,
+            Map.method: Map.GET,
+            Map.path: "/sapi/v1/accountSnapshot",
+            Map.mandatory: [
+                Map.type
+            ],
+            Map.params: [
+                Map.startTime,
+                Map.endTime,
+                Map.limit,
+                Map.recvWindow
+            ]
+        },
         RQ_KLINES: {
             Map.signed: False,
             Map.method: Map.GET,
@@ -56,17 +73,17 @@ class BinanceAPI:
                 Map.limit
             ]
         },
-        RQ_ACCOUNT_SNAP: {
+        RQ_CANCEL_ORDER:{
             Map.signed: True,
-            Map.method: Map.GET,
-            Map.path: "/sapi/v1/accountSnapshot",
+            Map.method: Map.DELETE,
+            Map.path: __PATH_ORDER,
             Map.mandatory: [
-                Map.type
+                Map.symbol,
+                Map.orderId
             ],
             Map.params: [
-                Map.startTime,
-                Map.endTime,
-                Map.limit,
+                Map.origClientOrderId,
+                Map.newClientOrderId,
                 Map.recvWindow
             ]
         },
@@ -253,14 +270,54 @@ class BinanceAPI:
         Map.websocket: []
     }
     # ENUM
+    ''' ACCOUNT '''
+    ACCOUNT_TYPE_SPOT = "SPOT"
+    ACCOUNT_TYPE_MARGIN = "MARGIN"
+    ACCOUNT_TYPE_FUTURES = "FUTURES"
+    ''' MOVE '''
     SIDE_BUY = "BUY"
     SIDE_SELL = "SELL"
+    ''' ORDER TYPE '''
     TYPE_MARKET = "MARKET"
+    TYPE_STOP = "STOP_LOSS"
+    ''' TIME FORCE '''
+    TIME_FRC_GTC = "GTC"
+    TIME_FRC_IOC = "IOC"
+    TIME_FRC_FOK = "FOK"
+    ''' RESPONSE TYPE '''
+    RSP_TYPE_ACK = "ACK"
+    RSP_TYPE_RESULT = "RESULT"
+    RSP_TYPE_FULL = "FULL"
+    ''' INTERVALS '''
+    _INTERVALS_INT = Map({
+        '1m': 60,
+        '3m': 60*3,
+        '5m': 60*5,
+        '15m': 50*15,
+        '30m': 60*30,
+        '1h': 60*60,
+        '2h': 60*60*2,
+        '4h': 60*60*4,
+        '6h': 60*60*6,
+        '8h': 60*60*8,
+        '12h': 60*60*12,
+        '1d': 60*60*24,
+        '3d': 60*60*24*3,
+        '1w': 60*60*24*7,
+        '1M': int(60*60*24*31.5)
+    })
+    INTERVAL_1MIN = '1m'
+    INTERVAL_30MIN = '30m'
+    INTERVAL_1MONTH = '1M'
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
         self.__api_public_key = api_pb
         self.__api_secret_key = api_sk
         self.__test_mode = test_mode
+        if (type(test_mode) == bool) and (not test_mode):
+            self.__PATH_ORDER = self.ORDER_REAL_PATH
+        else:
+            self.__PATH_ORDER = self.ORDER_TEST_PATH
 
     @staticmethod
     def __get_request_configs() -> dict:
@@ -309,6 +366,34 @@ class BinanceAPI:
         """
         return self.__api_secret_key
 
+    @staticmethod
+    def get_intervals() -> Map:
+        return Map(BinanceAPI._INTERVALS_INT.get_map())
+
+    @staticmethod
+    def get_interval(k) -> int:
+        if k not in BinanceAPI._INTERVALS_INT.get_keys():
+            raise IndexError(f"This interval '{k}' is not supported")
+        return BinanceAPI._INTERVALS_INT.get(k)
+
+    @staticmethod
+    def convert_interval(prd: int) -> str:
+        """
+        To convert a period time in second to a period interval supported by the API\n
+        :param prd: the period time (in second) to convert
+        :return: period interval supported by the API
+        """
+        intrs = BinanceAPI.get_intervals()
+        ks = intrs.get_keys()
+        nb = len(ks)
+        intr = ks[nb - 1]
+        for i in range(nb):
+            v = intrs.get(ks[i])
+            if v >= prd:
+                intr = ks[i]
+                break
+        return intr
+
     def __generate_headers(self) -> dict:
         """
         To generate a headers for a request to the API\n
@@ -343,7 +428,7 @@ class BinanceAPI:
         :param prms_map: params of a request
         """
         # ds_map.put(recvWindow, Map.recvWindow)
-        stamp = MDFT.get_time_stamps(MDFT.TIME_MILLISEC)
+        stamp = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
         prms_map.put(stamp, Map.timestamp)
         sgt = self.__generate_signature(prms_map.get_map())
         prms_map.put(sgt, Map.signature)
@@ -397,6 +482,10 @@ class BinanceAPI:
             rsp = rq_get(url, prms_map.get_map(), headers=hdrs)
         elif mtd == Map.POST:
             rsp = rq_post(url, prms_map.get_map(), headers=hdrs)
+        elif mtd == Map.DELETE:
+            ds = prms_map.get_map()
+            url += '?' + '&'.join([f'k={v}' for k, v in ds.items()])
+            rsp = rq_delete(url, headers=hdrs)
         else:
             raise Exception(f"The request method {mtd} is not supported")
         return BrokerResponse(rsp)

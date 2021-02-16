@@ -9,6 +9,10 @@ class Config(ABC):
     DIR_BROKERS = "DIR_BROKERS"
     DIR_STRATEGIES = "DIR_STRATEGIES"
 
+    @abstractmethod
+    def __init__(self):
+        pass
+
     @staticmethod
     def get(k: str):
         fs = FileManager.get_files("config/files", False)
