@@ -68,7 +68,7 @@ class Map:
         mp = {} if mp is None else dict(mp)
         self.__map = mp
 
-    def get_map(self):
+    def get_map(self) -> dict:
         return self.__map
 
     def put(self, val, *keys):
@@ -84,7 +84,7 @@ class Map:
             else:
                 mp[key] = self.put_rec({}, val, keys, 1)
 
-    def put_rec(self, mp: dict, val, keys: list, i: int):
+    def put_rec(self, mp: dict, val, keys: tuple, i: int):
         if i < len(keys):
             key = keys[i]
             if key in mp:
@@ -113,7 +113,7 @@ class Map:
                     (type(mp).__name__ == "dict") and key in mp) else None
         return val
 
-    def get_rec(self, mp: dict, keys: list, i: int):
+    def get_rec(self, mp: dict, keys: tuple, i: int):
         if i == (len(keys) - 1):
             key = keys[i]
             return mp[key] if ((type(mp).__name__ == "dict") and key in mp) else None
@@ -121,9 +121,6 @@ class Map:
             key = keys[i]
             i += 1
             return self.get_rec(mp[key], keys, i) if ((type(mp).__name__ == "dict") and key in mp) else None
-
-    def get_map(self) -> dict:
-        return self.__map
 
     def get_keys(self) -> list:
         return list(self.__map.keys())

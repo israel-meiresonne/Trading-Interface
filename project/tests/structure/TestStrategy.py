@@ -102,16 +102,7 @@ class TestStrategy(unittest.TestCase, Strategy):
         rate3 = 1.1
         with self.assertRaises(ValueError):
             self._check_max_capital(None, rate3)
-    """
-    def test_add_import(self):
-        # Add import
-        instruc = "from config.Config import Config"
-        self.assertIsNone(self.stg._add_import(instruc))
-        self.assertEqual(instruc, self.stg._get_imports()[0])
-        # Error
-        with self.assertRaises(Exception):
-            self.stg._add_import(instruc)
-    """
+
     def test_retrieve(self):
         exp = MinMax.__name__
         stg_cls = MinMax.__name__

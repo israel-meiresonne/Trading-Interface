@@ -44,23 +44,7 @@ class Bot(ModelFeature):
         stg = self._get_strategy()
         end = False
         print("Bot started to trade...")
-        mkt_prc = {
-            Map.symbol: self._get_pair().get_merged_symbols().upper(),
-            Map.interval: "1m",
-            Map.startTime: None,
-            Map.endTime: None,
-            Map.limit: 3
-        }
         while not end:
-            mkpc = bkr.get_market_price(mkt_prc)
-            print("——————————————\n|Market price|\n——————————————")
-            print(mkpc.get_market())
-            odr = stg.get_order(mkpc)
-            odr_rsp = bkr.execute(odr)
-            print("————————————————\n|Order response|\n————————————————", odr_rsp.__str__())
-            nxtm = bkr.get_next_trade_time()
-            print(f"Bot sleep for {nxtm}sec...")
-            sleep(nxtm)
             end = self.__stillActive()
 
     def __stillActive(self) -> bool:

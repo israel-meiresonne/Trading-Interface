@@ -1,10 +1,8 @@
 from abc import abstractmethod
 from model.structure.database.ModelFeature import ModelFeature
 from model.tools.BrokerRequest import BrokerRequest
-from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
-from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
 from config.Config import Config
 

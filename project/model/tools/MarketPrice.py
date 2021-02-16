@@ -42,7 +42,7 @@ class MarketPrice(ABC):
         return self.__period_time
 
     def get_market(self) -> tuple:
-        return self.__market
+        return tuple(self.__market)
 
     def __get_collections(self) -> Map:
         return self.__collections

@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 from model.structure.database.ModelFeature import ModelFeature as ModelFeat, ModelFeature
-from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Map import Map
 from model.tools.Paire import Pair
 from model.tools.Price import Price
@@ -38,6 +37,7 @@ class Order(ABC, Request):
                         params[Map.quantity]    => {Price}
                         params[Map.amount]      => {Price}
         """
+        super().__init__()
         self.__id = None
         self.__broker_id = None
         self.__type = odr_type

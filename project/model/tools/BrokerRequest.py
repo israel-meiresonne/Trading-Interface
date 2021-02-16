@@ -19,6 +19,7 @@ class BrokerRequest(ABC, Request):
     ACCOUNT_FUTUR = "ACCOUNT_FUTUR"
 
     def __init__(self, prms: Map):
+        super().__init__()
         self.__params = prms
         self.__request = None
 

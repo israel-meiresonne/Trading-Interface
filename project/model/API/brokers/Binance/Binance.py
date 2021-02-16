@@ -3,10 +3,7 @@ from random import random
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
-from model.tools.BrokerRequest import BrokerRequest
-from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Map import Map
-from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
 
 
@@ -19,6 +16,7 @@ class Binance(Broker):
                      cfgs[Map.api_sk]       => {str}
                      cfgs[Map.test_mode]    => {bool}
         """
+        super().__init__()
         ks = [Map.api_pb, Map.api_sk, Map.test_mode]
         rtn = self.keys_exist(ks, cfgs)
         if rtn is not None:

@@ -3,7 +3,6 @@ from decimal import Decimal
 
 from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature
-from model.structure.Broker import Broker
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Paire import Pair
@@ -34,7 +33,6 @@ class Strategy(ModelFeature):
         self.__capital = None
         self.__max_capital = max_cap
         self.__rate = Decimal(rate)
-        self.__imports = []
 
     def get_pair(self) -> Pair:
         return self.__pair
@@ -89,44 +87,6 @@ class Strategy(ModelFeature):
             raise ValueError(f"The max capital can't be set at zero")
         if (rate is not None) and (rate <= 0 or rate > 1):
             raise ValueError(f"The capital rate '{rate}' must be between 0 and 1 (]0,1])")
-    '''
-    def _add_import(self, instruc: str) -> None:
-        """
-        ‼️ PASTE INSTRUCTIONS BELLOW IN ALL STRATEGIES‼️
-        imports = self._get_imports()
-        if instruc in imports:
-            raise Exception(f"This import instruction '{instruc}' already exist")
-        imports.append(instruc)
-        """
-        pass
-
-    def _get_imports(self) -> list:
-        return self.__imports
-
-    @abstractmethod
-    def _import_moduls(self, instucs: list) -> None:
-        """
-        To do import dynamically\n
-        :param instucs: The import instructions
-        
-        ‼️ PASTE INSTRUCTIONS BELLOW IN ALL STRATEGIES‼️
-        imports = self._get_imports()
-        for instuc in instucs:
-            if instuc not in imports:
-                exec(instuc)
-                self._add_import(instuc)
-        
-        """
-        pass
-
-    @abstractmethod
-    def trade(self, bkr: Broker) -> None:
-        """
-        To generate and execute Orders\n
-        :param bkr: an access to a Broker's API
-        """
-        pass
-    '''
 
     @staticmethod
     def list_strategies() -> list:
@@ -147,4 +107,3 @@ class Strategy(ModelFeature):
         """
         exec("from model.structure.strategies."+stg+"."+stg+" import "+stg)
         return eval(stg+"(prms)")
-

@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
-from model.tools.Asset import Asset
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
@@ -29,29 +28,10 @@ class MinMax(Strategy):
         self.__orders = Map()
         self.__secure_order = None
 
-    """
-    def get_order(self, mkpc: MarketPrice) -> Order:
-        prms = {
-            Map.pair: Pair("BTC", "USDT"),
-            Map.move: Order.MOVE_BUY,
-            Map.market: Price(round(random() * 1000, 2), "USDT"),
-        }
-        odr = BinanceOrder(Order.TYPE_MARKET, prms)
-        return odr
-    """
-
-    def _import_moduls(self, instucs: list) -> None:
-        imports = self._get_imports()
-        for instuc in instucs:
-            if instuc not in imports:
-                exec(instuc)
-                self._add_import(instuc)
-
     def __set_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
             bkr_cls = bkr.__class__.__name__
             rq_cls = BrokerRequest.get_request_class(bkr_cls)
-            self._import_moduls([f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}"])
             rq_prms = Map({
                 Map.pair: self.get_pair(),
                 Map.period: 60,
@@ -59,7 +39,8 @@ class MinMax(Strategy):
                 Map.end_time: None,
                 Map.number: 360
             })
-            bkr_rq = eval(rq_cls+'(BrokerRequest.RQ_MARKET_PRICE, rq_prms)')
+            exec(f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}")
+            bkr_rq = eval(rq_cls+f"('{BrokerRequest.RQ_MARKET_PRICE}', rq_prms)")
             bkr.get_market_price(bkr_rq)
             mkt_prc = bkr_rq.get_market_price()
             conf_mkt_prc = Map({
@@ -84,7 +65,7 @@ class MinMax(Strategy):
                     Map.number: 1,
                     Map.timeout: None,
                 })
-                snap_rq = eval(rq_cls+'(BrokerRequest.RQ_ACCOUNT_SNAP, rq_prms)')
+                snap_rq = eval(rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', rq_prms)")
                 bkr.get_account_snapshot(snap_rq)
                 accounts = snap_rq.get_account_snapshot()
                 right = self.get_pair().get_right()

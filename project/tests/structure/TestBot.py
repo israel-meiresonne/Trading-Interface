@@ -1,8 +1,5 @@
 import unittest
 from model.structure.Bot import Bot
-from model.structure.Broker import Broker
-from model.structure.Strategy import Strategy
-from model.tools.Paire import Pair
 
 
 class TestBot(unittest.TestCase, Bot):
