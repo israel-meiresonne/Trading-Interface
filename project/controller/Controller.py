@@ -50,15 +50,22 @@ class Controller:
         prcds = md.list_paires(bkr)
         prcd = prcds[vw.menu("Choose a Pair to trade:", prcds)]
         # configs
-        cfgs_map = Map()
-        cfgs_map.put(vw.input(msg=f"Enter the public key for {bkr}", secure=True), bkr, Map.api_pb)
-        cfgs_map.put(vw.input(msg=f"Enter the secret key for {bkr}", secure=True), bkr, Map.api_sk)
         mds = {"Test mode": True, "Real mode": False}
         mds_ks = list(mds.keys())
-        cfgs_map.put(mds[mds_ks[vw.menu("Choose your mode:", mds_ks)]], bkr, Map.test_mode)
-        print(cfgs_map.get_map())
+        configs = Map({
+            bkr: {
+                Map.api_pb: vw.input(msg=f"Enter the public key for {bkr}", secure=True),
+                Map.api_sk: vw.input(msg=f"Enter the secret key for {bkr}", secure=True),
+                Map.test_mode: mds[mds_ks[vw.menu("Choose your mode:", mds_ks)]]
+            },
+            stg: {
+                Map.capital: 1000,
+                Map.rate: None
+            }
+        })
+        print(configs.get_map())
         # create Bot
-        md.create_bot(bkr, stg, prcd, cfgs_map.get_map())
+        md.create_bot(bkr, stg, prcd, configs)
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
 
     def start_bot(self):

@@ -8,15 +8,16 @@ class ModelInterface(ABC):
         self.log_id = "xxx"
 
     @abstractmethod
-    def create_bot(self, bkr: str, stg: str, prcd: str, cfs=None) -> None:
+    def create_bot(self, bkr: str, stg: str, prcd: str, configs: dict) -> None:
         """
         To create a new Bot\n
         :param bkr: name of a supported Broker
         :param stg: name of a supported Strategy
         :param prcd: code of the pair to Trade, i.e.: "BTC/USDT"
-        :param cfs: holds additional configs for the Bot
-                    cfs[{Bot}]    => Bot configs
-                    cfs[{Broker}] => Broker configs
+        :param configs: holds additional configs for the Bot
+                        configs[{Bot}]      => Bot's configs
+                        configs[{Broker}]   => Broker's configs
+                        configs[{Strategy}] => Strategy's configs
         """
         pass
 

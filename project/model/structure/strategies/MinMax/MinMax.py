@@ -32,6 +32,7 @@ class MinMax(Strategy):
         if self.__configs is None:
             bkr_cls = bkr.__class__.__name__
             rq_cls = BrokerRequest.get_request_class(bkr_cls)
+            # Init Configs
             rq_prms = Map({
                 Map.pair: self.get_pair(),
                 Map.period: 60,
@@ -57,20 +58,23 @@ class MinMax(Strategy):
                 self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG)
             })
             self._set_configs(configs)
-            if self._get_capital() is None:
-                rq_prms = Map({
+            # Init Capital
+            """
+            rq_prms = Map({
                     Map.account: BrokerRequest.ACCOUNT_MAIN,
                     Map.begin_time: None,
                     Map.end_time: None,
                     Map.number: 1,
                     Map.timeout: None,
                 })
-                snap_rq = eval(rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', rq_prms)")
-                bkr.get_account_snapshot(snap_rq)
-                accounts = snap_rq.get_account_snapshot()
-                right = self.get_pair().get_right()
-                cap = accounts.get(right.get_symbol())
-                self._set_capital(cap)
+            snap_rq = eval(rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', rq_prms)")
+            bkr.get_account_snapshot(snap_rq)
+            accounts = snap_rq.get_account_snapshot()
+            right = self.get_pair().get_right()
+            cap = accounts.get(right.get_symbol())
+            """
+            cap = Price(10000, self.get_pair().get_right().get_symbol())
+            self._set_capital(cap)
 
     def _set_configs(self, configs: Map) -> None:
         self.__configs = configs
@@ -214,7 +218,7 @@ class MinMax(Strategy):
             odrs_map = self._try_sell(bkr)
         else:
             odrs_map = self._try_buy(bkr)
-        bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
+        #bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
 
     def _try_buy(self, bkr: Broker) -> Map:
         """

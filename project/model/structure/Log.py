@@ -3,6 +3,7 @@ from model.structure.database.ModelFeature import ModelFeature
 from model.structure.Bot import Bot
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
+from model.tools.Map import Map
 
 
 class Log(ModelInterface, ModelFeature):
@@ -25,7 +26,7 @@ class Log(ModelInterface, ModelFeature):
         self.__set_bots() if (self.bots is None) else None
         return self.bots
 
-    def __get_bot(self, bot_id: str) -> Bot:
+    def get_bot(self, bot_id: str) -> Bot:
         """
         To get the Bot with the given id\n
         :param bot_id: a Bot's id
@@ -36,17 +37,18 @@ class Log(ModelInterface, ModelFeature):
             raise Exception(f"There's no Bot with this id '{bot_id}'")
         return bots[bot_id]
 
-    def create_bot(self, bkr: str, stg: str, prcd: str, cfgs=None):
-        cfgs = {} if cfgs is None else cfgs
-        cfgs[bkr] = {} if bkr not in cfgs else cfgs[bkr]
-        print(cfgs)
-        bot = Bot(bkr, stg, prcd, cfgs)
+    def create_bot(self, bkr: str, stg: str, prcd: str, configs: Map):
+        configs = Map() if configs is None else configs
+        ks = configs.get_keys()
+        configs.put(Map(), bkr) if bkr not in ks else None
+        configs.put(Map(), stg) if stg not in ks else None
+        bot = Bot(bkr, stg, prcd, configs)
         bt_id = bot.get_id()
         bts = self.get_bots()
         bts[bt_id] = bot
 
     def start_bot(self, bot_id):
-        bot = self.__get_bot(bot_id)
+        bot = self.get_bot(bot_id)
         bot.start()
 
     def stop_bot(self, bot_id):

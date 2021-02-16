@@ -2,6 +2,7 @@ from abc import abstractmethod
 from decimal import Decimal
 
 from config.Config import Config
+from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -20,6 +21,7 @@ class Strategy(ModelFeature):
                      prms[Map.rate]     => {float|None} # ]0,1]
         :Note : Map.capital and Map.rate can't both be None
         """
+        super().__init__()
         ks = [Map.pair, Map.capital, Map.rate]
         rtn = ModelFeature.keys_exist(ks, prms.get_map())
         if rtn is not None:
@@ -32,7 +34,7 @@ class Strategy(ModelFeature):
         self.__pair = pr
         self.__capital = None
         self.__max_capital = max_cap
-        self.__rate = Decimal(rate)
+        self.__rate = None if rate is None else Decimal(rate)
 
     def get_pair(self) -> Pair:
         return self.__pair
@@ -73,6 +75,14 @@ class Strategy(ModelFeature):
 
     def get_rate(self) -> Decimal:
         return self.__rate
+
+    @abstractmethod
+    def trade(self, bkr: Broker) -> None:
+        """
+        To perform a trade\n
+        :param bkr: access to a Broker's API
+        """
+        pass
 
     @staticmethod
     def _check_max_capital(max_cap: Price, rate: float) -> None:

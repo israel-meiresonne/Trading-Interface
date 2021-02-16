@@ -8,23 +8,22 @@ from model.tools.Order import Order
 
 
 class Binance(Broker):
-    def __init__(self, cfgs: dict):
+    def __init__(self, configs: Map):
         """
         Constructor\n
-        :param cfgs: holds config params
+        :param configs: holds config params
                      cfgs[Map.api_pb]       => {str}
                      cfgs[Map.api_sk]       => {str}
                      cfgs[Map.test_mode]    => {bool}
         """
         super().__init__()
         ks = [Map.api_pb, Map.api_sk, Map.test_mode]
-        rtn = self.keys_exist(ks, cfgs)
+        rtn = self.keys_exist(ks, configs.get_map())
         if rtn is not None:
             raise IndexError(f"Property '{rtn}' is required")
-        cfgs_map = Map(cfgs)
-        api_pb = cfgs_map.get(Map.api_pb)
-        api_sk = cfgs_map.get(Map.api_sk)
-        test_mode = cfgs_map.get(Map.test_mode)
+        api_pb = configs.get(Map.api_pb)
+        api_sk = configs.get(Map.api_sk)
+        test_mode = configs.get(Map.test_mode)
         self.__api = BinanceAPI(api_pb, api_sk, test_mode)
 
     def __get_api(self) -> BinanceAPI:
