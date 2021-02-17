@@ -39,7 +39,7 @@ class Strategy(ModelFeature):
     def get_pair(self) -> Pair:
         return self.__pair
 
-    def _set_capital(self, cap: Price)  -> None:
+    def _set_capital(self, cap: Price) -> None:
         self.__capital = cap
 
     def _get_capital(self) -> Price:

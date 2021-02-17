@@ -1,3 +1,4 @@
+from csv import DictReader
 from abc import ABC, abstractmethod
 from os import walk
 from os import path as os_path
@@ -49,3 +50,21 @@ class FileManager(ABC):
         else:
             ndrs = drs
         return ndrs
+
+    @staticmethod
+    def get_csv(p: str, fields=None) -> list:
+        """
+        To get content of a csv file\n
+        :param p: the path to the csv file ended by the file's name, ie: path/to/file.csv
+        :param fields: name of the filed to keep
+        :return: list of each row in the csv file
+                 [{index}] => {dict}    # [{str}] => {str}
+        """
+        patern = "^.*\.csv$"
+        if not rgx.match(patern, p):
+            raise ValueError(f"This file '{p}' has not a csv extension")
+        root = FileManager.ROOT_DIR
+        with open(root + p, encoding='utf-8') as f:
+            reader = DictReader(f, fieldnames=fields)
+            rows = [{k: v for k, v in row.items() if k is not None} for row in reader]
+        return rows
