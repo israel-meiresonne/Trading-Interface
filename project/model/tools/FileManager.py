@@ -62,7 +62,7 @@ class FileManager(ABC):
         """
         patern = "^.*\.csv$"
         if not rgx.match(patern, p):
-            raise ValueError(f"This file '{p}' has not a csv extension")
+            raise ValueError(f"This file '{p}' does not have the .csv extension")
         root = FileManager.ROOT_DIR
         with open(root + p, encoding='utf-8') as f:
             reader = DictReader(f, fieldnames=fields)
