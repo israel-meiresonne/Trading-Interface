@@ -280,6 +280,14 @@ class BinanceAPI:
     ''' ORDER TYPE '''
     TYPE_MARKET = "MARKET"
     TYPE_STOP = "STOP_LOSS"
+    ''' ORDER STATUS '''
+    STATUS_ORDER_NEW = "NEW"
+    STATUS_ORDER_PARTIALLY = "PARTIALLY_FILLED"
+    STATUS_ORDER_FILLED = "FILLED"
+    STATUS_ORDER_CANCELED = "CANCELED"
+    STATUS_ORDER_PENDING_CANCEL = "PENDING_CANCEL"
+    STATUS_ORDER_REJECTED = "REJECTED"
+    STATUS_ORDER_EXPIRED = "EXPIRED"
     ''' TIME FORCE '''
     TIME_FRC_GTC = "GTC"
     TIME_FRC_IOC = "IOC"
@@ -311,6 +319,7 @@ class BinanceAPI:
     INTERVAL_1MONTH = '1M'
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
+        self.__id = 'binance_api_' + str(ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC))
         self.__api_public_key = api_pb
         self.__api_secret_key = api_sk
         self.__test_mode = test_mode
@@ -348,6 +357,9 @@ class BinanceAPI:
         elif (not test) and (i not in range(len(endps[Map.api]))):
             raise IndexError(f"There is no production endpoint with this index '{i}'")
         return endps[Map.test][i] if test else endps[Map.api][i]
+
+    def get_id(self) -> str:
+        return self.__id
 
     def __get_api_public_key(self) -> str:
         """
@@ -461,6 +473,8 @@ class BinanceAPI:
         :param prms_map: params to send
         :return: API's response
         """
+        from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+        return BinanceFakeAPI.steal_request(self.get_id(), rq, prms_map)
         rq_cfg = BinanceAPI.get_request_config(rq)
         self._check_params(rq, prms_map)
         if rq_cfg[Map.signed]:

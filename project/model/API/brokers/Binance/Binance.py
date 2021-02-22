@@ -47,12 +47,12 @@ class Binance(Broker):
         api = self.__get_api()
         for _, odr in odrs.get_map().items():
             rq = odr.get_api_request()
-            rq_prms = Map(odr.generate_order())
+            rq_prms = odr.generate_order()
             rq_rsp = api.request_api(rq, rq_prms)
             odr.handle_response(rq_rsp)
 
     def cancel(self, odr: Order) -> None:
-        params = Map(odr.generate_cancel_order())
+        params = odr.generate_cancel_order()
         rq = BinanceAPI.RQ_CANCEL_ORDER
         api = self.__get_api()
         rsp = api.request_api(rq, params)

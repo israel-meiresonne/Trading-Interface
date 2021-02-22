@@ -38,6 +38,12 @@ class BinanceMarketPrice(MarketPrice):
     def _get_closes(self) -> tuple:
         return self._extract_index(self.COLLECTION_CLOSES, 4)
 
+    def get_close(self, prd: int) -> Decimal:
+        closes = self._get_closes()
+        if prd >= len(closes):
+            raise ValueError(f"This period '{prd}' don't exist in market's closes")
+        return closes[prd]
+
     def _extract_index(self, k: str, i: int) -> tuple:
         """
         To extract from each line of market price the given index\n

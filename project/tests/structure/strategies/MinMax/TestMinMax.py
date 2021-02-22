@@ -37,11 +37,11 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             })
         })
         # Broker
-        self.bkr = Binance({
+        self.bkr = Binance(Map({
             Map.api_pb: "api_pb",
             Map.api_sk: "api_sk",
             Map.test_mode: True
-        })
+        }))
         # Orders
         self.real_capital1 = self.capital1.get_value() * Decimal(self.rate1)
         self.exec_prc0 = Price(15000, self.rsbl)
@@ -186,7 +186,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         result_move = odr.get_move()
         result_amount = odr.get_amount()
         result_oder_type = odr.get_type()
-        result_id = id(self.stg._get_orders().get(0))
+        result_id = id(self.stg._get_orders().get_order(0))
         self.assertEqual(exp_type, result_type)
         self.assertEqual(exp_oder_type, result_oder_type)
         self.assertEqual(exp_move, result_move)
@@ -207,7 +207,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         result_move = odr.get_move()
         result_qty = odr.get_quantity()
         result_oder_type = odr.get_type()
-        result_id = id(self.stg._get_orders().get(1))
+        result_id = id(self.stg._get_orders().get_order(1))
         self.assertEqual(exp_type, result_type)
         self.assertEqual(exp_oder_type, result_oder_type)
         self.assertEqual(exp_move, result_move)
@@ -234,7 +234,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         result_qty = odr.get_quantity()
         result_oder_type = odr.get_type()
         result_stop = odr.get_stop_price()
-        result_id = id(self.stg._get_orders().get(1))
+        result_id = id(self.stg._get_orders().get_order(1))
         self.assertEqual(exp_type, result_type)
         self.assertEqual(exp_oder_type, result_oder_type)
         self.assertEqual(exp_stop, result_stop)
@@ -245,13 +245,14 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
     def test_try_buy(self):
         self.stg._set_configs(self.configs)
         exp = type(Map())
-        result = self.stg._try_buy(self.bkr)
+        result = self.stg._try_buy(self.bkr, self.bnc_mkt_u_u)
         self.assertEqual(exp, type(result))
 
     def test_try_sell(self):
         self.stg._set_configs(self.configs)
+        self.stg._set_secure_order(self.odr1)
         exp = type(Map())
-        result = self.stg._try_sell(self.bkr)
+        result = self.stg._try_sell(self.bkr, self.bnc_mkt_u_u)
         self.assertEqual(exp, type(result))
 
 
