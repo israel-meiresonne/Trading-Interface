@@ -6,6 +6,7 @@ import numpy as np
 from scipy.signal import find_peaks
 
 from model.tools.Map import Map
+from model.tools.Price import Price
 
 
 class MarketPrice(ABC):
@@ -89,6 +90,15 @@ class MarketPrice(ABC):
         To get list of market price at close\n
         :return: list of market price at close
                  list[index] => {float}
+        """
+        pass
+
+    @abstractmethod
+    def get_close(self, prd: int) -> Decimal:
+        """
+        To get close price at the given period\n
+        :param prd: the period where to get the price
+        :return: the close price at the given period
         """
         pass
 

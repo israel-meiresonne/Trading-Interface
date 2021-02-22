@@ -2,6 +2,11 @@ class Map:
     # keys
     msg = "msg"
     cs = "cs"
+    index = "index"
+    id = "id"
+    date = "date"
+    action = "action"
+    request = "request"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"
@@ -43,6 +48,7 @@ class Map:
     move = "move"
     pair = "pair"
     market = "market"
+    status = "status"
     # BinanceRequest
     period = "period"
     number = "number"

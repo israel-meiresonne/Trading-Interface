@@ -42,6 +42,7 @@ class Controller:
     def new_bot(self):
         md = self.__get_model()
         vw = self.__get_view()
+        """
         # params
         bkrs = md.list_brokers()
         stgs = md.list_strategies()
@@ -64,6 +65,23 @@ class Controller:
             }
         })
         print(configs.get_map())
+        """
+        bkr = 'Binance'
+        stg = 'MinMax'
+        prcd = 'BTC/USD'
+        configs = Map({
+            bkr: {
+                Map.api_pb: 'pb_api_k',
+                Map.api_sk: 'sk_api_k',
+                Map.test_mode: False
+            },
+            stg: {
+                Map.capital: None,
+                Map.rate: 1
+            }
+        })
+        print(configs.get_map())
+        #"""
         # create Bot
         md.create_bot(bkr, stg, prcd, configs)
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
@@ -72,10 +90,13 @@ class Controller:
         md = self.__get_model()
         vw = self.__get_view()
         bt_ids = list(md.get_bots().keys())
+        """
         if len(bt_ids) <= 0:
             vw.output(View.FILE_ERROR, "You have no Bot created")
             return None
         bt_id = bt_ids[vw.menu("Choose the Bot to start:", bt_ids)]
+        """
+        bt_id = bt_ids[0]
         md.start_bot(bt_id)
         vw.output(View.FILE_MESSAGE, f"❌ Bot stopped: {bt_id}!")
 

@@ -8,6 +8,7 @@ from model.tools.Request import Request
 
 
 class Order(ABC, Request):
+    __ID = 0
     # Types
     TYPE_MARKET = "_set_market"
     TYPE_LIMIT = "_set_limit"
@@ -38,8 +39,9 @@ class Order(ABC, Request):
                         params[Map.amount]      => {Price}
         """
         super().__init__()
-        self.__id = None
-        self.__broker_id = None
+        self.__id = str(self.__ID)
+        self.__broker_id = self.__id
+        Order.__ID += 1
         self.__type = odr_type
         self.__status = None
         self.__move = params.get(Map.move)
@@ -122,6 +124,12 @@ class Order(ABC, Request):
         return self.__type
 
     def _set_status(self, status: str) -> None:
+        hold = self.get_status()
+        if hold == self.STATUS_COMPLETED \
+                or hold == self.STATUS_CANCELED \
+                or hold == self.STATUS_FAILED \
+                or hold == self.STATUS_EXPIRED:
+            raise Exception(f"This Order status '{hold}' can't be updated to '{status}' cause it's final")
         self.__status = status
 
     def get_status(self) -> str:
@@ -175,7 +183,6 @@ class Order(ABC, Request):
         :param params: params to make a market Order
                         params[Map.pair]    => {Pair}
                         params[Map.move]    => {str}
-                        params[Map.market]  => {Price} ❌
                         params[Map.quantity]=> {Price|None}
                         params[Map.amount]  => {Price|None}
         :Note : Map.quantity or Map.amount must be set
@@ -218,6 +225,7 @@ class Order(ABC, Request):
         """
         pass
 
+    '''
     @staticmethod
     def sum_orders(odrs: Map) -> Map:
         """
@@ -270,3 +278,4 @@ class Order(ABC, Request):
             Map.right: Price(rspot, pr.get_right().get_symbol())
         })
         return odrs_sum
+    '''

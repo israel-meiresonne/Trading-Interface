@@ -25,7 +25,6 @@ class MinMax(Strategy):
         """
         super().__init__(prms)
         self.__configs = None
-        self.__orders = Map()
         self.__secure_order = None
 
     def __set_strategy(self, bkr: Broker) -> None:
@@ -73,7 +72,7 @@ class MinMax(Strategy):
             right = self.get_pair().get_right()
             cap = accounts.get(right.get_symbol())
             """
-            cap = Price(10000, self.get_pair().get_right().get_symbol())
+            cap = Price(1000, self.get_pair().get_right().get_symbol())
             self._set_capital(cap)
 
     def _set_configs(self, configs: Map) -> None:
@@ -87,13 +86,6 @@ class MinMax(Strategy):
         if k not in configs.get_keys():
             raise IndexError(f"There's  not config for this key '{k}'")
         return configs.get(k)
-
-    def _get_orders(self) -> Map:
-        return self.__orders
-
-    def _add_order(self, odr: Order) -> None:
-        odrs = self._get_orders()
-        odrs.put(odr, len(odrs.get_map()))
 
     def _set_secure_order(self, odr: Order) -> None:
         self.__secure_order = odr
@@ -110,9 +102,9 @@ class MinMax(Strategy):
         init_cap = self._get_capital()
         odrs = self._get_orders()
         b_cpt = init_cap.get_value()
-        if len(odrs.get_map()) > 0:
-            odr_sum = Order.sum_orders(odrs)
-            b_cpt += odr_sum.get(Map.right).get_value()
+        if odrs.get_size() > 0:
+            odrs_sum = odrs.get_sum()
+            b_cpt += odrs_sum.get(Map.right).get_value()
         r_sbl = self.get_pair().get_right().get_symbol()
         return Price(b_cpt, r_sbl)
 
@@ -124,8 +116,8 @@ class MinMax(Strategy):
         """
         odrs = self._get_orders()
         s_qty = 0
-        if len(odrs.get_map()) > 0:
-            odr_sum = Order.sum_orders(odrs)
+        if odrs.get_size() > 0:
+            odr_sum = odrs.get_sum()
             s_qty += odr_sum.get(Map.left).get_value()
         l_sbl = self.get_pair().get_left().get_symbol()
         return Price(s_qty, l_sbl)
@@ -135,17 +127,17 @@ class MinMax(Strategy):
         Check if holding a left position\n
         :return: True if holding else False
         """
-        has_pos = False
         odrs = self._get_orders()
+        """
         ks = odrs.get_keys()
         ks.reverse()
         for k in ks:
             odr = odrs.get(k)
-            print(f"{k}: {odr.get_move()}")
             if odr.get_status() == Order.STATUS_COMPLETED:
                 has_pos = odr.get_move() == Order.MOVE_BUY
                 break
-        return has_pos
+        """
+        return odrs.has_position()
 
     def _get_market_price(self, bkr: Broker) -> MarketPrice:
         """
@@ -156,7 +148,6 @@ class MinMax(Strategy):
         bkr_cls = bkr.__class__.__name__
         rq_cls = BrokerRequest.get_request_class(bkr_cls)
         mkt_prms = self._get_config(self._CONF_MAKET_PRICE)
-        # self._import_moduls([f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}"])
         exec(f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}")
         rq_mkt = eval(rq_cls+"('"+BrokerRequest.RQ_MARKET_PRICE+"', mkt_prms)")
         bkr.get_market_price(rq_mkt)
@@ -198,8 +189,15 @@ class MinMax(Strategy):
         bkr_cls = bkr.__class__.__name__
         odr_cls = bkr_cls + Order.__name__
         pr = self.get_pair()
-        sum_odr = Order.sum_orders(self._get_orders())
-        qty = sum_odr.get(Map.left)
+        if self._has_position():
+            sum_odr = self._get_orders().get_sum()
+            qty = sum_odr.get(Map.left)
+        else:
+            close_val = mkt_prc.get_close(0)
+            b_cap = self._get_buy_capital()
+            qty_val = b_cap.get_value()/close_val
+            qty = Price(qty_val, pr.get_left().get_symbol())
+        # qty = sum_odr.get(Map.left)
         stop = mkt_prc.get_futur_price(self._get_config(self._CONF_MAX_DR))
         odr_prms = Map({
             Map.pair: pr,
@@ -210,17 +208,20 @@ class MinMax(Strategy):
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
         odr = eval(bkr_cls+"Order('"+Order.TYPE_STOP+"', odr_prms)")
         self._add_order(odr)
+        self._set_secure_order(odr)
         return odr
 
     def trade(self, bkr: Broker) -> None:
         self.__set_strategy(bkr)
+        mkt_prc = self._get_market_price(bkr)
+        self._update_orders(mkt_prc)
         if self._has_position():
-            odrs_map = self._try_sell(bkr)
+            odrs_map = self._try_sell(bkr, mkt_prc)
         else:
-            odrs_map = self._try_buy(bkr)
-        #bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
+            odrs_map = self._try_buy(bkr, mkt_prc)
+        bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
 
-    def _try_buy(self, bkr: Broker) -> Map:
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
         :param bkr: an access to a Broker's API
@@ -228,7 +229,7 @@ class MinMax(Strategy):
                  Map[index{int}] => {Order}
         """
         odrs_map = Map()
-        mkt_prc = self._get_market_price(bkr)
+        # mkt_prc = self._get_market_price(bkr)
         period = 1
         if(mkt_prc.get_delta_price() > 0) and (period in mkt_prc.get_minimums()):
             _ps_avg = self._get_config(self._CONF_PS_AVG)
@@ -242,7 +243,7 @@ class MinMax(Strategy):
                 odrs_map.put(scr_odr, len(odrs_map.get_map()))
         return odrs_map
 
-    def _try_sell(self, bkr: Broker) -> Map:
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
         :param bkr: an access to a Broker's API
@@ -250,11 +251,11 @@ class MinMax(Strategy):
                  Map[symbol{str}] => {Order}
         """
         odrs_map = Map()
-        mkt_prc = self._get_market_price(bkr)
+        # mkt_prc = self._get_market_price(bkr)
         delta_prc = mkt_prc.get_delta_price()
         if delta_prc > 0:
             old_scr_odr = self._get_secure_order()
-            bkr.cancel(old_scr_odr)
+            bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
             scr_odr = self._new_secure_order(bkr, mkt_prc)
             odrs_map.put(scr_odr, len(odrs_map.get_map()))
         elif delta_prc < 0:
@@ -264,7 +265,7 @@ class MinMax(Strategy):
             _ds_avg = self._get_config(self._CONF_DS_AVG)
             if (_dr <= _max_dr) or (_ms >= _ds_avg):
                 old_scr_odr = self._get_secure_order()
-                bkr.cancel(old_scr_odr)
+                bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
                 s_odr = self._new_sell_order(bkr)
                 odrs_map.put(s_odr, len(odrs_map.get_map()))
         return odrs_map

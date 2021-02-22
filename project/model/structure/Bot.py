@@ -27,8 +27,9 @@ class Bot(ModelFeature):
         pr = self.__pair
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
         configs.put(pr, stg, Map.pair)
-        cap = configs.get(stg, Map.capital)
-        configs.put(Price(cap, pr.get_right().get_symbol()), stg, Map.capital)
+        cap_val = configs.get(stg, Map.capital)
+        cap_prc = Price(cap_val, pr.get_right().get_symbol()) if cap_val is not None else None
+        configs.put(cap_prc, stg, Map.capital)
         self.__strategy = Strategy.retrieve(stg, Map(configs.get(stg)))
 
     def get_id(self) -> str:
@@ -51,11 +52,12 @@ class Bot(ModelFeature):
         stg = self._get_strategy()
         end = False
         print("Bot started to trade...")
+        i = 0
         while not end:
+            print(f"Trade n°{i}")
             stg.trade(bkr)
-            print("sleep 3 sec...")
-            sleep(3)
             end = self.__stillActive()
+            i += 1
 
     def __stillActive(self) -> bool:
         print("still trading...")

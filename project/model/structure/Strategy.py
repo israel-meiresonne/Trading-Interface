@@ -6,6 +6,9 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MarketPrice import MarketPrice
+from model.tools.Order import Order
+from model.tools.Orders import Orders
 from model.tools.Paire import Pair
 from model.tools.Price import Price
 
@@ -35,6 +38,7 @@ class Strategy(ModelFeature):
         self.__capital = None
         self.__max_capital = max_cap
         self.__rate = None if rate is None else Decimal(rate)
+        self.__orders = Orders()
 
     def get_pair(self) -> Pair:
         return self.__pair
@@ -75,6 +79,15 @@ class Strategy(ModelFeature):
 
     def get_rate(self) -> Decimal:
         return self.__rate
+
+    def _get_orders(self) -> Orders:
+        return self.__orders
+
+    def _add_order(self, odr: Order) -> None:
+        self._get_orders().add_order(odr)
+
+    def _update_orders(self, mkt_prc: MarketPrice) -> None:
+        self._get_orders().update(mkt_prc)
 
     @abstractmethod
     def trade(self, bkr: Broker) -> None:

@@ -3,13 +3,36 @@ from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Map import Map
 from model.tools.Order import Order
+from model.tools.Price import Price
 
 
 class BinanceOrder(Order):
+    CONV_STATUS = Map({
+        BinanceAPI.STATUS_ORDER_NEW: Order.STATUS_SUBMITTED,
+        BinanceAPI.STATUS_ORDER_PARTIALLY: Order.STATUS_PROCESSING,
+        BinanceAPI.STATUS_ORDER_FILLED: Order.STATUS_COMPLETED,
+        BinanceAPI.STATUS_ORDER_CANCELED: Order.STATUS_CANCELED,
+        BinanceAPI.STATUS_ORDER_PENDING_CANCEL: Order.STATUS_CANCELED,
+        BinanceAPI.STATUS_ORDER_REJECTED: Order.STATUS_FAILED,
+        BinanceAPI.STATUS_ORDER_EXPIRED: Order.STATUS_EXPIRED
+    })
+
     def __init__(self, odr_type: str, params: Map) -> None:
         super().__init__(odr_type, params)
         self.__api_request = None
         exec(f"self.{odr_type}()")
+
+    @staticmethod
+    def _get_status_converer() -> Map:
+        return BinanceOrder.CONV_STATUS
+
+    @staticmethod
+    def _convert_status(api_status: str) -> str:
+        _cls = BinanceOrder
+        converter = _cls._get_status_converer()
+        if api_status not in converter.get_keys():
+            raise ValueError(f"This status '{api_status}' is not supported")
+        return _cls.CONV_STATUS.get(api_status)
 
     def __set_api_request(self, rq: str) -> None:
         self.__api_request = rq
@@ -115,12 +138,22 @@ class BinanceOrder(Order):
         prms = self._get_params()
         prms.put(prms.get(Map.symbol).upper(), Map.symbol)
         prms.put(prms.get(Map.side).upper(), Map.side)
+        self._set_status(self.STATUS_SUBMITTED)
+        from model.tools.Orders import Orders
+        Orders.insert_order(Orders.SAVE_ACTION_GENERATE, self)
         return Map(ModelFeature.clean(prms.get_map()))
 
     def handle_response(self, rsp: BrokerResponse) -> None:
-        cont = rsp.get_content()
-        self._set_status()
-        self._set_execution_price()
+        cont = Map(rsp.get_content())
+        status = cont.get(Map.status)
+        prc = None
+        prc_val = cont.get(Map.price)
+        if prc_val is not None:
+            prc = Price(prc_val, self.get_pair().get_right().get_symbol())
+        self._set_status(self._convert_status(status))
+        self._set_execution_price(prc)
+        from model.tools.Orders import Orders
+        Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
 
     def generate_cancel_order(self) -> Map:
         odr_params = Map({

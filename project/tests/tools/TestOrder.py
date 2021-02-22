@@ -46,46 +46,6 @@ class TestOrder(unittest.TestCase, Order):
     def generate_cancel_order(self) -> Map:
         pass
 
-    def test_sum_orders(self):
-        # simple test
-        self.odr0._set_execution_price(self.exec_prc0)
-        self.odr0._set_status(self.STATUS_COMPLETED)
-        self.odr1._set_execution_price(self.exec_prc1)
-        self.odr1._set_status(self.STATUS_COMPLETED)
-        buy_amount = self.odr0_prms.get(Map.amount).get_value()
-        sell_prc = self.exec_prc1.get_value()
-        sum_r = (buy_amount/self.exec_prc0.get_value()) * sell_prc - buy_amount
-        exp = Map({
-            Map.left: Price(0, self.lsbl),
-            Map.right: Price(sum_r, self.rsbl)
-        })
-        result = self.sum_orders(self.odrs)
-        self.assertEqual(exp.get(Map.left), result.get(Map.left))
-        self.assertEqual(exp.get(Map.right), result.get(Map.right))
-        # all orders are not completed
-        self.setUp()
-        exp = Map({
-            Map.left: Price(0, self.lsbl),
-            Map.right: Price(0, self.rsbl)
-        })
-        result = self.sum_orders(self.odrs)
-        self.assertEqual(exp.get(Map.left), result.get(Map.left))
-        self.assertEqual(exp.get(Map.right), result.get(Map.right))
-        # orders contain completed and not completed Order
-        self.setUp()
-        self.odr0._set_execution_price(self.exec_prc0)
-        self.odr0._set_status(self.STATUS_COMPLETED)
-        exp = Map({
-            Map.left: Price(1/15, self.lsbl),
-            Map.right: Price(-1000, self.rsbl)
-        })
-        result = self.sum_orders(self.odrs)
-        self.assertEqual(exp.get(Map.left), result.get(Map.left))
-        self.assertEqual(exp.get(Map.right), result.get(Map.right))
-        # orders is empty
-        self.setUp()
-        with self.assertRaises(ValueError):
-            self.sum_orders(Map())
 
 
 if __name__ == '__main__':
