@@ -68,7 +68,7 @@ class Controller:
         """
         bkr = 'Binance'
         stg = 'MinMax'
-        prcd = 'BTC/USD'
+        prcd = 'BTC/USDT'
         configs = Map({
             bkr: {
                 Map.api_pb: 'pb_api_k',

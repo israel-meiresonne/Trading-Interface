@@ -4,6 +4,7 @@ from requests import delete as rq_delete
 from hmac import new as new_hmac
 from hashlib import sha256 as hashlib_sha256
 
+from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as ModelFeat
 from model.tools.Map import Map
 from model.tools.BrokerResponse import BrokerResponse
@@ -466,20 +467,37 @@ class BinanceAPI:
                 raise Exception(f"This param '{k}' is not available for this request '{rq}'")
         return True
 
-    def request_api(self, rq: str, prms_map: Map) -> BrokerResponse:
+    def request_api(self, rq: str, params: Map) -> BrokerResponse:
         """
         To config and send a request to the API\n
         :param rq: a supported request
-        :param prms_map: params to send
+        :param params: params to send
         :return: API's response
         """
-        from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-        return BinanceFakeAPI.steal_request(self.get_id(), rq, prms_map)
-        rq_cfg = BinanceAPI.get_request_config(rq)
-        self._check_params(rq, prms_map)
+        stage = Config.get(Config.STAGE_MODE)
+        if stage == Config.STAGE_1:
+            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+            return BinanceFakeAPI.steal_request(self.get_id(), rq, params)
+        if stage == Config.STAGE_2:
+            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+            log_id = self.get_id()
+            if rq == self.RQ_KLINES:
+                rq_cfg = self.get_request_config(rq)
+                self._check_params(rq, params)
+                if rq_cfg[Map.signed]:
+                    self.__sign(params)
+                rsp = self._send_request(rq, params)
+                BinanceFakeAPI.set_backup(log_id, rsp.get_content())
+                BinanceFakeAPI.steal_request(log_id, rq, params)
+                return rsp
+            else:
+                return BinanceFakeAPI.steal_request(log_id, rq, params)
+        rq_cfg = self.get_request_config(rq)
+        self._check_params(rq, params)
         if rq_cfg[Map.signed]:
-            self.__sign(prms_map)
-        return self._send_request(rq, prms_map)
+            self.__sign(params)
+        rsp = self._send_request(rq, params)
+        return rsp
 
     def _send_request(self, rq: str, prms_map: Map) -> BrokerResponse:
         """
@@ -502,4 +520,8 @@ class BinanceAPI:
             rsp = rq_delete(url, headers=hdrs)
         else:
             raise Exception(f"The request method {mtd} is not supported")
-        return BrokerResponse(rsp)
+        bkr_rsp = BrokerResponse(rsp)
+        rsp_status = bkr_rsp.get_status_code()
+        if rsp_status != 200:
+            raise Exception(f"(status code: {rsp_status}): {bkr_rsp.get_content()}")
+        return bkr_rsp

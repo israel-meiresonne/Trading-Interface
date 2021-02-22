@@ -3,12 +3,14 @@ from model.tools.FileManager import FileManager
 
 
 class Config(ABC):
-    # Environment
+    # Environments
     __ENV_DEV = "dev"
     __ENV_PROD = "prod"
-    # Stage
-    STATEGE_1 = "STATEGE_1"
-    STATEGE_2 = "STATEGE_2"
+    # Stages
+    STAGE_MODE = "STAGE_MODE"
+    STAGE_1 = "STAGE_1"
+    STAGE_2 = "STAGE_2"
+    STAGE_3 = "STAGE_3"
     # Configuration
     DIR_BROKERS = "DIR_BROKERS"
     DIR_STRATEGIES = "DIR_STRATEGIES"

@@ -53,9 +53,12 @@ class Bot(ModelFeature):
         end = False
         print("Bot started to trade...")
         i = 0
+        sleep_time = 60
         while not end:
             print(f"Trade n°{i}")
             stg.trade(bkr)
+            print(f"Bot sleep for {60}seconds...")
+            sleep(sleep_time)
             end = self.__stillActive()
             i += 1
 

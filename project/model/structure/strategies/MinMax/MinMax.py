@@ -229,7 +229,6 @@ class MinMax(Strategy):
                  Map[index{int}] => {Order}
         """
         odrs_map = Map()
-        # mkt_prc = self._get_market_price(bkr)
         period = 1
         if(mkt_prc.get_delta_price() > 0) and (period in mkt_prc.get_minimums()):
             _ps_avg = self._get_config(self._CONF_PS_AVG)
@@ -251,8 +250,7 @@ class MinMax(Strategy):
                  Map[symbol{str}] => {Order}
         """
         odrs_map = Map()
-        # mkt_prc = self._get_market_price(bkr)
-        delta_prc = mkt_prc.get_delta_price()
+        delta_prc = mkt_prc.get_delta_price(0, 10)
         if delta_prc > 0:
             old_scr_odr = self._get_secure_order()
             bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
