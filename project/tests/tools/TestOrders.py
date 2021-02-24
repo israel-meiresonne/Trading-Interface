@@ -186,3 +186,7 @@ class TestOrders(unittest.TestCase, Orders):
         print(odrs.get_sum().get(Map.left))
         print(odrs.get_sum().get(Map.right))
         print(odr0_cap + odrs.get_sum().get(Map.right).get_value())
+
+
+if __name__ == '__main__':
+    unittest.main

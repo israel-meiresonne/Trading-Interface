@@ -83,6 +83,9 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def _get_closes(self) -> tuple:
         pass
 
+    def get_close(self, prd: int) -> Decimal:
+        pass
+
     def test_set_collection(self):
         # unsupported collection key
         with self.assertRaises(IndexError):
@@ -385,6 +388,32 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         exp3 = prc * Decimal(str((1+rate)))
         result3 = self.bnc_mkt_d_u.get_futur_price(rate)
         self.assertEqual(exp3, result3)
+
+    def test_print(self):
+        from model.tools.FileManager import FileManager
+        from config.Config import Config
+        # date, close, index
+        p = Config.get(Config.DIR_HISTORIC_PRICES)
+        csv = FileManager.get_csv(p)
+        mkt = [[row[k] for k in row] for row in csv]
+        mkt2 = [[row[k] for k in row] for row in csv]
+        bnc_mkt = BinanceMarketPrice(mkt, '1m')
+        closes = bnc_mkt._get_closes()
+        max_idx = bnc_mkt.get_maximums()
+        fld_date = 'Date'
+        fld_close = 'Close'
+        fld_idx = 'Index'
+        mkt2.reverse()
+        max_rows = [{fld_date: mkt2[i][0], fld_close: closes[i], fld_idx: i} for i in max_idx]
+        # min
+        min_idx = bnc_mkt.get_minimums()
+        min_rows = [{fld_date: mkt2[i][0], fld_close: closes[i], fld_idx: i} for i in min_idx]
+        max_p = 'content/v0.01/print/maximums.csv'
+        min_p = 'content/v0.01/print/minimums.csv'
+        fields = list(max_rows[0].keys())
+        FileManager.write_csv(max_p, fields, max_rows)
+        FileManager.write_csv(min_p, fields, min_rows)
+
 
 
 if __name__ == '__main__':
