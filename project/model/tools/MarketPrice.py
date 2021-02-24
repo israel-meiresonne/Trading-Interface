@@ -1,19 +1,18 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal
+from decimal import Decimal, getcontext
 from typing import Union
 
 import numpy as np
 from scipy.signal import find_peaks
 
 from model.tools.Map import Map
-from model.tools.Price import Price
-
 
 class MarketPrice(ABC):
     INDIC_MS = "_set_ms"
     INDIC_DR = "_set_dr"
     INDIC_PS_AVG = "_set_ps_avg"
     INDIC_DS_AVG = "_set_ds_avg"
+    INDIC_ACTUAL_SLOPE = "_set_actual_slope"
     COLLECTION_CLOSES = "COLLECTION_CLOSES"
     COLLECTION_NEG_CLOSES = "COLLECTION_NEG_CLOSES"
     COLLECTION_MINS = "COLLECTION_MINS"
@@ -79,10 +78,9 @@ class MarketPrice(ABC):
         return self.__indicators
 
     def get_indicator(self, ind: str) -> Decimal:
-        inds_map = self._get_indicators()
-        # eval(f"self.{ind}()")
-        eval(f"self.{ind}()") if ind not in inds_map.get_keys() else None
-        return inds_map.get(ind)
+        inds = self._get_indicators()
+        eval(f"self.{ind}()") if ind not in inds.get_keys() else None
+        return inds.get(ind)
 
     @abstractmethod
     def _get_closes(self) -> tuple:
@@ -188,7 +186,7 @@ class MarketPrice(ABC):
             raise IndexError(f"Period '{old_prd}' don't exit in market of '{nb-1}' periods")
         return Decimal(closes[new_prd]/closes[old_prd] - 1)
 
-    def get_futur_price(self, rate: float):
+    def get_futur_price(self, rate: float) -> Decimal:
         """
         To apply a rate variation on the most recent price\n
         :param rate: the rate to apply ]-∞,+∞[
@@ -196,6 +194,22 @@ class MarketPrice(ABC):
         """
         closes = self._get_closes()
         return Decimal(closes[0]) * Decimal(str(1+rate))
+
+    def get_slope(self, new_prd: int, old_prd: int) -> Decimal:
+        closes = self._get_closes()
+        nb = len(closes)
+        if (new_prd >= nb) and (old_prd >= nb):
+            raise ValueError(f"The most recent period '{new_prd}' or the older '{old_prd}' "
+                             f"is out of closes's periods '{nb}'")
+        if old_prd <= new_prd:
+            raise ValueError(f"The most recent period '{new_prd}' must be bellow the older '{old_prd}'")
+        y = []
+        for i in range(new_prd, old_prd+1):
+            y.append(float(str(closes[i])))
+        y.reverse()
+        x = [v for v in range(len(y))]
+        coefs,_ = np.polynomial.polynomial.Polynomial.fit(x, y, 1, full=True)
+        return Decimal(str(round(coefs.coef[1], 2)))
 
     def _set_ms(self) -> None:
         """
@@ -254,3 +268,9 @@ class MarketPrice(ABC):
             raise Exception("Can't evaluate the Drop Rate cause the last extremum is not a maximum")
         dr = self._get_rate(0, exts[0])
         self.__set_indicator(self.INDIC_DR, dr)
+
+    def _set_actual_slope(self) -> None:
+        exts = self._get_extremums()
+        old_prd = exts[0]
+        slope = self.get_slope(0, old_prd)
+        self.__set_indicator(self.INDIC_ACTUAL_SLOPE, slope)

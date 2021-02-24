@@ -389,6 +389,66 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         result3 = self.bnc_mkt_d_u.get_futur_price(rate)
         self.assertEqual(exp3, result3)
 
+    def test_get_slope(self):
+        # Negative
+        exp_1 = -2
+        mkt_list_1 = [
+            ['0', '0', '0', '0', '6'],
+            ['0', '0', '0', '0', '4'],
+            ['0', '0', '0', '0', '2'],
+            ['0', '0', '0', '0', '0']
+        ]
+        mkt_1 = BinanceMarketPrice(mkt_list_1, '1m')
+        result_1 = mkt_1.get_slope(0, 3)
+        print(result_1)
+        self.assertEqual(exp_1, result_1)
+        # Positive
+        self.setUp()
+        exp_2 = 0.5
+        mkt_list_2 = [
+            ['0', '0', '0', '0', '-1.5'],
+            ['0', '0', '0', '0', '-1'],
+            ['0', '0', '0', '0', '-0.5'],
+            ['0', '0', '0', '0', '0']
+        ]
+        mkt_2 = BinanceMarketPrice(mkt_list_2, '1m')
+        result_2 = mkt_2.get_slope(0, 3)
+        self.assertEqual(exp_2, result_2)
+
+    def test_set_actual_slope(self):
+        # Last extremum is maximum
+        exp_1 = -2
+        mkt_list_1 = [
+            ['0', '0', '0', '0', '6'],
+            ['0', '0', '0', '0', '3'],
+            ['0', '0', '0', '0', '4'],
+            ['0', '0', '0', '0', '5'],
+            ['0', '0', '0', '0', '6'],
+            ['0', '0', '0', '0', '4'],
+            ['0', '0', '0', '0', '2'],
+            ['0', '0', '0', '0', '0']
+        ]
+        mkt_1 = BinanceMarketPrice(mkt_list_1, '1m')
+        result_1 = mkt_1.get_indicator(self.INDIC_ACTUAL_SLOPE)
+        self.assertEqual(exp_1, result_1)
+        # Last extremum is minimum
+        self.setUp()
+        exp_2 = 0.5
+        mkt_list_2 = [
+            ['0', '0', '0', '0', '2'],
+            ['0', '0', '0', '0', '3'],
+            ['0', '0', '0', '0', '1'],
+            ['0', '0', '0', '0', '0'],
+            ['0', '0', '0', '0', '-1.5'],
+            ['0', '0', '0', '0', '-1'],
+            ['0', '0', '0', '0', '-0.5'],
+            ['0', '0', '0', '0', '0']
+        ]
+        mkt_2 = BinanceMarketPrice(mkt_list_2, '1m')
+        result_2 = mkt_2.get_indicator(self.INDIC_ACTUAL_SLOPE)
+        self.assertEqual(exp_2, result_2)
+
+    """
     def test_print(self):
         from model.tools.FileManager import FileManager
         from config.Config import Config
@@ -413,7 +473,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         fields = list(max_rows[0].keys())
         FileManager.write_csv(max_p, fields, max_rows)
         FileManager.write_csv(min_p, fields, min_rows)
-
+    """
 
 
 if __name__ == '__main__':

@@ -1,4 +1,6 @@
 from time import sleep
+
+from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
@@ -54,11 +56,13 @@ class Bot(ModelFeature):
         print("Bot started to trade...")
         i = 0
         sleep_time = 60
+        _stage = Config.get(Config.STAGE_MODE)
         while not end:
             print(f"Trade n°{i}")
             stg.trade(bkr)
-            print(f"Bot sleep for {60}seconds...")
-            sleep(sleep_time)
+            if _stage == Config.STAGE_2:
+                print(f"Bot sleep for {sleep_time}seconds...")
+                sleep(sleep_time)
             end = self.__stillActive()
             i += 1
 

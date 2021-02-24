@@ -250,13 +250,14 @@ class MinMax(Strategy):
                  Map[symbol{str}] => {Order}
         """
         odrs_map = Map()
-        delta_prc = mkt_prc.get_delta_price(0, 10)
-        if delta_prc > 0:
+        # delta_prc = mkt_prc.get_delta_price(0, 10)
+        slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
+        if slope > 0:
             old_scr_odr = self._get_secure_order()
             bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
             scr_odr = self._new_secure_order(bkr, mkt_prc)
             odrs_map.put(scr_odr, len(odrs_map.get_map()))
-        elif delta_prc < 0:
+        elif slope < 0:
             _dr = mkt_prc.get_indicator(MarketPrice.INDIC_DR)
             _max_dr = self._get_config(self._CONF_MAX_DR)
             _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
