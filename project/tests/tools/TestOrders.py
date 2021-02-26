@@ -27,6 +27,7 @@ class TestOrders(unittest.TestCase, Orders):
         })
         self.odr0 = BinanceOrder(self.TYPE_MARKET, self.odr0_prms)
         self.odr1 = BinanceOrder(self.TYPE_MARKET, self.odr1_prms)
+        self.odr2 = BinanceOrder(self.TYPE_MARKET, self.odr1_prms)
         self.odrs = Map({
             "0": self.odr0,
             "1": self.odr1
@@ -186,6 +187,28 @@ class TestOrders(unittest.TestCase, Orders):
         print(odrs.get_sum().get(Map.left))
         print(odrs.get_sum().get(Map.right))
         print(odr0_cap + odrs.get_sum().get(Map.right).get_value())
+
+    def test_get_last_execution(self):
+        # One Completed
+        odrs = Orders()
+        odrs.add_order(self.odr0)
+        odrs.add_order(self.odr1)
+        odrs.add_order(self.odr2)
+        self.odr0._set_status(self.STATUS_COMPLETED)
+        exp = id(self.odr0)
+        result = id(odrs.get_last_execution())
+        self.assertEqual(exp, result)
+        # Multiple Completed
+        self.setUp()
+        odrs = Orders()
+        odrs.add_order(self.odr0)
+        odrs.add_order(self.odr1)
+        odrs.add_order(self.odr2)
+        self.odr1._set_status(self.STATUS_COMPLETED)
+        self.odr2._set_status(self.STATUS_COMPLETED)
+        exp = id(self.odr2)
+        result = id(odrs.get_last_execution())
+        self.assertEqual(exp, result)
 
 
 if __name__ == '__main__':

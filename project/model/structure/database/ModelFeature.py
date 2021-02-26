@@ -1,4 +1,6 @@
 from abc import abstractmethod
+from json import dumps as json_encode
+from json import loads as json_decode
 from time import time as time_time
 from typing import Union
 
@@ -55,3 +57,12 @@ class ModelFeature(ModelAccess):
             return {k: v for k, v in tab.items() if (v != '') and (v is not None)}
         else:
             raise ValueError(f"Can't clean this type '{t}'")
+
+    @staticmethod
+    def json_encode(d) -> str:
+        return json_encode(d)
+
+    @staticmethod
+    def json_decode(json):
+        return json_decode(json)
+

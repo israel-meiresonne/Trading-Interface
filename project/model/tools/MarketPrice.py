@@ -83,7 +83,7 @@ class MarketPrice(ABC):
         return inds.get(ind)
 
     @abstractmethod
-    def _get_closes(self) -> tuple:
+    def get_closes(self) -> tuple:
         """
         To get list of market price at close\n
         :return: list of market price at close
@@ -92,7 +92,7 @@ class MarketPrice(ABC):
         pass
 
     @abstractmethod
-    def get_close(self, prd: int) -> Decimal:
+    def get_close(self, prd=0) -> Decimal:
         """
         To get close price at the given period\n
         :param prd: the period where to get the price
@@ -103,7 +103,7 @@ class MarketPrice(ABC):
     def _get_negative_closes(self) -> tuple:
         neg_closes = self._get_collection(self.COLLECTION_NEG_CLOSES)
         if neg_closes is None:
-            closes = self._get_closes()
+            closes = self.get_closes()
             neg_closes = tuple((-v for v in closes))
             self._set_collection(self.COLLECTION_NEG_CLOSES, neg_closes)
         return neg_closes
@@ -115,7 +115,7 @@ class MarketPrice(ABC):
         """
         maxs = self._get_collection(self.COLLECTION_MAXS)
         if maxs is None:
-            closes = self._get_closes()
+            closes = self.get_closes()
             xs = np.array(closes)
             maxs = tuple(find_peaks(xs)[0])
             self._set_collection(self.COLLECTION_MAXS, maxs)
@@ -158,7 +158,7 @@ class MarketPrice(ABC):
         """
         if new_prd > old_prd:
             raise ValueError(f"The most recent period '{new_prd}' must be bellow the older one '{old_prd}'")
-        closes = self._get_closes()
+        closes = self.get_closes()
         sz = len(closes)
         if old_prd >= sz:
             raise IndexError(
@@ -180,7 +180,7 @@ class MarketPrice(ABC):
         """
         if new_prd > old_prd:
             raise ValueError(f"The most recent period '{new_prd}' must be bellow the older one '{old_prd}'")
-        closes = self._get_closes()
+        closes = self.get_closes()
         nb = len(closes)
         if old_prd >= nb:
             raise IndexError(f"Period '{old_prd}' don't exit in market of '{nb-1}' periods")
@@ -192,11 +192,11 @@ class MarketPrice(ABC):
         :param rate: the rate to apply ]-∞,+∞[
         :return: price*(1+rate)
         """
-        closes = self._get_closes()
+        closes = self.get_closes()
         return Decimal(closes[0]) * Decimal(str(1+rate))
 
     def get_slope(self, new_prd: int, old_prd: int) -> Decimal:
-        closes = self._get_closes()
+        closes = self.get_closes()
         nb = len(closes)
         if (new_prd >= nb) and (old_prd >= nb):
             raise ValueError(f"The most recent period '{new_prd}' or the older '{old_prd}' "

@@ -35,11 +35,11 @@ class BinanceMarketPrice(MarketPrice):
         mkt.reverse()
         super().__init__(mkt, prd)
 
-    def _get_closes(self) -> tuple:
+    def get_closes(self) -> tuple:
         return self._extract_index(self.COLLECTION_CLOSES, 4)
 
-    def get_close(self, prd: int) -> Decimal:
-        closes = self._get_closes()
+    def get_close(self, prd=0) -> Decimal:
+        closes = self.get_closes()
         if prd >= len(closes):
             raise ValueError(f"This period '{prd}' don't exist in market's closes")
         return closes[prd]

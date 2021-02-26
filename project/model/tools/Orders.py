@@ -16,9 +16,9 @@ class Orders(Order):
         self.__has_position = None
 
     def add_order(self, odr: Order) -> None:
+        self._reset()
         odrs = self._get_orders()
         odrs.put(odr, len(odrs.get_map()))
-        self._reset()
 
     def _get_orders(self) -> Map:
         return self.__orders
@@ -29,6 +29,23 @@ class Orders(Order):
         if k not in ks:
             raise ValueError(f"There's no Order at this key '{k}'")
         return odrs.get(k)
+
+    def get_last_execution(self) -> Order:
+        """
+        To get the last Order executed\n
+        :return: the last Order executed
+        """
+        last = None
+        odrs = self._get_orders()
+        ks = odrs.get_keys()
+        ks.reverse()
+        for k in ks:
+            odr = odrs.get(k)
+            if odr.get_status() == Order.STATUS_COMPLETED:
+                last = odr
+                break
+        return last
+
 
     def _set_sum(self) -> None:
         self.__sum = self._sum_orders(self._get_orders())
@@ -68,7 +85,7 @@ class Orders(Order):
 
     def update(self, market: MarketPrice) -> None:
         self._reset()
-        close_val = market.get_close(0)
+        close_val = market.get_close()
         odrs = self._get_orders()
         for _, odr in odrs.get_map().items():
             status = odr.get_status()

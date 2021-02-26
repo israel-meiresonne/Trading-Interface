@@ -1,8 +1,11 @@
 from decimal import Decimal
 
+from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
+from model.structure.database.ModelFeature import ModelFeature
 from model.tools.BrokerRequest import BrokerRequest
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
@@ -40,7 +43,7 @@ class MinMax(Strategy):
                 Map.number: 360
             })
             exec(f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}")
-            bkr_rq = eval(rq_cls+f"('{BrokerRequest.RQ_MARKET_PRICE}', rq_prms)")
+            bkr_rq = eval(rq_cls + f"('{BrokerRequest.RQ_MARKET_PRICE}', rq_prms)")
             bkr.get_market_price(bkr_rq)
             mkt_prc = bkr_rq.get_market_price()
             conf_mkt_prc = Map({
@@ -149,7 +152,7 @@ class MinMax(Strategy):
         rq_cls = BrokerRequest.get_request_class(bkr_cls)
         mkt_prms = self._get_config(self._CONF_MAKET_PRICE)
         exec(f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}")
-        rq_mkt = eval(rq_cls+"('"+BrokerRequest.RQ_MARKET_PRICE+"', mkt_prms)")
+        rq_mkt = eval(rq_cls + "('" + BrokerRequest.RQ_MARKET_PRICE + "', mkt_prms)")
         bkr.get_market_price(rq_mkt)
         return rq_mkt.get_market_price()
 
@@ -165,7 +168,7 @@ class MinMax(Strategy):
             Map.amount: Price(b_cpt.get_value(), pr_right.get_symbol())
         })
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
-        odr = eval(odr_cls+"('"+Order.TYPE_MARKET+"', odr_prms_map)")
+        odr = eval(odr_cls + "('" + Order.TYPE_MARKET + "', odr_prms_map)")
         self._add_order(odr)
         return odr
 
@@ -181,7 +184,7 @@ class MinMax(Strategy):
             Map.quantity: Price(s_cpt.get_value(), pr_left.get_symbol())
         })
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
-        odr = eval(bkr_cls+"Order('"+Order.TYPE_MARKET+"', odr_prms)")
+        odr = eval(bkr_cls + "Order('" + Order.TYPE_MARKET + "', odr_prms)")
         self._add_order(odr)
         return odr
 
@@ -193,9 +196,9 @@ class MinMax(Strategy):
             sum_odr = self._get_orders().get_sum()
             qty = sum_odr.get(Map.left)
         else:
-            close_val = mkt_prc.get_close(0)
+            close_val = mkt_prc.get_close()
             b_cap = self._get_buy_capital()
-            qty_val = b_cap.get_value()/close_val
+            qty_val = b_cap.get_value() / close_val
             qty = Price(qty_val, pr.get_left().get_symbol())
         # qty = sum_odr.get(Map.left)
         stop = mkt_prc.get_futur_price(self._get_config(self._CONF_MAX_DR))
@@ -206,7 +209,7 @@ class MinMax(Strategy):
             Map.quantity: qty
         })
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
-        odr = eval(bkr_cls+"Order('"+Order.TYPE_STOP+"', odr_prms)")
+        odr = eval(bkr_cls + "Order('" + Order.TYPE_STOP + "', odr_prms)")
         self._add_order(odr)
         self._set_secure_order(odr)
         return odr
@@ -215,6 +218,8 @@ class MinMax(Strategy):
         self.__set_strategy(bkr)
         mkt_prc = self._get_market_price(bkr)
         self._update_orders(mkt_prc)
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_capital(close=mkt_prc.get_close()) if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         if self._has_position():
             odrs_map = self._try_sell(bkr, mkt_prc)
         else:
@@ -230,7 +235,9 @@ class MinMax(Strategy):
         """
         odrs_map = Map()
         period = 1
-        if(mkt_prc.get_delta_price() > 0) and (period in mkt_prc.get_minimums()):
+        _slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
+        # if(mkt_prc.get_delta_price() > 0) and (period in mkt_prc.get_minimums()):
+        if (_slope > 0) and (period in mkt_prc.get_minimums()):
             _ps_avg = self._get_config(self._CONF_PS_AVG)
             _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
             if _ms >= _ps_avg:
@@ -240,6 +247,9 @@ class MinMax(Strategy):
                 # secure order
                 scr_odr = self._new_secure_order(bkr, mkt_prc)
                 odrs_map.put(scr_odr, len(odrs_map.get_map()))
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs_map
 
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
@@ -250,21 +260,70 @@ class MinMax(Strategy):
                  Map[symbol{str}] => {Order}
         """
         odrs_map = Map()
-        # delta_prc = mkt_prc.get_delta_price(0, 10)
-        slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
-        if slope > 0:
+        last_odr = self._get_orders().get_last_execution()
+        if last_odr is None:
+            raise Exception("Last order completed can't be empty")
+        exec_prc_val = last_odr.get_execution_price().get_value()
+        close = mkt_prc.get_close()
+        _slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
+        if (exec_prc_val < close) and (_slope > 0):
             old_scr_odr = self._get_secure_order()
             bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
             scr_odr = self._new_secure_order(bkr, mkt_prc)
             odrs_map.put(scr_odr, len(odrs_map.get_map()))
-        elif slope < 0:
-            _dr = mkt_prc.get_indicator(MarketPrice.INDIC_DR)
-            _max_dr = self._get_config(self._CONF_MAX_DR)
-            _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
-            _ds_avg = self._get_config(self._CONF_DS_AVG)
-            if (_dr <= _max_dr) or (_ms >= _ds_avg):
-                old_scr_odr = self._get_secure_order()
-                bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
-                s_odr = self._new_sell_order(bkr)
-                odrs_map.put(s_odr, len(odrs_map.get_map()))
+        elif _slope < 0:
+            self._perform_sell(bkr, mkt_prc, odrs_map)
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), move=Order.MOVE_SELL) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs_map
+
+    def _perform_sell(self, bkr: Broker, mkt_prc: MarketPrice, odrs_map: Map) -> None:
+        _dr = mkt_prc.get_indicator(MarketPrice.INDIC_DR)
+        _max_dr = self._get_config(self._CONF_MAX_DR)
+        _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
+        _ds_avg = self._get_config(self._CONF_DS_AVG)
+        if (_dr <= _max_dr) or (_ms <= _ds_avg):
+            old_scr_odr = self._get_secure_order()
+            bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+            s_odr = self._new_sell_order(bkr)
+            odrs_map.put(s_odr, len(odrs_map.get_map()))
+
+    # def _manage_secure_order(self):
+
+    @staticmethod
+    def _save_move(**params):
+        p = Config.get(Config.DIR_SAVE_MOVES)
+        params_map = Map(params)
+        closes = params_map.get('mkt_prc').get_closes()
+        closes_str = [str(v) for v in closes]
+        market_json = ModelFeature.json_encode(closes_str)
+        params_map.put(market_json, 'market_json')
+        fields = [
+            'close',
+            'move',
+            '_ms',
+            '_dr',
+            '_slope',
+            'exec_prc_val'
+            '_max_dr',
+            '_ps_avg',
+            '_ds_avg',
+            'market_json'
+        ]
+        rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
+        overwrite = False
+        FileManager.write_csv(p, fields, rows, overwrite)
+
+    def _save_capital(self, close: Decimal):
+        p = Config.get(Config.DIR_SAVE_CAPITAL)
+        cap = self._get_capital()
+        rows = [{
+            'close': close,
+            'initial': cap.__str__(),
+            'left': self._get_sell_quantity().__str__(),
+            'right': self._get_buy_capital().__str__()
+        }]
+        fields = list(rows[0].keys())
+        overwrite = False
+        FileManager.write_csv(p, fields, rows, overwrite)

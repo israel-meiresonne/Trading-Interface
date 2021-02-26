@@ -80,7 +80,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def _convert_period(self, prd_time: str) -> int:
         return int(prd_time)
 
-    def _get_closes(self) -> tuple:
+    def get_closes(self) -> tuple:
         pass
 
     def get_close(self, prd: int) -> Decimal:
@@ -458,7 +458,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt = [[row[k] for k in row] for row in csv]
         mkt2 = [[row[k] for k in row] for row in csv]
         bnc_mkt = BinanceMarketPrice(mkt, '1m')
-        closes = bnc_mkt._get_closes()
+        closes = bnc_mkt.get_closes()
         max_idx = bnc_mkt.get_maximums()
         fld_date = 'Date'
         fld_close = 'Close'
