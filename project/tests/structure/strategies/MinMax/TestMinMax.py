@@ -69,6 +69,37 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             ['0', '0', '0', '0', self.exec_prc0.get_value()]
         ]
         self.bnc_mkt_u_u = BinanceMarketPrice(self.bnc_list_u_u, "1m")
+        # test_get_peak_since_buy
+        cap = 1000
+        prc = Price(cap, self.rsbl)
+        vals = [9, 5, 6, 12, 3, 10, 4, 2, 0, 7]
+        times = [1, 2, 3, 4, 5, 6, 7, 8, 9, 9.5]
+        times = [t * 60 for t in times]
+        self.mkt_list = [
+            [times[0], 'O', '0', '0', vals[0]],
+            [times[1], 'O', '0', '0', vals[1]],
+            [times[2], 'O', '0', '0', vals[2]],
+            [times[3], 'O', '0', '0', vals[3]],
+            [times[4], 'O', '0', '0', vals[4]],
+            [times[5], 'O', '0', '0', vals[5]],
+            [times[6], 'O', '0', '0', vals[6]],
+            [times[7], 'O', '0', '0', vals[7]],
+            [times[8], 'O', '0', '0', vals[8]],
+            [times[9], 'O', '0', '0', vals[9]]
+        ]
+        self.stg1 = MinMax(Map({
+            Map.pair: self.pr,
+            Map.capital: prc,
+            Map.rate: 0.9
+        }))
+        self.mkt = BinanceMarketPrice(list(self.mkt_list), '1m')
+        self.odr2 = BinanceOrder(Order.TYPE_MARKET, Map({
+            Map.pair: self.pr,
+            Map.move: Order.MOVE_BUY,
+            Map.amount: Price(cap, self.rsbl)
+        }))
+        self.stg1._add_order(self.odr2)
+        self.odr2._set_status(Order.STATUS_SUBMITTED)
 
     def _set_market(self) -> None:
         pass
@@ -254,6 +285,44 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         exp = type(Map())
         result = self.stg._try_sell(self.bkr, self.bnc_mkt_u_u)
         self.assertEqual(exp, type(result))
+
+    def test_get_peak_since_buy(self):
+        # Buy order is in MarketPrice's periods
+        self.odr2._set_status(Order.STATUS_COMPLETED)
+        self.odr2._set_execution_time(self.mkt_list[4][0])
+        exp_0 = 4
+        result_0 = self.stg1._get_peak_since_buy(self.mkt)
+        self.assertEqual(exp_0, result_0)
+        # Buy order is out of MarketPrice's periods
+        self.setUp()
+        self.odr2._set_status(Order.STATUS_COMPLETED)
+        self.odr2._set_execution_time(0)
+        exp_1 = 6
+        result_1 = self.stg1._get_peak_since_buy(self.mkt)
+        self.assertEqual(exp_1, result_1)
+        # Buy order period is the current period
+        self.setUp()
+        self.odr2._set_status(Order.STATUS_COMPLETED)
+        self.odr2._set_execution_time(self.mkt_list[9][0])
+        result_2 = self.stg1._get_peak_since_buy(self.mkt)
+        self.assertIsNone(result_2)
+        # There's no peak between Buy order's period and current period
+        self.setUp()
+        self.odr2._set_status(Order.STATUS_COMPLETED)
+        self.odr2._set_execution_time(self.mkt_list[6][0])
+        result_3 = self.stg1._get_peak_since_buy(self.mkt)
+        self.assertIsNone(result_3)
+        # There's two peak between Buy order's period and current period
+        self.setUp()
+        self.odr2._set_status(Order.STATUS_COMPLETED)
+        self.odr2._set_execution_time(self.mkt_list[1][0])
+        exp_4 = 6
+        result_4 = self.stg1._get_peak_since_buy(self.mkt)
+        self.assertEqual(exp_4, result_4)
+        # There no order completed
+        self.setUp()
+        with self.assertRaises(Exception):
+            self.stg1._get_peak_since_buy(self.mkt)
 
 
 if __name__ == '__main__':

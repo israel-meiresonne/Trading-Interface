@@ -36,7 +36,14 @@ class BinanceMarketPrice(MarketPrice):
         super().__init__(mkt, prd)
 
     def get_closes(self) -> tuple:
-        return self._extract_index(self.COLLECTION_CLOSES, 4)
+        k = self.COLLECTION_CLOSES
+        closes = self._get_collection(k)
+        if closes is None:
+            idx = 4
+            coll = self._extract_index(idx)
+            closes = tuple(Decimal(v) for v in coll)
+            self._set_collection(k, closes)
+        return closes
 
     def get_close(self, prd=0) -> Decimal:
         closes = self.get_closes()
@@ -44,6 +51,23 @@ class BinanceMarketPrice(MarketPrice):
             raise ValueError(f"This period '{prd}' don't exist in market's closes")
         return closes[prd]
 
+    def get_times(self) -> tuple:
+        k = self.COLLECTION_TIMES
+        times = self._get_collection(k)
+        if times is None:
+            idx = 0
+            coll = self._extract_index(idx)
+            times = tuple(int(v) for v in coll)
+            self._set_collection(k, times)
+        return times
+
+    def get_time(self, prd=0) -> int:
+        times = self.get_times()
+        if prd >= len(times):
+            raise IndexError(f"This period '{prd}' is out of time collection '{len(times)}'")
+        return times[prd]
+
+    '''
     def _extract_index(self, k: str, i: int) -> tuple:
         """
         To extract from each line of market price the given index\n
@@ -56,4 +80,15 @@ class BinanceMarketPrice(MarketPrice):
             mkt = self.get_market()
             coll = tuple([Decimal(line[i]) for line in mkt])
             self._set_collection(k, coll)
+        return coll
+    '''
+
+    def _extract_index(self, idx: int) -> list:
+        """
+        To extract from each line of market price the given index\n
+        :param idx: the index to extract in each line
+        :return: collection of values extracted from each line of market prices
+        """
+        mkt = self.get_market()
+        coll = [line[idx] for line in mkt]
         return coll

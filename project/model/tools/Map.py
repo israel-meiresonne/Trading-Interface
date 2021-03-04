@@ -49,6 +49,7 @@ class Map:
     pair = "pair"
     market = "market"
     status = "status"
+    transactTime = "transactTime"
     # BinanceRequest
     period = "period"
     number = "number"

@@ -83,7 +83,13 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def get_closes(self) -> tuple:
         pass
 
-    def get_close(self, prd: int) -> Decimal:
+    def get_close(self, prd=0) -> Decimal:
+        pass
+
+    def get_times(self) -> tuple:
+        pass
+
+    def get_time(self, prd=0) -> int:
         pass
 
     def test_set_collection(self):
@@ -197,7 +203,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         new_prd = 1
         old_prd = 4
         delta = Decimal(mkt[new_prd]) - Decimal(mkt[old_prd])
-        prd_time = self.bnc_mkt_u_u._get_period_time()
+        prd_time = self.bnc_mkt_u_u.get_period_time()
         time = (old_prd - new_prd + 1) * prd_time
         exp = delta/time
         result = self.bnc_mkt_u_u._get_speed(new_prd, old_prd)
@@ -210,7 +216,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         new_prd = 0
         old_prd = 3
         delta = Decimal(mkt[new_prd]) - Decimal(mkt[old_prd])
-        prd_time = self.bnc_mkt_u_u._get_period_time()
+        prd_time = self.bnc_mkt_u_u.get_period_time()
         time = (old_prd - new_prd + 1) * prd_time
         exp = delta/time
         result = self.bnc_mkt_u_u._get_speed(new_prd, old_prd)
@@ -261,7 +267,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         new_prd = 0
         old_prd = 1
         delta = Decimal(mkt[new_prd]) - Decimal(mkt[old_prd])
-        prd_time = self.bnc_mkt_u_u._get_period_time()
+        prd_time = self.bnc_mkt_u_u.get_period_time()
         time = (old_prd - new_prd + 1) * prd_time
         exp = delta/time
         result = self.bnc_mkt_u_u.get_indicator(self.INDIC_MS)
@@ -400,7 +406,6 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         ]
         mkt_1 = BinanceMarketPrice(mkt_list_1, '1m')
         result_1 = mkt_1.get_slope(0, 3)
-        print(result_1)
         self.assertEqual(exp_1, result_1)
         # Positive
         self.setUp()

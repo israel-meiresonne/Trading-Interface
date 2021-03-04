@@ -55,7 +55,7 @@ class Bot(ModelFeature):
         end = False
         print("Bot started to trade...")
         i = 0
-        sleep_time = 15
+        sleep_time = 60
         _stage = Config.get(Config.STAGE_MODE)
         while not end:
             print(f"Trade n°{i}")

@@ -1,3 +1,4 @@
+from config.Config import Config
 from model.structure.Log import Log
 from model.tools.Map import Map
 from view.structure.View import View
@@ -28,13 +29,16 @@ class Controller:
         """
         vw = self.__get_view()
         m_home = "home"
-        ied = False
+        end = False
         ms = View.get_menus()
         cs = ms[m_home][View.MENUS_KEY_TXT]
-        while not ied:
+        stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
+        stage = stage_modes[vw.menu("Choose the stage mode:", stage_modes)]
+        Config.update(Config.STAGE_MODE, stage)
+        while not end:
             i = vw.menu("Choose an execution", cs)
             fc = ms[m_home][View.MENUS_KEY_FUNC][i]
-            ied = eval("self." + fc + "()")
+            end = eval("self." + fc + "()")
 
     def quit(self):
         return True
@@ -68,7 +72,9 @@ class Controller:
         """
         bkr = 'Binance'
         stg = 'MinMax'
-        prcd = 'BTC/USDT'
+        prcds = md.list_paires(bkr)
+        prcd = prcds[vw.menu("Choose a Pair to trade:", prcds)]
+        # prcd = 'BTC/USDT'
         configs = Map({
             bkr: {
                 Map.api_pb: 'pb_api_k',

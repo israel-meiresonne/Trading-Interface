@@ -6,6 +6,7 @@ from requests.models import Response
 
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -15,31 +16,41 @@ class BinanceFakeAPI(BinanceAPI):
     _FILE_HISTORIC_MARKET_PRICES = Config.get(Config.DIR_HISTORIC_PRICES)
     _FILE_SAVE_ORDERS = Config.get(Config.DIR_SAVE_ORDER_RQ)
     _FILE_LOGS = Config.get(Config.DIR_SAVE_FAKE_API_RQ)
+    _STAGE = Config.get(Config.STAGE_MODE)
     BACKUP = Map()
     """
     BACKUP[Map.id]      => {str}        # log's id
     BACKUP[Map.market]  => {list}       # List[List[{date, open, high, low, close, adj_close, volume}]]
     BACKUP[Map.index]   => {int|None}   # index of the most recent close returned
     """
-    _FIELDS = []
 
     def __init__(self):
         pass
 
     @staticmethod
-    def set_backup(log_id: str, hist_mkt=None):
+    def _get_stage() -> str:
+        return BinanceFakeAPI._STAGE
+
+    @staticmethod
+    def set_backup(log_id: str, hist_mkt=None) -> None:
         _cls = BinanceFakeAPI
-        if Config.get(Config.STAGE_MODE) == Config.STAGE_1:
+        stage = _cls._get_stage()
+        if stage == Config.STAGE_1:
             p = _cls._FILE_HISTORIC_MARKET_PRICES
             csv = FileManager.get_csv(p)
             hist_mkt = [[row[k] for k in row] for row in csv]
+            # """
+            for row in hist_mkt:
+                for i in range(len(row)):
+                    row[i] = int(_MF.date_to_unix(row[i])) if (i == 0) else row[i]
+            # """
             _cls._add_backup(log_id, Map.id, log_id)
             _cls._add_backup(log_id, Map.market, hist_mkt)
             _cls._add_backup(log_id, Map.index, None)
-        if Config.get(Config.STAGE_MODE) == Config.STAGE_2:
+        if stage == Config.STAGE_2:
             _cls._add_backup(log_id, Map.id, log_id)
             _cls._add_backup(log_id, Map.market, hist_mkt)
-            _cls._add_backup(log_id, Map.index, 0)
+            _cls._add_backup(log_id, Map.index, None)
 
     @staticmethod
     def _get_backup() -> Map:
@@ -52,8 +63,15 @@ class BinanceFakeAPI(BinanceAPI):
 
     @staticmethod
     def _get_backed(log_id: str, k) -> [str, int, float, list, dict]:
+        _cls = BinanceFakeAPI
         backup = BinanceFakeAPI._get_backup()
-        return backup.get(log_id, k)
+        stage = _cls._get_stage()
+        if (k == Map.index) and (stage != Config.STAGE_1):
+            hist_mkt = _cls._get_backed(log_id, Map.market)
+            v = len(hist_mkt) - 1
+        else:
+            v = backup.get(log_id, k)
+        return v
 
     @staticmethod
     def _get_date(log_id) -> str:
@@ -97,7 +115,7 @@ class BinanceFakeAPI(BinanceAPI):
         if _cls._get_backed(log_id, Map.id) is None:
             _cls.set_backup(log_id)
         if rq == _cls.RQ_KLINES:
-            stage = Config.get(Config.STAGE_MODE)
+            stage = _cls._get_stage()
             rsp_d = _cls._get_market_price(log_id, params) if stage == Config.STAGE_1 else None
             # _cls._save_log(log_id, rq, params) if stage == Config.STAGE_2 else None
         elif rgx.match('^RQ_ORDER.*$', rq) or (rq == _cls.RQ_CANCEL_ORDER):
@@ -125,9 +143,9 @@ class BinanceFakeAPI(BinanceAPI):
     def _execute_order(log_id: str, rq: str, params: Map) -> dict:
         _cls = BinanceFakeAPI
         actual_close = _cls._get_actual_close(log_id)
-        date = _cls._get_date(log_id)
+        now_date = _cls._get_date(log_id)
         rows = [{
-            Map.date: date,
+            Map.date: now_date,
             Map.orderId: params.get(Map.orderId),
             Map.request: rq,
             Map.symbol: params.get(Map.symbol),
@@ -144,8 +162,10 @@ class BinanceFakeAPI(BinanceAPI):
         p = _cls._FILE_SAVE_ORDERS
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
+        exec_prc = None
         if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
             status = _cls.STATUS_ORDER_FILLED
+            exec_prc = now_date
         elif rq == _cls.RQ_ORDER_STOP_LOSS:
             status = _cls.STATUS_ORDER_NEW
             actual_close = None
@@ -153,11 +173,12 @@ class BinanceFakeAPI(BinanceAPI):
             status = _cls.STATUS_ORDER_CANCELED
         else:
             raise Exception(f"Unknown request '{rq}'")
-        d = {
+        rsp_d = {
             Map.status: status,
-            Map.price: actual_close
+            Map.price: actual_close,
+            Map.transactTime: exec_prc
         }
-        return d
+        return rsp_d
 
 
 # """

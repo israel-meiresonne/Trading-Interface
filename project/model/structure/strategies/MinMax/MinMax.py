@@ -17,6 +17,7 @@ class MinMax(Strategy):
     _CONF_PS_AVG = "CONF_PS_AVG"
     _CONF_MAX_DR = "CONF_MAX_DR"
     _CONF_DS_AVG = "CONF_DS_AVG"
+    _CONF_PEAK_DROP_RATE = "_CONF_PEAK_DROP_RATE"
 
     def __init__(self, prms: Map):
         """
@@ -34,10 +35,11 @@ class MinMax(Strategy):
         if self.__configs is None:
             bkr_cls = bkr.__class__.__name__
             rq_cls = BrokerRequest.get_request_class(bkr_cls)
-            # Init Configs
+            # Prepare Set Configs
+            stage = Config.get(Config.STAGE_MODE)
             rq_prms = Map({
                 Map.pair: self.get_pair(),
-                Map.period: 60,
+                Map.period: 60 * 60 * 24 if (stage == Config.STAGE_1) else 60,
                 Map.begin_time: None,
                 Map.end_time: None,
                 Map.number: 360
@@ -46,21 +48,21 @@ class MinMax(Strategy):
             bkr_rq = eval(rq_cls + f"('{BrokerRequest.RQ_MARKET_PRICE}', rq_prms)")
             bkr.get_market_price(bkr_rq)
             mkt_prc = bkr_rq.get_market_price()
-            conf_mkt_prc = Map({
-                Map.pair: self.get_pair(),
-                Map.period: 60,
-                Map.begin_time: None,
-                Map.end_time: None,
-                Map.number: 20
-            })
-            configs = Map({
-                self._CONF_MAKET_PRICE: conf_mkt_prc,
+            # Set Configs
+            self._set_configs(Map({
+                self._CONF_MAKET_PRICE: Map({
+                    Map.pair: self.get_pair(),
+                    Map.period: 60 * 60 * 24 if (stage == Config.STAGE_1) else 60,
+                    Map.begin_time: None,
+                    Map.end_time: None,
+                    Map.number: 20
+                }),
                 self._CONF_PS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_PS_AVG),
                 self._CONF_MAX_DR: Decimal('-0.005'),
-                self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG)
-            })
-            self._set_configs(configs)
-            # Init Capital
+                self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG),
+                self._CONF_PEAK_DROP_RATE: Decimal('-0.005')
+            }))
+            # Set Capital
             """
             rq_prms = Map({
                     Map.account: BrokerRequest.ACCOUNT_MAIN,
@@ -219,12 +221,14 @@ class MinMax(Strategy):
         mkt_prc = self._get_market_price(bkr)
         self._update_orders(mkt_prc)
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_capital(close=mkt_prc.get_close()) if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        self._save_capital(close=mkt_prc.get_close()) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         if self._has_position():
             odrs_map = self._try_sell(bkr, mkt_prc)
         else:
             odrs_map = self._try_buy(bkr, mkt_prc)
         bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
+        # self._update_orders(mkt_prc)
 
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
@@ -236,7 +240,6 @@ class MinMax(Strategy):
         odrs_map = Map()
         period = 1
         _slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
-        # if(mkt_prc.get_delta_price() > 0) and (period in mkt_prc.get_minimums()):
         if (_slope > 0) and (period in mkt_prc.get_minimums()):
             _ps_avg = self._get_config(self._CONF_PS_AVG)
             _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
@@ -252,6 +255,7 @@ class MinMax(Strategy):
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs_map
 
+    '''
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
@@ -267,29 +271,96 @@ class MinMax(Strategy):
         close = mkt_prc.get_close()
         _slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
         if (exec_prc_val < close) and (_slope > 0):
-            old_scr_odr = self._get_secure_order()
-            bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
-            scr_odr = self._new_secure_order(bkr, mkt_prc)
-            odrs_map.put(scr_odr, len(odrs_map.get_map()))
+            self._manage_secure_order(bkr, mkt_prc, odrs_map)
         elif _slope < 0:
             self._perform_sell(bkr, mkt_prc, odrs_map)
+        # Save in files
         _stage = Config.get(Config.STAGE_MODE)
         self._save_move(**vars(), move=Order.MOVE_SELL) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs_map
+    '''
 
-    def _perform_sell(self, bkr: Broker, mkt_prc: MarketPrice, odrs_map: Map) -> None:
+    def _get_peak_since_buy(self, mkt_prc: MarketPrice) -> [int, None]:
+        """
+        To get the period of the maximum price in MarketPrice\n
+        :param mkt_prc: market prices
+        :return: period of the maximum price in MarketPrice
+        """
+        last_odr = self._get_orders().get_last_execution()
+        if last_odr is None:
+            raise Exception("Last order completed can't be empty")
+        buy_time = last_odr.get_execution_time()
+        time = mkt_prc.get_time()
+        prd_time = mkt_prc.get_period_time()
+        buy_prd = (int((time - buy_time) / prd_time) + 1)
+        closes = mkt_prc.get_closes()
+        nb_prd = len(closes)
+        if buy_prd >= nb_prd:
+            peak_x = self.get_maximum(tuple(closes), 0, nb_prd - 1)
+        else:
+            peak_x = self.get_maximum(tuple(closes), 0, buy_prd)
+        return peak_x
+
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to sell position\n
+        :param bkr: an access to a Broker's API
+        :param mkt_prc: market prices
+        :return: set of order to execute
+                 Map[symbol{str}] => {Order}
+        """
+        vars_rtn = {}
+        odrs = Map()
+        buy_odr = self._get_orders().get_last_execution()
+        if buy_odr is None:
+            raise Exception("Last order completed can't be empty")
+        # Extract Peak
+        peak_idx = self._get_peak_since_buy(mkt_prc)
+        peak = mkt_prc.get_close(peak_idx) if peak_idx is not None else None
+        _pk_dr = self._get_config(self._CONF_PEAK_DROP_RATE)
+        peak_max_drop = peak * (1 + _pk_dr) if peak is not None else None
+        #
+        close = mkt_prc.get_close()
+        buy_odr_prc = buy_odr.get_execution_price().get_value()
+        if (peak_max_drop is not None) \
+                and (close > buy_odr_prc) \
+                and (close <= peak_max_drop):
+            self._sell(bkr, odrs)
+        else:
+            _slope = mkt_prc.get_indicator(MarketPrice.INDIC_ACTUAL_SLOPE)
+            if (buy_odr_prc < close) and (_slope > 0):
+                self._manage_secure_order(bkr, mkt_prc, odrs)
+            elif _slope < 0:
+                # self._check_sell(bkr, mkt_prc, odrs)
+                vars_rtn = self._check_sell(bkr, mkt_prc, odrs)
+        # Save in files
+        _stage = Config.get(Config.STAGE_MODE)
+        my_vars = {**vars(), **vars_rtn}
+        self._save_move(**my_vars, move=Order.MOVE_SELL) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+
+    def _check_sell(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map):  # -> None:
         _dr = mkt_prc.get_indicator(MarketPrice.INDIC_DR)
         _max_dr = self._get_config(self._CONF_MAX_DR)
         _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
         _ds_avg = self._get_config(self._CONF_DS_AVG)
         if (_dr <= _max_dr) or (_ms <= _ds_avg):
-            old_scr_odr = self._get_secure_order()
-            bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
-            s_odr = self._new_sell_order(bkr)
-            odrs_map.put(s_odr, len(odrs_map.get_map()))
+            self._sell(bkr, odrs)
+        return vars()
 
-    # def _manage_secure_order(self):
+    def _sell(self, bkr: Broker, odrs: Map) -> None:
+        old_scr_odr = self._get_secure_order()
+        bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+        s_odr = self._new_sell_order(bkr)
+        odrs.put(s_odr, len(odrs.get_map()))
+
+    def _manage_secure_order(self, bkr: Broker, mkt_prc: MarketPrice, odrs_map: Map) -> None:
+        old_scr_odr = self._get_secure_order()
+        bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+        scr_odr = self._new_secure_order(bkr, mkt_prc)
+        odrs_map.put(scr_odr, len(odrs_map.get_map()))
 
     @staticmethod
     def _save_move(**params):
@@ -302,16 +373,27 @@ class MinMax(Strategy):
         fields = [
             'close',
             'move',
+            "peak",
+            "peak_max_drop",
             '_ms',
             '_dr',
             '_slope',
-            'exec_prc_val'
+            'buy_odr_prc',
             '_max_dr',
             '_ps_avg',
             '_ds_avg',
             'market_json'
         ]
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
+        """
+        row = {}
+        for k, v in params_map.get_map().items():
+            tp = type(v)
+            if (tp == str) or (tp == int) or (tp == float) or (tp == bool):
+                row[k] = v
+        rows = [row]
+        fields = list(row.keys())
+        """
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
 

@@ -148,10 +148,12 @@ class BinanceOrder(Order):
         status = cont.get(Map.status)
         prc = None
         prc_val = cont.get(Map.price)
+        exec_time = cont.get(Map.transactTime)
         if prc_val is not None:
             prc = Price(prc_val, self.get_pair().get_right().get_symbol())
         self._set_status(self._convert_status(status))
         self._set_execution_price(prc)
+        self._set_execution_time(exec_time) if exec_time is not None else None
         from model.tools.Orders import Orders
         Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
 

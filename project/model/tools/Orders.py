@@ -93,6 +93,7 @@ class Orders(Order):
                 raise Exception(f"Order's status can't be null")
             if (status == Order.STATUS_SUBMITTED) or (status == Order.STATUS_PROCESSING):
                 odr_type = odr.get_type()
+
                 if odr_type == Order.TYPE_MARKET:
                     pass
                 elif odr_type == Order.TYPE_STOP:
@@ -100,6 +101,7 @@ class Orders(Order):
                     if (status != Order.STATUS_COMPLETED) and (odr_stop.get_value() >= close_val):
                         odr._set_execution_price(odr_stop)
                         odr._set_status(Order.STATUS_COMPLETED)
+                        odr._set_execution_time(market.get_time())
                         self.insert_order(self.SAVE_ACTION_UPDATE, odr)
                 elif odr_type == Order.TYPE_LIMIT:
                     raise Exception("Must be implemented")

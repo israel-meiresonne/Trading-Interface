@@ -65,9 +65,7 @@ class Binance(Broker):
     def list_paires() -> list:
         prs = [
             "BTC/USDT",
-            "BTC/BNB",
-            "ETH/USDT",
-            "ETH/BNB",
+            "BNB/USDT",
             "EGLD/USDT"
         ]
         return prs

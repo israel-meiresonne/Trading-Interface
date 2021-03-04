@@ -54,6 +54,7 @@ class Order(ABC, Request):
         self.__params = None
         self.__set_time = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
         self.__execution_price = None
+        self.__execution_time = None
         self._set_order(params)
 
     def _set_order(self, params: Map) -> None:
@@ -164,8 +165,16 @@ class Order(ABC, Request):
 
     def get_execution_price(self) -> Price:
         if self.__execution_price is None:
-            raise Exception("The execution price is not set")
+            raise Exception("The execution price must be set")
         return self.__execution_price
+
+    def _set_execution_time(self, time: int) -> None:
+        self.__execution_time = int(time)
+
+    def get_execution_time(self) -> int:
+        if self.__execution_time is None:
+            raise Exception("The execution time must be set")
+        return self.__execution_time
 
     def _set_params(self, params: Map) -> None:
         self.__params = params

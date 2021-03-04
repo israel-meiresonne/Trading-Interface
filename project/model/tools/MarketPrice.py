@@ -7,6 +7,7 @@ from scipy.signal import find_peaks
 
 from model.tools.Map import Map
 
+
 class MarketPrice(ABC):
     INDIC_MS = "_set_ms"
     INDIC_DR = "_set_dr"
@@ -15,6 +16,7 @@ class MarketPrice(ABC):
     INDIC_ACTUAL_SLOPE = "_set_actual_slope"
     COLLECTION_CLOSES = "COLLECTION_CLOSES"
     COLLECTION_NEG_CLOSES = "COLLECTION_NEG_CLOSES"
+    COLLECTION_TIMES = "COLLECTION_TIMES"
     COLLECTION_MINS = "COLLECTION_MINS"
     COLLECTION_MAXS = "COLLECTION_MAXS"
     COLLECTION_EXTREMS = "COLLECTION_EXTREMS"
@@ -33,12 +35,13 @@ class MarketPrice(ABC):
         self.__collections = Map({
             self.COLLECTION_CLOSES: None,
             self.COLLECTION_NEG_CLOSES: None,
+            self.COLLECTION_TIMES: None,
             self.COLLECTION_MINS: None,
             self.COLLECTION_MAXS: None,
             self.COLLECTION_EXTREMS: None
         })
 
-    def _get_period_time(self) -> int:
+    def get_period_time(self) -> int:
         return self.__period_time
 
     def get_market(self) -> tuple:
@@ -97,6 +100,24 @@ class MarketPrice(ABC):
         To get close price at the given period\n
         :param prd: the period where to get the price
         :return: the close price at the given period
+        """
+        pass
+
+    @abstractmethod
+    def get_times(self) -> tuple:
+        """
+        To get unix time of market prices\n
+        :return: unix time of market prices
+        """
+        pass
+
+    @abstractmethod
+    def get_time(self, prd=0) -> int:
+        """
+        To get the unix market time in second for the given period\n
+        :param prd: period to get market time
+        :raise IndexError: if given period is out of set of periods
+        :return: market price's unix time
         """
         pass
 
@@ -166,7 +187,7 @@ class MarketPrice(ABC):
         return closes[new_prd] - closes[old_prd]
 
     def _get_speed(self, new_prd: int, old_prd: int) -> Decimal:
-        prd_time = self._get_period_time()
+        prd_time = self.get_period_time()
         delta = self.get_delta_price(new_prd, old_prd)
         time = (old_prd - new_prd + 1) * prd_time
         return Decimal(delta / time)
@@ -183,8 +204,8 @@ class MarketPrice(ABC):
         closes = self.get_closes()
         nb = len(closes)
         if old_prd >= nb:
-            raise IndexError(f"Period '{old_prd}' don't exit in market of '{nb-1}' periods")
-        return Decimal(closes[new_prd]/closes[old_prd] - 1)
+            raise IndexError(f"Period '{old_prd}' don't exit in market of '{nb - 1}' periods")
+        return Decimal(closes[new_prd] / closes[old_prd] - 1)
 
     def get_futur_price(self, rate: float) -> Decimal:
         """
@@ -193,7 +214,7 @@ class MarketPrice(ABC):
         :return: price*(1+rate)
         """
         closes = self.get_closes()
-        return Decimal(closes[0]) * Decimal(str(1+rate))
+        return Decimal(closes[0]) * Decimal(str(1 + rate))
 
     def get_slope(self, new_prd: int, old_prd: int) -> Decimal:
         closes = self.get_closes()
@@ -204,11 +225,11 @@ class MarketPrice(ABC):
         if old_prd <= new_prd:
             raise ValueError(f"The most recent period '{new_prd}' must be bellow the older '{old_prd}'")
         y = []
-        for i in range(new_prd, old_prd+1):
+        for i in range(new_prd, old_prd + 1):
             y.append(float(str(closes[i])))
         y.reverse()
         x = [v for v in range(len(y))]
-        coefs,_ = np.polynomial.polynomial.Polynomial.fit(x, y, 1, full=True)
+        coefs, _ = np.polynomial.polynomial.Polynomial.fit(x, y, 1, full=True)
         return Decimal(str(round(coefs.coef[1], 2)))
 
     def _set_ms(self) -> None:
@@ -216,7 +237,7 @@ class MarketPrice(ABC):
         To generate the market's variation speed for its most recent period\n
         """
         """
-        prd_time = self._get_period_time()
+        prd_time = self.get_period_time()
         delta = self.get_delta_price()
         return Decimal(delta/prd_time)
         """
@@ -237,7 +258,7 @@ class MarketPrice(ABC):
                 nw_prd = exts[i - 1]
                 old_prd = exts[i]
                 spds.append(self._get_speed(nw_prd, old_prd))
-        ds_avg = np.sum(np.array(spds))/len(spds)
+        ds_avg = np.sum(np.array(spds)) / len(spds)
         self.__set_indicator(self.INDIC_DS_AVG, ds_avg)
 
     def _set_ps_avg(self) -> None:
@@ -254,7 +275,7 @@ class MarketPrice(ABC):
                 nw_prd = exts[i - 1]
                 old_prd = exts[i]
                 spds.append(self._get_speed(nw_prd, old_prd))
-        ps_avg = np.sum(np.array(spds))/len(spds)
+        ps_avg = np.sum(np.array(spds)) / len(spds)
         self.__set_indicator(self.INDIC_PS_AVG, ps_avg)
 
     def _set_dr(self) -> None:
