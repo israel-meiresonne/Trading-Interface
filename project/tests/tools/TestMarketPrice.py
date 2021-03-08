@@ -207,7 +207,15 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         result = self.bnc_mkt_d_u._get_extremums()
         self.assertTupleEqual(exp_d_u, result)
 
-    # def test_get_rsis(self):
+    def test_get_rsis(self):
+        vals = [38.04, 36.47, 36.67, 36.91, 36.76, 36.76, 37.14, 37.72, 38.33, 37.74, 37.74, 37.42, 38.66, 39.10,
+               38.94, 39.28, 39.29, 40.03, 40.06, 40.53, 40.26]
+        mkt = [[0, 0, 0, 0, Decimal(str(val))] for val in vals]
+        bnc_mkt = BinanceMarketPrice(mkt, '1m')
+        rsis = bnc_mkt.get_rsis(14)
+        closes = list(bnc_mkt.get_closes())
+        for i in range(len(closes)):
+            print(f"{closes[i]}: {rsis[i]}")
 
     def test_get_delta_price(self):
         # correct result

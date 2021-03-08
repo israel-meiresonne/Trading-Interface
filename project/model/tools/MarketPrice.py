@@ -11,11 +11,14 @@ from model.tools.Map import Map
 
 
 class MarketPrice(ABC):
+    # Indicators
     INDIC_MS = "_set_ms"
     INDIC_DR = "_set_dr"
     INDIC_PS_AVG = "_set_ps_avg"
     INDIC_DS_AVG = "_set_ds_avg"
     INDIC_ACTUAL_SLOPE = "_set_actual_slope"
+    INDIC_RNRP = "_set_rnrp"
+    # Collections
     COLLECTION_OPENS = "COLLECTION_OPENS"
     COLLECTION_CLOSES = "COLLECTION_CLOSES"
     COLLECTION_NEG_CLOSES = "COLLECTION_NEG_CLOSES"
@@ -187,47 +190,6 @@ class MarketPrice(ABC):
             self._set_collection(self.COLLECTION_EXTREMS, exts)
         return exts
 
-    '''
-    def get_rsis(self, nb_prd=14) -> tuple:
-        """
-        To get collection of RSI\n
-        :param nb_prd: number of period to use to generate each RSI point
-        :return: RSI generated with the market's prices
-        """
-        rsis = self._get_collection(self.COLLECTION_RSIS)
-        if rsis is None:
-            closes = self.get_closes()
-            nb = len(closes)
-            if nb < nb_prd:
-                raise ValueError(f"Number of period used to generate RSI '{nb_prd}' "
-                                 f"must be greater than the number of period in market price '{nb}'")
-            opens = self.get_opens()
-            rsis = []
-            idx = nb - nb_prd
-            while idx >= 0:
-                sub_opens = [opens[i] for i in range(idx, idx + nb_prd)]
-                sub_closes = [closes[i] for i in range(idx, idx + nb_prd)]
-                nb_sub = len(sub_opens)
-                g = 0
-                l = 0
-                for i in range(nb_sub, 0, -1):
-                    delta = sub_closes[i] - sub_opens[i]
-                    if delta > 0:
-                        g += delta
-                    elif delta < 0:
-                        l += delta
-                    else:
-                        g += delta
-                        l += delta
-                g_avg = g / nb_sub
-                l_avg = l / nb_sub
-                rsi = 100 - 100 / (1 + (g_avg / -l_avg))
-                rsis.append(rsi)
-                idx -= 1
-            rsis.reverse()
-        return rsis
-    '''
-
     def get_rsis(self, nb_prd: int = 14) -> tuple:
         """
         To get collection of RSI\n
@@ -241,16 +203,9 @@ class MarketPrice(ABC):
             pd_ser = pd.Series(np.array(closes))
             rsis_obj = RSIIndicator(pd_ser, nb_prd)
             rsis_series = rsis_obj.rsi()
-            """
-            warnings.filterwarnings('error')
-            try:
-                rsis_series = rsi_obj.get_value_list(pd_ser, nb_prd)
-            except Warning:
-                rsis_series = rsi_obj.get_value_list(pd_ser, nb_prd)
-            """
-            rsis = tuple(rsis_series.to_list())
-            # rsis = tuple(df["RSI"].to_list())
-            self._set_collection(self.COLLECTION_RSIS, rsis)
+            rsis = rsis_series.to_list()
+            rsis.reverse()
+            self._set_collection(self.COLLECTION_RSIS, tuple(rsis))
         return rsis
 
     def get_delta_price(self, new_prd=0, old_prd=1) -> Decimal:
