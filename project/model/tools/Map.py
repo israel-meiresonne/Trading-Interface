@@ -7,6 +7,7 @@ class Map:
     date = "date"
     action = "action"
     request = "request"
+    time = "time"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"

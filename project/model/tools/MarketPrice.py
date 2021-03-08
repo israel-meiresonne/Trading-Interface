@@ -204,9 +204,17 @@ class MarketPrice(ABC):
             rsis_obj = RSIIndicator(pd_ser, nb_prd)
             rsis_series = rsis_obj.rsi()
             rsis = rsis_series.to_list()
+            rsis = [Decimal(str(v)) for v in rsis]
             rsis.reverse()
-            self._set_collection(self.COLLECTION_RSIS, tuple(rsis))
+            rsis = tuple(rsis)
+            self._set_collection(self.COLLECTION_RSIS, rsis)
         return rsis
+
+    def get_rsi(self, prd: int = 0) -> Decimal:
+        rsis = self.get_rsis()
+        if prd >= len(rsis):
+            raise ValueError(f"This period '{prd}' don't exist in RSI collection")
+        return rsis[prd]
 
     def get_delta_price(self, new_prd=0, old_prd=1) -> Decimal:
         """

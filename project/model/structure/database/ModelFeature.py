@@ -39,6 +39,11 @@ class ModelFeature(ModelAccess):
         return datetime.fromisoformat(date).timestamp()
 
     @staticmethod
+    def unix_to_date(time: int, form: str = '%Y-%m-%d %H:%M:%S.%f') -> str:
+        return datetime.fromtimestamp(time).strftime(form)
+
+
+    @staticmethod
     def keys_exist(ks: list, mp: dict) -> Union[None, str]:
         """
         Check all keys exist in map\n

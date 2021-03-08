@@ -73,6 +73,9 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.bnc_mkt_d_u = BinanceMarketPrice(self.bnc_list_d_u, "1m")
         self.bnc_mkt_d_d = BinanceMarketPrice(self.bnc_list_d_d, "1m")
         self.bnc_mkt_flat = BinanceMarketPrice(self.bnc_list_flat, "1m")
+        # RSI
+        self.rsi_vals = [38.04, 36.47, 36.67, 36.91, 36.76, 36.76, 37.14, 37.72, 38.33, 37.74, 37.74, 37.42, 38.66, 39.10,
+                38.94, 39.28, 39.29, 40.03, 40.06, 40.53, 40.26]
 
     def tearDown(self) -> None:
         self.bnc_mkt = BinanceMarketPrice(self.list, "1m")
@@ -208,14 +211,26 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertTupleEqual(exp_d_u, result)
 
     def test_get_rsis(self):
-        vals = [38.04, 36.47, 36.67, 36.91, 36.76, 36.76, 37.14, 37.72, 38.33, 37.74, 37.74, 37.42, 38.66, 39.10,
-               38.94, 39.28, 39.29, 40.03, 40.06, 40.53, 40.26]
-        mkt = [[0, 0, 0, 0, Decimal(str(val))] for val in vals]
+        mkt = [[0, 0, 0, 0, Decimal(str(val))] for val in self.rsi_vals]
         bnc_mkt = BinanceMarketPrice(mkt, '1m')
-        rsis = bnc_mkt.get_rsis(14)
+        rsis = bnc_mkt.get_rsis()
+        """
         closes = list(bnc_mkt.get_closes())
         for i in range(len(closes)):
             print(f"{closes[i]}: {rsis[i]}")
+        """
+        exp = id(rsis)
+        result = id(bnc_mkt.get_rsis())
+        self.assertEqual(exp, result)
+
+    def test_get_rsi(self):
+        mkt = [[0, 0, 0, 0, Decimal(str(val))] for val in self.rsi_vals]
+        bnc_mkt = BinanceMarketPrice(mkt, '1m')
+        rsis = bnc_mkt.get_rsis()
+        exp = rsis[0]
+        result = bnc_mkt.get_rsi()
+        self.assertEqual(exp, result)
+        self.assertEqual(rsis[1], bnc_mkt.get_rsi(1))
 
     def test_get_delta_price(self):
         # correct result

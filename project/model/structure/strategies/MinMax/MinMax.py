@@ -18,6 +18,7 @@ class MinMax(Strategy):
     _CONF_MAX_DR = "CONF_MAX_DR"
     _CONF_DS_AVG = "CONF_DS_AVG"
     _CONF_PEAK_DROP_RATE = "_CONF_PEAK_DROP_RATE"
+    _CONF_RSI_BS = "_CONF_RSI_BS"  # RSI Buy Signal
 
     def __init__(self, prms: Map):
         """
@@ -60,7 +61,8 @@ class MinMax(Strategy):
                 self._CONF_PS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_PS_AVG),
                 self._CONF_MAX_DR: Decimal('-0.005'),
                 self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG),
-                self._CONF_PEAK_DROP_RATE: Decimal('-0.005')
+                self._CONF_PEAK_DROP_RATE: Decimal('-0.005'),
+                self._CONF_RSI_BS: Decimal('40')
             }))
             # Set Capital
             """
@@ -220,9 +222,11 @@ class MinMax(Strategy):
         self.__set_strategy(bkr)
         mkt_prc = self._get_market_price(bkr)
         self._update_orders(mkt_prc)
+        # Save
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_capital(close=mkt_prc.get_close()) \
+        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time()) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        #
         if self._has_position():
             odrs_map = self._try_sell(bkr, mkt_prc)
         else:
@@ -243,13 +247,19 @@ class MinMax(Strategy):
         if (_slope > 0) and (period in mkt_prc.get_minimums()):
             _ps_avg = self._get_config(self._CONF_PS_AVG)
             _ms = mkt_prc.get_indicator(MarketPrice.INDIC_MS)
-            if _ms >= _ps_avg:
+            # """
+            _rsi_bs = self._get_config(self._CONF_RSI_BS)
+            _rsi = mkt_prc.get_rsi()
+            if (_rsi <= _rsi_bs) and (_ms >= _ps_avg):
+            # """
+            # if _ms >= _ps_avg:
                 # buy order
                 b_odr = self._new_buy_order(bkr)
                 odrs_map.put(b_odr, len(odrs_map.get_map()))
                 # secure order
                 scr_odr = self._new_secure_order(bkr, mkt_prc)
                 odrs_map.put(scr_odr, len(odrs_map.get_map()))
+        # Backup
         _stage = Config.get(Config.STAGE_MODE)
         self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
@@ -366,22 +376,27 @@ class MinMax(Strategy):
     def _save_move(**params):
         p = Config.get(Config.DIR_SAVE_MOVES)
         params_map = Map(params)
-        closes = params_map.get('mkt_prc').get_closes()
+        mkt_prc = params_map.get('mkt_prc')
+        closes = mkt_prc.get_closes()
         closes_str = [str(v) for v in closes]
         market_json = ModelFeature.json_encode(closes_str)
         params_map.put(market_json, 'market_json')
+        params_map.put(ModelFeature.unix_to_date(mkt_prc.get_time()), Map.time)
         fields = [
+            Map.time,
             'close',
             'move',
+            'buy_odr_prc',
+            '_slope',
             "peak",
             "peak_max_drop",
+            "_rsi",
+            '_rsi_bs',
             '_ms',
-            '_dr',
-            '_slope',
-            'buy_odr_prc',
-            '_max_dr',
             '_ps_avg',
             '_ds_avg',
+            '_dr',
+            '_max_dr',
             'market_json'
         ]
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
@@ -397,14 +412,21 @@ class MinMax(Strategy):
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
 
-    def _save_capital(self, close: Decimal):
+    def _save_capital(self, close: Decimal, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
         cap = self._get_capital()
+        s_qty = self._get_sell_quantity()
+        b_amount = self._get_buy_capital()
+        value = s_qty.get_value() * close if s_qty.get_value() > 0 else b_amount.get_value()
+        perf = (value/cap.get_value() - 1) * 100
         rows = [{
+            Map.time: ModelFeature.unix_to_date(time),
             'close': close,
             'initial': cap.__str__(),
-            'left': self._get_sell_quantity().__str__(),
-            'right': self._get_buy_capital().__str__()
+            'left': s_qty.__str__(),
+            'right': b_amount.__str__(),
+            'value': value,
+            'performance': f"{round(perf, 2)}%"
         }]
         fields = list(rows[0].keys())
         overwrite = False

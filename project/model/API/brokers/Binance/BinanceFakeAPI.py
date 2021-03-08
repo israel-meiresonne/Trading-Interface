@@ -1,6 +1,5 @@
 from json import dumps as json_encode
 import re as rgx
-from time import sleep
 
 from requests.models import Response
 
@@ -74,12 +73,12 @@ class BinanceFakeAPI(BinanceAPI):
         return v
 
     @staticmethod
-    def _get_date(log_id) -> str:
+    def _get_date(log_id) -> int:
         _cls = BinanceFakeAPI
         idx = _cls._get_backed(log_id, Map.index)
         hist_mkt = _cls._get_backed(log_id, Map.market)
         date = hist_mkt[idx][0]
-        return date
+        return int(date)
 
     @staticmethod
     def _get_actual_close(log_id) -> str:
@@ -93,7 +92,8 @@ class BinanceFakeAPI(BinanceAPI):
     def _save_log(log_id: str, rq: str, params: Map) -> None:
         _cls = BinanceFakeAPI
         p = _cls._FILE_LOGS
-        date = _cls._get_date(log_id)
+        date_str = _cls._get_date(log_id)
+        date = _MF.unix_to_date(date_str)
         id_datas = {
             Map.date: date,
             Map.id: log_id,
@@ -145,7 +145,7 @@ class BinanceFakeAPI(BinanceAPI):
         actual_close = _cls._get_actual_close(log_id)
         now_date = _cls._get_date(log_id)
         rows = [{
-            Map.date: now_date,
+            Map.date: _MF.unix_to_date(now_date),
             Map.orderId: params.get(Map.orderId),
             Map.request: rq,
             Map.symbol: params.get(Map.symbol),
