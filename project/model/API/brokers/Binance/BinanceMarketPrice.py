@@ -35,6 +35,16 @@ class BinanceMarketPrice(MarketPrice):
         mkt.reverse()
         super().__init__(mkt, prd)
 
+    def get_opens(self) -> tuple:
+        k = self.COLLECTION_OPENS
+        opens = self._get_collection(k)
+        if opens is None:
+            idx = 1
+            coll = self._extract_index(idx)
+            opens = tuple(Decimal(v) for v in coll)
+            self._set_collection(k, opens)
+        return opens
+
     def get_closes(self) -> tuple:
         k = self.COLLECTION_CLOSES
         closes = self._get_collection(k)
@@ -44,12 +54,6 @@ class BinanceMarketPrice(MarketPrice):
             closes = tuple(Decimal(v) for v in coll)
             self._set_collection(k, closes)
         return closes
-
-    def get_close(self, prd=0) -> Decimal:
-        closes = self.get_closes()
-        if prd >= len(closes):
-            raise ValueError(f"This period '{prd}' don't exist in market's closes")
-        return closes[prd]
 
     def get_times(self) -> tuple:
         k = self.COLLECTION_TIMES

@@ -8,7 +8,7 @@ from model.tools.MarketPrice import MarketPrice
 class TestMarketPrice(unittest.TestCase, MarketPrice):
     def setUp(self) -> None:
         self.list = ['1', '2', '3', '4', '5']
-        self.tuple = ('1', '2', '3', '4', '5')
+        self.tuple = tuple(self.list)
         self.closes_u_u = ('2', '3', '1', '4', '2', '3')
         self.closes_u_d = ('2', '3', '1', '4', '2')
         self.closes_d_u = ('3', '2', '4', '1', '3', '2', '4')
@@ -61,11 +61,11 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             ['0', '0', '0', '0', self.closes_flat[11]]
         ]
         self.bnc_list = [
-            ['0', '0', '0', '0', self.list[0]],
-            ['0', '0', '0', '0', self.list[1]],
-            ['0', '0', '0', '0', self.list[2]],
-            ['0', '0', '0', '0', self.list[3]],
-            ['0', '0', '0', '0', self.list[4]]
+            ['open_time', self.list[4], '0', '0', self.list[0]],
+            ['open_time', self.list[3], '0', '0', self.list[1]],
+            ['open_time', self.list[2], '0', '0', self.list[2]],
+            ['open_time', self.list[1], '0', '0', self.list[3]],
+            ['open_time', self.list[0], '0', '0', self.list[4]]
         ]
         self.bnc_mkt = BinanceMarketPrice(self.bnc_list, "1m")
         self.bnc_mkt_u_u = BinanceMarketPrice(self.bnc_list_u_u, "1m")
@@ -77,8 +77,8 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def tearDown(self) -> None:
         self.bnc_mkt = BinanceMarketPrice(self.list, "1m")
 
-    def _convert_period(self, prd_time: str) -> int:
-        return int(prd_time)
+    def get_opens(self) -> tuple:
+        pass
 
     def get_closes(self) -> tuple:
         pass
@@ -117,6 +117,30 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertIsNone(self.bnc_mkt._get_collection(self.COLLECTION_CLOSES))
 
     # def test_get_indicator(self):
+
+    def test_opens(self):
+        # it work
+        exp0 = [Decimal(v) for v in self.tuple]
+        # exp0.reverse()
+        exp0 = tuple(exp0)
+        result0 = self.bnc_mkt.get_opens()
+        self.assertTupleEqual(exp0, result0)
+        # Still the same reference
+        exp1 = id(result0)
+        result1 = id(self.bnc_mkt.get_opens())
+        self.assertEqual(exp1, result1)
+
+    def test_closes(self):
+        # it work
+        exp0 = [Decimal(v) for v in self.tuple]
+        exp0.reverse()
+        exp0 = tuple(exp0)
+        result0 = self.bnc_mkt.get_closes()
+        self.assertTupleEqual(exp0, result0)
+        # Still the same reference
+        exp1 = id(result0)
+        result1 = id(self.bnc_mkt.get_closes())
+        self.assertEqual(exp1, result1)
 
     def test_get_negative_closes(self):
         self.list.reverse()
@@ -182,6 +206,8 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         exp_d_u = tuple(exp_d_u)
         result = self.bnc_mkt_d_u._get_extremums()
         self.assertTupleEqual(exp_d_u, result)
+
+    # def test_get_rsis(self):
 
     def test_get_delta_price(self):
         # correct result

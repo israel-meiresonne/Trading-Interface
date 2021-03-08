@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal, getcontext
+from decimal import Decimal
 from typing import Union
 
 import numpy as np
+import pandas as pd
+from ta.momentum import RSIIndicator
 from scipy.signal import find_peaks
 
 from model.tools.Map import Map
@@ -14,12 +16,14 @@ class MarketPrice(ABC):
     INDIC_PS_AVG = "_set_ps_avg"
     INDIC_DS_AVG = "_set_ds_avg"
     INDIC_ACTUAL_SLOPE = "_set_actual_slope"
+    COLLECTION_OPENS = "COLLECTION_OPENS"
     COLLECTION_CLOSES = "COLLECTION_CLOSES"
     COLLECTION_NEG_CLOSES = "COLLECTION_NEG_CLOSES"
     COLLECTION_TIMES = "COLLECTION_TIMES"
     COLLECTION_MINS = "COLLECTION_MINS"
     COLLECTION_MAXS = "COLLECTION_MAXS"
     COLLECTION_EXTREMS = "COLLECTION_EXTREMS"
+    COLLECTION_RSIS = "COLLECTION_RSIS"
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int):
@@ -33,12 +37,14 @@ class MarketPrice(ABC):
         self.__period_time = prd_time
         self.__indicators = Map()
         self.__collections = Map({
+            self.COLLECTION_OPENS: None,
             self.COLLECTION_CLOSES: None,
             self.COLLECTION_NEG_CLOSES: None,
             self.COLLECTION_TIMES: None,
             self.COLLECTION_MINS: None,
             self.COLLECTION_MAXS: None,
-            self.COLLECTION_EXTREMS: None
+            self.COLLECTION_EXTREMS: None,
+            self.COLLECTION_RSIS: None
         })
 
     def get_period_time(self) -> int:
@@ -86,6 +92,15 @@ class MarketPrice(ABC):
         return inds.get(ind)
 
     @abstractmethod
+    def get_opens(self) -> tuple:
+        """
+        To get list of market price at open\n
+        :return: list of market price at open
+                 list[index] => {float}
+        """
+        pass
+
+    @abstractmethod
     def get_closes(self) -> tuple:
         """
         To get list of market price at close\n
@@ -94,14 +109,16 @@ class MarketPrice(ABC):
         """
         pass
 
-    @abstractmethod
     def get_close(self, prd=0) -> Decimal:
         """
         To get close price at the given period\n
         :param prd: the period where to get the price
         :return: the close price at the given period
         """
-        pass
+        closes = self.get_closes()
+        if prd >= len(closes):
+            raise ValueError(f"This period '{prd}' don't exist in market's closes")
+        return closes[prd]
 
     @abstractmethod
     def get_times(self) -> tuple:
@@ -169,6 +186,72 @@ class MarketPrice(ABC):
             exts = tuple(exts)
             self._set_collection(self.COLLECTION_EXTREMS, exts)
         return exts
+
+    '''
+    def get_rsis(self, nb_prd=14) -> tuple:
+        """
+        To get collection of RSI\n
+        :param nb_prd: number of period to use to generate each RSI point
+        :return: RSI generated with the market's prices
+        """
+        rsis = self._get_collection(self.COLLECTION_RSIS)
+        if rsis is None:
+            closes = self.get_closes()
+            nb = len(closes)
+            if nb < nb_prd:
+                raise ValueError(f"Number of period used to generate RSI '{nb_prd}' "
+                                 f"must be greater than the number of period in market price '{nb}'")
+            opens = self.get_opens()
+            rsis = []
+            idx = nb - nb_prd
+            while idx >= 0:
+                sub_opens = [opens[i] for i in range(idx, idx + nb_prd)]
+                sub_closes = [closes[i] for i in range(idx, idx + nb_prd)]
+                nb_sub = len(sub_opens)
+                g = 0
+                l = 0
+                for i in range(nb_sub, 0, -1):
+                    delta = sub_closes[i] - sub_opens[i]
+                    if delta > 0:
+                        g += delta
+                    elif delta < 0:
+                        l += delta
+                    else:
+                        g += delta
+                        l += delta
+                g_avg = g / nb_sub
+                l_avg = l / nb_sub
+                rsi = 100 - 100 / (1 + (g_avg / -l_avg))
+                rsis.append(rsi)
+                idx -= 1
+            rsis.reverse()
+        return rsis
+    '''
+
+    def get_rsis(self, nb_prd: int = 14) -> tuple:
+        """
+        To get collection of RSI\n
+        :param nb_prd: number of period to use to generate each RSI point
+        :return: RSI generated with the market's prices
+        """
+        rsis = self._get_collection(self.COLLECTION_RSIS)
+        if rsis is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            pd_ser = pd.Series(np.array(closes))
+            rsis_obj = RSIIndicator(pd_ser, nb_prd)
+            rsis_series = rsis_obj.rsi()
+            """
+            warnings.filterwarnings('error')
+            try:
+                rsis_series = rsi_obj.get_value_list(pd_ser, nb_prd)
+            except Warning:
+                rsis_series = rsi_obj.get_value_list(pd_ser, nb_prd)
+            """
+            rsis = tuple(rsis_series.to_list())
+            # rsis = tuple(df["RSI"].to_list())
+            self._set_collection(self.COLLECTION_RSIS, rsis)
+        return rsis
 
     def get_delta_price(self, new_prd=0, old_prd=1) -> Decimal:
         """
