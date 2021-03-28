@@ -41,7 +41,10 @@ class BinanceFakeAPI(BinanceAPI):
             # """
             for row in hist_mkt:
                 for i in range(len(row)):
-                    row[i] = int(_MF.date_to_unix(row[i])) if (i == 0) else row[i]
+                    if rgx.match('^[0-9]+$', row[i]):
+                        row[i] = int(row[i]) if (i == 0) else row[i]
+                    else:
+                        row[i] = int(_MF.date_to_unix(row[i])) if (i == 0) else row[i]
             # """
             _cls._add_backup(log_id, Map.id, log_id)
             _cls._add_backup(log_id, Map.market, hist_mkt)
@@ -78,7 +81,8 @@ class BinanceFakeAPI(BinanceAPI):
         idx = _cls._get_backed(log_id, Map.index)
         hist_mkt = _cls._get_backed(log_id, Map.market)
         date = hist_mkt[idx][0]
-        return int(date)
+        date = int(date/1000) if _cls._get_stage() != Config.STAGE_1 else date
+        return date
 
     @staticmethod
     def _get_actual_close(log_id) -> str:
@@ -92,8 +96,8 @@ class BinanceFakeAPI(BinanceAPI):
     def _save_log(log_id: str, rq: str, params: Map) -> None:
         _cls = BinanceFakeAPI
         p = _cls._FILE_LOGS
-        date_str = _cls._get_date(log_id)
-        date = _MF.unix_to_date(date_str)
+        unix_date = _cls._get_date(log_id)
+        date = _MF.unix_to_date(unix_date)
         id_datas = {
             Map.date: date,
             Map.id: log_id,
@@ -132,7 +136,11 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         nb_prd = params.get(Map.limit)
         idx = _cls._get_backed(log_id, Map.index)
-        idx = nb_prd if idx is None else idx + 1
+        if (idx is None) or (idx < nb_prd):
+            idx = nb_prd
+        else:
+            idx += 1
+        # idx = nb_prd if idx is None else idx + 1
         min_idx = idx - nb_prd
         hist_mkt = _cls._get_backed(log_id, Map.market)
         d = [hist_mkt[i] for i in range(len(hist_mkt)) if (i <= idx) and (i > min_idx)]

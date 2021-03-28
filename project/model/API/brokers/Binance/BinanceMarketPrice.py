@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.MarketPrice import MarketPrice
 
@@ -16,18 +17,18 @@ class BinanceMarketPrice(MarketPrice):
                 the end
                     [
                       [
-                        1499040000000,      // Open time
-                        "0.01634790",       // Open
-                        "0.80000000",       // High
-                        "0.01575800",       // Low
-                        "0.01577100",       // Close
-                        "148976.11427815",  // Volume
-                        1499644799999,      // Close time
-                        "2434.19055334",    // Quote asset volume
-                        308,                // Number of trades
-                        "1756.87402397",    // Taker buy base asset volume
-                        "28.46694368",      // Taker buy quote asset volume
-                        "17928899.62484339" // Ignore.
+                        1499040000000,      // 0.  Open time
+                        "0.01634790",       // 1.  Open
+                        "0.80000000",       // 2.  High
+                        "0.01575800",       // 3.  Low
+                        "0.01577100",       // 4.  Close
+                        "148976.11427815",  // 5.  Volume
+                        1499644799999,      // 6.  Close time
+                        "2434.19055334",    // 7.  Quote asset volume
+                        308,                // 8.  Number of trades
+                        "1756.87402397",    // 9.  Taker buy base asset volume
+                        "28.46694368",      // 10. Taker buy quote asset volume
+                        "17928899.62484339" // 11. Ignore.
                       ]
                     ]
         """
@@ -55,13 +56,38 @@ class BinanceMarketPrice(MarketPrice):
             self._set_collection(k, closes)
         return closes
 
+    def get_highs(self) -> tuple:
+        k = self.COLLECTION_HIGHS
+        closes = self._get_collection(k)
+        if closes is None:
+            idx = 2
+            coll = self._extract_index(idx)
+            coll.reverse()
+            closes = tuple(Decimal(v) for v in coll)
+            self._set_collection(k, closes)
+        return closes
+
+    def get_lows(self) -> tuple:
+        k = self.COLLECTION_LOWS
+        closes = self._get_collection(k)
+        if closes is None:
+            idx = 3
+            coll = self._extract_index(idx)
+            coll.reverse()
+            closes = tuple(Decimal(v) for v in coll)
+            self._set_collection(k, closes)
+        return closes
+
     def get_times(self) -> tuple:
         k = self.COLLECTION_TIMES
         times = self._get_collection(k)
         if times is None:
             idx = 0
             coll = self._extract_index(idx)
-            times = tuple(int(v) for v in coll)
+            _stage = Config.get(Config.STAGE_MODE)
+            times = tuple(int(v) for v in coll) if _stage == Config.STAGE_1 else tuple(int(int(v)/1000) for v in coll)
+            # times = tuple(int(int(v)/1000) for v in coll)
+            # times = tuple(int(v) for v in coll)
             self._set_collection(k, times)
         return times
 
@@ -70,22 +96,6 @@ class BinanceMarketPrice(MarketPrice):
         if prd >= len(times):
             raise IndexError(f"This period '{prd}' is out of time collection '{len(times)}'")
         return times[prd]
-
-    '''
-    def _extract_index(self, k: str, i: int) -> tuple:
-        """
-        To extract from each line of market price the given index\n
-        :param k: access key to a supported collection
-        :param i: the index to extract in each line
-        :return: list of values extract of each line of market price
-        """
-        coll = self._get_collection(k)
-        if coll is None:
-            mkt = self.get_market()
-            coll = tuple([Decimal(line[i]) for line in mkt])
-            self._set_collection(k, coll)
-        return coll
-    '''
 
     def _extract_index(self, idx: int) -> list:
         """

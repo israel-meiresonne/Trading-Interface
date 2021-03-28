@@ -66,6 +66,7 @@ class Binance(Broker):
         prs = [
             "BTC/USDT",
             "BNB/USDT",
-            "EGLD/USDT"
+            "EGLD/USDT",
+            "COS/USDT"
         ]
         return prs
