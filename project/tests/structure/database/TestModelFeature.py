@@ -73,6 +73,50 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         with self.assertRaises(ValueError):
             self.get_maximum(ds2, 6, 5)
 
+    def test_list_slice(self):
+        begin = 3
+        end = 7
+        vals = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        exp = [4, 5, 6, 7, 8]
+        result = self.list_slice(vals, begin, end)
+        self.assertListEqual(exp, result)
+        # end >= begin
+        with self.assertRaises(ValueError):
+            self.list_slice(vals, 4, 1)
+        # end or begin is negative
+        with self.assertRaises(IndexError):
+            self.list_slice(vals, -4, 1)
+        # end or begin is negative
+        with self.assertRaises(IndexError):
+            self.list_slice(vals, 4, len(vals)+1)
+
+    def test_get_slope(self):
+        raise Exception("Must implement this test")
+
+    def test_get_slopes(self):
+        # Same slopes
+        nb_prd = 3
+        vals = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        exp1 = [None, None, 1, 1, 1, 1, 1, 1, 1]
+        result1 = self.get_slopes(vals, nb_prd)
+        self.assertListEqual(exp1, result1)
+        # Different slopes
+        nb_prd = 2
+        values = [1, 2, 3, 3, 2, 1, 1, 2, 3]
+        exp = [None, 1, 1, 0, -1, -1, 0, 1, 1]
+        result = self.get_slopes(values, nb_prd)
+        self.assertListEqual(exp, result)
+
+    def test_get_average(self):
+        nb_prd = 3
+        xs = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        exp1 = [None, None, 2, 3, 4, 5, 6, 7, 8]
+        result1 = self.get_averages(xs, nb_prd)
+        self.assertListEqual(exp1, result1)
+        # less or one period
+        with self.assertRaises(ValueError):
+            self.get_averages(xs, 1)
+
 
 if __name__ == '__main__':
     unittest.main

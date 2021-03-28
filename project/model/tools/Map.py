@@ -8,6 +8,12 @@ class Map:
     action = "action"
     request = "request"
     time = "time"
+    close = "close"
+    open = "open"
+    high = "high"
+    low = "low"
+    rsi = "rsi"
+    super_trend = "super_trend"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"
@@ -71,6 +77,12 @@ class Map:
     # Strategy
     capital = "capital"
     rate = "rate"
+    # ModelFeature
+    slope = "slope"
+    yaxis = "yaxis"
+    correlation = "correlation"
+    pvalue = "pvalue"
+    stderr = "stderr"
 
     def __init__(self, mp=None):
         mp = {} if mp is None else dict(mp)
@@ -132,3 +144,6 @@ class Map:
 
     def get_keys(self) -> list:
         return list(self.__map.keys())
+
+    def __str__(self) -> str:
+        return self.get_map().__str__()

@@ -7,6 +7,7 @@ import pandas as pd
 from ta.momentum import RSIIndicator
 from scipy.signal import find_peaks
 
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
 
 
@@ -22,11 +23,25 @@ class MarketPrice(ABC):
     COLLECTION_OPENS = "COLLECTION_OPENS"
     COLLECTION_CLOSES = "COLLECTION_CLOSES"
     COLLECTION_NEG_CLOSES = "COLLECTION_NEG_CLOSES"
+    COLLECTION_HIGHS = "COLLECTION_HIGHS"
+    COLLECTION_LOWS = "COLLECTION_LOWS"
     COLLECTION_TIMES = "COLLECTION_TIMES"
     COLLECTION_MINS = "COLLECTION_MINS"
     COLLECTION_MAXS = "COLLECTION_MAXS"
     COLLECTION_EXTREMS = "COLLECTION_EXTREMS"
     COLLECTION_RSIS = "COLLECTION_RSIS"
+    COLLECTION_SLOPES = "COLLECTION_SLOPES"
+    COLLECTION_SLOPES_AVG = "COLLECTION_SLOPES_AVG"
+    COLLECTION_SUPER_TREND = "COLLECTION_SUPER_TREND"
+    COLLECTION_SUPER_TREND_UPS = "COLLECTION_SUPER_TREND_UPS"
+    COLLECTION_SUPER_TREND_DOWNS = "COLLECTION_SUPER_TREND_DOWNS"
+    COLLECTION_TRUE_RANGE_AVG = "COLLECTION_TRUE_RANGE_AVG"
+    COLLECTION_TRUE_RANGE = "COLLECTION_TRUE_RANGE"
+    _NB_PRD_RSIS = 14
+    _NB_PRD_SLOPES = 5
+    _NB_PRD_SLOPES_AVG = 5
+    _NB_PRD_TRUE_RANGE_AVG = 10
+    _COEF_SUPER_TREND = 3
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int):
@@ -43,11 +58,20 @@ class MarketPrice(ABC):
             self.COLLECTION_OPENS: None,
             self.COLLECTION_CLOSES: None,
             self.COLLECTION_NEG_CLOSES: None,
+            self.COLLECTION_HIGHS: None,
+            self.COLLECTION_LOWS: None,
             self.COLLECTION_TIMES: None,
             self.COLLECTION_MINS: None,
             self.COLLECTION_MAXS: None,
             self.COLLECTION_EXTREMS: None,
-            self.COLLECTION_RSIS: None
+            self.COLLECTION_RSIS: None,
+            self.COLLECTION_SLOPES: None,
+            self.COLLECTION_SLOPES_AVG: None,
+            self.COLLECTION_SUPER_TREND: None,
+            self.COLLECTION_SUPER_TREND_UPS: None,
+            self.COLLECTION_SUPER_TREND_DOWNS: None,
+            self.COLLECTION_TRUE_RANGE_AVG: None,
+            self.COLLECTION_TRUE_RANGE: None
         })
 
     def get_period_time(self) -> int:
@@ -59,7 +83,8 @@ class MarketPrice(ABC):
     def __get_collections(self) -> Map:
         return self.__collections
 
-    def _set_collection(self, k: str, e: Union[list, tuple]) -> None:
+    # def _set_collection(self, k: str, e: Union[list, tuple]) -> None:
+    def _set_collection(self, k: str, e: tuple) -> None:
         """
         To set a new collection in collections\n
         :param k: key where to store the collection
@@ -70,6 +95,7 @@ class MarketPrice(ABC):
         if coll is not None:
             raise Exception(f"This collection '{k}' is already set")
         self.__get_collections().put(tuple(e), k)
+        # self.__get_collections().put(e, k)
 
     def _get_collection(self, k) -> tuple:
         """
@@ -122,6 +148,22 @@ class MarketPrice(ABC):
         if prd >= len(closes):
             raise ValueError(f"This period '{prd}' don't exist in market's closes")
         return closes[prd]
+
+    @abstractmethod
+    def get_highs(self) -> tuple:
+        """
+        To get market's higher prices\n
+        :return: market's higher price for each period
+        """
+        pass
+
+    @abstractmethod
+    def get_lows(self) -> tuple:
+        """
+        To get market's lower prices\n
+        :return: market's lower price for each period
+        """
+        pass
 
     @abstractmethod
     def get_times(self) -> tuple:
@@ -190,7 +232,7 @@ class MarketPrice(ABC):
             self._set_collection(self.COLLECTION_EXTREMS, exts)
         return exts
 
-    def get_rsis(self, nb_prd: int = 14) -> tuple:
+    def get_rsis(self, nb_prd: int = _NB_PRD_RSIS) -> tuple:
         """
         To get collection of RSI\n
         :param nb_prd: number of period to use to generate each RSI point
@@ -274,9 +316,203 @@ class MarketPrice(ABC):
         for i in range(new_prd, old_prd + 1):
             y.append(float(str(closes[i])))
         y.reverse()
-        x = [v for v in range(len(y))]
+        # x = [v for v in range(len(y))]
+        """
         coefs, _ = np.polynomial.polynomial.Polynomial.fit(x, y, 1, full=True)
         return Decimal(str(round(coefs.coef[1], 2)))
+        """
+        return _MF.get_slope(y).get(Map.slope)
+
+    def get_slopes(self, nb_prd: int = _NB_PRD_SLOPES) -> tuple:
+        """
+        To get slopes of market closes\n
+        :param nb_prd: number of period to use to evaluate each slope
+        :return: market closes's list of slopes
+        """
+        slopes = self._get_collection(self.COLLECTION_SLOPES)
+        if slopes is None:
+            ys = [float(v) for v in self.get_closes()]
+            ys.reverse()
+            slopes = _MF.get_slopes(ys, nb_prd)
+            slopes.reverse()
+            slopes = tuple(slopes)
+            self._set_collection(self.COLLECTION_SLOPES, slopes)
+        return slopes
+
+    def get_slopes_avg(self, nb_avg_prd: int = _NB_PRD_SLOPES_AVG, nb_slp_prd: int = None) -> tuple:
+        """
+        To get slopes average\n
+        :param nb_slp_prd: number of period to use to evaluate each slope
+        :param nb_avg_prd: number of period to use to evaluate each average
+        :return: list of slope average
+        """
+        slp_avg = self._get_collection(self.COLLECTION_SLOPES_AVG)
+        if slp_avg is None:
+            slopes = self.get_slopes(nb_slp_prd) if nb_slp_prd is not None else self.get_slopes()
+            nones = [v for v in slopes if v is None]
+            positive_slps = [abs(v) for v in slopes if v is not None]
+            positive_slps.reverse()
+            slp_avg = _MF.get_averages(positive_slps, nb_avg_prd)
+            slp_avg.reverse()
+            slp_avg += nones
+            slp_avg = tuple(slp_avg)
+            self._set_collection(self.COLLECTION_SLOPES_AVG, slp_avg)
+        return slp_avg
+
+    def get_slope_avg(self, prd: int = 0) -> Decimal:
+        avgs = self.get_slopes_avg()
+        if prd >= len(avgs):
+            raise ValueError(f"This period '{prd}' don't exist in the Slope average collection")
+        return avgs[prd]
+
+    # SuperTrend DOWN
+    def get_super_trend(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
+        """
+        To get the Super Trend indicator\n
+        :param nb_prd: number of period to use for ach average
+        :param coef: coefficient  to adjust downs values
+        :return: the Super Trend indicator
+        """
+        k = self.COLLECTION_SUPER_TREND
+        supers = self._get_collection(k)
+        if supers is None:
+            supers = []
+            closes = list(self.get_closes())
+            closes.reverse()
+            ups = self.get_super_trend_ups(nb_prd, coef)
+            downs = self.get_super_trend_downs(nb_prd, coef)
+            for i in range(len(closes)):
+                if ups[i] is None:
+                    supers.append(None)
+                    continue
+                spr = ups[i] if ((supers[i-1] == ups[i-1]) and (closes[i] < ups[i])) \
+                                or ((supers[i-1] == downs[i-1]) and (closes[i] < downs[i])) else None
+                if spr is None:
+                    spr = downs[i] if ((supers[i-1] == ups[i-1]) and (closes[i] > ups[i])) \
+                                      or ((supers[i-1] == downs[i-1]) and (closes[i] > downs[i])) else None
+                supers.append(spr)
+            supers.reverse()
+            supers = tuple(supers)
+            self._set_collection(k, supers)
+        return supers
+
+    def get_super_trend_ups(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
+        """
+        To get Super Trend's up values\n
+        :param nb_prd: number of period to use for ach average
+        :param coef: coefficient  to adjust downs values
+        :return: Super Trend's up values
+        """
+        k = self.COLLECTION_SUPER_TREND_UPS
+        ups = self._get_collection(k)
+        if ups is None:
+            highs = self.get_highs()
+            lows = self.get_lows()
+            closes = list(self.get_closes())
+            closes.reverse()
+            nb = len(closes)
+            if (len(highs) != nb) or (len(lows) != nb):
+                raise Exception(f"The closes, highs, lows prices must have same number of period "
+                                f"('{nb}', '{len(highs)}', '{len(lows)}')")
+            ups = []
+            atrs = self.get_true_range_avg(nb_prd)
+            for i in range(nb):
+                if atrs[i] is None:
+                    ups.append(None)
+                    continue
+                # down = get_super_trend_down(i, highs, lows, atrs, coef)
+                down = (highs[i] + lows[i]) / 2 + coef * atrs[i]
+                if ups[i - 1] is None:
+                    ups.append(down)
+                    continue
+                up_trend = down if (down < ups[i - 1]) or (closes[i - 1] > ups[i - 1]) else ups[i - 1]
+                ups.append(up_trend)
+            ups = tuple(ups)
+            self._set_collection(k, ups)
+        return ups
+
+    def get_super_trend_downs(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
+        k = self.COLLECTION_SUPER_TREND_DOWNS
+        downs = self._get_collection(k)
+        if downs is None:
+            highs = self.get_highs()
+            lows = self.get_lows()
+            closes = list(self.get_closes())
+            closes.reverse()
+            nb = len(closes)
+            if (len(highs) != nb) or (len(lows) != nb):
+                raise Exception(f"The closes, highs, lows prices must have same number of period "
+                                f"('{nb}', '{len(highs)}', '{len(lows)}')")
+            atrs = self.get_true_range_avg(nb_prd)
+            downs = []
+            for i in range(nb):
+                if atrs[i] is None:
+                    downs.append(None)
+                    continue
+                up = (highs[i] + lows[i]) / 2 - coef * atrs[i]
+                if downs[i - 1] is None:
+                    downs.append(up)
+                    continue
+                up_trend = up if (up > downs[i - 1]) or (closes[i - 1] < downs[i - 1]) else downs[i - 1]
+                downs.append(up_trend)
+            downs = tuple(downs)
+            self._set_collection(k, downs)
+        return downs
+
+    def get_true_range_avg(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG) -> tuple:
+        """
+        To get the Average True Range indicator\n
+        :param nb_prd: number of period to use for ach average
+        :return: the Average True Range indicator
+        """
+        avgs = self._get_collection(self.COLLECTION_TRUE_RANGE_AVG)
+        if avgs is None:
+            if nb_prd <= 1:
+                raise ValueError(f"The number of period must be at less 2 instead '{nb_prd}'")
+            trs = self.get_true_range()
+            nb_none = len([v for v in trs if v is None])
+            idx = nb_none
+            idx += nb_prd - 1
+            avgs = []
+            nb = len(trs)
+            for i in range(nb):
+                if i < idx:
+                    avgs.append(None)
+                    continue
+                seq = [trs[j] for j in range(nb) if (j > (idx - nb_prd)) and (j <= idx)]
+                atr = sum(seq) / nb_prd
+                avgs.append(atr)
+                idx += 1
+            avgs = tuple(avgs)
+            self._set_collection(self.COLLECTION_TRUE_RANGE_AVG, avgs)
+        return avgs
+
+    def get_true_range(self) -> tuple:
+        """
+        To get the True Range indicator\n
+        :return: True Range indicator
+        """
+        trs = self._get_collection(self.COLLECTION_TRUE_RANGE)
+        if trs is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            highs = self.get_highs()
+            lows = self.get_lows()
+            nb = len(closes)
+            if (len(highs) != nb) or (len(lows) != nb):
+                raise ValueError(f"The closes, highs and lows collections must have the same length "
+                                 f"('{nb}', '{len(highs)}, '{len(lows)}')")
+            trs = [None]
+            for i in range(1, nb):
+                hl = highs[i] - lows[i]
+                hc = abs(highs[i] - closes[i - 1]) if (i > 0) else 0
+                lc = abs(lows[i] - closes[i - 1]) if (i > 0) else 0
+                tr = max([hl, hc, lc])
+                trs.append(tr)
+            trs = tuple(trs)
+            self._set_collection(self.COLLECTION_TRUE_RANGE, trs)
+        return trs
+    # SuperTrend UP
 
     def _set_ms(self) -> None:
         """

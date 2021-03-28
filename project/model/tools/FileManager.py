@@ -53,7 +53,7 @@ class FileManager(ABC):
         return ndrs
 
     @staticmethod
-    def get_csv(p: str, fields=None) -> list:
+    def get_csv(p: str, fields: list = None) -> list:
         """
         To get content of a csv file\n
         :param p: the path to the csv file ended by the file's name, ie: path/to/file.csv

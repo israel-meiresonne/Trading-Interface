@@ -34,7 +34,7 @@ class BrokerRequest(ABC, Request):
         """
         To prepare a market prices request\n
         :param prms: params required to request MarketPrice to Broker
-                         prms[Map.pair]         => {str}
+                         prms[Map.pair]         => {Pair}
                          prms[Map.period]       => {int}  # in second
                          prms[Map.begin_time]   => {int|None}
                          prms[Map.end_time]     => {int|None}

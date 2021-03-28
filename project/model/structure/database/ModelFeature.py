@@ -7,8 +7,10 @@ from typing import Union, Any
 
 import numpy as np
 from scipy.signal import find_peaks
+from scipy.stats import linregress
 
 from model.structure.database.ModelAccess import ModelAccess
+from model.tools.Map import Map
 
 
 class ModelFeature(ModelAccess):
@@ -41,7 +43,6 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def unix_to_date(time: int, form: str = '%Y-%m-%d %H:%M:%S.%f') -> str:
         return datetime.fromtimestamp(time).strftime(form)
-
 
     @staticmethod
     def keys_exist(ks: list, mp: dict) -> Union[None, str]:
@@ -114,3 +115,91 @@ class ModelFeature(ModelAccess):
             peak_idx = idx if peak_idx < 0 else peak_idx
             peak_idx = idx if (idx >= min_idx) and (idx <= max_idx) and (d > ds[peak_idx]) else peak_idx
         return peak_idx if (min_idx <= peak_idx <= max_idx) else None
+
+    @staticmethod
+    def list_slice(xs, begin: int, end: int) -> list:
+        """
+        Extract a slice of the list\n
+        :param xs: The input array.
+        :param begin: index where to begin
+        :param end: index where to end
+        :return: a slice of the given list
+        """
+        nb = len(xs)
+        if end <= begin:
+            raise ValueError(f"The end index '{end}' must be greater than the begin index '{begin}")
+        if begin < 0:
+            raise IndexError(f"The begin index '{begin}' must be positive")
+        if end >= nb:
+            raise IndexError(f"The end '{end}' index is out of the bound '{nb-1}'")
+        seq = [xs[j] for j in range(begin, end + 1)]
+        return seq
+
+    @staticmethod
+    def get_slope(y: list, x: list = None) -> Map:
+        """
+        To get slope of the linear regression\n
+        :param y: Y axis values
+        :param x: X axis values
+        :return: slope of the linear regression
+                 Map[Map.slope]         {float}
+                 Map[Map.yaxis]         {float}
+                 Map[Map.correlation]
+                 Map[Map.pvalue]
+                 Map[Map.stderr]
+        """
+        if (x is not None) and (len(y) != len(x)):
+            raise ValueError(f"The have as much Y values than X values ({len(y)} != {len(x)})")
+        x = [v for v in range(len(y))] if x is None else x
+        slope, intercept, rvalue, pvalue, stderr = linregress(x, y)
+        result = Map({Map.slope: slope,
+                      Map.yaxis: intercept,
+                      Map.correlation: rvalue,
+                      Map.pvalue: pvalue,
+                      Map.stderr: stderr,
+                      })
+        return result
+
+    @staticmethod
+    def get_slopes(xs: list, nb_prd: int) -> list:
+        """
+        To get slopes of a given list\n
+        :param xs: list of value
+        :param nb_prd: number of period to use for each slope
+        :return: slopes of a given list
+        """
+        if nb_prd <= 1:
+            raise ValueError(f"The number of period must be at less 2 instead '{nb_prd}'")
+        idx = nb_prd
+        sps = []
+        for i in range(len(xs)):
+            if i < idx-1:
+                sps.append(None)
+                continue
+            slc = ModelFeature.list_slice(xs, (idx - nb_prd), idx - 1)
+            sp = ModelFeature.get_slope(slc)
+            sps.append(sp.get(Map.slope))
+            idx += 1
+        return sps
+
+    @staticmethod
+    def get_averages(xs: list, nb_prd: int) -> list:
+        """
+        To get averages of the given list\n
+        :param xs: list of value
+        :param nb_prd: number of period to use for each average
+        :return: averages of a given list
+        """
+        if nb_prd <= 1:
+            raise ValueError(f"The number of period must be at less 2 instead '{nb_prd}'")
+        idx = nb_prd
+        avgs = []
+        for i in range(len(xs)):
+            if i < idx-1:
+                avgs.append(None)
+                continue
+            slc = ModelFeature.list_slice(xs, (idx - nb_prd), idx - 1)
+            avg = sum(slc) / nb_prd
+            avgs.append(avg)
+            idx += 1
+        return avgs
