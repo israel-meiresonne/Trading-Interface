@@ -692,6 +692,15 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         result_2 = mkt_2.get_indicator(self.INDIC_ACTUAL_SLOPE)
         self.assertEqual(exp_2, result_2)
 
+    def test_get_peak(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_get_buy_period(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_get_peak_since_buy(self) -> None:
+        raise Exception("Must implement this test")
+
 
 if __name__ == '__main__':
     unittest.main

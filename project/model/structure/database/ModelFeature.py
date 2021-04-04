@@ -81,7 +81,7 @@ class ModelFeature(ModelAccess):
         return json_decode(json)
 
     @staticmethod
-    def get_maximums(ds: list) -> tuple:
+    def get_maximums(ds: list) -> list:
         """
         To get indexes of maximums in the given list\n
         :param ds: list of values
@@ -89,10 +89,10 @@ class ModelFeature(ModelAccess):
         """
         ys = np.array(ds)
         maxs, _ = find_peaks(ys)
-        return tuple(maxs)
+        return list(maxs)
 
     @staticmethod
-    def get_minimums(ds: list) -> tuple:
+    def get_minimums(ds: list) -> list:
         """
         To get indexes of minimums in the given list\n
         :param ds: list of values
@@ -100,7 +100,21 @@ class ModelFeature(ModelAccess):
         """
         neg_ys = [-v for v in ds]
         mins, _ = find_peaks(neg_ys)
-        return tuple(mins)
+        return list(mins)
+
+    @staticmethod
+    def get_super_extremums(vs: list) -> list:
+        maxs = ModelFeature.get_maximums(vs)
+        max_vals = [vs[prd] for prd in maxs]
+        mins = ModelFeature.get_minimums(vs)
+        min_vals = [vs[prd] for prd in mins]
+        fake_spr_maxs = ModelFeature.get_maximums(max_vals)
+        spr_maxs = [maxs[prd] for prd in fake_spr_maxs]
+        fake_spr_mins = ModelFeature.get_minimums(min_vals)
+        spr_mins = [mins[prd] for prd in fake_spr_mins]
+        spr_extrems = spr_maxs + spr_mins
+        spr_extrems.sort()
+        return spr_extrems
 
     @staticmethod
     def get_maximum(ds: list, min_idx: int, max_idx: int) -> int:
@@ -203,3 +217,12 @@ class ModelFeature(ModelAccess):
             avgs.append(avg)
             idx += 1
         return avgs
+
+    @staticmethod
+    def slope_to_degree(slope: float) -> float:
+        from math import atan as _arctg
+        from math import pi as _pi
+        rad = _arctg(slope)
+        deg = rad*180/_pi
+        return deg
+

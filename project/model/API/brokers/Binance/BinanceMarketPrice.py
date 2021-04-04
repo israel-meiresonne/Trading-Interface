@@ -62,7 +62,7 @@ class BinanceMarketPrice(MarketPrice):
         if closes is None:
             idx = 2
             coll = self._extract_index(idx)
-            coll.reverse()
+            # coll.reverse()
             closes = tuple(Decimal(v) for v in coll)
             self._set_collection(k, closes)
         return closes
@@ -73,7 +73,7 @@ class BinanceMarketPrice(MarketPrice):
         if closes is None:
             idx = 3
             coll = self._extract_index(idx)
-            coll.reverse()
+            # coll.reverse()
             closes = tuple(Decimal(v) for v in coll)
             self._set_collection(k, closes)
         return closes

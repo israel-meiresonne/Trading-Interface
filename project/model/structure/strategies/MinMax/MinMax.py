@@ -19,13 +19,14 @@ class MinMax(Strategy):
     _CONF_PS_AVG = "CONF_PS_AVG"
     _CONF_MAX_DR = "CONF_MAX_DR"
     _CONF_DS_AVG = "CONF_DS_AVG"
-    _CONF_PEAK_DROP_RATE = "_CONF_PEAK_DROP_RATE"
+    _CONF_PEAK_DROP_RATE = "CONF_PEAK_DROP_RATE"
+    _CONF_TSI_PEAK_DROP_RATE = "CONF_TSI_PEAK_DROP_RATE"
     _CONF_RSI_BS = "_CONF_RSI_BS"                   # RSI Buy Signal
     _CONF_RSI_SS = "_CONF_RSI_SS"                   # RSI Sell Signal
     _CONF_SLP_BS = "_CONF_SLP_BS"                   # Slope Buy Signal
     _CONF_RSI_PEAK_DROP_POINT = "_CONF_RSI_PEAK_DROP_POINT"
-    _TREND_UP = "TREND_UP"
-    _TREND_DOWN = "TREND_DOWN"
+    _TREND_RISING = "TREND_RISING"
+    _TREND_DROPING = "TREND_DROPING"
 
     def __init__(self, prms: Map):
         """
@@ -38,7 +39,8 @@ class MinMax(Strategy):
         super().__init__(prms)
         self.__configs = None
         self.__secure_order = None
-        self.trends = None
+        self._trends = None
+        self._permits = Map()
 
     def __set_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
@@ -82,7 +84,8 @@ class MinMax(Strategy):
                 self._CONF_RSI_BS: Decimal('40'),               # BNB
                 self._CONF_RSI_SS: Decimal('50'),               # BNB
                 self._CONF_SLP_BS: Decimal('0.2'),              # BNB
-                self._CONF_RSI_PEAK_DROP_POINT: Decimal('3')    # BNB
+                self._CONF_RSI_PEAK_DROP_POINT: Decimal('3'),   # BNB
+                self._CONF_TSI_PEAK_DROP_RATE: Decimal('-0.005')
             }))
             # Set Capital
             """
@@ -254,7 +257,7 @@ class MinMax(Strategy):
         bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
         # self._update_orders(mkt_prc)
 
-    # ——————————————— BUY ———————————————
+    # ——————————————— BUY DOWN ———————————————
 
     # ORIGINAL WITH RSI
     '''
@@ -316,8 +319,154 @@ class MinMax(Strategy):
         return odrs
     '''
 
-    # JULIA'S BUY
+    # TSI > EMA(TSI) & RSI
+    '''
+    def _update_permits(self, mkt_prc: MarketPrice) -> None:
+        permits = self._permits
+        rsi_permit = permits.get(Map.rsi)
+        if (rsi_permit is None) or (not rsi_permit):
+            _rsi_bs = self._get_config(self._CONF_RSI_BS)
+            rsi_permit = mkt_prc.get_rsi() <= _rsi_bs
+            permits.put(rsi_permit, Map.rsi)
+
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        odrs = Map()
+        self._update_permits(mkt_prc)
+        rsi_permit = self._permits.get(Map.rsi)
+        tsi = mkt_prc.get_tsis()[0]
+        ema_tsi = mkt_prc.get_tsis_emas()[0]
+        if rsi_permit and (tsi >= ema_tsi):
+            self._buy(bkr, mkt_prc, odrs)
+            self._permits.put(None, Map.rsi)
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY, rsi=mkt_prc.get_rsi()) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    '''
+
+    def _get_trends(self) -> list:
+        self._trends = [] if self._trends is None else self._trends
+        return self._trends
+
+    def _update_trends(self, mkt_prc: MarketPrice) -> None:
+        close = mkt_prc.get_close()
+        sptrend = mkt_prc.get_super_trend()[0]
+        trend = self._TREND_RISING if close > sptrend else None
+        trend = self._TREND_DROPING if ((trend is None) and (close < sptrend)) else trend
+        trends = self._get_trends()
+        trends.append(trend) if (len(trends) <= 0) or (trends[-1] != trend) else None
+
+    # SuperTrend Switch: V1
+    '''
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        odrs = Map()
+        self._update_trends(mkt_prc)
+        trends = self._get_trends()
+        up_end = (len(trends) >= 2) and (trends[-1] == self._TREND_RISING) and (trends[-2] == self._TREND_DROPING)
+        if up_end:
+            self._buy(bkr, mkt_prc, odrs)
+            a = trends
+            self._trends = None
+            trends = a
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY, rsi=mkt_prc.get_rsi(),
+                        tsi=mkt_prc.get_tsis()[0], ema_tsi=mkt_prc.get_tsis_emas()[0]) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    '''
+
+    # SuperTrend Switch: V2
+    '''
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        odrs = Map()
+        self._update_trends(mkt_prc)
+        trends = self._get_trends()
+        ema_tsi = mkt_prc.get_tsis_emas()[0]
+        rsi = mkt_prc.get_rsi()
+        rsi_ok = (rsi < 60)
+        # Switch
+        tsi = mkt_prc.get_tsis()[0]
+        tsi_ok = tsi > ema_tsi
+        trend_switch = (len(trends) >= 2) and (trends[-1] == self._TREND_RISING) and (trends[-2] == self._TREND_DROPING)
+        drop_to_rise_ok = rsi_ok and tsi_ok and trend_switch
+        # Is Rising
+        trend_ok = trends[-1] == self._TREND_RISING
+        rising_ok = trend_ok and tsi_ok and rsi_ok
+        # Checking
+        if drop_to_rise_ok or rising_ok:
+            self._buy(bkr, mkt_prc, odrs)
+            a = trends
+            self._trends = None
+            trends = a
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    '''
+
+    # SuperTrend Switch: V3
     # '''
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        odrs = Map()
+        self._update_trends(mkt_prc)
+        trends = self._get_trends()
+        ema_tsi = mkt_prc.get_tsis_emas()[0]
+        rsis = mkt_prc.get_rsis()
+        xs = [v for v in range(3)]
+        ys = [float(rsis[i]) for i in range(2, -1, -1)]
+        # ys = [rsis[2], rsis[1], rsis[0]]
+        rsi_slope = self.get_slope(ys, xs).get(Map.slope)
+        rsi_ok = (rsi_slope > 0)
+        # Switch
+        tsi = mkt_prc.get_tsis()[0]
+        tsi_ok = tsi > ema_tsi
+        trend_switch = (len(trends) >= 2) and (trends[-1] == self._TREND_RISING) and (trends[-2] == self._TREND_DROPING)
+        drop_to_rise_ok = rsi_ok and tsi_ok and trend_switch
+        # Is Rising
+        trend_ok = trends[-1] == self._TREND_RISING
+        rising_ok = trend_ok and tsi_ok and rsi_ok
+        # Checking
+        if drop_to_rise_ok or rising_ok:
+            self._buy(bkr, mkt_prc, odrs)
+            a = trends
+            self._trends = None
+            trends = a
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY, rsi=mkt_prc.get_rsi()) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    # '''
+
+    # JULIA'S BUY
+    '''
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         odrs = Map()
         close = mkt_prc.get_close()
@@ -331,7 +480,7 @@ class MinMax(Strategy):
         self._save_move(**vars(), move=Order.MOVE_BUY) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
-    # '''
+    '''
 
     def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
         # buy order
@@ -341,7 +490,8 @@ class MinMax(Strategy):
         scr_odr = self._new_secure_order(bkr, mkt_prc)
         odrs.put(scr_odr, len(odrs.get_map()))
 
-    # ——————————————— SELL ———————————————
+    # ——————————————— BUY UP ——————————————————
+    # ——————————————— SELL DOWN ———————————————
 
     # No PEAK
     '''
@@ -501,12 +651,93 @@ class MinMax(Strategy):
         return odrs
     '''
 
-    # JULIA'S SELL
-    # '''
-    def _get_trends(self) -> list:
-        self.trends = [] if self.trends is None else self.trends
-        return self.trends
+    # RSI PEAK & TSI PEAK: V1
+    '''
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to sell position\n
+        :param bkr: an access to a Broker's API
+        :param mkt_prc: market prices
+        :return: set of order to execute
+                 Map[symbol{str}] => {Order}
+        """
+        vars_rtn = {}
+        odrs = Map()
+        last_odr = self._get_orders().get_last_execution()
+        if last_odr is None:
+            raise Exception("Last order completed can't be empty")
+        _rsi_ss = self._get_config(self._CONF_RSI_SS)
+        # RSI
+        rsis = mkt_prc.get_rsis()
+        rsi_peak_prd = MarketPrice.get_peak_since_buy(last_odr, rsis, mkt_prc)
+        rsi_peak = rsis[rsi_peak_prd] if rsi_peak_prd is not None else None
+        rsi_ok = (rsi_peak is not None) and (rsi_peak >= _rsi_ss)
+        # TSI
+        tsis = mkt_prc.get_tsis()
+        tsi = tsis[0]
+        peak_tsis_prd = MarketPrice.get_peak_since_buy(last_odr, tsis, mkt_prc)
+        peak_tsi = tsis[peak_tsis_prd] if peak_tsis_prd is not None else None
+        _tsi_max_drop_rate = self._get_config(self._CONF_TSI_PEAK_DROP_RATE)
+        # tsi_max_drop = (peak_tsi * (1+_tsi_max_drop_rate)) if peak_tsi is not None else None
+        tsi_max_drop = (peak_tsi - abs(peak_tsi * _tsi_max_drop_rate)) if peak_tsi is not None else None
+        tsi_ok = (tsi_max_drop is not None) and (tsi <= tsi_max_drop)
+        # SECURE Order
+        secure_odr_prc = self._get_secure_order().get_stop_price().get_value()
+        stop_base_prc = secure_odr_prc / (1 + self._get_config(self._CONF_MAX_DR))          # ❌
+        # CHECK
+        if rsi_ok and tsi_ok:
+            self._sell(bkr, odrs)
+        elif mkt_prc.get_close() > stop_base_prc:
+            self._move_up_secure_order(bkr, mkt_prc, odrs)
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        my_vars = {**vars(), **vars_rtn}
+        self._save_move(**my_vars, move=Order.MOVE_SELL, rsi=mkt_prc.get_rsi(), ema_tsi=mkt_prc.get_tsis_emas()[0]) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    '''
 
+    # TSI < EMA(TSI) OR DROPPING
+    # '''
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to sell position\n
+        :param bkr: an access to a Broker's API
+        :param mkt_prc: market prices
+        :return: set of order to execute
+                 Map[symbol{str}] => {Order}
+        """
+        vars_rtn = {}
+        odrs = Map()
+        self._update_trends(mkt_prc)
+        # TSI
+        tsi = mkt_prc.get_tsis()[0]
+        ema_tsi = mkt_prc.get_tsis_emas()[0]
+        tsi_ok = tsi < ema_tsi
+        # Trend
+        trends = self._get_trends()
+        trend_ok = trends[-1] == self._TREND_DROPING
+        # SECURE Order
+        secure_odr_prc = self._get_secure_order().get_stop_price().get_value()
+        stop_base_prc = secure_odr_prc / (1 + self._get_config(self._CONF_MAX_DR))          # ❌
+        # CHECK
+        if tsi_ok or trend_ok:
+            self._sell(bkr, odrs)
+            a = trends
+            trends = None
+            trends = a
+        elif mkt_prc.get_close() > stop_base_prc:
+            self._move_up_secure_order(bkr, mkt_prc, odrs)
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        my_vars = {**vars(), **vars_rtn}
+        self._save_move(**my_vars, move=Order.MOVE_SELL, rsi=mkt_prc.get_rsi()) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    # '''
+
+    # JULIA'S SELL
+    '''
     def _update_trend(self, mkt_prc: MarketPrice) -> None:
         close = mkt_prc.get_close()
         sptrend = mkt_prc.get_super_trend()[0]
@@ -539,7 +770,9 @@ class MinMax(Strategy):
         self._save_move(**my_vars, move=Order.MOVE_SELL, rsi=mkt_prc.get_rsi()) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
-    # '''
+    '''
+
+    # ——————————————— SELL UP ———————————————
 
     @staticmethod
     def _get_buy_period(odr: Order, mkt_prc: MarketPrice) -> int:
@@ -560,12 +793,12 @@ class MinMax(Strategy):
         buy_prd = buy_prd if _stage == Config.STAGE_1 else buy_prd + 1
         return buy_prd
 
-    def _get_peak(self, xs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:
-        nb_prd = len(xs)
+    def _get_peak(self, vs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:
+        nb_prd = len(vs)
         if max_idx >= nb_prd:
-            peak_idx = self.get_maximum(xs, min_idx, nb_prd - 1)
+            peak_idx = self.get_maximum(vs, min_idx, nb_prd - 1)
         else:
-            peak_idx = self.get_maximum(xs, min_idx, max_idx)
+            peak_idx = self.get_maximum(vs, min_idx, max_idx)
         return peak_idx
 
     def _get_peak_since_buy(self, mkt_prc: MarketPrice) -> [int, None]:
@@ -629,9 +862,11 @@ class MinMax(Strategy):
         params_map.put(market_json, 'market_json')
         params_map.put(ModelFeature.unix_to_date(mkt_prc.get_time()), Map.time)
         params_map.put(mkt_prc.get_rsis(), 'rsis')
+        params_map.put(mkt_prc.get_tsis(), 'tsis')
         params_map.put(mkt_prc.get_close(), Map.close)
-        params_map.put(mkt_prc.get_super_trend(), 'super_trends')
+        # params_map.put(mkt_prc.get_super_trend(), 'super_trends')
         params_map.put(mkt_prc.get_super_trend()[0], 'super_trend')
+        """
         fields = [
             Map.time,
             'close',
@@ -648,10 +883,20 @@ class MinMax(Strategy):
             '_rsi_bs',
             '_rsi_ss',
             'rsi_up',
+            'rsi_permit',
             'rsi_peak_idx',
+            'rsi_peak_prd',
             'rsi_peak',
+            'rsi_ok',
             '_rsi_pk_dp',
             'rsi_peak_max_drop',
+            'tsi',
+            'peak_tsis_prd',
+            'peak_tsi',
+            'tsi_max_drop_rate',
+            'tsi_max_drop',
+            'tsi_ok',
+            'ema_tsi',
             'super_trend',
             'last_sptrend',
             'up_end',
@@ -663,18 +908,47 @@ class MinMax(Strategy):
             '_max_dr',
             'market_json',
             'rsis',
-            'super_trends'
+            'tsis',
+            # 'super_trends'
+        ]
+        """
+        fields = [
+            Map.time,
+            'close',
+            'move',
+            'buy_odr_prc',
+            'secure_odr_prc',
+            'stop_base_prc',
+            # Buy
+            'rsi',
+            'rsi_permit',
+            'xs',
+            'ys',
+            'rsi_slope',
+            # Sell
+            '_rsi_ss',
+            'rsi_peak_prd',
+            'rsi_peak',
+            'rsi_ok',
+            # Buy
+            'tsi',
+            'ema_tsi',
+            # Sell
+            'peak_tsis_prd',
+            'peak_tsi',
+            '_tsi_max_drop_rate',
+            'tsi_max_drop',
+            'tsi_ok',
+            # Buy
+            'trend_ok',
+            'super_trend',
+            'trends',
+            'up_end',
+            'market_json',
+            'rsis',
+            'tsis'
         ]
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
-        """
-        row = {}
-        for k, v in params_map.get_map().items():
-            tp = type(v)
-            if (tp == str) or (tp == int) or (tp == float) or (tp == bool):
-                row[k] = v
-        rows = [row]
-        fields = list(row.keys())
-        """
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
 

@@ -4,11 +4,17 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+from pandas_ta import supertrend as _supertrend
 from ta.momentum import RSIIndicator
+from ta.momentum import TSIIndicator
+from ta.utils import _ema
 from scipy.signal import find_peaks
 
+from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.Order import Order
 
 
 class MarketPrice(ABC):
@@ -30,7 +36,10 @@ class MarketPrice(ABC):
     COLLECTION_MAXS = "COLLECTION_MAXS"
     COLLECTION_EXTREMS = "COLLECTION_EXTREMS"
     COLLECTION_RSIS = "COLLECTION_RSIS"
+    COLLECTION_TSIS = "COLLECTION_TSIS"
+    COLLECTION_TSIS_EMAS = "COLLECTION_TSIS_EMAS"
     COLLECTION_SLOPES = "COLLECTION_SLOPES"
+    COLLECTION_SLOPES_DEG = "COLLECTION_SLOPES_DEG"
     COLLECTION_SLOPES_AVG = "COLLECTION_SLOPES_AVG"
     COLLECTION_SUPER_TREND = "COLLECTION_SUPER_TREND"
     COLLECTION_SUPER_TREND_UPS = "COLLECTION_SUPER_TREND_UPS"
@@ -38,10 +47,12 @@ class MarketPrice(ABC):
     COLLECTION_TRUE_RANGE_AVG = "COLLECTION_TRUE_RANGE_AVG"
     COLLECTION_TRUE_RANGE = "COLLECTION_TRUE_RANGE"
     _NB_PRD_RSIS = 14
-    _NB_PRD_SLOPES = 5
-    _NB_PRD_SLOPES_AVG = 5
-    _NB_PRD_TRUE_RANGE_AVG = 10
+    _NB_PRD_SLOPES = 7
+    _NB_PRD_SLOPES_AVG = 7
+    _NB_PRD_TRUE_RANGE_AVG = 7
     _COEF_SUPER_TREND = 3
+    _NB_PRD_SLOW_TSI = 25
+    _NB_PRD_FAST_TSI = 13
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int):
@@ -65,7 +76,10 @@ class MarketPrice(ABC):
             self.COLLECTION_MAXS: None,
             self.COLLECTION_EXTREMS: None,
             self.COLLECTION_RSIS: None,
+            self.COLLECTION_TSIS: None,
+            self.COLLECTION_TSIS_EMAS: None,
             self.COLLECTION_SLOPES: None,
+            self.COLLECTION_SLOPES_DEG: None,
             self.COLLECTION_SLOPES_AVG: None,
             self.COLLECTION_SUPER_TREND: None,
             self.COLLECTION_SUPER_TREND_UPS: None,
@@ -73,6 +87,9 @@ class MarketPrice(ABC):
             self.COLLECTION_TRUE_RANGE_AVG: None,
             self.COLLECTION_TRUE_RANGE: None
         })
+        # Backup
+        stage = Config.get(Config.STAGE_MODE)
+        self._save_market(self.get_market()) if stage != Config.STAGE_1 else None
 
     def get_period_time(self) -> int:
         return self.__period_time
@@ -232,6 +249,16 @@ class MarketPrice(ABC):
             self._set_collection(self.COLLECTION_EXTREMS, exts)
         return exts
 
+    """
+    def get_super_extremums(self) -> tuple:
+        closes = self.get_closes()
+        mins = list(self.get_minimums())
+        # min_vals = [closes[prd] for prd in mins]
+        maxs = list(self.get_maximums())
+        # max_vals = [closes[prd] for prd in maxs]
+        return tuple(_MF.get_super_extremums(mins, maxs))
+    """
+
     def get_rsis(self, nb_prd: int = _NB_PRD_RSIS) -> tuple:
         """
         To get collection of RSI\n
@@ -257,6 +284,54 @@ class MarketPrice(ABC):
         if prd >= len(rsis):
             raise ValueError(f"This period '{prd}' don't exist in RSI collection")
         return rsis[prd]
+
+    def get_tsis(
+            self,
+            nb_prd_slow: int = _NB_PRD_SLOW_TSI,
+            nb_prd_fast: int = _NB_PRD_FAST_TSI,
+            use_nan: bool = False
+    ) -> tuple:
+        k = self.COLLECTION_TSIS
+        tsis = self._get_collection(k)
+        if tsis is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            pd_series = pd.Series(np.array(closes))
+            tsis_obj = TSIIndicator(pd_series, nb_prd_slow, nb_prd_fast, not use_nan)
+            tsis_series = tsis_obj.tsi()
+            tsis = tsis_series.to_list()
+            tsis = [Decimal(str(v)) for v in tsis]
+            tsis.reverse()
+            tsis = tuple(tsis)
+            self._set_collection(k, tsis)
+        return tsis
+
+    def get_tsis_emas(
+            self,
+            nb_prd_slow: int = _NB_PRD_SLOW_TSI,
+            nb_prd_fast: int = _NB_PRD_FAST_TSI,
+            use_nan: bool = False
+    ) -> tuple:
+        """
+        To get the EMA of the TSI indicator\n
+        :param nb_prd_slow: number of period used in TSI
+        :param nb_prd_fast: number of period used in TSI & EMA(TSI)
+        :param use_nan: set True to use NaN value before nb_period index else its fill result of calculated values
+        :return: EMA of the TSI indicator
+        """
+        k = self.COLLECTION_TSIS_EMAS
+        tsis_emas = self._get_collection(k)
+        if tsis_emas is None:
+            tsis = list(self.get_tsis(nb_prd_slow, nb_prd_fast, use_nan))
+            tsis.reverse()
+            pd_series = pd.Series(np.array(tsis))
+            tsis_emas = _ema(pd_series, nb_prd_fast, not use_nan)
+            tsis_emas = tsis_emas.to_list()
+            tsis_emas = [Decimal(str(v)) for v in tsis_emas]
+            tsis_emas.reverse()
+            tsis_emas = tuple(tsis_emas)
+            self._set_collection(k, tsis_emas)
+        return tsis_emas
 
     def get_delta_price(self, new_prd=0, old_prd=1) -> Decimal:
         """
@@ -304,6 +379,7 @@ class MarketPrice(ABC):
         closes = self.get_closes()
         return Decimal(closes[0]) * Decimal(str(1 + rate))
 
+    # SLOPES
     def get_slope(self, new_prd: int, old_prd: int) -> Decimal:
         closes = self.get_closes()
         nb = len(closes)
@@ -339,6 +415,20 @@ class MarketPrice(ABC):
             self._set_collection(self.COLLECTION_SLOPES, slopes)
         return slopes
 
+    def get_slopes_degree(self, nb_prd: int = _NB_PRD_SLOPES) -> tuple:
+        k = self.COLLECTION_SLOPES_DEG
+        degs = self._get_collection(k)
+        if degs is None:
+            degs = []
+            slopes = self.get_slopes(nb_prd)
+            for v in slopes:
+                deg = _MF.slope_to_degree(v) if v is not None else None
+                degs.append(deg)
+            # degs = tuple(_MF.slope_to_degree(s) for s in slopes)
+            degs = tuple(degs)
+            self._set_collection(k, degs)
+        return degs
+
     def get_slopes_avg(self, nb_avg_prd: int = _NB_PRD_SLOPES_AVG, nb_slp_prd: int = None) -> tuple:
         """
         To get slopes average\n
@@ -366,6 +456,7 @@ class MarketPrice(ABC):
         return avgs[prd]
 
     # SuperTrend DOWN
+    '''
     def get_super_trend(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
         """
         To get the Super Trend indicator\n
@@ -385,12 +476,44 @@ class MarketPrice(ABC):
                 if ups[i] is None:
                     supers.append(None)
                     continue
-                spr = ups[i] if ((supers[i-1] == ups[i-1]) and (closes[i] < ups[i])) \
-                                or ((supers[i-1] == downs[i-1]) and (closes[i] < downs[i])) else None
+                spr = ups[i] if ((supers[i - 1] == ups[i - 1]) and (closes[i] < ups[i])) \
+                                or ((supers[i - 1] == downs[i - 1]) and (closes[i] < downs[i])) else None
                 if spr is None:
-                    spr = downs[i] if ((supers[i-1] == ups[i-1]) and (closes[i] > ups[i])) \
-                                      or ((supers[i-1] == downs[i-1]) and (closes[i] > downs[i])) else None
+                    spr = downs[i] if ((supers[i - 1] == ups[i - 1]) and (closes[i] > ups[i])) \
+                                      or ((supers[i - 1] == downs[i - 1]) and (closes[i] > downs[i])) else None
                 supers.append(spr)
+            supers.reverse()
+            supers = tuple(supers)
+            self._set_collection(k, supers)
+        return supers
+    @staticmethod
+    def _to_pd_serie(vs: list) -> pd.Series:
+        return pd.Series(np.array(vs))
+    '''
+
+    def get_super_trend(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
+        """
+        To get the Super Trend indicator\n
+        :param nb_prd: number of period to use for ach average
+        :param coef: coefficient  to adjust downs values
+        :return: the Super Trend indicator
+        """
+        k = self.COLLECTION_SUPER_TREND
+        supers = self._get_collection(k)
+        if supers is None:
+            closes = list(float(v) for v in self.get_closes())
+            closes.reverse()
+            pd_closes = pd.Series(np.array(closes))
+            highs = list(float(v) for v in self.get_highs())
+            highs.reverse()
+            pd_highs = pd.Series(np.array(highs))
+            lows = list(float(v) for v in self.get_lows())
+            lows.reverse()
+            pd_lows = pd.Series(np.array(lows))
+            supers_obj = _supertrend(pd_highs, pd_lows, pd_closes, nb_prd, coef)
+            supers_serie = supers_obj[f'SUPERT_{nb_prd}_{float(coef)}']
+            supers = supers_serie.to_list()
+            supers = [Decimal(str(v)) for v in supers]
             supers.reverse()
             supers = tuple(supers)
             self._set_collection(k, supers)
@@ -512,6 +635,7 @@ class MarketPrice(ABC):
             trs = tuple(trs)
             self._set_collection(self.COLLECTION_TRUE_RANGE, trs)
         return trs
+
     # SuperTrend UP
 
     def _set_ms(self) -> None:
@@ -577,3 +701,59 @@ class MarketPrice(ABC):
         old_prd = exts[0]
         slope = self.get_slope(0, old_prd)
         self.__set_indicator(self.INDIC_ACTUAL_SLOPE, slope)
+
+    @staticmethod
+    def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:
+        nb_prd = len(vs)
+        if max_idx >= nb_prd:
+            peak_idx = _MF.get_maximum(vs, min_idx, nb_prd - 1)
+        else:
+            peak_idx = _MF.get_maximum(vs, min_idx, max_idx)
+        return peak_idx
+
+    @staticmethod
+    def get_buy_period(odr: Order, mkt) -> int:
+        """
+        To get period index of when tha order was executed\n
+        :param odr: the executed order
+        :param mkt: MarketPrice
+        :return: period index of when tha order was executed
+        """
+        if odr.get_status() != Order.STATUS_COMPLETED:
+            raise Exception(f"The Order's status must be '{Order.STATUS_COMPLETED}' instead of '{odr.get_status()}'")
+        buy_time = odr.get_execution_time()
+        time = mkt.get_time()
+        prd_time = mkt.get_period_time()
+        buy_prd = int((time - buy_time) / prd_time)
+        _stage = Config.get(Config.STAGE_MODE)
+        buy_prd = buy_prd if _stage == Config.STAGE_1 else buy_prd + 1
+        return buy_prd
+
+    @staticmethod
+    def get_peak_since_buy(last_odr: Order, vs: Union[list, tuple], mkt_prc) -> [int, None]:
+        """
+        To get the period of the maximum price in MarketPrice\n
+        :param last_odr: last Order executed
+        :param mkt_prc: MarketPrice
+        :param vs: list/tuple where to look for the peak
+        :return: period of the maximum price in MarketPrice
+        """
+        """
+        last_odr = self._get_orders().get_last_execution()
+        if last_odr is None:
+            raise Exception("Last order completed can't be empty")
+        """
+        buy_prd = MarketPrice.get_buy_period(last_odr, mkt_prc)
+        # closes = mkt_prc.get_closes()
+        nb_prd = len(vs)
+        peak_idx = MarketPrice.get_peak(vs, 0, nb_prd - 1) if (buy_prd >= nb_prd) \
+            else MarketPrice.get_peak(vs, 0, buy_prd)
+        return peak_idx
+
+    @staticmethod
+    def _save_market(mkt: tuple) -> None:
+        p = Config.get(Config.DIR_SAVE_MARKET)
+        rows = [{Map.market: list(mkt)}]
+        fields = list(rows[0].keys())
+        overwrite = False
+        FileManager.write_csv(p, fields, rows, overwrite)

@@ -24,6 +24,7 @@ class Config(ABC):
     DIR_SAVE_ORDER_ACTIONS = "DIR_SAVE_ORDER_ACTIONS"
     DIR_SAVE_MOVES = "DIR_SAVE_MOVES"
     DIR_SAVE_CAPITAL = "DIR_SAVE_CAPITAL"
+    DIR_SAVE_MARKET = "DIR_SAVE_MARKET"
 
     @abstractmethod
     def __init__(self):

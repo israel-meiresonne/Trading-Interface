@@ -56,6 +56,22 @@ def extract_markets():
     _fm_cls.write_csv(p, fields, rows)
 
 
+def capital_to_market(src_path: str, depot_path: str) -> None:
+    _fm_cls = FileManager
+    # Extract
+    fields = ['market_json']
+    csv = _fm_cls.get_csv(src_path)
+    rows = [{Map.time: int(_MF.date_to_unix(row[Map.time])),
+            Map.open: '0',
+            Map.high: '0',
+            Map.low: '0',
+            Map.close: row[Map.close]}
+            for row in csv]
+    fields = list(rows[0].keys())
+    _fm_cls.write_csv(depot_path, fields, rows)
+    print("🖨 File printed ✅")
+
+
 def get_historic(pr: Pair, period: int, nb_prd: int) -> MarketPrice:
     bnc = Binance(Map({Map.api_pb: "pb_k",
                        Map.api_sk: "sk_k",
@@ -74,10 +90,18 @@ def get_historic(pr: Pair, period: int, nb_prd: int) -> MarketPrice:
 def print_historic(pr_str: str, prd: int = 60, nb_prd: int = 1000) -> None:
     pr = Pair(pr_str)
     mkt = get_historic(pr, prd, nb_prd)
+    print_market(mkt, pr)
+
+
+def print_market(mkt: MarketPrice, pr: Pair) -> None:
     closes = mkt.get_closes()
     rows = []
     # times = [int(t / 1000) for t in mkt.get_times()]
     times = [t for t in mkt.get_times()]
+    degs = mkt.get_slopes_degree(14)
+    degs = [v for v in degs if v is not None]
+    spr_extrems = _MF.get_super_extremums(list(degs))
+    # print(spr_extrems)
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -86,7 +110,12 @@ def print_historic(pr_str: str, prd: int = 60, nb_prd: int = 1000) -> None:
             Map.low: mkt.get_lows()[i],
             Map.close: closes[i],
             Map.rsi: mkt.get_rsis()[i],
-            Map.super_trend: mkt.get_super_trend()[i]
+            Map.super_trend: mkt.get_super_trend()[i],
+            Map.tsi: mkt.get_tsis(use_nan=True)[i],
+            Map.tsi + "_ema": mkt.get_tsis_emas()[i],
+            'slopes': mkt.get_slopes(14)[i],
+            'slope_deg': mkt.get_slopes_degree()[i],
+            'extremuns': degs[i] if i in spr_extrems else None
         }
         rows.append(row)
     rows.reverse()
@@ -222,15 +251,25 @@ def get_super_trend(closes: list, ups: list, downs: list) -> list:
         supers.append(spr)
     return supers
 
+
 if __name__ == '__main__':
     # extract_market()
     # extract_markets()
     # print_historic(Binance.list_paires()[0])
-    print_historic("COS/USDT")
+    # print_historic(Binance.list_paires()[2])
+    """
+    src_path='content/v0.01/backups/2021-03-20 12.31.44-3D/BNB/2021-03-20 12.32.26_capital.csv'
+    depot_path='content/v0.01/market-historic/BNBUSDT-3D.csv'
+    capital_to_market(src_path, depot_path)
+    """
     # nb_prd = 5
-    p = "content/v0.01/market-historic/SuperTrend.csv"
+    p = "content/v0.01/market-historic/EGLDUSDT-2021-03-28 10.25.33.csv"
     csv = FileManager.get_csv(p)
-    mkt_list = [[int(line[Map.date]), '0', line[Map.high], line[Map.low], line[Map.close]] for line in csv]
+    mkt_list = [[int(line[Map.time]), '0', line[Map.high], line[Map.low], line[Map.close]] for line in csv]
+    mkt = BinanceMarketPrice(mkt_list, '1m')
+    mkt.get_super_trend()
+    # print(mkt.get_super_trend())
+    print_market(mkt, Pair("EGLD/USDT"))
     """
     closes = [float(row[4]) for row in mkt_list]
     highs = [float(row[2]) for row in mkt_list]

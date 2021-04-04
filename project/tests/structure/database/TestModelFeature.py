@@ -1,4 +1,6 @@
 import unittest
+from math import pi as _pi
+
 from model.structure.database.ModelFeature import ModelFeature
 
 
@@ -116,6 +118,12 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         # less or one period
         with self.assertRaises(ValueError):
             self.get_averages(xs, 1)
+
+    def test_slope_to_degree(self):
+        slope0 = 1
+        exp0 = 45
+        result0 = self.slope_to_degree(slope0)
+        self.assertEqual(exp0, result0)
 
 
 if __name__ == '__main__':
