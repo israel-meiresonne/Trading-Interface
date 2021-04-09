@@ -16,6 +16,8 @@ from model.tools.Map import Map
 class ModelFeature(ModelAccess):
     TIME_SEC = "time_sec"
     TIME_MILLISEC = "time_millisec"
+    FORMAT_D_H_M_S_MS = '%Y-%m-%d %H:%M:%S.%f'
+    FORMAT_D_H_M_S = '%Y-%m-%d %H:%M:%S'
 
     @abstractmethod
     def __init__(self):
@@ -41,7 +43,7 @@ class ModelFeature(ModelAccess):
         return datetime.fromisoformat(date).timestamp()
 
     @staticmethod
-    def unix_to_date(time: int, form: str = '%Y-%m-%d %H:%M:%S.%f') -> str:
+    def unix_to_date(time: int, form: str = FORMAT_D_H_M_S_MS) -> str:
         return datetime.fromtimestamp(time).strftime(form)
 
     @staticmethod

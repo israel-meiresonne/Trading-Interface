@@ -42,6 +42,7 @@ class MarketPrice(ABC):
     COLLECTION_SLOPES_DEG = "COLLECTION_SLOPES_DEG"
     COLLECTION_SLOPES_AVG = "COLLECTION_SLOPES_AVG"
     COLLECTION_SUPER_TREND = "COLLECTION_SUPER_TREND"
+    COLLECTION_SUPER_TREND_RSIS = "COLLECTION_SUPER_TREND_RSIS"
     COLLECTION_SUPER_TREND_UPS = "COLLECTION_SUPER_TREND_UPS"
     COLLECTION_SUPER_TREND_DOWNS = "COLLECTION_SUPER_TREND_DOWNS"
     COLLECTION_TRUE_RANGE_AVG = "COLLECTION_TRUE_RANGE_AVG"
@@ -82,6 +83,7 @@ class MarketPrice(ABC):
             self.COLLECTION_SLOPES_DEG: None,
             self.COLLECTION_SLOPES_AVG: None,
             self.COLLECTION_SUPER_TREND: None,
+            self.COLLECTION_SUPER_TREND_RSIS: None,
             self.COLLECTION_SUPER_TREND_UPS: None,
             self.COLLECTION_SUPER_TREND_DOWNS: None,
             self.COLLECTION_TRUE_RANGE_AVG: None,
@@ -269,10 +271,13 @@ class MarketPrice(ABC):
         if rsis is None:
             closes = list(self.get_closes())
             closes.reverse()
+            """
             pd_ser = pd.Series(np.array(closes))
             rsis_obj = RSIIndicator(pd_ser, nb_prd)
             rsis_series = rsis_obj.rsi()
             rsis = rsis_series.to_list()
+            """
+            rsis = self.rsis(nb_prd, closes)
             rsis = [Decimal(str(v)) for v in rsis]
             rsis.reverse()
             rsis = tuple(rsis)
@@ -285,33 +290,29 @@ class MarketPrice(ABC):
             raise ValueError(f"This period '{prd}' don't exist in RSI collection")
         return rsis[prd]
 
-    def get_tsis(
-            self,
-            nb_prd_slow: int = _NB_PRD_SLOW_TSI,
-            nb_prd_fast: int = _NB_PRD_FAST_TSI,
-            use_nan: bool = False
-    ) -> tuple:
+    # TSI DOWN
+    def get_tsis(self, nb_prd_slow: int = _NB_PRD_SLOW_TSI, nb_prd_fast: int = _NB_PRD_FAST_TSI,
+                 use_nan: bool = False) -> tuple:
         k = self.COLLECTION_TSIS
         tsis = self._get_collection(k)
         if tsis is None:
             closes = list(self.get_closes())
             closes.reverse()
+            """
             pd_series = pd.Series(np.array(closes))
             tsis_obj = TSIIndicator(pd_series, nb_prd_slow, nb_prd_fast, not use_nan)
             tsis_series = tsis_obj.tsi()
             tsis = tsis_series.to_list()
+            """
+            tsis = self.tsis(nb_prd_slow, nb_prd_fast, use_nan, closes)
             tsis = [Decimal(str(v)) for v in tsis]
             tsis.reverse()
             tsis = tuple(tsis)
             self._set_collection(k, tsis)
         return tsis
 
-    def get_tsis_emas(
-            self,
-            nb_prd_slow: int = _NB_PRD_SLOW_TSI,
-            nb_prd_fast: int = _NB_PRD_FAST_TSI,
-            use_nan: bool = False
-    ) -> tuple:
+    def get_tsis_emas(self, nb_prd_slow: int = _NB_PRD_SLOW_TSI, nb_prd_fast: int = _NB_PRD_FAST_TSI,
+                      use_nan: bool = False) -> tuple:
         """
         To get the EMA of the TSI indicator\n
         :param nb_prd_slow: number of period used in TSI
@@ -332,6 +333,7 @@ class MarketPrice(ABC):
             tsis_emas = tuple(tsis_emas)
             self._set_collection(k, tsis_emas)
         return tsis_emas
+    # TSI UP
 
     def get_delta_price(self, new_prd=0, old_prd=1) -> Decimal:
         """
@@ -503,22 +505,69 @@ class MarketPrice(ABC):
         if supers is None:
             closes = list(float(v) for v in self.get_closes())
             closes.reverse()
-            pd_closes = pd.Series(np.array(closes))
+            # pd_closes = pd.Series(np.array(closes))
             highs = list(float(v) for v in self.get_highs())
             highs.reverse()
-            pd_highs = pd.Series(np.array(highs))
+            # pd_highs = pd.Series(np.array(highs))
             lows = list(float(v) for v in self.get_lows())
             lows.reverse()
-            pd_lows = pd.Series(np.array(lows))
-            supers_obj = _supertrend(pd_highs, pd_lows, pd_closes, nb_prd, coef)
-            supers_serie = supers_obj[f'SUPERT_{nb_prd}_{float(coef)}']
-            supers = supers_serie.to_list()
+            # pd_lows = pd.Series(np.array(lows))
+            supers = self.super_trend(nb_prd, coef, closes, highs, lows)
             supers = [Decimal(str(v)) for v in supers]
             supers.reverse()
             supers = tuple(supers)
             self._set_collection(k, supers)
         return supers
 
+    def get_super_trend_rsis(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
+        k = self.COLLECTION_SUPER_TREND_RSIS
+        super_rsis = self._get_collection(k)
+        if super_rsis is None:
+            # RSI Close
+            rsis_closes = list(self.get_rsis(nb_prd))
+            rsis_closes.reverse()
+            rsis_closes = [float(v) for v in rsis_closes]
+            # RSI High
+            highs = list(self.get_highs())
+            highs.reverse()
+            highs = [float(v) for v in highs]
+            rsis_highs = self.rsis(nb_prd, highs)
+            # RSI Low
+            lows = list(self.get_lows())
+            lows.reverse()
+            lows = [float(v) for v in lows]
+            rsis_lows = self.rsis(nb_prd, lows)
+            super_rsis = self.super_trend(nb_prd, coef, rsis_closes, rsis_highs, rsis_lows)
+            super_rsis.reverse()
+            super_rsis = tuple(super_rsis)
+            self._set_collection(k, super_rsis)
+        return super_rsis
+
+    '''
+    def get_super_trend_tsis(self, nb_prd_slow: int = _NB_PRD_SLOW_TSI, nb_prd_fast: int = _NB_PRD_FAST_TSI,
+                             # use_nan: bool = False, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG,
+                             use_nan: bool = False, nb_prd: int = _NB_PRD_SLOW_TSI,
+                             coef: float = _COEF_SUPER_TREND) -> tuple:
+        # nb_prd_slow: int, nb_prd_fast: int, use_nan: bool
+        # TSI Close
+        tsis_closes = list(self.get_tsis(nb_prd))
+        tsis_closes.reverse()
+        tsis_closes = [float(v) for v in tsis_closes]
+        # TSI High
+        highs = list(self.get_highs())
+        highs.reverse()
+        highs = [float(v) for v in highs]
+        tsis_highs = self.tsis(nb_prd_slow, nb_prd_fast, use_nan, highs)
+        # TSI Low
+        lows = list(self.get_lows())
+        lows.reverse()
+        lows = [float(v) for v in lows]
+        tsis_lows = self.tsis(nb_prd_slow, nb_prd_fast, use_nan, lows)
+        super_tsis = self.super_trend(nb_prd, coef, tsis_closes, tsis_highs, tsis_lows)
+        super_tsis.reverse()
+        return tuple(super_tsis)
+    '''
+    '''
     def get_super_trend_ups(self, nb_prd: int = _NB_PRD_TRUE_RANGE_AVG, coef: float = _COEF_SUPER_TREND) -> tuple:
         """
         To get Super Trend's up values\n
@@ -635,7 +684,7 @@ class MarketPrice(ABC):
             trs = tuple(trs)
             self._set_collection(self.COLLECTION_TRUE_RANGE, trs)
         return trs
-
+    '''
     # SuperTrend UP
 
     def _set_ms(self) -> None:
@@ -703,6 +752,32 @@ class MarketPrice(ABC):
         self.__set_indicator(self.INDIC_ACTUAL_SLOPE, slope)
 
     @staticmethod
+    def super_trend(nb_prd: int, coef: float, closes: list, highs: list, lows: list) -> list:
+        pd_closes = pd.Series(np.array(closes))
+        pd_highs = pd.Series(np.array(highs))
+        pd_lows = pd.Series(np.array(lows))
+        supers_obj = _supertrend(pd_highs, pd_lows, pd_closes, nb_prd, coef)
+        supers_serie = supers_obj[f'SUPERT_{nb_prd}_{float(coef)}']
+        supers = supers_serie.to_list()
+        return supers
+
+    @staticmethod
+    def rsis(nb_prd: int, closes: list) -> list:
+        pd_ser = pd.Series(np.array(closes))
+        rsis_obj = RSIIndicator(pd_ser, nb_prd)
+        rsis_series = rsis_obj.rsi()
+        rsis = rsis_series.to_list()
+        return rsis
+
+    @staticmethod
+    def tsis(nb_prd_slow: int, nb_prd_fast: int, use_nan: bool, closes: list) -> list:
+        pd_series = pd.Series(np.array(closes))
+        tsis_obj = TSIIndicator(pd_series, nb_prd_slow, nb_prd_fast, not use_nan)
+        tsis_series = tsis_obj.tsi()
+        tsis = tsis_series.to_list()
+        return tsis
+
+    @staticmethod
     def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:
         nb_prd = len(vs)
         if max_idx >= nb_prd:
@@ -753,7 +828,9 @@ class MarketPrice(ABC):
     @staticmethod
     def _save_market(mkt: tuple) -> None:
         p = Config.get(Config.DIR_SAVE_MARKET)
-        rows = [{Map.market: list(mkt)}]
+        mkt = list(mkt)
+        mkt.reverse()
+        rows = [{Map.market: _MF.json_encode(mkt)}]
         fields = list(rows[0].keys())
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)

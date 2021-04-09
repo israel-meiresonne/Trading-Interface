@@ -73,7 +73,7 @@ class MinMax(Strategy):
                 }),
                 # self._CONF_PS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_PS_AVG),       # ✅
                 # self._CONF_PS_AVG: Decimal('0.001671669906057661159701976028'),         # ❌
-                self._CONF_MAX_DR: Decimal('-0.01'),
+                self._CONF_MAX_DR: Decimal('-0.05'),
                 # self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG),       # ✅
                 # self._CONF_DS_AVG: Decimal('-0.001608511499838030450275348233'),        # ❌
                 self._CONF_PEAK_DROP_RATE: Decimal('-0.005'),
@@ -426,7 +426,7 @@ class MinMax(Strategy):
     '''
 
     # SuperTrend Switch: V3
-    # '''
+    '''
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
@@ -462,6 +462,104 @@ class MinMax(Strategy):
         _stage = Config.get(Config.STAGE_MODE)
         self._save_move(**vars(), close=mkt_prc.get_close(), move=Order.MOVE_BUY, rsi=mkt_prc.get_rsi()) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        """
+        fields = [
+            Map.time,
+            'close',
+            'move',
+            'buy_odr_prc',
+            'secure_odr_prc',
+            'stop_base_prc',
+            '_slope',
+            '_slope_bs',
+            'slope_avg',
+            'peak',
+            'peak_max_drop',
+            'rsi',
+            '_rsi_bs',
+            '_rsi_ss',
+            'rsi_up',
+            'rsi_permit',
+            'rsi_peak_idx',
+            'rsi_peak_prd',
+            'rsi_peak',
+            'rsi_ok',
+            '_rsi_pk_dp',
+            'rsi_peak_max_drop',
+            'tsi',
+            'peak_tsis_prd',
+            'peak_tsi',
+            'tsi_max_drop_rate',
+            'tsi_max_drop',
+            'tsi_ok',
+            'ema_tsi',
+            'super_trend',
+            'last_sptrend',
+            'up_end',
+            'trends',
+            '_ms',
+            '_ps_avg',
+            '_ds_avg',
+            '_dr',
+            '_max_dr',
+            'market_json',
+            'rsis',
+            'tsis',
+            'super_trends'
+        ]
+        """
+        return odrs
+    '''
+
+    # TREND(RSI)&TREND(CLOSE): BUY
+    # '''
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        _vars_before = dict(vars())
+        odrs = Map()
+        # Close Trend
+        close = mkt_prc.get_close()
+        closes_trends = mkt_prc.get_super_trend()
+        close_trend_ok = (close > closes_trends[0]) or ((close < closes_trends[1]) and (close == closes_trends[0]))
+        # RSI Trend
+        rsi = mkt_prc.get_rsi()
+        rsis_trends = mkt_prc.get_super_trend_rsis()
+        rsis_trend = rsis_trends[0]
+        last_rsis_trend = rsis_trends[1]
+        rsi_trend_ok = (rsi > rsis_trend) or ((rsi < last_rsis_trend) and (rsi == rsis_trend))
+        # Checking
+        if close_trend_ok and rsi_trend_ok:
+            self._buy(bkr, mkt_prc, odrs)
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), move=Order.MOVE_BUY) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        """
+        fields = [
+            Map.time,
+            'close',
+            'move',
+            'secure_odr_prc',
+            'stop_base_prc',
+            # Buy
+            'super_trend',
+            'close_trend_ok',
+            'rsi',
+            'rsis_trend',
+            'rsi_trend_ok',
+            'rsis_trends',
+            'closes_trends',
+            # Lists
+            'market_json',
+            'rsis',
+            'super_trends'
+        ]
+        """
         return odrs
     # '''
 
@@ -698,7 +796,7 @@ class MinMax(Strategy):
     '''
 
     # TSI < EMA(TSI) OR DROPPING
-    # '''
+    '''
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
@@ -732,6 +830,43 @@ class MinMax(Strategy):
         _stage = Config.get(Config.STAGE_MODE)
         my_vars = {**vars(), **vars_rtn}
         self._save_move(**my_vars, move=Order.MOVE_SELL, rsi=mkt_prc.get_rsi()) \
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    '''
+
+    # TREND(RSI)&TREND(CLOSE): SELL
+    # '''
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to sell position\n
+        :param bkr: an access to a Broker's API
+        :param mkt_prc: market prices
+        :return: set of order to execute
+                 Map[symbol{str}] => {Order}
+        """
+        _vars_before = dict(vars())
+        odrs = Map()
+        # Close Trend
+        close = mkt_prc.get_close()
+        closes_trends = mkt_prc.get_super_trend()
+        close_trend_ok = (close < closes_trends[0]) or ((close > closes_trends[1]) and (close == closes_trends[0]))
+        # RSI Trend
+        rsi = mkt_prc.get_rsi()
+        rsis_trends = mkt_prc.get_super_trend_rsis()
+        rsis_trend = rsis_trends[0]
+        last_rsis_trend = rsis_trends[1]
+        rsi_trend_ok = (rsi < rsis_trend) or ((rsi > last_rsis_trend) and (rsi == rsis_trend))
+        # Secure Order
+        secure_odr_prc = self._get_secure_order().get_stop_price().get_value()
+        stop_base_prc = secure_odr_prc / (1 + self._get_config(self._CONF_MAX_DR))          # ❌
+        # CHECK
+        if rsi_trend_ok or close_trend_ok:
+            self._sell(bkr, odrs)
+        elif mkt_prc.get_close() > stop_base_prc:
+            self._move_up_secure_order(bkr, mkt_prc, odrs)
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), move=Order.MOVE_SELL) \
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
     # '''
@@ -864,93 +999,64 @@ class MinMax(Strategy):
         params_map.put(mkt_prc.get_rsis(), 'rsis')
         params_map.put(mkt_prc.get_tsis(), 'tsis')
         params_map.put(mkt_prc.get_close(), Map.close)
-        # params_map.put(mkt_prc.get_super_trend(), 'super_trends')
+        params_map.put(mkt_prc.get_super_trend(), 'super_trends')
         params_map.put(mkt_prc.get_super_trend()[0], 'super_trend')
-        """
         fields = [
             Map.time,
             'close',
             'move',
-            'buy_odr_prc',
             'secure_odr_prc',
             'stop_base_prc',
-            '_slope',
-            '_slope_bs',
-            'slope_avg',
-            'peak',
-            'peak_max_drop',
-            'rsi',
-            '_rsi_bs',
-            '_rsi_ss',
-            'rsi_up',
-            'rsi_permit',
-            'rsi_peak_idx',
-            'rsi_peak_prd',
-            'rsi_peak',
-            'rsi_ok',
-            '_rsi_pk_dp',
-            'rsi_peak_max_drop',
-            'tsi',
-            'peak_tsis_prd',
-            'peak_tsi',
-            'tsi_max_drop_rate',
-            'tsi_max_drop',
-            'tsi_ok',
-            'ema_tsi',
+            # Buy
             'super_trend',
-            'last_sptrend',
-            'up_end',
-            'trends',
-            '_ms',
-            '_ps_avg',
-            '_ds_avg',
-            '_dr',
-            '_max_dr',
+            'close_trend_ok',
+            'rsi',
+            'rsis_trend',
+            'rsi_trend_ok',
+            'rsis_trends',
+            'closes_trends',
+            # Lists
             'market_json',
             'rsis',
             'tsis',
-            # 'super_trends'
-        ]
-        """
-        fields = [
-            Map.time,
-            'close',
-            'move',
-            'buy_odr_prc',
-            'secure_odr_prc',
-            'stop_base_prc',
-            # Buy
-            'rsi',
-            'rsi_permit',
-            'xs',
-            'ys',
-            'rsi_slope',
-            # Sell
-            '_rsi_ss',
-            'rsi_peak_prd',
-            'rsi_peak',
-            'rsi_ok',
-            # Buy
-            'tsi',
-            'ema_tsi',
-            # Sell
-            'peak_tsis_prd',
-            'peak_tsi',
-            '_tsi_max_drop_rate',
-            'tsi_max_drop',
-            'tsi_ok',
-            # Buy
-            'trend_ok',
-            'super_trend',
-            'trends',
-            'up_end',
-            'market_json',
-            'rsis',
-            'tsis'
+            'super_trends'
         ]
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
+
+    '''
+    SAVE_KEYS = None
+    @staticmethod
+    def _save_move(_vars_before: dict, _vars_after: dict, sell_attr: list = []) -> None:
+        _new_vars = {k: _vars_after[k] for k in _vars_after if (k not in _vars_before) and k not in vars()}
+        keys = list(_new_vars.keys()) + sell_attr if MinMax.SAVE_KEYS is None else MinMax.SAVE_KEYS
+        MinMax.SAVE_KEYS = keys
+        keys.sort()
+        firsts = [
+            'close',
+            'move',
+            'secure_odr_prc',
+            'stop_base_prc'
+        ]
+        row = {}
+        for k in firsts:
+            row[k] = _new_vars[k] if k in _new_vars else '—'
+        for k, v in _new_vars.items():
+            if (k not in row) and ((type(v) == bool) or(type(v) == str) or (type(v) == int) or (type(v) == float) or (type(v) == Decimal)):
+                row[k] = v
+        for k, v in _new_vars.items():
+            if k not in row:
+                row[k] = v
+        for k in MinMax.SAVE_KEYS:
+            if k not in row:
+                row[k] = '—'
+        rows = [row]
+        fields = list(row.keys())
+        overwrite = False
+        p = Config.get(Config.DIR_SAVE_MOVES)
+        FileManager.write_csv(p, fields, rows, overwrite)
+    '''
 
     def _save_capital(self, close: Decimal, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)

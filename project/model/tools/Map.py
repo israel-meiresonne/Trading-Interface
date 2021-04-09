@@ -7,7 +7,6 @@ class Map:
     date = "date"
     action = "action"
     request = "request"
-    super_trend = "super_trend"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"
@@ -71,6 +70,8 @@ class Map:
     low = "low"
     rsi = "rsi"
     tsi = "tsi"
+    super_trend = "super_trend"
+    volume = "volume"
     # MinMax
     stop = "stop"
     # Order

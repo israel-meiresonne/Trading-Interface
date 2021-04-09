@@ -72,6 +72,66 @@ def capital_to_market(src_path: str, depot_path: str) -> None:
     print("🖨 File printed ✅")
 
 
+def apimarket_to_market(src_path: str, depot_path: str) -> None:
+    _fm_cls = FileManager
+    # Extract
+    csv = _fm_cls.get_csv(src_path)
+    """
+    requests[
+        request[
+            market[
+                0.  Open time
+                1.  Open
+                2.  High
+                3.  Low
+                4.  Close
+                5.  Volume
+                6.  Close time
+                7.  Quote asset volume
+                8.  Number of trades
+                9.  Taker buy base asset volume
+                10. Taker buy quote asset volume
+                11. Ignore.
+            ]
+        ]  
+    ]
+    """
+    rqs = [eval(row[Map.market]) for row in csv]
+    rows = []
+    mkts = {}
+    for i in range(len(rqs)):
+        rq = rqs[i]
+        for j in range(len(rq)):
+            if j == 0:
+                continue
+            mkt = rq[j]
+            time = mkt[0]
+            if time not in mkts:
+                mkts[time] = mkt
+    times = sorted(mkts)
+    for time in times:
+        mkt = mkts[time]
+        row = {
+            Map.time: int(mkt[0]/1000),
+            Map.open: mkt[1],
+            Map.high: mkt[2],
+            Map.low: mkt[3],
+            Map.close: mkt[4],
+            Map.volume: mkt[5]
+        }
+        rows.append(row)
+    if rows[0][Map.time] >= rows[1][Map.time]:
+        older_unix = rows[0][Map.time]
+        recent_unix = rows[1][Map.time]
+        older = _MF.unix_to_date(older_unix/1000, _MF.FORMAT_D_H_M_S)
+        recent = _MF.unix_to_date(recent_unix/1000, _MF.FORMAT_D_H_M_S)
+        raise Exception(f"Market must be ordered from older to recent "
+                        f"instead '{older_unix}({older})', '{recent_unix}({recent})',...")
+    fields = list(rows[0].keys())
+    _fm_cls.write_csv(depot_path, fields, rows)
+    print("🖨 File printed ✅")
+
+
 def get_historic(pr: Pair, period: int, nb_prd: int) -> MarketPrice:
     bnc = Binance(Map({Map.api_pb: "pb_k",
                        Map.api_sk: "sk_k",
@@ -102,6 +162,8 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
     degs = [v for v in degs if v is not None]
     spr_extrems = _MF.get_super_extremums(list(degs))
     # print(spr_extrems)
+    super_rsis = mkt.get_super_trend_rsis()
+    super_tsis = mkt.get_super_trend_tsis()
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -110,16 +172,20 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
             Map.low: mkt.get_lows()[i],
             Map.close: closes[i],
             Map.rsi: mkt.get_rsis()[i],
+            'super_rsis': super_rsis[i],
             Map.super_trend: mkt.get_super_trend()[i],
             Map.tsi: mkt.get_tsis(use_nan=True)[i],
             Map.tsi + "_ema": mkt.get_tsis_emas()[i],
+            'super_tsis': super_tsis[i],
             'slopes': mkt.get_slopes(14)[i],
             'slope_deg': mkt.get_slopes_degree()[i],
             'extremuns': degs[i] if i in spr_extrems else None
         }
         rows.append(row)
     rows.reverse()
-    p = f"content/v0.01/market-historic/{pr.get_merged_symbols().upper()}-{_MF.unix_to_date(_MF.get_timestamp())}.csv"
+    date_format = _MF.FORMAT_D_H_M_S_MS.replace(':', '.')
+    file = f"{pr.get_merged_symbols().upper()}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
+    p = f"content/v0.01/market-historic/{file}.csv"
     fields = list(rows[0].keys())
     overwrite = True
     FileManager.write_csv(p, fields, rows, overwrite)
@@ -261,15 +327,15 @@ if __name__ == '__main__':
     src_path='content/v0.01/backups/2021-03-20 12.31.44-3D/BNB/2021-03-20 12.32.26_capital.csv'
     depot_path='content/v0.01/market-historic/BNBUSDT-3D.csv'
     capital_to_market(src_path, depot_path)
-    """
     # nb_prd = 5
-    p = "content/v0.01/market-historic/EGLDUSDT-2021-03-28 10.25.33.csv"
+    p = "content/v0.01/market-historic/active.csv"
     csv = FileManager.get_csv(p)
     mkt_list = [[int(line[Map.time]), '0', line[Map.high], line[Map.low], line[Map.close]] for line in csv]
     mkt = BinanceMarketPrice(mkt_list, '1m')
-    mkt.get_super_trend()
+    # mkt.get_super_trend()
     # print(mkt.get_super_trend())
-    print_market(mkt, Pair("EGLD/USDT"))
+    print_market(mkt, Pair("BNB/USDT"))
+    """
     """
     closes = [float(row[4]) for row in mkt_list]
     highs = [float(row[2]) for row in mkt_list]
@@ -320,3 +386,6 @@ if __name__ == '__main__':
     FileManager.write_csv(p2, fields, rows, overwrite)
     print("🖨 File printed ✅")
     """
+    src_path = 'content/v0.01/2021-04-04 23.02.14_market.csv'
+    depot_path = 'content/v0.01/BNB-USDT-2Days_market.csv'
+    apimarket_to_market(src_path, depot_path)
