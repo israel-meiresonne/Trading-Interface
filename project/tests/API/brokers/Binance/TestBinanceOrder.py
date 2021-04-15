@@ -173,6 +173,38 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
     def test_generate_cancel_order(self):
         raise Exception
 
+    def test_resume_subexecution(self) -> None:
+        symbol = "USDT"
+        fills = [
+            {
+                "price": "130.8575",
+                "qty": "1.007",
+                "commission": "1.00000000",
+                "commissionAsset": symbol
+            },
+            {
+                "price": "130.8839",
+                "qty": "6.511",
+                "commission": "2.00000000",
+                "commissionAsset": symbol
+            },
+            {
+                "price": "130.8857",
+                "qty": "0.057",
+                "commission": "3.00000000",
+                "commissionAsset": symbol
+            }
+        ]
+        exp1 = Map({
+            Map.price: Price(130.880, symbol),
+            Map.fee: 6.0
+        })
+        result1 = self.resume_subexecution(fills)
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
+        # Rise error
+        with self.assertRaises(ValueError):
+            self.resume_subexecution([])
+
 
 if __name__ == '__main__':
     unittest.main

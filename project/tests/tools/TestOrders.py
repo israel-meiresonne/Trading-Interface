@@ -32,6 +32,46 @@ class TestOrders(unittest.TestCase, Orders):
             "0": self.odr0,
             "1": self.odr1
         })
+        self.odrs_obj = Orders()
+
+    def test_get_order(self) -> None:
+        # Get by Index
+        self.odrs_obj.add_order(self.odr0)
+        self.odrs_obj.add_order(self.odr1)
+        self.odrs_obj.add_order(self.odr2)
+        exp1 = id(self.odr2)
+        result1 = id(self.odrs_obj.get_order(idx=2))
+        self.assertEqual(exp1, result1)
+        # Get by ID
+        self.setUp()
+        self.odrs_obj.add_order(self.odr0)
+        self.odrs_obj.add_order(self.odr1)
+        self.odrs_obj.add_order(self.odr2)
+        id1 = self.odr1.get_id()
+        exp2 = id(self.odr1)
+        result2 = id(self.odrs_obj.get_order(odr_id=id1))
+        self.assertEqual(exp2, result2)
+        # Error: both param set
+        self.setUp()
+        with self.assertRaises(ValueError):
+            self.odrs_obj.get_order(idx=0, odr_id=id1)
+        # Error: none param set
+        with self.assertRaises(ValueError):
+            self.odrs_obj.get_order()
+        # Error: unknown Index
+        self.setUp()
+        self.odrs_obj.add_order(self.odr0)
+        self.odrs_obj.add_order(self.odr1)
+        self.odrs_obj.add_order(self.odr2)
+        with self.assertRaises(ValueError):
+            self.odrs_obj.get_order(idx=5)
+        # Error: unknown ID
+        self.setUp()
+        self.odrs_obj.add_order(self.odr0)
+        self.odrs_obj.add_order(self.odr1)
+        self.odrs_obj.add_order(self.odr2)
+        # with self.assertRaises(ValueError):
+        self.odrs_obj.get_order(odr_id='hello')
 
     def test_sum_orders(self):
         # simple test

@@ -1,5 +1,5 @@
 from decimal import Decimal
-from math import isnan
+# from math import isnan
 from typing import Union
 
 from config.Config import Config
@@ -42,13 +42,13 @@ class MinMax(Strategy):
         self._trends = None
         self._permits = Map()
 
-    def __set_strategy(self, bkr: Broker) -> None:
+    def _set_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
             bkr_cls = bkr.__class__.__name__
             rq_cls = BrokerRequest.get_request_class(bkr_cls)
             # Prepare Set Configs
-            stage = Config.get(Config.STAGE_MODE)
-            rq_prms = Map({
+            _stage = Config.get(Config.STAGE_MODE)
+            mkt_rq_prms = Map({
                 Map.pair: self.get_pair(),
                 # Map.period: 60 * 60 * 24 if (stage == Config.STAGE_1) else 60,            # ✅
                 Map.period: 60,                                                         # ❌
@@ -58,21 +58,18 @@ class MinMax(Strategy):
                 Map.number: 1                                                           # ❌
             })
             exec(f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}")
-            bkr_rq = eval(rq_cls + f"('{BrokerRequest.RQ_MARKET_PRICE}', rq_prms)")
+            bkr_rq = eval(rq_cls + f"('{BrokerRequest.RQ_MARKET_PRICE}', mkt_rq_prms)")
             bkr.get_market_price(bkr_rq)
-            mkt_prc = bkr_rq.get_market_price()                                           # ✅
+            mkt_prc = bkr_rq.get_market_price()
             # Set Configs
             self._set_configs(Map({
                 self._CONF_MAKET_PRICE: Map({
                     Map.pair: self.get_pair(),
-                    # Map.period: 60 * 60 * 24 if (stage == Config.STAGE_1) else 60,        # ✅
-                    Map.period: 60,                                                     # ❌
+                    Map.period: 60,
                     Map.begin_time: None,
                     Map.end_time: None,
                     Map.number: 100
                 }),
-                # self._CONF_PS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_PS_AVG),       # ✅
-                # self._CONF_PS_AVG: Decimal('0.001671669906057661159701976028'),         # ❌
                 self._CONF_MAX_DR: Decimal('-0.05'),
                 # self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG),       # ✅
                 # self._CONF_DS_AVG: Decimal('-0.001608511499838030450275348233'),        # ❌
@@ -88,21 +85,27 @@ class MinMax(Strategy):
                 self._CONF_TSI_PEAK_DROP_RATE: Decimal('-0.005')
             }))
             # Set Capital
-            """
-            rq_prms = Map({
-                    Map.account: BrokerRequest.ACCOUNT_MAIN,
-                    Map.begin_time: None,
-                    Map.end_time: None,
-                    Map.number: 1,
-                    Map.timeout: None,
-                })
-            snap_rq = eval(rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', rq_prms)")
-            bkr.get_account_snapshot(snap_rq)
-            accounts = snap_rq.get_account_snapshot()
-            right = self.get_pair().get_right()
-            cap = accounts.get(right.get_symbol())
-            """
-            cap = Price(1000, self.get_pair().get_right().get_symbol())
+            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
+                cap = Price(1000, self.get_pair().get_right().get_symbol())
+            elif _stage == Config.STAGE_3:
+                # """
+                snap_rq_prms = Map({
+                        Map.account: BrokerRequest.ACCOUNT_MAIN,
+                        Map.begin_time: None,
+                        Map.end_time: self.get_timestamp(self.TIME_MILLISEC),
+                        Map.number: 5,
+                        Map.timeout: None,
+                    })
+                snap_rq = eval(rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', snap_rq_prms)")
+                bkr.get_account_snapshot(snap_rq)
+                accounts = snap_rq.get_account_snapshot()
+                right = self.get_pair().get_right()
+                times = list(accounts.get(Map.account).keys())
+                cap = accounts.get(Map.account, times[-1], right.get_symbol())
+                # """
+            else:
+                raise Exception(f"Unknown stage '{_stage}'.")
+            # Raise error if set capital is bellow Broker's minimum trade amount
             self._set_capital(cap)
 
     def _set_configs(self, configs: Map) -> None:
@@ -242,20 +245,19 @@ class MinMax(Strategy):
         return odr
 
     def trade(self, bkr: Broker) -> None:
-        self.__set_strategy(bkr)
+        self._set_strategy(bkr)
         mkt_prc = self._get_market_price(bkr)
-        self._update_orders(mkt_prc)
+        self._update_orders(bkr, mkt_prc)
         # Save
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time()) \
-            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())  # \
+        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         #
         if self._has_position():
             odrs_map = self._try_sell(bkr, mkt_prc)
         else:
             odrs_map = self._try_buy(bkr, mkt_prc)
         bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
-        # self._update_orders(mkt_prc)
 
     # ——————————————— BUY DOWN ———————————————
 

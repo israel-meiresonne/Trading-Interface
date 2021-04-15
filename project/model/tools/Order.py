@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as ModelFeat, ModelFeature
 from model.tools.Map import Map
 from model.tools.Paire import Pair
@@ -8,7 +9,7 @@ from model.tools.Request import Request
 
 
 class Order(ABC, Request):
-    __ID = 0
+    PREFIX_ID = 'odr_'
     # Types
     TYPE_MARKET = "_set_market"
     TYPE_LIMIT = "_set_limit"
@@ -23,6 +24,14 @@ class Order(ABC, Request):
     STATUS_CANCELED = "CANCELED"
     STATUS_FAILED = "FAILED"
     STATUS_EXPIRED = "EXPIRED"
+    STATUS_LIST = [
+        STATUS_SUBMITTED,
+        STATUS_PROCESSING,
+        STATUS_COMPLETED,
+        STATUS_CANCELED,
+        STATUS_FAILED,
+        STATUS_EXPIRED
+    ]
 
     @abstractmethod
     def __init__(self, odr_type: str, params: Map):
@@ -39,9 +48,8 @@ class Order(ABC, Request):
                         params[Map.amount]      => {Price}
         """
         super().__init__()
-        self.__id = str(self.__ID)
-        self.__broker_id = self.__id
-        Order.__ID += 1
+        self.__id = self.PREFIX_ID + ModelFeature.new_code()
+        self.__broker_id = None
         self.__type = odr_type
         self.__status = None
         self.__move = params.get(Map.move)
@@ -52,8 +60,9 @@ class Order(ABC, Request):
         self.__quantity = None
         self.__amount = None
         self.__params = None
-        self.__set_time = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
+        self.__settime = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
         self.__execution_price = None
+        self.__subexecutions = None
         self.__execution_time = None
         self._set_order(params)
 
@@ -118,6 +127,11 @@ class Order(ABC, Request):
     def get_id(self) -> str:
         return self.__id
 
+    def _set_broker_id(self, odr_id) -> None:
+        if self.__broker_id is not None:
+            raise Exception(f"The Order's broker id is already set")
+        self.__broker_id = str(odr_id)
+
     def get_broker_id(self) -> str:
         return self.__broker_id
 
@@ -125,6 +139,8 @@ class Order(ABC, Request):
         return self.__type
 
     def _set_status(self, status: str) -> None:
+        if status not in self.STATUS_LIST:
+            raise ValueError(f"This Order status '{status}' is not supported")
         hold = self.get_status()
         if hold == self.STATUS_COMPLETED \
                 or hold == self.STATUS_CANCELED \
@@ -161,6 +177,15 @@ class Order(ABC, Request):
         return self.__amount
 
     def _set_execution_price(self, prc: Price) -> None:
+        _stage = Config.get(Config.STAGE_MODE)
+        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
+            pass
+        elif _stage == Config.STAGE_3:
+            subexec = self.get_subexecutions()
+            if subexec is None:
+                raise Exception("In stage 3, The sub-executions must be set before to set the execution price")
+        else:
+            raise Exception(f"Unknown stage '{_stage}'.")
         self.__execution_price = prc
 
     def get_execution_price(self) -> Price:
@@ -168,7 +193,22 @@ class Order(ABC, Request):
             raise Exception("The execution price must be set")
         return self.__execution_price
 
+    def _set_subexecutions(self, fills: list) -> None:
+        """
+        To set
+        Usually an order is split by the Broker to sub-order to be fill easier
+        :param fills: list of sub-order executed to execute the initial order
+        """
+        self.__subexecutions = fills
+
+    def get_subexecutions(self) -> list:
+        if self.__subexecutions is None:
+            raise Exception("The subexecutions must be set")
+        return self.__subexecutions
+
     def _set_execution_time(self, time: int) -> None:
+        if self.__execution_time is not None:
+            raise Exception(f"The execution time can't be updated.")
         self.__execution_time = int(time)
 
     def get_execution_time(self) -> int:
@@ -182,8 +222,8 @@ class Order(ABC, Request):
     def _get_params(self) -> Map:
         return self.__params
 
-    def get_set_time(self) -> int:
-        return self.__set_time
+    def get_settime(self) -> int:
+        return self.__settime
 
     @abstractmethod
     def _set_market(self) -> None:
@@ -233,58 +273,3 @@ class Order(ABC, Request):
         :return: params to cancel the Order
         """
         pass
-
-    '''
-    @staticmethod
-    def sum_orders(odrs: Map) -> Map:
-        """
-        To sum orders executed\n
-        :param odrs: collection of Order
-        :exception ValueError: if collection of order is empty
-        :return: amount stilling in each asset
-                 Map[Map.left]  => {Price}
-                 Map[Map.right] => {Price}
-        """
-        if len(odrs.get_map()) <= 0:
-            raise ValueError("The collection of Order can't be empty")
-        ks = odrs.get_keys()
-        pr = odrs.get(ks[0]).get_pair()
-        pr_str = pr.__str__
-        lspot = 0
-        rspot = 0
-        for _, odr in odrs.get_map().items():
-            if pr_str != odr.get_pair().__str__:
-                raise Exception(f"All Order must have the same pair of asset: {pr_str}!={odr.get_pair().__str__}")
-            if odr.get_status() == Order.STATUS_COMPLETED:
-                move = odr.get_move()
-                exct = odr.get_execution_price()
-                if move == Order.MOVE_BUY:
-                    if odr.get_quantity() is not None:
-                        qty = odr.get_quantity()
-                        lspot += qty.get_value()
-                        rspot -= exct.get_value() * qty.get_value()
-                    elif odr.get_amount() is not None:
-                        amnt = odr.get_amount()
-                        lspot += amnt.get_value() / exct.get_value()
-                        rspot -= amnt.get_value()
-                    else:
-                        raise Exception("Unknown Order state")
-                elif move == Order.MOVE_SELL:
-                    if odr.get_quantity() is not None:
-                        qty = odr.get_quantity()
-                        lspot -= qty.get_value()
-                        rspot += exct.get_value() * qty.get_value()
-                    elif odr.get_amount():
-                        amnt = odr.get_amount()
-                        lspot -= amnt.get_value() / exct.get_value()
-                        rspot += amnt.get_value()
-                    else:
-                        raise Exception("Unknown Order state")
-                else:
-                    raise Exception("Unknown Order move")
-        odrs_sum = Map({
-            Map.left: Price(lspot, pr.get_left().get_symbol()),
-            Map.right: Price(rspot, pr.get_right().get_symbol())
-        })
-        return odrs_sum
-    '''

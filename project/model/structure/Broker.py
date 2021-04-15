@@ -9,6 +9,15 @@ from config.Config import Config
 
 class Broker(ModelFeature):
     @abstractmethod
+    def request(self, bkr_rq: BrokerRequest) -> None:
+        """
+        To submit a request to Broker's API\n
+        :param bkr_rq: holds params for the request
+        NOTE: The response is stored in the BrokerRequest
+        """
+        pass
+
+    @abstractmethod
     def get_account_snapshot(self, bkr_rq: BrokerRequest) -> None:
         """
         To get a snapshot\n

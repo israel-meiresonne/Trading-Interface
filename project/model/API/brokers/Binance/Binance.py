@@ -29,6 +29,13 @@ class Binance(Broker):
     def __get_api(self) -> BinanceAPI:
         return self.__api
 
+    def request(self, bnc_rq: BinanceRequest) -> None:
+        api = self.__get_api()
+        rq = bnc_rq.get_endpoint()
+        prms = bnc_rq.generate_request()
+        rsp = api.request_api(rq, prms)
+        bnc_rq.handle_response(rsp)
+
     def get_account_snapshot(self, bkr_rq: BinanceRequest) -> None:
         api = self.__get_api()
         rq = BinanceAPI.RQ_ACCOUNT_SNAP

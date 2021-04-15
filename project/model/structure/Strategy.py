@@ -86,8 +86,13 @@ class Strategy(ModelFeature):
     def _add_order(self, odr: Order) -> None:
         self._get_orders().add_order(odr)
 
-    def _update_orders(self, mkt_prc: MarketPrice) -> None:
-        self._get_orders().update(mkt_prc)
+    def _update_orders(self, bkr: Broker, mkt: MarketPrice) -> None:
+        """
+        To update Orders\n
+        :param bkr: access to a Broker's API
+        :param mkt: market's prices
+        """
+        self._get_orders().update(bkr, mkt)
 
     @abstractmethod
     def trade(self, bkr: Broker) -> None:

@@ -20,6 +20,7 @@ class BinanceAPI:
     RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
     # Orders
+    RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
     RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
     RQ_ORDER_LIMIT = "RQ_ORDER_LIMIT"
     RQ_ORDER_MARKET_qty = "RQ_ORDER_MARKET_qty"
@@ -74,7 +75,23 @@ class BinanceAPI:
                 Map.limit
             ]
         },
-        RQ_CANCEL_ORDER:{
+        RQ_ALL_ORDERS: {
+            Map.signed: True,
+            Map.method: Map.GET,
+            Map.path: "/api/v3/allOrders",
+            Map.mandatory: [
+                Map.symbol
+                # Map.timestamp | automatically added in BinanceAPI.__sign()
+            ],
+            Map.params: [
+                Map.orderId,
+                Map.startTime,
+                Map.endTime,
+                Map.limit,
+                Map.recvWindow
+            ]
+        },
+        RQ_CANCEL_ORDER: {
             Map.signed: True,
             Map.method: Map.DELETE,
             Map.path: __PATH_ORDER,
@@ -318,8 +335,19 @@ class BinanceAPI:
     INTERVAL_1MIN = '1m'
     INTERVAL_30MIN = '30m'
     INTERVAL_1MONTH = '1M'
+    # Constraints
+    CONSTRAINT_LIMIT = 1000
+    CONSTRAINT_RECVWINDOW = 60000
+    CONSTRAINT_SNAP_ACCOUT_MIN_LIMIT = 5
+    CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT = 30
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
+        """
+        Constructor\n
+        :param api_pb: API's public key
+        :param api_sk: API's secret key
+        :param test_mode: set True to call test API else False to call production API
+        """
         self.__id = 'binance_api_' + str(ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC))
         self.__api_public_key = api_pb
         self.__api_secret_key = api_sk
@@ -446,7 +474,8 @@ class BinanceAPI:
         sgt = self.__generate_signature(prms_map.get_map())
         prms_map.put(sgt, Map.signature)
 
-    def _check_params(self, rq: str, prms_map: Map) -> bool:
+    @staticmethod
+    def _check_params(rq: str, prms_map: Map) -> bool:
         """
         To check if the given params are correct for the request\n
         :param rq:a supported request

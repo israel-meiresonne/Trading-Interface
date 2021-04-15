@@ -2,9 +2,11 @@ from decimal import Decimal
 
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
+from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.structure.database.ModelFeature import ModelFeature as ModelFeat
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
+from model.tools.Order import Order
 from model.tools.Price import Price
 
 
@@ -12,7 +14,7 @@ class BinanceRequest(BrokerRequest):
     CONV_ACCOUNT = Map({
         BrokerRequest.ACCOUNT_MAIN: BinanceAPI.ACCOUNT_TYPE_SPOT,
         BrokerRequest.ACCOUNT_MARGIN: BinanceAPI.ACCOUNT_TYPE_MARGIN,
-        BrokerRequest.ACCOUNT_FUTUR: BinanceAPI.ACCOUNT_TYPE_FUTURES,
+        BrokerRequest.ACCOUNT_FUTURE: BinanceAPI.ACCOUNT_TYPE_FUTURES,
     })
 
     def __init__(self, rq: str, prms: Map):
@@ -35,36 +37,132 @@ class BinanceRequest(BrokerRequest):
             Map.endTime: int(prms.get(Map.end_time)) if prms.get(Map.end_time) is not None else None,
             Map.limit: int(prms.get(Map.number)) if prms.get(Map.number) is not None else None
         })
+        self._set_endpoint(BinanceAPI.RQ_KLINES)
         self._set_request(request)
 
     def get_market_price(self) -> BinanceMarketPrice:
-        request = self._get_request()
-        rsp = self._get_response()
-        return BinanceMarketPrice(rsp.get_content(), request.get(Map.interval))
+        result = self._get_result()
+        if result is None:
+            request = self._get_request()
+            rsp = self._get_response()
+            result = BinanceMarketPrice(rsp.get_content(), request.get(Map.interval))
+            self._set_result(result)
+        return result
 
     def _set_account_snapshot(self, prms: Map) -> None:
         ks = [Map.account]
         rtn = ModelFeat.keys_exist(ks, prms.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to get account snapshots")
-        acnt = self._get_account_converter().get(prms.get(Map.account))
-        if acnt is None:
+        account = self._get_account_converter().get(prms.get(Map.account))
+        if account is None:
             raise ValueError(f"This account '{prms.get(Map.account)}' is not supported")
+        startime = int(Map.begin_time) if prms.get(Map.begin_time) is not None else None
+        endtime = int(prms.get(Map.end_time)) if prms.get(Map.end_time) is not None else None
+        if (startime is not None) and (endtime is not None) and (endtime <= startime):
+            raise ValueError(f"The endtime '{endtime}' must be greater that the starttime '{startime}'.")
+        limit = int(prms.get(Map.number)) if prms.get(Map.number) is not None else None
+        if (limit is not None) \
+                and ((limit < BinanceAPI.CONSTRAINT_SNAP_ACCOUT_MIN_LIMIT)
+                     or (limit > BinanceAPI.CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT)):
+            _min_limit = BinanceAPI.CONSTRAINT_SNAP_ACCOUT_MIN_LIMIT
+            _max_limit = BinanceAPI.CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT
+            raise ValueError(f"The limit number of snapshot returned per request must be"
+                             f" between [{_min_limit}, {_max_limit}], instead '{limit}'.")
+        recvwindow = int(prms.get(Map.timeout)) if prms.get(Map.timeout) is not None else None
+        if (recvwindow is not None) and (recvwindow > BinanceAPI.CONSTRAINT_RECVWINDOW):
+            raise Exception(f"The max time out to wait for a request response is '{BinanceAPI.CONSTRAINT_RECVWINDOW}',"
+                            f" instead '{recvwindow}'.")
         request = Map({
-            Map.type: acnt,
-            Map.startTime: int(prms.get(Map.begin_time)) if prms.get(Map.begin_time) is not None else None,
-            Map.endTime: int(prms.get(Map.end_time)) if prms.get(Map.end_time) is not None else None,
-            Map.limit: int(prms.get(Map.number)) if prms.get(Map.number) is not None else None,
-            Map.recvWindow: int(prms.get(Map.timeout)) if prms.get(Map.timeout) is not None else None
+            Map.type: account,
+            Map.startTime: startime,
+            Map.endTime: endtime,
+            Map.limit: limit,
+            Map.recvWindow: recvwindow
         })
+        self._set_endpoint(BinanceAPI.RQ_ACCOUNT_SNAP)
         self._set_request(request)
 
     def get_account_snapshot(self) -> Map:
-        rsp = self._get_response()
-        content = Map(rsp.get_content())
-        blcs = content.get(Map.snapshotVos)[0][Map.data][Map.balance]
-        accounts = Map({str(blc[Map.asset]).lower(): Price(Decimal(blc[Map.free]), blc[Map.asset]) for blc in blcs})
+        accounts = self._get_result()
+        if accounts is None:
+            rsp = self._get_response()
+            content = Map(rsp.get_content())
+            accounts = Map()
+            """
+            blcs = content.get(Map.snapshotVos)[-1][Map.data][Map.balances]
+            accounts = Map({str(blc[Map.asset]).lower(): Price(Decimal(blc[Map.free]), blc[Map.asset]) for blc in blcs})
+            accounts.put(content.get_map(), Map.response)
+            """
+            for snap in content.get(Map.snapshotVos):
+                time = snap[Map.updateTime]
+                balances = snap[Map.data][Map.balances]
+                account = {str(balance[Map.asset]).lower(): Price(balance[Map.free],
+                                                                      balance[Map.asset]) for balance in balances}
+                accounts.put(account, Map.account, time)
+            accounts.put(content.get_map(), Map.response)
+            self._set_result(accounts)
         return accounts
+
+    def _set_orders(self, prms: Map) -> None:
+        ks = [Map.symbol]
+        rtn = ModelFeat.keys_exist(ks, prms.get_map())
+        if rtn is not None:
+            raise ValueError(f"This param '{rtn}' is required to get all Order datas.")
+        odr_id = prms.get(Map.id)
+        starttime = prms.get(Map.begin_time)
+        endtime = prms.get(Map.end_time)
+        if (odr_id is not None) and ((starttime is not None) or (endtime is not None)):
+            raise ValueError(f"The Order's id can't be set when starttime or endtime are set.")
+        limit = prms.get(Map.limit)
+        if (limit is not None) and (limit > BinanceAPI.CONSTRAINT_LIMIT):
+            raise Exception(f"The number limit of Order returned per request is '{BinanceAPI.CONSTRAINT_LIMIT}',"
+                            f" instead '{limit}'.")
+        recvwindow = prms.get(Map.timeout)
+        if (recvwindow is not None) and (recvwindow > BinanceAPI.CONSTRAINT_RECVWINDOW):
+            raise Exception(f"The max time out to wait for a request response is '{BinanceAPI.CONSTRAINT_RECVWINDOW}',"
+                            f" instead '{recvwindow}'.")
+        request = Map({
+            Map.symbol: prms.get(Map.symbol).upper(),
+            Map.orderId: odr_id,
+            Map.startTime: starttime,
+            Map.endTime: endtime,
+            Map.limit: limit,
+            Map.recvWindow: recvwindow
+        })
+        self._set_endpoint(BinanceAPI.RQ_ALL_ORDERS)
+        self._set_request(request)
+
+    def get_orders(self) -> Map:
+        result = self._get_result()
+        if result is None:
+            result = Map()
+            rsp = self._get_response()
+            content = rsp.get_content()
+            for row in content:
+                odr_id = row[Map.orderId]
+                status = BinanceOrder.convert_status(row[Map.status])
+                exec_qty = float(row[Map.executedQty])
+                exec_amount = float(row[Map.cummulativeQuoteQty])
+                exec_price = None
+                if (status == Order.STATUS_PROCESSING) or (status == Order.STATUS_COMPLETED):
+                    exec_price = exec_amount / exec_qty
+                odr = {
+                    Map.symbol: row[Map.symbol],
+                    Map.id: odr_id,
+                    Map.price: exec_price,
+                    Map.quantity: float(row[Map.origQty]),
+                    Map.qty: exec_qty,
+                    Map.amount: exec_amount,
+                    Map.status: status,
+                    Map.type: row[Map.type],
+                    Map.side: row[Map.side],
+                    Map.time: row[Map.updateTime],
+                    Map.response: row
+                }
+                result.put(odr, odr_id)
+            self._set_result(result)
+        return result
 
     def generate_request(self) -> Map:
         request = self._get_request()

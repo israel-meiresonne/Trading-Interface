@@ -2,6 +2,7 @@ from abc import abstractmethod
 from datetime import datetime
 from json import dumps as json_encode
 from json import loads as json_decode
+from random import shuffle
 from time import time as time_time
 from typing import Union, Any
 
@@ -45,6 +46,31 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def unix_to_date(time: int, form: str = FORMAT_D_H_M_S_MS) -> str:
         return datetime.fromtimestamp(time).strftime(form)
+
+    # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+    @staticmethod
+    def new_code(size: int = 20, salt: str = 'abcdefghijklmnopqrstuvwxyz') -> str:
+        """
+        To generate code based on unix time in millisecond\n
+        :param size: the  total size of the code
+                    NOTE: the min size is 13
+        :param salt: the string to use
+        :return: a code based on unix time in millisecond
+        """
+        time = str(ModelFeature.get_timestamp(ModelFeature.TIME_MILLISEC))
+        min_size = len(time)
+        if size < min_size:
+            raise ValueError(f"The code's size must be equal or over '{min_size}'.")
+        salt = list(salt)
+        shuffle(salt)
+        code = time
+        nb_salt = size - min_size
+        subsalt = [salt[i] for i in range(len(salt)) if i < nb_salt]
+        code += ''.join(subsalt)
+        code_list = list(code)
+        shuffle(code_list)
+        code = ''.join(code_list)
+        return code
 
     @staticmethod
     def keys_exist(ks: list, mp: dict) -> Union[None, str]:

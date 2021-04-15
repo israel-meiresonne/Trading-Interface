@@ -9,6 +9,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.Order import Order
 
 
 class BinanceFakeAPI(BinanceAPI):
@@ -182,6 +183,7 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             raise Exception(f"Unknown request '{rq}'")
         rsp_d = {
+            Map.orderId: Order.PREFIX_ID + _MF.new_code(),
             Map.status: status,
             Map.price: actual_close,
             Map.transactTime: exec_prc

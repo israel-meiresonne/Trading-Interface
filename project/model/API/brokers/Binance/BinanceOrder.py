@@ -1,3 +1,4 @@
+from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.BrokerResponse import BrokerResponse
@@ -21,18 +22,6 @@ class BinanceOrder(Order):
         super().__init__(odr_type, params)
         self.__api_request = None
         exec(f"self.{odr_type}()")
-
-    @staticmethod
-    def _get_status_converer() -> Map:
-        return BinanceOrder.CONV_STATUS
-
-    @staticmethod
-    def _convert_status(api_status: str) -> str:
-        _cls = BinanceOrder
-        converter = _cls._get_status_converer()
-        if api_status not in converter.get_keys():
-            raise ValueError(f"This status '{api_status}' is not supported")
-        return _cls.CONV_STATUS.get(api_status)
 
     def __set_api_request(self, rq: str) -> None:
         self.__api_request = rq
@@ -143,20 +132,6 @@ class BinanceOrder(Order):
         Orders.insert_order(Orders.SAVE_ACTION_GENERATE, self)
         return Map(ModelFeature.clean(prms.get_map()))
 
-    def handle_response(self, rsp: BrokerResponse) -> None:
-        cont = Map(rsp.get_content())
-        status = cont.get(Map.status)
-        prc = None
-        prc_val = cont.get(Map.price)
-        exec_time = cont.get(Map.transactTime)
-        if prc_val is not None:
-            prc = Price(prc_val, self.get_pair().get_right().get_symbol())
-        self._set_status(self._convert_status(status))
-        self._set_execution_price(prc)
-        self._set_execution_time(exec_time) if exec_time is not None else None
-        from model.tools.Orders import Orders
-        Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
-
     def generate_cancel_order(self) -> Map:
         odr_params = Map({
             Map.symbol: self.get_pair().get_merged_symbols().upper(),
@@ -166,3 +141,91 @@ class BinanceOrder(Order):
             Map.recvWindow: None,
         })
         return odr_params
+
+    def handle_response(self, rsp: BrokerResponse) -> None:
+        _stage = Config.get(Config.STAGE_MODE)
+        content = Map(rsp.get_content())
+        status = content.get(Map.status)
+        exec_time = content.get(Map.transactTime)
+        odr_bkr_id = content.get(Map.orderId)
+        # Stages
+        prc_obj = None
+        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
+            prc_val = content.get(Map.price)
+        elif _stage == Config.STAGE_3:
+            # Execution price
+            subexec = content.get(Map.fills)
+            subexec = subexec if subexec is not None else []
+            self._set_subexecutions(subexec)
+            subexec_datas = self.resume_subexecution(subexec) if len(subexec) > 0 else None
+            prc_val = subexec_datas.get(Map.price) if subexec_datas is not None else None
+        else:
+            raise Exception(f"Unknown stage '{_stage}'.")
+        if prc_val is not None:
+            prc_obj = Price(prc_val, self.get_pair().get_right().get_symbol())
+        # Update
+        self._set_broker_id(odr_bkr_id)
+        self._set_status(self.convert_status(status))
+        self._set_execution_price(prc_obj)
+        self._set_execution_time(exec_time) if exec_time is not None else None
+        # Backup
+        from model.tools.Orders import Orders
+        Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
+
+    @staticmethod
+    def _get_status_converter() -> Map:
+        return BinanceOrder.CONV_STATUS
+
+    @staticmethod
+    def convert_status(api_status: str) -> str:
+        _cls = BinanceOrder
+        converter = _cls._get_status_converter()
+        if api_status not in converter.get_keys():
+            raise ValueError(f"This status '{api_status}' is not supported")
+        return _cls.CONV_STATUS.get(api_status)
+
+    @staticmethod
+    def resume_subexecution(fills: list) -> Map:
+        """
+        To extract datas from sub-execution\n
+        :param fills: list of Binance's sub-executions
+        [
+            {
+              "price": "4000.00000000",
+              "qty": "1.00000000",
+              "commission": "4.00000000",
+              "commissionAsset": "USDT"
+            }
+        ]
+        :return: extracted datas
+        datas[Map.price]: {float}   | average execution price
+        datas[Map.fee]:   {float}   | total fees
+        """
+        if len(fills) == 0:
+            raise ValueError(f"The lis of sub-executions can't be empty")
+        qty_total = 0
+        fees = 0
+        new_fills = []
+        for row in fills:
+            price = float(row[Map.price])
+            qty = float(row[Map.qty])
+            qty_total += qty
+            fee = float(row[Map.commission])
+            fees += fee
+            new_row = {
+                Map.price: price,
+                Map.qty: qty,
+                Map.commission: fee
+            }
+            new_fills.append(new_row)
+        price_rates = [(row[Map.qty]/qty_total)*row[Map.price] for row in new_fills]
+        price_sum = sum(price_rates)
+        nb_decimal = len(str(new_fills[0][Map.price]).split('.')[-1]) - 1
+        price_exec = round(price_sum, nb_decimal)
+        symbol = fills[0][Map.commissionAsset]
+        price_obj = Price(price_exec, symbol)
+        datas = Map({
+            Map.price: price_obj,
+            Map.fee: fees
+        })
+        return datas
