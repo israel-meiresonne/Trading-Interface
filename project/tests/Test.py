@@ -1,4 +1,5 @@
 from model.API.brokers.Binance.Binance import Binance
+from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -62,10 +63,10 @@ def capital_to_market(src_path: str, depot_path: str) -> None:
     fields = ['market_json']
     csv = _fm_cls.get_csv(src_path)
     rows = [{Map.time: int(_MF.date_to_unix(row[Map.time])),
-            Map.open: '0',
-            Map.high: '0',
-            Map.low: '0',
-            Map.close: row[Map.close]}
+             Map.open: '0',
+             Map.high: '0',
+             Map.low: '0',
+             Map.close: row[Map.close]}
             for row in csv]
     fields = list(rows[0].keys())
     _fm_cls.write_csv(depot_path, fields, rows)
@@ -112,7 +113,7 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     for time in times:
         mkt = mkts[time]
         row = {
-            Map.time: int(mkt[0]/1000),
+            Map.time: int(mkt[0] / 1000),
             Map.open: mkt[1],
             Map.high: mkt[2],
             Map.low: mkt[3],
@@ -123,8 +124,8 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     if rows[0][Map.time] >= rows[1][Map.time]:
         older_unix = rows[0][Map.time]
         recent_unix = rows[1][Map.time]
-        older = _MF.unix_to_date(older_unix/1000, _MF.FORMAT_D_H_M_S)
-        recent = _MF.unix_to_date(recent_unix/1000, _MF.FORMAT_D_H_M_S)
+        older = _MF.unix_to_date(older_unix / 1000, _MF.FORMAT_D_H_M_S)
+        recent = _MF.unix_to_date(recent_unix / 1000, _MF.FORMAT_D_H_M_S)
         raise Exception(f"Market must be ordered from older to recent "
                         f"instead '{older_unix}({older})', '{recent_unix}({recent})',...")
     fields = list(rows[0].keys())
@@ -386,6 +387,53 @@ if __name__ == '__main__':
     FileManager.write_csv(p2, fields, rows, overwrite)
     print("🖨 File printed ✅")
     """
-    src_path = 'content/v0.01/2021-04-04 23.02.14_market.csv'
-    depot_path = 'content/v0.01/BNB-USDT-2Days_market.csv'
-    apimarket_to_market(src_path, depot_path)
+    # src_path = 'content/v0.01/2021-04-04 23.02.14_market.csv'
+    # depot_path = 'content/v0.01/BNB-USDT-2Days_market.csv'
+    # apimarket_to_market(src_path, depot_path)
+    api_pb = ''
+    api_sk = ''
+    test_mode = False
+    """
+    api = BinanceAPI(api_pb, api_sk, test_mode)
+    rq = BinanceAPI.RQ_ALL_ORDERS
+    rq_params = Map({
+        Map.symbol: "BNBUSDT",
+        Map.startTime: 1612134000,
+        Map.limit: 10
+    })
+    rsp = api.request_api(rq, rq_params)
+    content = rsp.get_content()
+    print(content)
+    """
+    config = Map({
+        Map.api_pb: api_pb,
+        Map.api_sk: api_sk,
+        Map.test_mode: test_mode
+    })
+    odr_rq_params = Map({
+        Map.symbol: "BNBUSDT",
+        Map.id: None,
+        Map.begin_time: 1612134000,
+        Map.end_time: None,
+        Map.limit: 10,
+        Map.timeout: None
+    })
+    snap_rq_params = Map({
+        Map.account: BrokerRequest.ACCOUNT_MAIN,
+        Map.begin_time: None,
+        Map.end_time: _MF.get_timestamp(_MF.TIME_MILLISEC),
+        Map.number: 5,
+        Map.timeout: None,
+    })
+    bnc = Binance(config)
+    # bnc_rq = BinanceRequest(BinanceRequest.RQ_ORDERS, odr_rq_params)
+    bnc_rq = BinanceRequest(BinanceRequest.RQ_ACCOUNT_SNAP, snap_rq_params)
+    bnc.request(bnc_rq)
+    # api_rsp = bnc_rq.get_orders()
+    api_rsp = bnc_rq.get_account_snapshot()
+    # json = _MF.json_encode(api_rsp.get_map())
+    # prt = {k: {k: v.__str__() for k, v in row.items()} for k, row in api_rsp.get(Map.account).items()}
+    # prt = {**prt, **api_rsp.get(Map.response)}
+    times = list(api_rsp.get(Map.account).keys())
+    cap = api_rsp.get(Map.account, times[-1], "usdt")
+    print(cap)

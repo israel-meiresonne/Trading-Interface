@@ -63,10 +63,11 @@ class Bot(ModelFeature):
             if _stage == Config.STAGE_2:
                 print(f"Bot sleep for {sleep_time}seconds...")
                 sleep(sleep_time)
-            end = self.__stillActive()
+            end = self._still_active()
             i += 1
 
-    def __stillActive(self) -> bool:
+    @staticmethod
+    def _still_active() -> bool:
         print("still trading...")
         return False
 

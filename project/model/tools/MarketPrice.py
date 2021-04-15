@@ -828,6 +828,7 @@ class MarketPrice(ABC):
     @staticmethod
     def _save_market(mkt: tuple) -> None:
         p = Config.get(Config.DIR_SAVE_MARKET)
+        mkt = [[str(v) for v in row] for row in mkt]
         mkt = list(mkt)
         mkt.reverse()
         rows = [{Map.market: _MF.json_encode(mkt)}]

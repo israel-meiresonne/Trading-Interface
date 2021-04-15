@@ -47,6 +47,5 @@ class TestOrder(unittest.TestCase, Order):
         pass
 
 
-
 if __name__ == '__main__':
     unittest.main
