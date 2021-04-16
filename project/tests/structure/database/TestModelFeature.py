@@ -40,15 +40,15 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
 
     def test_get_maximums(self):
         d = [1, 4, 2, 6, 6, 3, 7, 7]
-        exp = (1, 3)
+        exp = [1, 3]
         result = self.get_maximums(d)
-        self.assertTupleEqual(exp, result)
+        self.assertListEqual(exp, result)
 
     def test_get_minimums(self):
         d = [1, 4, 2, 6, 3, 3, 7, 5, 5]
-        exp = (2, 4)
+        exp = [2, 4]
         result = self.get_minimums(d)
-        self.assertTupleEqual(exp, result)
+        self.assertListEqual(exp, result)
 
     def test_get_maximum(self):
         # Interval 1

@@ -168,10 +168,10 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
         self.assertDictEqual(exp2.get_map(), result2.get_map())
 
     def test_handle_response(self):
-        raise Exception
+        raise Exception("Must implement this test")
 
     def test_generate_cancel_order(self):
-        raise Exception
+        raise Exception("Must implement this test")
 
     def test_resume_subexecution(self) -> None:
         symbol = "USDT"

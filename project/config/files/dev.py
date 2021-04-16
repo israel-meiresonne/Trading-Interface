@@ -6,7 +6,7 @@ from config.Config import Config
 _DATE = datetime.now().strftime("%Y-%m-%d %H.%M.%S")
 # Stage Modes
 # STAGE_MODE = Config.STAGE_2
-STAGE_MODE = None
+STAGE_MODE = Config.STAGE_1  # None
 # Directories
 DIR_BROKERS = "model/API/brokers"
 DIR_STRATEGIES = "model/structure/strategies"
