@@ -104,7 +104,7 @@ class TestBinanceRequest(unittest.TestCase, BinanceRequest):
             BinanceRequest(self.RQ_ACCOUNT_SNAP, self.snap_prms)
 
     def test_handle_response(self):
-        raise Exception
+        raise Exception("Must implement this test")
 
 
 if __name__ == '__main__':

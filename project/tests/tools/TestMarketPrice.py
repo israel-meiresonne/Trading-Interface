@@ -82,10 +82,11 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
                          39.10,
                          38.94, 39.28, 39.29, 40.03, 40.06, 40.53, 40.26]
         # Super Trend
-        self.sptrend_mkt_list = self.datas_super_trend()
+        self.sptrend_mkt_list = self._datas_super_trend()
         self.sptrend_bnc_mkt = BinanceMarketPrice(self.sptrend_mkt_list, '1m')
 
-    def datas_super_trend(self) -> list:
+    @staticmethod
+    def _datas_super_trend() -> list:
         p = "tests/datas/tools/TestMarketPrice/SuperTrend.csv"
         csv = FileManager.get_csv(p)
         mkt_list = [[int(line[Map.date]), '0', line[Map.high], line[Map.low], line[Map.close]] for line in csv]
@@ -168,7 +169,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def test_get_highs(self):
         # it work
         exp0 = [Decimal(v) for v in self.highs]
-        # exp0.reverse()
+        exp0.reverse()
         exp0 = tuple(exp0)
         result0 = self.bnc_mkt.get_highs()
         self.assertTupleEqual(exp0, result0)
@@ -180,7 +181,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def test_get_lows(self):
         # it work
         exp0 = [Decimal(v) for v in self.lows]
-        # exp0.reverse()
+        exp0.reverse()
         exp0 = tuple(exp0)
         result0 = self.bnc_mkt.get_lows()
         self.assertTupleEqual(exp0, result0)
@@ -514,7 +515,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertEqual(exp_2, result_2)
 
     def test_get_slopes(self):
-        nb_prd = 5
+        nb_prd = self._NB_PRD_SLOPES
         nb_row = 20
         mkt_list_1 = [['0', '0', '0', '0', str(i)] for i in range(nb_row)]
         exp1 = []
@@ -568,6 +569,9 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         result2 = mkt2.get_slopes_avg(nb_avg_prd, nb_slp_prd)
         self.assertTupleEqual(exp2, result2)
 
+    def test_get_super_trend(self) -> None:
+        raise Exception("Must implement this test")
+    """
     # SuperTrend
     def test_get_super_trend(self):
         tab1 = [None, None, None, None, None, None, None, None, None, None, 57910.948, 57910.948, 57910.948, 57910.948,
@@ -658,6 +662,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         result1 = id(self.sptrend_bnc_mkt.get_true_range())
         self.assertEqual(exp1, result1)
     #
+    """
 
     def test_set_actual_slope(self):
         # Last extremum is maximum

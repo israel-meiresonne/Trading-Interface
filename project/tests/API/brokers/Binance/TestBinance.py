@@ -8,28 +8,30 @@ class TestBinance(unittest.TestCase):
         self.api_pb = "val_api_pb"
         self.api_sk = "val_api_sk"
         self.test_mode = True
-        self.cfgs = {
+        self.params = Map({
             Map.api_pb: self.api_pb,
             Map.api_sk: self.api_sk,
             Map.test_mode: self.test_mode
-        }
+        })
 
     def test_constructor(self):
-        Binance(self.cfgs)
-
-    def test_constructor_raise_error(self):
-        miss_pk = dict(self.cfgs)
-        del miss_pk[Map.api_pb]
-        miss_sk = dict(self.cfgs)
-        del miss_sk[Map.api_sk]
-        miss_mode = dict(self.cfgs)
-        del miss_mode[Map.test_mode]
+        # Constructor work
+        Binance(self.params)
+        # Miss public key
+        self.setUp()
+        del self.params.get_map()[Map.api_pb]
         with self.assertRaises(IndexError):
-            Binance(miss_pk)
+            Binance(self.params)
+        # Miss secret key
+        self.setUp()
+        del self.params.get_map()[Map.api_sk]
         with self.assertRaises(IndexError):
-            Binance(miss_sk)
+            Binance(self.params)
+        # Miss test mode
+        self.setUp()
+        del self.params.get_map()[Map.test_mode]
         with self.assertRaises(IndexError):
-            Binance(miss_mode)
+            Binance(self.params)
 
 
 if __name__ == '__main__':

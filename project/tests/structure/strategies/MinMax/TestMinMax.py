@@ -274,18 +274,12 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         self.assertEqual(id(odr), result_id)
 
     def test_try_buy(self):
-        self.stg._set_configs(self.configs)
-        exp = type(Map())
-        result = self.stg._try_buy(self.bkr, self.bnc_mkt_u_u)
-        self.assertEqual(exp, type(result))
+        raise Exception("Must implement this test")
 
     def test_try_sell(self):
-        self.stg._set_configs(self.configs)
-        self.stg._set_secure_order(self.odr1)
-        exp = type(Map())
-        result = self.stg._try_sell(self.bkr, self.bnc_mkt_u_u)
-        self.assertEqual(exp, type(result))
+        raise Exception("Must implement this test")
 
+    """
     def test_get_peak_since_buy(self):
         # Buy order is in MarketPrice's periods
         self.odr2._set_status(Order.STATUS_COMPLETED)
@@ -323,6 +317,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         self.setUp()
         with self.assertRaises(Exception):
             self.stg1._get_peak_since_buy(self.mkt)
+    """
 
 
 if __name__ == '__main__':
