@@ -1,5 +1,4 @@
 import unittest
-from decimal import Decimal
 
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.tools.Map import Map
@@ -70,8 +69,8 @@ class TestOrders(unittest.TestCase, Orders):
         self.odrs_obj.add_order(self.odr0)
         self.odrs_obj.add_order(self.odr1)
         self.odrs_obj.add_order(self.odr2)
-        # with self.assertRaises(ValueError):
-        self.odrs_obj.get_order(odr_id='hello')
+        with self.assertRaises(ValueError):
+            self.odrs_obj.get_order(odr_id='hello')
 
     def test_sum_orders(self):
         # simple test
@@ -117,14 +116,14 @@ class TestOrders(unittest.TestCase, Orders):
     def test_sum_orders_multiple_orders(self):
         # set up
         odrs = Orders()
-        _max_dr = Decimal('0.005')
+        _max_dr = 0.005
         mkt = [
-            Decimal('420.230011'),
-            Decimal('389.593994'),
-            Decimal('437.164001'),
-            Decimal('438.798004'),
-            Decimal('437.747986'),
-            Decimal('432.152008')
+            420.230011,
+            389.593994,
+            437.164001,
+            438.798004,
+            437.747986,
+            432.152008
         ]
         odr0_cap = 1000
         odr0 = BinanceOrder(self.TYPE_MARKET, Map({

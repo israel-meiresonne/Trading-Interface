@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from decimal import Decimal
 
 from config.Config import Config
 from model.structure.Broker import Broker
@@ -37,7 +36,7 @@ class Strategy(ModelFeature):
         self.__pair = pr
         self.__capital = None
         self.__max_capital = max_cap
-        self.__rate = None if rate is None else Decimal(rate)
+        self.__rate = None if rate is None else float(rate)
         self.__orders = Orders()
 
     def get_pair(self) -> Pair:
@@ -55,7 +54,7 @@ class Strategy(ModelFeature):
         return self._generate_real_capital(cap, max_cap, rate)
 
     @staticmethod
-    def _generate_real_capital(cap: Price, max_cap: Price, rate: Decimal) -> Price:
+    def _generate_real_capital(cap: Price, max_cap: Price, rate: float) -> Price:
         """
         To generate the real capital available to trade by using the max capital and the capital rate\n
         :param cap: the capital available in account
@@ -77,7 +76,7 @@ class Strategy(ModelFeature):
     def get_max_capital(self) -> Price:
         return self.__max_capital
 
-    def get_rate(self) -> Decimal:
+    def get_rate(self) -> float:
         return self.__rate
 
     def _get_orders(self) -> Orders:

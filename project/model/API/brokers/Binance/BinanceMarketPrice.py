@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.MarketPrice import MarketPrice
@@ -42,7 +40,7 @@ class BinanceMarketPrice(MarketPrice):
         if opens is None:
             idx = 1
             coll = self._extract_index(idx)
-            opens = tuple(Decimal(v) for v in coll)
+            opens = tuple(float(v) for v in coll)
             self._set_collection(k, opens)
         return opens
 
@@ -52,7 +50,7 @@ class BinanceMarketPrice(MarketPrice):
         if closes is None:
             idx = 4
             coll = self._extract_index(idx)
-            closes = tuple(Decimal(v) for v in coll)
+            closes = tuple(float(v) for v in coll)
             self._set_collection(k, closes)
         return closes
 
@@ -63,7 +61,7 @@ class BinanceMarketPrice(MarketPrice):
             idx = 2
             coll = self._extract_index(idx)
             # coll.reverse()
-            closes = tuple(Decimal(v) for v in coll)
+            closes = tuple(float(v) for v in coll)
             self._set_collection(k, closes)
         return closes
 
@@ -74,7 +72,7 @@ class BinanceMarketPrice(MarketPrice):
             idx = 3
             coll = self._extract_index(idx)
             # coll.reverse()
-            closes = tuple(Decimal(v) for v in coll)
+            closes = tuple(float(v) for v in coll)
             self._set_collection(k, closes)
         return closes
 

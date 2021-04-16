@@ -35,15 +35,15 @@ class TestBinanceRequest(unittest.TestCase, BinanceRequest):
         # snap
         self.snap_prms = Map({
             Map.account: self.ACCOUNT_MAIN,
-            Map.begin_time: self.timestamp,
-            Map.end_time: self.timestamp - self.week,
+            Map.begin_time: self.timestamp - self.week,
+            Map.end_time: self.timestamp,
             Map.number: self.nb_prd,
             Map.timeout: self.timeout
         })
         self.snap_prms_request = Map({
             Map.type: BinanceAPI.ACCOUNT_TYPE_SPOT,
-            Map.startTime: self.timestamp,
-            Map.endTime: self.timestamp - self.week,
+            Map.startTime: self.timestamp - self.week,
+            Map.endTime: self.timestamp,
             Map.limit: self.nb_prd,
             Map.recvWindow: self.timeout
         })

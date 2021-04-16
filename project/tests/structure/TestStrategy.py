@@ -1,5 +1,4 @@
 import unittest
-from decimal import Decimal
 
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
@@ -31,21 +30,21 @@ class TestStrategy(unittest.TestCase, Strategy):
         # —> capital < max capital
         capital1 = Price(500, self.sbl1)
         max_cap1 = Price(1000, self.sbl1)
-        rate1 = Decimal('0.75')
+        rate1 = 0.75
         exp1 = Price(capital1.get_value() * rate1, self.sbl1)
         result1 = self._generate_real_capital(capital1, max_cap1, rate1)
         self.assertEqual(exp1, result1)
         # —> capital == max capital
         capital2 = Price(1000, self.sbl1)
         max_cap2 = Price(1000, self.sbl1)
-        rate2 = Decimal('0.75')
+        rate2 = 0.75
         exp2 = Price(capital2.get_value() * rate2, self.sbl1)
         result2 = self._generate_real_capital(capital2, max_cap2, rate2)
         self.assertEqual(exp2, result2)
         # —> capital > max capital
         capital3 = Price(2000, self.sbl1)
         max_cap3 = Price(1000, self.sbl1)
-        rate3 = Decimal('0.75')
+        rate3 = 0.75
         exp3 = Price(1000, self.sbl1)
         result3 = self._generate_real_capital(capital3, max_cap3, rate3)
         self.assertEqual(exp3, result3)
@@ -70,7 +69,7 @@ class TestStrategy(unittest.TestCase, Strategy):
         self.assertEqual(exp6, result6)
         # Rate is set
         capital7 = Price(1000, self.sbl1)
-        rate7 = Decimal('0.75')
+        rate7 = 0.75
         exp7 = Price(capital7.get_value() * rate7, self.sbl1)
         result7 = self._generate_real_capital(capital7, None, rate7)
         self.assertEqual(exp7, result7)

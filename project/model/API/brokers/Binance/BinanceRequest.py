@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
@@ -57,7 +55,7 @@ class BinanceRequest(BrokerRequest):
         account = self._get_account_converter().get(prms.get(Map.account))
         if account is None:
             raise ValueError(f"This account '{prms.get(Map.account)}' is not supported")
-        startime = int(Map.begin_time) if prms.get(Map.begin_time) is not None else None
+        startime = int(prms.get(Map.begin_time)) if prms.get(Map.begin_time) is not None else None
         endtime = int(prms.get(Map.end_time)) if prms.get(Map.end_time) is not None else None
         if (startime is not None) and (endtime is not None) and (endtime <= startime):
             raise ValueError(f"The endtime '{endtime}' must be greater that the starttime '{startime}'.")
@@ -89,11 +87,6 @@ class BinanceRequest(BrokerRequest):
             rsp = self._get_response()
             content = Map(rsp.get_content())
             accounts = Map()
-            """
-            blcs = content.get(Map.snapshotVos)[-1][Map.data][Map.balances]
-            accounts = Map({str(blc[Map.asset]).lower(): Price(Decimal(blc[Map.free]), blc[Map.asset]) for blc in blcs})
-            accounts.put(content.get_map(), Map.response)
-            """
             for snap in content.get(Map.snapshotVos):
                 time = snap[Map.updateTime]
                 balances = snap[Map.data][Map.balances]

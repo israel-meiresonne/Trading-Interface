@@ -1,5 +1,3 @@
-from decimal import Decimal
-# from math import isnan
 from typing import Union
 
 from config.Config import Config
@@ -70,19 +68,19 @@ class MinMax(Strategy):
                     Map.end_time: None,
                     Map.number: 100
                 }),
-                self._CONF_MAX_DR: Decimal('-0.05'),
+                self._CONF_MAX_DR: -0.05,
                 # self._CONF_DS_AVG: mkt_prc.get_indicator(MarketPrice.INDIC_DS_AVG),       # ✅
                 # self._CONF_DS_AVG: Decimal('-0.001608511499838030450275348233'),        # ❌
-                self._CONF_PEAK_DROP_RATE: Decimal('-0.005'),
+                self._CONF_PEAK_DROP_RATE: -0.005,
                 # self._CONF_RSI_BS: Decimal('40'),               # BTC
                 # self._CONF_RSI_SS: Decimal('57.5'),             # BTC
                 # self._CONF_SLP_BS: Decimal('20'),               # BTC
                 # self._CONF_RSI_PEAK_DROP_POINT: Decimal('3'),   # BTC
-                self._CONF_RSI_BS: Decimal('40'),               # BNB
-                self._CONF_RSI_SS: Decimal('50'),               # BNB
-                self._CONF_SLP_BS: Decimal('0.2'),              # BNB
-                self._CONF_RSI_PEAK_DROP_POINT: Decimal('3'),   # BNB
-                self._CONF_TSI_PEAK_DROP_RATE: Decimal('-0.005')
+                self._CONF_RSI_BS: 40,               # BNB
+                self._CONF_RSI_SS: 50,               # BNB
+                self._CONF_SLP_BS: 0.2,              # BNB
+                self._CONF_RSI_PEAK_DROP_POINT: 3,   # BNB
+                self._CONF_TSI_PEAK_DROP_RATE: -0.005
             }))
             # Set Capital
             if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
@@ -114,7 +112,7 @@ class MinMax(Strategy):
     def __get_configs(self) -> Map:
         return self.__configs
 
-    def _get_config(self, k) -> [float, Decimal, Map]:
+    def _get_config(self, k) -> [float, Map]:
         configs = self.__get_configs()
         if k not in configs.get_keys():
             raise IndexError(f"There's  not config for this key '{k}'")
@@ -1060,7 +1058,7 @@ class MinMax(Strategy):
         FileManager.write_csv(p, fields, rows, overwrite)
     '''
 
-    def _save_capital(self, close: Decimal, time: int) -> None:
+    def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
         cap = self._get_capital()
         s_qty = self._get_sell_quantity()

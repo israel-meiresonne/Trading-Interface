@@ -1,5 +1,4 @@
 import unittest
-from decimal import Decimal
 
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.tools.FileManager import FileManager
@@ -101,7 +100,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def get_closes(self) -> tuple:
         pass
 
-    def get_close(self, prd=0) -> Decimal:
+    def get_close(self, prd=0) -> float:
         pass
 
     def get_highs(self) -> tuple:
@@ -144,7 +143,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_opens(self):
         # it work
-        exp0 = [Decimal(v) for v in self.tuple]
+        exp0 = [float(v) for v in self.tuple]
         # exp0.reverse()
         exp0 = tuple(exp0)
         result0 = self.bnc_mkt.get_opens()
@@ -156,7 +155,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_closes(self):
         # it work
-        exp0 = [Decimal(v) for v in self.tuple]
+        exp0 = [float(v) for v in self.tuple]
         exp0.reverse()
         exp0 = tuple(exp0)
         result0 = self.bnc_mkt.get_closes()
@@ -168,7 +167,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_get_highs(self):
         # it work
-        exp0 = [Decimal(v) for v in self.highs]
+        exp0 = [float(v) for v in self.highs]
         exp0.reverse()
         exp0 = tuple(exp0)
         result0 = self.bnc_mkt.get_highs()
@@ -180,7 +179,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_get_lows(self):
         # it work
-        exp0 = [Decimal(v) for v in self.lows]
+        exp0 = [float(v) for v in self.lows]
         exp0.reverse()
         exp0 = tuple(exp0)
         result0 = self.bnc_mkt.get_lows()
@@ -192,7 +191,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_get_negative_closes(self):
         self.list.reverse()
-        exp = tuple((-Decimal(v) for v in self.list))
+        exp = tuple((-float(v) for v in self.list))
         result = self.bnc_mkt._get_negative_closes()
         self.assertTupleEqual(exp, result)
 
@@ -256,7 +255,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertTupleEqual(exp_d_u, result)
 
     def test_get_rsis(self):
-        mkt = [[0, 0, 0, 0, Decimal(str(val))] for val in self.rsi_vals]
+        mkt = [[0, 0, 0, 0, float(str(val))] for val in self.rsi_vals]
         bnc_mkt = BinanceMarketPrice(mkt, '1m')
         rsis = bnc_mkt.get_rsis()
         """
@@ -269,7 +268,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertEqual(exp, result)
 
     def test_get_rsi(self):
-        mkt = [[0, 0, 0, 0, Decimal(str(val))] for val in self.rsi_vals]
+        mkt = [[0, 0, 0, 0, float(str(val))] for val in self.rsi_vals]
         bnc_mkt = BinanceMarketPrice(mkt, '1m')
         rsis = bnc_mkt.get_rsis()
         exp = rsis[0]
@@ -279,7 +278,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_get_delta_price(self):
         # correct result
-        exp = Decimal(self.closes_u_u[-2]) - Decimal(self.closes_u_u[-3])
+        exp = float(self.closes_u_u[-2]) - float(self.closes_u_u[-3])
         result = self.bnc_mkt_u_u.get_delta_price(1, 2)
         self.assertEqual(exp, result)
         # new > old period
@@ -296,7 +295,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt.reverse()
         new_prd = 1
         old_prd = 4
-        delta = Decimal(mkt[new_prd]) - Decimal(mkt[old_prd])
+        delta = float(mkt[new_prd]) - float(mkt[old_prd])
         prd_time = self.bnc_mkt_u_u.get_period_time()
         time = (old_prd - new_prd + 1) * prd_time
         exp = delta / time
@@ -309,7 +308,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt.reverse()
         new_prd = 0
         old_prd = 3
-        delta = Decimal(mkt[new_prd]) - Decimal(mkt[old_prd])
+        delta = float(mkt[new_prd]) - float(mkt[old_prd])
         prd_time = self.bnc_mkt_u_u.get_period_time()
         time = (old_prd - new_prd + 1) * prd_time
         exp = delta / time
@@ -324,7 +323,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt.reverse()
         new_prd = 1
         old_prd = 4
-        exp = (Decimal(mkt[new_prd]) / Decimal(mkt[old_prd])) - 1
+        exp = (float(mkt[new_prd]) / float(mkt[old_prd])) - 1
         result = self.bnc_mkt_u_u._get_rate(new_prd, old_prd)
         self.assertTrue(result < 0)
         self.assertEqual(exp, result)
@@ -334,7 +333,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt.reverse()
         new_prd = 2
         old_prd = 4
-        exp = (Decimal(mkt[new_prd]) / Decimal(mkt[old_prd])) - 1
+        exp = (float(mkt[new_prd]) / float(mkt[old_prd])) - 1
         result = self.bnc_mkt_u_u._get_rate(new_prd, old_prd)
         self.assertTrue(result > 0)
         self.assertEqual(exp, result)
@@ -344,7 +343,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt.reverse()
         new_prd = 2
         old_prd = 2
-        exp = (Decimal(mkt[new_prd]) / Decimal(mkt[old_prd])) - 1
+        exp = (float(mkt[new_prd]) / float(mkt[old_prd])) - 1
         result = self.bnc_mkt_u_u._get_rate(new_prd, old_prd)
         self.assertTrue(result == 0)
         self.assertEqual(exp, result)
@@ -360,7 +359,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         mkt.reverse()
         new_prd = 0
         old_prd = 1
-        delta = Decimal(mkt[new_prd]) - Decimal(mkt[old_prd])
+        delta = float(mkt[new_prd]) - float(mkt[old_prd])
         prd_time = self.bnc_mkt_u_u.get_period_time()
         time = (old_prd - new_prd + 1) * prd_time
         exp = delta / time
@@ -472,20 +471,20 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def test_get_futur_price(self):
         # rate positive
         rate = 0.1
-        prc = Decimal(str(self.closes_d_u[len(self.closes_d_u) - 1]))
-        exp1 = prc * Decimal(str((1 + rate)))
+        prc = float(str(self.closes_d_u[len(self.closes_d_u) - 1]))
+        exp1 = prc * float(str((1 + rate)))
         result1 = self.bnc_mkt_d_u.get_futur_price(rate)
         self.assertEqual(exp1, result1)
         # rate negative
         rate = -0.1
-        prc = Decimal(str(self.closes_d_u[len(self.closes_d_u) - 1]))
-        exp2 = prc * Decimal(str((1 + rate)))
+        prc = float(str(self.closes_d_u[len(self.closes_d_u) - 1]))
+        exp2 = prc * float(str((1 + rate)))
         result2 = self.bnc_mkt_d_u.get_futur_price(rate)
         self.assertEqual(exp2, result2)
         # rate null
         rate = 0
-        prc = Decimal(str(self.closes_d_u[len(self.closes_d_u) - 1]))
-        exp3 = prc * Decimal(str((1 + rate)))
+        prc = float(str(self.closes_d_u[len(self.closes_d_u) - 1]))
+        exp3 = prc * float(str((1 + rate)))
         result3 = self.bnc_mkt_d_u.get_futur_price(rate)
         self.assertEqual(exp3, result3)
 

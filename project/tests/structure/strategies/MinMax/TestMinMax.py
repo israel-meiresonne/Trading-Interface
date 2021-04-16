@@ -1,5 +1,4 @@
 import unittest
-from decimal import Decimal
 
 from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
@@ -43,7 +42,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             Map.test_mode: True
         }))
         # Orders
-        self.real_capital1 = self.capital1.get_value() * Decimal(self.rate1)
+        self.real_capital1 = self.capital1.get_value() * self.rate1
         self.exec_prc0 = Price(15000, self.rsbl)
         self.exec_prc1 = Price(30000, self.rsbl)
         self.odr0_prms = Map({
@@ -246,9 +245,9 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         self.assertEqual(id(odr), result_id)
 
     def test_new_secure_order(self):
-        _max_dr = Decimal('-0.005')
+        _max_dr = -0.005
         self.stg._set_configs(Map({
-            self._CONF_MAX_DR: Decimal(_max_dr)
+            self._CONF_MAX_DR: _max_dr
         }))
         self.stg._set_capital(self.capital1)
         self.odr0._set_execution_price(self.exec_prc0)

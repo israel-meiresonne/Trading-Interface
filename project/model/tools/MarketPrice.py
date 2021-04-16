@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal
 from typing import Union
 
 import numpy as np
@@ -62,7 +61,6 @@ class MarketPrice(ABC):
         :param mkt: market prices.
         NOTE: market prices must be ordered from the newest to the older
         """
-        # self.__market = tuple((Decimal(v) for v in mkt))
         self.__market = mkt
         self.__period_time = prd_time
         self.__indicators = Map()
@@ -129,12 +127,12 @@ class MarketPrice(ABC):
         return colls.get(k)
 
     def __set_indicator(self, k, v) -> None:
-        self._get_indicators().put(Decimal(v), k)
+        self._get_indicators().put(float(v), k)
 
     def _get_indicators(self) -> Map:
         return self.__indicators
 
-    def get_indicator(self, ind: str) -> Decimal:
+    def get_indicator(self, ind: str) -> float:
         inds = self._get_indicators()
         eval(f"self.{ind}()") if ind not in inds.get_keys() else None
         return inds.get(ind)
@@ -157,7 +155,7 @@ class MarketPrice(ABC):
         """
         pass
 
-    def get_close(self, prd=0) -> Decimal:
+    def get_close(self, prd=0) -> float:
         """
         To get close price at the given period\n
         :param prd: the period where to get the price
@@ -278,13 +276,13 @@ class MarketPrice(ABC):
             rsis = rsis_series.to_list()
             """
             rsis = self.rsis(nb_prd, closes)
-            rsis = [Decimal(str(v)) for v in rsis]
+            rsis = [float(str(v)) for v in rsis]
             rsis.reverse()
             rsis = tuple(rsis)
             self._set_collection(self.COLLECTION_RSIS, rsis)
         return rsis
 
-    def get_rsi(self, prd: int = 0) -> Decimal:
+    def get_rsi(self, prd: int = 0) -> float:
         rsis = self.get_rsis()
         if prd >= len(rsis):
             raise ValueError(f"This period '{prd}' don't exist in RSI collection")
@@ -305,7 +303,7 @@ class MarketPrice(ABC):
             tsis = tsis_series.to_list()
             """
             tsis = self.tsis(nb_prd_slow, nb_prd_fast, use_nan, closes)
-            tsis = [Decimal(str(v)) for v in tsis]
+            tsis = [float(str(v)) for v in tsis]
             tsis.reverse()
             tsis = tuple(tsis)
             self._set_collection(k, tsis)
@@ -328,14 +326,14 @@ class MarketPrice(ABC):
             pd_series = pd.Series(np.array(tsis))
             tsis_emas = _ema(pd_series, nb_prd_fast, not use_nan)
             tsis_emas = tsis_emas.to_list()
-            tsis_emas = [Decimal(str(v)) for v in tsis_emas]
+            tsis_emas = [float(str(v)) for v in tsis_emas]
             tsis_emas.reverse()
             tsis_emas = tuple(tsis_emas)
             self._set_collection(k, tsis_emas)
         return tsis_emas
     # TSI UP
 
-    def get_delta_price(self, new_prd=0, old_prd=1) -> Decimal:
+    def get_delta_price(self, new_prd=0, old_prd=1) -> float:
         """
         To get variation between two periods\n
         :param new_prd: the most recent period
@@ -351,13 +349,13 @@ class MarketPrice(ABC):
                 f"The the older period '{old_prd}' is out of bounds '{sz - 1}'")
         return closes[new_prd] - closes[old_prd]
 
-    def _get_speed(self, new_prd: int, old_prd: int) -> Decimal:
+    def _get_speed(self, new_prd: int, old_prd: int) -> float:
         prd_time = self.get_period_time()
         delta = self.get_delta_price(new_prd, old_prd)
         time = (old_prd - new_prd + 1) * prd_time
-        return Decimal(delta / time)
+        return delta / time
 
-    def _get_rate(self, new_prd: int, old_prd: int) -> Decimal:
+    def _get_rate(self, new_prd: int, old_prd: int) -> float:
         """
         To get the variation rate between two periods\n
         :param new_prd: the most recent period
@@ -370,19 +368,19 @@ class MarketPrice(ABC):
         nb = len(closes)
         if old_prd >= nb:
             raise IndexError(f"Period '{old_prd}' don't exit in market of '{nb - 1}' periods")
-        return Decimal(closes[new_prd] / closes[old_prd] - 1)
+        return closes[new_prd] / closes[old_prd] - 1
 
-    def get_futur_price(self, rate: float) -> Decimal:
+    def get_futur_price(self, rate: float) -> float:
         """
         To apply a rate variation on the most recent price\n
         :param rate: the rate to apply ]-∞,+∞[
         :return: price*(1+rate)
         """
         closes = self.get_closes()
-        return Decimal(closes[0]) * Decimal(str(1 + rate))
+        return closes[0] * float(str(1 + rate))
 
     # SLOPES
-    def get_slope(self, new_prd: int, old_prd: int) -> Decimal:
+    def get_slope(self, new_prd: int, old_prd: int) -> float:
         closes = self.get_closes()
         nb = len(closes)
         if (new_prd >= nb) and (old_prd >= nb):
@@ -394,11 +392,6 @@ class MarketPrice(ABC):
         for i in range(new_prd, old_prd + 1):
             y.append(float(str(closes[i])))
         y.reverse()
-        # x = [v for v in range(len(y))]
-        """
-        coefs, _ = np.polynomial.polynomial.Polynomial.fit(x, y, 1, full=True)
-        return Decimal(str(round(coefs.coef[1], 2)))
-        """
         return _MF.get_slope(y).get(Map.slope)
 
     def get_slopes(self, nb_prd: int = _NB_PRD_SLOPES) -> tuple:
@@ -451,7 +444,7 @@ class MarketPrice(ABC):
             self._set_collection(self.COLLECTION_SLOPES_AVG, slp_avg)
         return slp_avg
 
-    def get_slope_avg(self, prd: int = 0) -> Decimal:
+    def get_slope_avg(self, prd: int = 0) -> float:
         avgs = self.get_slopes_avg()
         if prd >= len(avgs):
             raise ValueError(f"This period '{prd}' don't exist in the Slope average collection")
@@ -513,7 +506,7 @@ class MarketPrice(ABC):
             lows.reverse()
             # pd_lows = pd.Series(np.array(lows))
             supers = self.super_trend(nb_prd, coef, closes, highs, lows)
-            supers = [Decimal(str(v)) for v in supers]
+            supers = [float(str(v)) for v in supers]
             supers.reverse()
             supers = tuple(supers)
             self._set_collection(k, supers)

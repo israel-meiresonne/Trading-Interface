@@ -1,15 +1,12 @@
-from decimal import Decimal, getcontext
-
 from model.tools.Asset import Asset
 
 
 class Price:
-    def __init__(self, val: [int, float, Decimal], sbl: str):
-        getcontext().prec = 8
-        self.__value = Decimal(str(val)) * 1
+    def __init__(self, val: [int, float], sbl: str):
+        self.__value = float(str(val)) * 1
         self.__asset = Asset(sbl)
 
-    def get_value(self) -> Decimal:
+    def get_value(self) -> float:
         return self.__value
 
     def get_asset(self) -> Asset:
