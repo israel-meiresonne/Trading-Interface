@@ -1,3 +1,8 @@
+import numpy as np
+import pandas as pd
+from pandas_ta import er as _er
+from pandas_ta import aroon as _aroon
+
 from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
@@ -387,13 +392,14 @@ if __name__ == '__main__':
     FileManager.write_csv(p2, fields, rows, overwrite)
     print("🖨 File printed ✅")
     """
+    """
     # src_path = 'content/v0.01/2021-04-04 23.02.14_market.csv'
     # depot_path = 'content/v0.01/BNB-USDT-2Days_market.csv'
     # apimarket_to_market(src_path, depot_path)
     api_pb = ''
     api_sk = ''
     test_mode = False
-    """
+    '''
     api = BinanceAPI(api_pb, api_sk, test_mode)
     rq = BinanceAPI.RQ_ALL_ORDERS
     rq_params = Map({
@@ -404,7 +410,7 @@ if __name__ == '__main__':
     rsp = api.request_api(rq, rq_params)
     content = rsp.get_content()
     print(content)
-    """
+    '''
     config = Map({
         Map.api_pb: api_pb,
         Map.api_sk: api_sk,
@@ -437,3 +443,47 @@ if __name__ == '__main__':
     times = list(api_rsp.get(Map.account).keys())
     cap = api_rsp.get(Map.account, times[-1], "usdt")
     print(cap)
+    """
+    src = "content/v0.01/market-historic/COS/COS-USDT-2Days_market.csv"
+    csv = FileManager.get_csv(src)
+    mkt_list = [[int(line[Map.time]), float(line[Map.open]), float(line[Map.high]), float(line[Map.low]), float(line[Map.close])] for line in csv]
+    bnc_mkt = BinanceMarketPrice(mkt_list, '1m')
+    # Closes
+    closes = list(bnc_mkt.get_closes())
+    closes.reverse()
+    closes_serie = pd.Series(np.array(closes))
+    # Times
+    times = list(bnc_mkt.get_times())
+    times.reverse()
+    # Highs
+    highs = list(bnc_mkt.get_highs())
+    highs.reverse()
+    highs_serie = pd.Series(np.array(highs))
+    # Lows
+    lows = list(bnc_mkt.get_lows())
+    lows.reverse()
+    lows_serie = pd.Series(np.array(lows))
+    nb_prd = 14
+    # er_obj = _er(closes_serie, nb_prd)
+    graph_obj = _aroon(highs_serie, lows_serie)
+    # er_serie = er_obj[f'ER_{nb_prd}']
+    aroon_up = graph_obj[f'AROONU_{nb_prd}'].to_list()
+    aroon_down = graph_obj[f'AROOND_{nb_prd}'].to_list()
+    aroon_osc = graph_obj[f'AROONOSC_{nb_prd}'].to_list()
+    """
+    aroon_up.reverse()
+    aroon_down.reverse()
+    aroon_osc.reverse()
+    closes.reverse()
+    """
+    p = "content/v0.01/market-historic/COS/aroon.csv"
+    # row = {Map.close: closes, "er": er_list}
+    rows = [{Map.time: _MF.unix_to_date(times[i], _MF.FORMAT_D_H_M_S),
+             Map.close: closes[i],
+             "aroon_up": aroon_up[i],
+             "aroon_down": aroon_down[i],
+             "aroon_osc": aroon_osc[i]} for i in range(len(closes))]
+    fields = list(rows[0].keys())
+    FileManager.write_csv(p, fields, rows)
+
+

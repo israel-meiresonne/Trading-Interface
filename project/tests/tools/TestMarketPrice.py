@@ -705,6 +705,9 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def test_get_peak_since_buy(self) -> None:
         raise Exception("Must implement this test")
 
+    def test_get_super_trend_trend(self) -> None:
+        raise Exception("Must implement this test")
+
 
 if __name__ == '__main__':
     unittest.main

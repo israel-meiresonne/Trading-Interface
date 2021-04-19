@@ -164,7 +164,7 @@ class BinanceOrder(Order):
         if prc_val is not None:
             prc_obj = Price(prc_val, self.get_pair().get_right().get_symbol())
         # Update
-        self._set_broker_id(odr_bkr_id)
+        self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
         self._set_status(self.convert_status(status))
         self._set_execution_price(prc_obj)
         self._set_execution_time(exec_time) if exec_time is not None else None

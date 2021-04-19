@@ -53,6 +53,8 @@ class MarketPrice(ABC):
     _COEF_SUPER_TREND = 3
     _NB_PRD_SLOW_TSI = 25
     _NB_PRD_FAST_TSI = 13
+    SUPERTREND_RISING = "TREND_RISING"
+    SUPERTREND_DROPING = "TREND_DROPING"
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int):
@@ -753,6 +755,34 @@ class MarketPrice(ABC):
         supers_serie = supers_obj[f'SUPERT_{nb_prd}_{float(coef)}']
         supers = supers_serie.to_list()
         return supers
+
+    @staticmethod
+    def get_super_trend_trend(closes: list, supers: list, prd: int) -> str:
+        """
+        To evaluate the trend of SuperTrend on a given period\n
+        :param closes: values used to generate SuperTrend
+        :param supers: SuperTrend values generated with closes param
+        :param prd: the period where to check the trend
+        :return: the trend at the given period
+        NOTE: return None if trend can't be evaluated
+        """
+        nb_close = len(closes)
+        nb_super = len(supers)
+        if nb_close != nb_super:
+            raise ValueError(f"The number of closes '{nb_close}' must match the number of SuperTrend '{nb_super}'.")
+        if (prd >= nb_super) or (abs(prd) > nb_super):
+            raise IndexError(f"The given period '{prd}' is out of bound '{nb_super}'.")
+        close = closes[prd]
+        if prd != 0:
+            last_close = closes[prd-1]
+            trend_up = (close > supers[prd]) or ((last_close < supers[prd-1]) and (close == supers[prd]))
+            trend_dow = (close < supers[prd]) or ((last_close > supers[prd-1]) and (close == supers[prd]))
+        else:
+            trend_up = close > supers[prd]
+            trend_dow = close < supers[prd]
+        trend = MarketPrice.SUPERTREND_RISING if trend_up else None
+        trend = MarketPrice.SUPERTREND_DROPING if (trend is None) and trend_dow else trend
+        return trend
 
     @staticmethod
     def rsis(nb_prd: int, closes: list) -> list:
