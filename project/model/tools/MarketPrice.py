@@ -785,6 +785,24 @@ class MarketPrice(ABC):
         return trend
 
     @staticmethod
+    def get_super_trend_switchers(closes: list, supers: list) -> Map:
+        """
+        To get indexes where trend switch\n
+        :param closes: values used to generate SuperTrend
+        :param supers: SuperTrend values generated with closes param
+        :return: dict of firsts index of each trend in SuperTrend
+                 Map[index{int}]:   {string}    # MarketPrice.SUPERTREND_{RISING|TREND_DROPING}
+        """
+        switchers = Map()
+        last_trend = None
+        for i in range(len(closes)):
+            new_trend = MarketPrice.get_super_trend_trend(closes, supers, i)
+            # new_trend = new_trend if new_trend != last_trend else None
+            switchers.put(new_trend, i) if new_trend != last_trend else None
+            last_trend = new_trend
+        return switchers
+
+    @staticmethod
     def rsis(nb_prd: int, closes: list) -> list:
         pd_ser = pd.Series(np.array(closes))
         rsis_obj = RSIIndicator(pd_ser, nb_prd)

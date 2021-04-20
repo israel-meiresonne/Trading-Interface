@@ -27,6 +27,8 @@ class MinMax(Strategy):
         super().__init__(prms)
         self.__configs = None
         self.__secure_order = None
+        self._last_dropping_super = None
+        self._last_dropping_close = None
 
     def _init_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
@@ -238,7 +240,8 @@ class MinMax(Strategy):
             odrs_map = self._try_buy(bkr, mkt_prc)
         bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
 
-    # TREND(RSI)&TREND(CLOSE)V5: BUY
+    # TREND(RSI)&TREND(CLOSE)V5.0: BUY
+    '''
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
@@ -246,7 +249,6 @@ class MinMax(Strategy):
         :return: set of order to execute
                  Map[index{int}] => {Order}
         """
-        _vars_before = dict(vars())
         odrs = Map()
         # Close Trend
         close = mkt_prc.get_close()
@@ -263,8 +265,8 @@ class MinMax(Strategy):
             self._buy(bkr, mkt_prc, odrs)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_BUY) \
-            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        self._save_move(**vars(), move=Order.MOVE_BUY)  # \
+        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
             Map.time,
@@ -287,6 +289,145 @@ class MinMax(Strategy):
         ]
         """
         return odrs
+    '''
+
+    # TREND(RSI)&TREND(CLOSE)V5.1: BUY
+    '''
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        odrs = Map()
+        closes = list(mkt_prc.get_closes())
+        closes.reverse()
+        closes_supers = list(mkt_prc.get_super_trend())
+        closes_supers.reverse()
+        # Close Trend
+        close_trend = MarketPrice.get_super_trend_trend(closes, closes_supers, -1)
+        close_trend_ok = close_trend == MarketPrice.SUPERTREND_RISING
+        """
+        # RSI Trend
+        rsi = mkt_prc.get_rsi()
+        rsis_trends = mkt_prc.get_super_trend_rsis()
+        rsis_trend = rsis_trends[0]
+        last_rsis_trend = rsis_trends[1]
+        rsi_trend_ok = (rsi > rsis_trend) or ((rsi < last_rsis_trend) and (rsi == rsis_trend))
+        """
+        # Switch Point
+        if (close_trend == MarketPrice.SUPERTREND_RISING) and (self._last_dropping_super is None):
+            switchers = MarketPrice.get_super_trend_switchers(closes, closes_supers)
+            trend_first_idx = switchers.get_keys()[-1] if close_trend_ok else None
+            last_trend_idx = (trend_first_idx - 1) if trend_first_idx is not None else None
+            self._last_dropping_super = closes_supers[last_trend_idx] if last_trend_idx is not None else None
+            # self._last_dropping_super = closes[last_trend_idx] if last_trend_idx is not None else None
+        if (close_trend == MarketPrice.SUPERTREND_DROPING) and (self._last_dropping_super is not None):
+            self._last_dropping_super = None
+        super_trend = closes_supers[-1]
+        # super_trend = closes[-1]
+        is_above_switch = super_trend >= self._last_dropping_super if self._last_dropping_super is not None else False
+        # Peak
+        maxs = mkt_prc.get_maximums()
+        close_idx = 1
+        last_is_peak = close_idx in maxs
+        # Checking
+        if close_trend_ok and is_above_switch and last_is_peak:
+            self._buy(bkr, mkt_prc, odrs)
+            self._last_dropping_super = None
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), move=Order.MOVE_BUY, _last_dropping_super=self._last_dropping_super)  # \
+        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        """
+        fields = [
+            Map.time,
+            'close',
+            'move',
+            'secure_odr_prc',
+            'stop_base_prc',
+            # Buy
+            'close_trend_ok',
+            'is_above_switch',
+            'last_is_peak',
+            '_last_dropping_super',
+            'super_trend',
+            'trend_first_idx',
+            'last_trend_idx',
+            # Lists
+            'switchers',
+            'maxs',
+            'market_json',
+            'rsis',
+            'super_trends'
+        ]
+        """
+        return odrs
+    '''
+
+    # TREND(RSI)&TREND(CLOSE)V5.2: BUY
+    # '''
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param bkr: an access to a Broker's API
+        :return: set of order to execute
+                 Map[index{int}] => {Order}
+        """
+        odrs = Map()
+        closes = list(mkt_prc.get_closes())
+        closes.reverse()
+        closes_supers = list(mkt_prc.get_super_trend())
+        closes_supers.reverse()
+        # Close Trend
+        close_trend = MarketPrice.get_super_trend_trend(closes, closes_supers, -1)
+        close_trend_ok = close_trend == MarketPrice.SUPERTREND_RISING
+        # Switch Point
+        if close_trend_ok and (self._last_dropping_close is None):
+            switchers = MarketPrice.get_super_trend_switchers(closes, closes_supers)
+            trend_first_idx = switchers.get_keys()[-1] if close_trend_ok else None
+            last_trend_idx = (trend_first_idx - 1) if trend_first_idx is not None else None
+            self._last_dropping_close = closes[last_trend_idx] if last_trend_idx is not None else None
+        super_trend = closes_supers[-1]
+        is_above_switch = super_trend >= self._last_dropping_close if self._last_dropping_close is not None else False
+        # Peak
+        maxs = mkt_prc.get_maximums()
+        close_idx = 1
+        last_is_peak = close_idx in maxs
+        # Checking
+        if close_trend_ok and is_above_switch and last_is_peak:
+            self._buy(bkr, mkt_prc, odrs)
+            self._last_dropping_close = None
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), move=Order.MOVE_BUY, _last_dropping_close=self._last_dropping_close) # \
+        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        """
+        fields = [
+            Map.time,
+            'close',
+            'move',
+            'secure_odr_prc',
+            'stop_base_prc',
+            # Buy
+            'close_trend_ok',
+            'is_above_switch',
+            'last_is_peak',
+            '_last_dropping_close',
+            'super_trend',
+            'trend_first_idx',
+            'last_trend_idx',
+            # Lists
+            'switchers',
+            'maxs',
+            'market_json',
+            'rsis',
+            'super_trends'
+        ]
+        """
+        return odrs
+    # '''
 
     def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
         # buy order
@@ -296,7 +437,11 @@ class MinMax(Strategy):
         scr_odr = self._new_secure_order(bkr, mkt_prc)
         odrs.put(scr_odr, len(odrs.get_map()))
 
-    # TREND(RSI)&TREND(CLOSE)V5: SELL
+    # ——————————————————————— BUY UP ————————————————————————————————————————————
+    # ——————————————————————— SELL DOWN —————————————————————————————————————————
+
+    # TREND(RSI)&TREND(CLOSE)V5.0: SELL
+    '''
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
@@ -327,9 +472,40 @@ class MinMax(Strategy):
             self._move_up_secure_order(bkr, mkt_prc, odrs)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_SELL) \
-            if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        self._save_move(**vars(), move=Order.MOVE_SELL)  # \
+        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
+    '''
+
+    # TREND(RSI)&TREND(CLOSE)V5.1,V5.2: SELL
+    # '''
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to sell position\n
+        :param bkr: an access to a Broker's API
+        :param mkt_prc: market prices
+        :return: set of order to execute
+                 Map[symbol{str}] => {Order}
+        """
+        odrs = Map()
+        # Close Trend
+        close = mkt_prc.get_close()
+        closes_supers = mkt_prc.get_super_trend()
+        close_trend_ok = (close < closes_supers[0]) or ((close > closes_supers[1]) and (close == closes_supers[0]))
+        # Secure Order
+        secure_odr_prc = self._get_secure_order().get_stop_price().get_value()
+        stop_base_prc = secure_odr_prc / (1 + self._get_constant(self._CONF_MAX_DR))
+        # CHECK
+        if close_trend_ok:
+            self._sell(bkr, odrs)
+        elif mkt_prc.get_close() > stop_base_prc:
+            self._move_up_secure_order(bkr, mkt_prc, odrs)
+        # Backup
+        _stage = Config.get(Config.STAGE_MODE)
+        self._save_move(**vars(), move=Order.MOVE_SELL)  # \
+        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
+        return odrs
+    # '''
 
     def _sell(self, bkr: Broker, odrs: Map) -> None:
         old_scr_odr = self._get_secure_order()
@@ -367,17 +543,18 @@ class MinMax(Strategy):
             'secure_odr_prc',
             'stop_base_prc',
             # Buy
-            'super_trend',
             'close_trend_ok',
-            'rsi',
-            'rsis_trend',
-            'rsi_trend_ok',
-            'rsis_trends',
-            'closes_trends',
+            'is_above_switch',
+            'last_is_peak',
+            '_last_dropping_close',
+            'super_trend',
+            'trend_first_idx',
+            'last_trend_idx',
             # Lists
+            'switchers',
+            'maxs',
             'market_json',
             'rsis',
-            'tsis',
             'super_trends'
         ]
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]

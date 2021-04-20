@@ -708,6 +708,37 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     def test_get_super_trend_trend(self) -> None:
         raise Exception("Must implement this test")
 
+    def test_get_super_trend_switchers(self) -> None:
+        closes = [10, 7, 8, 11, 10, 13, 9, 10, 5, 7, 10, 8, 12, 7, 9, 5, 8, 7, 10, 8, 5]
+        supers = [14, 11, 12, 7, 6, 9, 13, 14, 9, 3, 6, 4, 16, 11, 13, 1, 4, 3, 14, 12, 9]
+        exp1 = {
+            0: self.SUPERTREND_DROPING,
+            3: self.SUPERTREND_RISING,
+            6: self.SUPERTREND_DROPING,
+            9: self.SUPERTREND_RISING,
+            12: self.SUPERTREND_DROPING,
+            15: self.SUPERTREND_RISING,
+            18: self.SUPERTREND_DROPING
+        }
+        result1 = self.get_super_trend_switchers(closes, supers)
+        self.assertDictEqual(exp1, result1.get_map())
+        # With NAN value
+        """
+        closes = [10, 7, 8, 11, 10, 13, 9, 10, 5, 7, 10, 8, 12, 7, 9, 5, 8, 7, 10, 8, 5]
+        supers = ["NAN", "NAN", "NAN", 7, 6, 9, 13, 14, 9, 3, 6, 4, 16, 11, 13, 1, 4, 3, 14, 12, 9]
+        exp2 = {
+            0: self.SUPERTREND_DROPING,
+            3: self.SUPERTREND_RISING,
+            6: self.SUPERTREND_DROPING,
+            9: self.SUPERTREND_RISING,
+            12: self.SUPERTREND_DROPING,
+            15: self.SUPERTREND_RISING,
+            18: self.SUPERTREND_DROPING
+        }
+        result2 = self.get_super_trend_switchers(closes, supers)
+        self.assertDictEqual(exp2, result2.get_map())
+        """
+
 
 if __name__ == '__main__':
     unittest.main
