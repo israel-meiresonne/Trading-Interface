@@ -17,13 +17,6 @@ class MinMax(Strategy):
     _CONF_MAX_DR = "CONF_MAX_DR"
 
     def __init__(self, prms: Map):
-        """
-        Constructor\n
-        :param prms: params
-                     prms[Map.pair]     => {Pair}
-                     prms[Map.capital]  => {Price|None}
-                     prms[Map.rate]     => {float|None}  # ]0,1]
-        """
         super().__init__(prms)
         self.__configs = None
         self.__secure_order = None
@@ -32,9 +25,9 @@ class MinMax(Strategy):
 
     def _init_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
-            _stage = Config.get(Config.STAGE_MODE)
-            bkr_cls = bkr.__class__.__name__
-            bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
+            # _stage = Config.get(Config.STAGE_MODE)
+            # bkr_cls = bkr.__class__.__name__
+            # bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
             # Set Configs
             self._init_constants(bkr)
             # Set Capital
@@ -42,11 +35,13 @@ class MinMax(Strategy):
 
     def _init_capital(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        bkr_cls = bkr.__class__.__name__
-        bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
+        # bkr_cls = bkr.__class__.__name__
+        # bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
+        cap = None
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             cap = Price(1000, self.get_pair().get_right().get_symbol())
         elif _stage == Config.STAGE_3:
+            """
             snap_rq_prms = Map({
                 Map.account: BrokerRequest.ACCOUNT_MAIN,
                 Map.begin_time: None,
@@ -54,16 +49,19 @@ class MinMax(Strategy):
                 Map.number: 5,
                 Map.timeout: None,
             })
+            exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
             snap_rq = eval(bkr_rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', snap_rq_prms)")
             bkr.get_account_snapshot(snap_rq)
             accounts = snap_rq.get_account_snapshot()
             right = self.get_pair().get_right()
             times = list(accounts.get(Map.account).keys())
             cap = accounts.get(Map.account, times[-1], right.get_symbol())
+            """
+            pass
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
             # Raise error if set capital is bellow Broker's minimum trade amount
-        self._set_capital(cap)
+        self._set_capital(cap) if cap is not None else None
 
     def _init_constants(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
@@ -226,11 +224,11 @@ class MinMax(Strategy):
         return odr
 
     def trade(self, bkr: Broker) -> None:
+        _stage = Config.get(Config.STAGE_MODE)
         self._init_strategy(bkr)
         mkt_prc = self._get_market_price(bkr)
         self._update_orders(bkr, mkt_prc)
         # Save
-        _stage = Config.get(Config.STAGE_MODE)
         self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         #
@@ -367,7 +365,7 @@ class MinMax(Strategy):
     '''
 
     # TREND(RSI)&TREND(CLOSE)V5.2: BUY
-    # '''
+    '''
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
@@ -427,7 +425,18 @@ class MinMax(Strategy):
         ]
         """
         return odrs
-    # '''
+    '''
+
+    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        odrs = Map()
+        self._buy(bkr, mkt_prc, odrs)
+        return odrs
+
+    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        odrs = Map()
+        self._move_up_secure_order(bkr, mkt_prc, odrs)
+        self._sell(bkr, odrs)
+        return odrs
 
     def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
         # buy order
@@ -478,7 +487,7 @@ class MinMax(Strategy):
     '''
 
     # TREND(RSI)&TREND(CLOSE)V5.1,V5.2: SELL
-    # '''
+    '''
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
@@ -505,7 +514,7 @@ class MinMax(Strategy):
         self._save_move(**vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
-    # '''
+    '''
 
     def _sell(self, bkr: Broker, odrs: Map) -> None:
         old_scr_odr = self._get_secure_order()

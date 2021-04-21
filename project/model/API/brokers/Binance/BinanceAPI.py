@@ -180,7 +180,7 @@ class BinanceAPI:
                 Map.stopPrice
             ],
             Map.params: [
-                Map.timeInForce,
+                # Map.timeInForce,
                 Map.quoteOrderQty,
                 Map.price,
                 Map.newClientOrderId,
@@ -356,6 +356,13 @@ class BinanceAPI:
             self.__PATH_ORDER = self.ORDER_REAL_PATH
         else:
             self.__PATH_ORDER = self.ORDER_TEST_PATH
+        self._update_order_config()
+
+    def _update_order_config(self) -> None:
+        rq_configs = self.__get_request_configs()
+        for rq, config in rq_configs.items():
+            if config[Map.path] is None:
+                config[Map.path] = self.__PATH_ORDER
 
     @staticmethod
     def __get_request_configs() -> dict:
@@ -369,10 +376,10 @@ class BinanceAPI:
         :exception IndexError: given request is not supported
         :return: config of the given request
         """
-        rq_cfgs = BinanceAPI.__get_request_configs()
-        if rq not in rq_cfgs:
+        rq_configs = BinanceAPI.__get_request_configs()
+        if rq not in rq_configs:
             raise IndexError(f"This request '{rq}' is not supported")
-        return rq_cfgs[rq]
+        return rq_configs[rq]
 
     @staticmethod
     def __get_endpoints() -> dict:
@@ -450,8 +457,8 @@ class BinanceAPI:
         :return: url where to send the given request
         """
         endp = self.__get_endpoint(i)
-        rq_cfg = BinanceAPI.get_request_config(rq)
-        path = rq_cfg[Map.path]
+        rq_config = self.get_request_config(rq)
+        path = rq_config[Map.path]
         return endp + path
 
     def __generate_signature(self, prms: dict) -> str:
@@ -503,11 +510,11 @@ class BinanceAPI:
         :param params: params to send
         :return: API's response
         """
-        stage = Config.get(Config.STAGE_MODE)
-        if stage == Config.STAGE_1:
+        _stage = Config.get(Config.STAGE_MODE)
+        if _stage == Config.STAGE_1:
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             return BinanceFakeAPI.steal_request(self.get_id(), rq, params)
-        if stage == Config.STAGE_2:
+        if _stage == Config.STAGE_2:
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             log_id = self.get_id()
             if rq == self.RQ_KLINES:

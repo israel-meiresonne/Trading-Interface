@@ -113,7 +113,7 @@ class BinanceOrder(Order):
             Map.type: BinanceAPI.TYPE_STOP,
             Map.quantity: self.get_quantity().get_value() if self.get_quantity() is not None else None,
             Map.stopPrice: self.get_stop_price().get_value(),
-            Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
+            # Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
             Map.quoteOrderQty: None,
             Map.price: None,
             Map.newClientOrderId: None,
@@ -199,7 +199,7 @@ class BinanceOrder(Order):
         ]
         :return: extracted datas
         datas[Map.price]: {float}   | average execution price
-        datas[Map.fee]:   {float}   | total fees
+        datas[Map.fee]:   {Price}   | total fees
         """
         if len(fills) == 0:
             raise ValueError(f"The lis of sub-executions can't be empty")
@@ -223,9 +223,9 @@ class BinanceOrder(Order):
         nb_decimal = len(str(new_fills[0][Map.price]).split('.')[-1]) - 1
         price_exec = round(price_sum, nb_decimal)
         symbol = fills[0][Map.commissionAsset]
-        price_obj = Price(price_exec, symbol)
+        fees_obj = Price(fees, symbol)
         datas = Map({
-            Map.price: price_obj,
-            Map.fee: fees
+            Map.price: price_exec,
+            Map.fee: fees_obj
         })
         return datas

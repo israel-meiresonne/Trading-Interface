@@ -72,24 +72,25 @@ class Controller:
         """
         bkr = 'Binance'
         stg = 'MinMax'
-        prcds = md.list_paires(bkr)
-        prcd = prcds[vw.menu("Choose a Pair to trade:", prcds)]
+        pair_codes = md.list_paires(bkr)
+        pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
         # prcd = 'BTC/USDT'
         configs = Map({
             bkr: {
-                Map.api_pb: 'pb_api_k',
-                Map.api_sk: 'sk_api_k',
+                Map.api_pb: 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5',
+                Map.api_sk: 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr',
                 Map.test_mode: False
             },
             stg: {
-                Map.capital: None,
+                Map.maximum: None,
+                Map.capital: 20,
                 Map.rate: 1
             }
         })
         print(configs.get_map())
-        #"""
+        # """
         # create Bot
-        md.create_bot(bkr, stg, prcd, configs)
+        md.create_bot(bkr, stg, pair_code, configs)
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
 
     def start_bot(self):

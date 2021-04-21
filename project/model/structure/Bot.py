@@ -19,19 +19,35 @@ class Bot(ModelFeature):
         :param stg: name of a supported Strategy
         :param prcd: code of the pair to Trade, i.e.: "BTC/USDT"
         :param configs: holds additional configs for the Bot
-                    cfgs[{Bot}]         => {dict} Bot configs
-                    cfgs[{Broker}]      => {dict} Broker configs
+                    configs[{Bot}]      => {dict} Bot configs
+                    configs[{Broker}]   => {dict} Broker configs
                     configs[{Strategy}] => {dict} Strategy's configs
         """
         super().__init__()
         self.__id = Bot._generate_id(bkr, stg, prcd)
         self.__pair = Pair(prcd)
-        pr = self.__pair
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
+        """
         configs.put(pr, stg, Map.pair)
         cap_val = configs.get(stg, Map.capital)
         cap_prc = Price(cap_val, pr.get_right().get_symbol()) if cap_val is not None else None
         configs.put(cap_prc, stg, Map.capital)
+        self.__strategy = Strategy.retrieve(stg, Map(configs.get(stg)))
+        """
+        self._set_strategy(stg, configs)
+
+    def _set_strategy(self, stg: str, configs: Map) -> None:
+        # Put Pair
+        pr = self._get_pair()
+        configs.put(pr, stg, Map.pair)
+        # Put Maximum
+        max_value = configs.get(stg, Map.maximum)
+        max_obj = Price(max_value, pr.get_right().get_symbol()) if max_value is not None else None
+        configs.put(max_obj, stg, Map.maximum)
+        # Put Capital
+        capital_value = configs.get(stg, Map.capital)
+        capital_obj = Price(capital_value, pr.get_right().get_symbol())
+        configs.put(capital_obj, stg, Map.capital)
         self.__strategy = Strategy.retrieve(stg, Map(configs.get(stg)))
 
     def get_id(self) -> str:
@@ -54,7 +70,7 @@ class Bot(ModelFeature):
         stg = self._get_strategy()
         end = False
         print("Bot started to trade...")
-        i = 0
+        i = 1
         sleep_time = 60
         _stage = Config.get(Config.STAGE_MODE)
         while not end:
@@ -65,6 +81,8 @@ class Bot(ModelFeature):
                 sleep(sleep_time)
             end = self._still_active()
             i += 1
+            if i == 3:
+                raise Exception("End Code!🙂")
 
     @staticmethod
     def _still_active() -> bool:

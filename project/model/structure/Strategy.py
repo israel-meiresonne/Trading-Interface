@@ -19,24 +19,25 @@ class Strategy(ModelFeature):
         Constructor\n
         :param prms: params
                      prms[Map.pair]     => {Pair}
-                     prms[Map.capital]  => {Price|None} # > 0
+                     prms[Map.maximum]  => {Price|None} # maximum of capital to use (if set, maximum > 0)
+                     prms[Map.capital]  => {Price}      # initial capital
                      prms[Map.rate]     => {float|None} # ]0,1]
         :Note : Map.capital and Map.rate can't both be None
         """
         super().__init__()
-        ks = [Map.pair, Map.capital, Map.rate]
+        ks = [Map.pair, Map.maximum, Map.capital, Map.rate]
         rtn = ModelFeature.keys_exist(ks, prms.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required")
         pr = prms.get(Map.pair)
-        max_cap = prms.get(Map.capital)
+        max_cap = prms.get(Map.maximum)
         rate = prms.get(Map.rate)
         self._check_max_capital(max_cap, rate)
-        # self.__isConfigured = None
+        # capital = Price(prms.get(Map.capital), pr)
         self.__pair = pr
-        self.__capital = None
+        self.__capital = prms.get(Map.capital)
         self.__max_capital = max_cap
-        self.__rate = None if rate is None else float(rate)
+        self.__rate = None if rate is None else rate
         self.__orders = Orders()
 
     def get_pair(self) -> Pair:

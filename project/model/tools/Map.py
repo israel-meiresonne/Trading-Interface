@@ -8,6 +8,7 @@ class Map:
     action = "action"
     request = "request"
     response = "response"
+    maximum = "maximum"
     GET = "GET"
     POST = "POST"
     # Binance
