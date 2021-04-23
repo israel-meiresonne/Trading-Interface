@@ -46,6 +46,19 @@ class TestOrder(unittest.TestCase, Order):
     def generate_cancel_order(self) -> Map:
         pass
 
+    def test_check_market(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_check_stop(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_check_stop_limit(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_check_logic(self) -> None:
+        raise Exception("Must implement this test")
+
+
 
 if __name__ == '__main__':
     unittest.main

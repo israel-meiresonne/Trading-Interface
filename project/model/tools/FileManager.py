@@ -14,6 +14,18 @@ class FileManager(ABC):
         pass
 
     @staticmethod
+    def read(path: str) -> str:
+        """
+        To read a file\n
+        :param path: the path to the file
+        :return: the content of the file
+        """
+        path = FileManager.ROOT_DIR + path
+        with open(path, "r") as file:
+            content = file.read()
+        return content
+
+    @staticmethod
     def get_files(p: str, ex=True) -> list:
         """
         To list files of a directory\n

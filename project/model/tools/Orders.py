@@ -4,6 +4,7 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
@@ -145,6 +146,17 @@ class Orders(Order):
                         self.insert_order(self.SAVE_ACTION_UPDATE, odr)
                 elif odr_type == Order.TYPE_LIMIT:
                     raise Exception("Must be implemented")
+                elif odr_type == Order.TYPE_STOP_LIMIT:
+                    stop_price = odr.get_stop_price()
+                    limit_price = odr.get_limit_price()
+                    if limit_price.get_value() != stop_price.get_value():
+                        raise Exception("Must implement Order update when stop and limit price are different")
+                    if (status != Order.STATUS_COMPLETED) and (stop_price.get_value() >= close_val):
+                        odr._set_execution_price(stop_price)
+                        odr._set_status(Order.STATUS_COMPLETED)
+                        odr._set_execution_time(market.get_time())
+                        # Backup
+                        self.insert_order(self.SAVE_ACTION_UPDATE, odr)
                 else:
                     raise Exception(f"Unknown Order's type '{odr_type}'")
 
@@ -249,6 +261,11 @@ class Orders(Order):
         from model.tools.FileManager import FileManager
         p = Config.get(Config.DIR_SAVE_ORDER_ACTIONS)
         d = {Map.action: action, **odr.__dict__}
+        key1 = "_Order__order_params"
+        for k, v in d[key1].get_map().items():
+            if isinstance(v, Price) or isinstance(v, Pair):
+                # d[key1][k] = v.__str__()
+                d[key1].put(v.__str__(), k)
         rows = [d]
         fields = list(rows[0].keys())
         overwrite = False
@@ -262,6 +279,9 @@ class Orders(Order):
         pass
 
     def _set_stop(self) -> None:
+        pass
+
+    def _set_stop_limit(self) -> None:
         pass
 
     def generate_order(self) -> Map:

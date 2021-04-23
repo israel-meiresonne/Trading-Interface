@@ -1,5 +1,5 @@
 from config.Config import Config
-from model.structure.database.ModelFeature import ModelFeature
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Map import Map
@@ -23,6 +23,16 @@ class BinanceOrder(Order):
         self.__api_request = None
         exec(f"self.{odr_type}()")
 
+    def _set_limit_price(self, limit: Price) -> None:
+        self._limit = BinanceAPI.fixe_price(self.get_pair(), limit)
+
+    def _set_stop_price(self, stop: Price) -> None:
+        self._stop = BinanceAPI.fixe_price(self.get_pair(), stop)
+
+    def _set_quantity(self, qty: Price) -> None:
+        is_market_order = self.get_type() == self.TYPE_MARKET
+        self._quantity = BinanceAPI.fixe_quantity(self.get_pair(), qty, is_market_order)
+
     def __set_api_request(self, rq: str) -> None:
         self.__api_request = rq
 
@@ -32,7 +42,7 @@ class BinanceOrder(Order):
     def _set_market(self) -> None:
         mkt_prms = self._extract_market_params()
         self.__set_api_request(self._exract_market_request())
-        self._set_params(mkt_prms)
+        self._set_request_params(mkt_prms)
 
     def _extract_market_params(self) -> Map:
         """
@@ -53,7 +63,7 @@ class BinanceOrder(Order):
             Map.type: BinanceAPI.TYPE_MARKET,
             Map.quantity: self.get_quantity().get_value() if self.get_quantity() is not None else None,
             Map.quoteOrderQty: self.get_amount().get_value() if self.get_amount() is not None else None,
-            Map.newClientOrderId: None,
+            Map.newClientOrderId: self.get_id(),
             Map.recvWindow: None
         })
         return mkt_prms
@@ -77,7 +87,7 @@ class BinanceOrder(Order):
     def _set_stop(self) -> None:
         mkt_prms = self._extract_stop_params()
         self.__set_api_request(BinanceAPI.RQ_ORDER_STOP_LOSS)
-        self._set_params(mkt_prms)
+        self._set_request_params(mkt_prms)
 
     def _extract_stop_params(self) -> Map:
         """
@@ -116,21 +126,50 @@ class BinanceOrder(Order):
             # Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
             Map.quoteOrderQty: None,
             Map.price: None,
-            Map.newClientOrderId: None,
+            Map.newClientOrderId: self.get_id(),
             Map.icebergQty: None,
             Map.newOrderRespType: BinanceAPI.RSP_TYPE_FULL,
             Map.recvWindow: None
         })
         return mkt_params
 
+    def _set_stop_limit(self) -> None:
+        mkt_prms = self._extract_stop_limit_params()
+        self.__set_api_request(BinanceAPI.RQ_ORDER_STOP_LOSS_LIMIT)
+        self._set_request_params(mkt_prms)
+
+    def _extract_stop_limit_params(self) -> Map:
+        """
+        To extract params required for a stop limit Order\n
+        :return: params required for a stop limit Order
+        """
+        api_params = Map({
+            # Mandatory Down
+            Map.symbol: self.get_pair().get_merged_symbols(),
+            Map.side: BinanceAPI.SIDE_BUY if self.get_move() == self.MOVE_BUY else BinanceAPI.SIDE_SELL,
+            Map.type: BinanceAPI.TYPE_STOP_LOSS_LIMIT,
+            Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
+            Map.quantity: self.get_quantity().get_value(),
+            Map.price: self.get_limit_price().get_value(),
+            Map.stopPrice: self.get_stop_price().get_value(),
+            # Mandatory Up
+            Map.quoteOrderQty: None,
+            Map.newClientOrderId: self.get_id(),
+            Map.icebergQty: None,
+            Map.newOrderRespType: BinanceAPI.RSP_TYPE_FULL,
+            Map.recvWindow: None
+        })
+        return api_params
+
     def generate_order(self) -> Map:
-        prms = self._get_params()
+        prms = self._get_request_params()
         prms.put(prms.get(Map.symbol).upper(), Map.symbol)
         prms.put(prms.get(Map.side).upper(), Map.side)
         self._set_status(self.STATUS_SUBMITTED)
+        # Backup
         from model.tools.Orders import Orders
         Orders.insert_order(Orders.SAVE_ACTION_GENERATE, self)
-        return Map(ModelFeature.clean(prms.get_map()))
+        return Map(_MF.clean(prms.get_map()))
 
     def generate_cancel_order(self) -> Map:
         odr_params = Map({
@@ -145,7 +184,7 @@ class BinanceOrder(Order):
     def handle_response(self, rsp: BrokerResponse) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         content = Map(rsp.get_content())
-        status = content.get(Map.status)
+        status = self.convert_status(content.get(Map.status))
         exec_time = content.get(Map.transactTime)
         odr_bkr_id = content.get(Map.orderId)
         # Stages
@@ -165,9 +204,9 @@ class BinanceOrder(Order):
             prc_obj = Price(prc_val, self.get_pair().get_right().get_symbol())
         # Update
         self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
-        self._set_status(self.convert_status(status))
-        self._set_execution_price(prc_obj)
-        self._set_execution_time(exec_time) if exec_time is not None else None
+        self._set_status(status)
+        self._set_execution_price(prc_obj) if self.get_execution_price() is None else None
+        self._set_execution_time(exec_time) if (self.get_execution_time() is None) and (exec_time is not None) else None
         # Backup
         from model.tools.Orders import Orders
         Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
@@ -220,7 +259,8 @@ class BinanceOrder(Order):
             new_fills.append(new_row)
         price_rates = [(row[Map.qty]/qty_total)*row[Map.price] for row in new_fills]
         price_sum = sum(price_rates)
-        nb_decimal = len(str(new_fills[0][Map.price]).split('.')[-1]) - 1
+        # nb_decimal = len(str(new_fills[0][Map.price]).split('.')[-1])  # - 1
+        nb_decimal = _MF.get_nb_decimal(new_fills[0][Map.price])
         price_exec = round(price_sum, nb_decimal)
         symbol = fills[0][Map.commissionAsset]
         fees_obj = Price(fees, symbol)

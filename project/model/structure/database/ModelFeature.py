@@ -94,9 +94,11 @@ class ModelFeature(ModelAccess):
         """
         t = type(tab)
         if t == list:
-            return [v for v in tab if (v != '') and (v is not None)]
+            # return [v for v in tab if (v != '') and (v is not None)]
+            return [v for v in tab if (v is not None)]
         elif t == dict:
-            return {k: v for k, v in tab.items() if (v != '') and (v is not None)}
+            # return {k: v for k, v in tab.items() if (v != '') and (v is not None)}
+            return {k: v for k, v in tab.items() if (v is not None)}
         else:
             raise ValueError(f"Can't clean this type '{t}'")
 
@@ -253,4 +255,15 @@ class ModelFeature(ModelAccess):
         rad = _arctg(slope)
         deg = rad*180/_pi
         return deg
+
+    @staticmethod
+    def get_nb_decimal(value: float) -> int:
+        """
+        To get the number of decimal in a number\n
+        :param value:
+        :return: number of decimal else None if given value is not float
+        """
+        if not isinstance(value, float):
+            raise ValueError(f"The given value must be a float, instead '{value}'({type(value)})")
+        return len(str(value).split(".")[-1])  # if isinstance(value, float) else None
 

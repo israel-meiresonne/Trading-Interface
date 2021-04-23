@@ -122,6 +122,18 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
         result4 = self.convert_interval(prd4)
         self.assertEqual(exp4, result4)
 
+    def test_fixe_price(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_fixe_quantity(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_get_new_price(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_will_pass_filter(self) -> None:
+        raise Exception("Must implement this test")
+
 
 if __name__ == "__main__":
     unittest.main

@@ -14,6 +14,8 @@ class Config(ABC):
     STAGE_1 = "STAGE_1"
     STAGE_2 = "STAGE_2"
     STAGE_3 = "STAGE_3"
+    # Files
+    DIR_BINANCE_EXCHANGE_INFOS = "DIR_BINANCE_EXCHANGE_INFOS"
     # Configuration
     DIR_BROKERS = "DIR_BROKERS"
     DIR_STRATEGIES = "DIR_STRATEGIES"
@@ -25,6 +27,7 @@ class Config(ABC):
     DIR_SAVE_MOVES = "DIR_SAVE_MOVES"
     DIR_SAVE_CAPITAL = "DIR_SAVE_CAPITAL"
     DIR_SAVE_MARKET = "DIR_SAVE_MARKET"
+    DIR_SAVE_API_RSP = "DIR_SAVE_API_RSP"
 
     @abstractmethod
     def __init__(self):

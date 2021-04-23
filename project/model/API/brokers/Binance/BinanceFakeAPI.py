@@ -49,7 +49,7 @@ class BinanceFakeAPI(BinanceAPI):
             # """
             _cls._add_backup(log_id, Map.id, log_id)
             _cls._add_backup(log_id, Map.market, hist_mkt)
-            _cls._add_backup(log_id, Map.index, None)
+            _cls._add_backup(log_id, Map.index, 0)
         if stage == Config.STAGE_2:
             _cls._add_backup(log_id, Map.id, log_id)
             _cls._add_backup(log_id, Map.market, hist_mkt)
@@ -125,6 +125,8 @@ class BinanceFakeAPI(BinanceAPI):
             # _cls._save_log(log_id, rq, params) if stage == Config.STAGE_2 else None
         elif rgx.match('^RQ_ORDER.*$', rq) or (rq == _cls.RQ_CANCEL_ORDER):
             rsp_d = _cls._execute_order(log_id, rq, params)
+        elif rq == _cls.RQ_EXCHANGE_INFOS:
+            rsp_d = _cls._retreive_exchange_infos()
         else:
             raise Exception(f"Unknown request '{rq}'")
         rsp = Response()
@@ -175,7 +177,8 @@ class BinanceFakeAPI(BinanceAPI):
         if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
             status = _cls.STATUS_ORDER_FILLED
             exec_prc = now_date
-        elif rq == _cls.RQ_ORDER_STOP_LOSS:
+        elif (rq == _cls.RQ_ORDER_STOP_LOSS) \
+                or (rq == _cls.RQ_ORDER_STOP_LOSS_LIMIT):
             status = _cls.STATUS_ORDER_NEW
             actual_close = None
         elif rq == _cls.RQ_CANCEL_ORDER:
@@ -183,23 +186,30 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             raise Exception(f"Unknown request '{rq}'")
         rsp_d = {
-            Map.orderId: Order.PREFIX_ID + _MF.new_code(),
+            Map.orderId: Order.PREFIX_ID + _cls.__name__.lower() + "_" + _MF.new_code(),
             Map.status: status,
             Map.price: actual_close,
             Map.transactTime: exec_prc
         }
         return rsp_d
 
+    @staticmethod
+    def _retreive_exchange_infos() -> dict:
+        path = Config.get(Config.DIR_BINANCE_EXCHANGE_INFOS)
+        content = FileManager.read(path)
+        ex_infos = _MF.json_decode(content)
+        return ex_infos
 
-# """
+
 if __name__ == '__main__':
+    _cls = BinanceFakeAPI
+    """
     # '''
     from model.API.brokers.Binance.BinanceRequest import BinanceRequest
     from model.API.brokers.Binance.BinanceOrder import BinanceOrder
     from model.tools.Paire import Pair
     from model.tools.Price import Price
 
-    _cls = BinanceFakeAPI
     log_id = 'id_123'
     bkr_rq_params = Map({
         Map.pair: Pair("BTC/USD"),
@@ -244,5 +254,6 @@ if __name__ == '__main__':
     rsp = _cls.steal_request(log_id, rq, odr.generate_order())
     rsp_cancel = _cls.steal_request(log_id, rs_cancel, odr.generate_cancel_order())
     print(rsp.get_content())
-    print(rsp_cancel.get_content())
-# """
+    print(rsp_cancel.get_content())    
+    """
+    print(_cls._retreive_exchange_infos())

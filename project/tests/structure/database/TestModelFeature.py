@@ -125,6 +125,9 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         result0 = self.slope_to_degree(slope0)
         self.assertEqual(exp0, result0)
 
+    def test_get_nb_decimal(self) -> None:
+        raise Exception("Must implement this test")
+
 
 if __name__ == '__main__':
     unittest.main

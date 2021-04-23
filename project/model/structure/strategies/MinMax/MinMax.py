@@ -201,24 +201,27 @@ class MinMax(Strategy):
         bkr_cls = bkr.__class__.__name__
         odr_cls = bkr_cls + Order.__name__
         pr = self.get_pair()
+        max_rate = 1
         if self._has_position():
             sum_odr = self._get_orders().get_sum()
             qty = sum_odr.get(Map.left)
+            qty = Price(qty.get_value() * max_rate, qty.get_asset().get_symbol())
         else:
             close_val = mkt_prc.get_close()
             b_cap = self._get_buy_capital()
             qty_val = b_cap.get_value() / close_val
-            qty = Price(qty_val, pr.get_left().get_symbol())
-        # qty = sum_odr.get(Map.left)
+            # qty = Price(qty_val, pr.get_left().get_symbol())
+            qty = Price(qty_val * max_rate, pr.get_left().get_symbol())
         stop = mkt_prc.get_futur_price(self._get_constant(self._CONF_MAX_DR))
         odr_prms = Map({
             Map.pair: pr,
             Map.move: Order.MOVE_SELL,
             Map.stop: Price(stop, pr.get_right().get_symbol()),
+            Map.limit: Price(stop, pr.get_right().get_symbol()),
             Map.quantity: qty
         })
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
-        odr = eval(bkr_cls + "Order('" + Order.TYPE_STOP + "', odr_prms)")
+        odr = eval(bkr_cls + "Order('" + Order.TYPE_STOP_LIMIT + "', odr_prms)")
         self._add_order(odr)
         self._set_secure_order(odr)
         return odr
@@ -232,11 +235,13 @@ class MinMax(Strategy):
         self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         #
+        # raise Exception("End Code!🙂")
         if self._has_position():
             odrs_map = self._try_sell(bkr, mkt_prc)
         else:
             odrs_map = self._try_buy(bkr, mkt_prc)
         bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
+        raise Exception("End Code!🙂")
 
     # TREND(RSI)&TREND(CLOSE)V5.0: BUY
     '''

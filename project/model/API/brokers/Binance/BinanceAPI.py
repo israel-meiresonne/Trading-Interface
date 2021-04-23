@@ -1,13 +1,15 @@
-from requests import get as rq_get
+from requests import get as rq_get, Response
 from requests import post as rq_post
 from requests import delete as rq_delete
 from hmac import new as new_hmac
 from hashlib import sha256 as hashlib_sha256
 
 from config.Config import Config
-from model.structure.database.ModelFeature import ModelFeature as ModelFeat
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
 from model.tools.BrokerResponse import BrokerResponse
+from model.tools.Paire import Pair
+from model.tools.Price import Price
 
 
 class BinanceAPI:
@@ -16,7 +18,7 @@ class BinanceAPI:
     ORDER_REAL_PATH = "/api/v3/order"
     # Requests
     RQ_SYS_STATUS = "RQ_SYS_STATUS"
-    RQ_EXCG_INFOS = "RQ_EXCG_INFOS"
+    RQ_EXCHANGE_INFOS = "RQ_EXCHANGE_INFOS"
     RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
     # Orders
@@ -40,7 +42,7 @@ class BinanceAPI:
             Map.mandatory: [],
             Map.params: []
         },
-        RQ_EXCG_INFOS: {
+        RQ_EXCHANGE_INFOS: {
             Map.signed: False,
             Map.method: Map.GET,
             Map.path: "/api/v3/exchangeInfo",
@@ -298,6 +300,11 @@ class BinanceAPI:
     ''' ORDER TYPE '''
     TYPE_MARKET = "MARKET"
     TYPE_STOP = "STOP_LOSS"
+    TYPE_LIMIT = "LIMIT"
+    TYPE_STOP_LOSS_LIMIT = "STOP_LOSS_LIMIT"
+    TYPE_TAKE_PROFIT = "TAKE_PROFIT"
+    TYPE_TAKE_PROFIT_LIMIT = "TAKE_PROFIT_LIMIT"
+    TYPE_LIMIT_MAKER = "LIMIT_MAKER"
     ''' ORDER STATUS '''
     STATUS_ORDER_NEW = "NEW"
     STATUS_ORDER_PARTIALLY = "PARTIALLY_FILLED"
@@ -340,6 +347,8 @@ class BinanceAPI:
     CONSTRAINT_RECVWINDOW = 60000
     CONSTRAINT_SNAP_ACCOUT_MIN_LIMIT = 5
     CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT = 30
+    # API Constants
+    _EXCHANGE_INFOS = None
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
         """
@@ -348,21 +357,92 @@ class BinanceAPI:
         :param api_sk: API's secret key
         :param test_mode: set True to call test API else False to call production API
         """
-        self.__id = 'binance_api_' + str(ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC))
+        self.__id = 'binance_api_' + str(_MF.get_timestamp(_MF.TIME_MILLISEC))
         self.__api_public_key = api_pb
         self.__api_secret_key = api_sk
         self.__test_mode = test_mode
         if (type(test_mode) == bool) and (not test_mode):
-            self.__PATH_ORDER = self.ORDER_REAL_PATH
+            BinanceAPI.__PATH_ORDER = self.ORDER_REAL_PATH
         else:
-            self.__PATH_ORDER = self.ORDER_TEST_PATH
+            BinanceAPI.__PATH_ORDER = self.ORDER_TEST_PATH
         self._update_order_config()
+        self._set_exchange_infos()
 
     def _update_order_config(self) -> None:
         rq_configs = self.__get_request_configs()
         for rq, config in rq_configs.items():
             if config[Map.path] is None:
                 config[Map.path] = self.__PATH_ORDER
+
+    def _set_exchange_infos(self) -> None:
+        """
+        To get exchange info from Broker's API\
+        """
+        if BinanceAPI._EXCHANGE_INFOS is None:
+            bkr_rsp = self.request_api(self.RQ_EXCHANGE_INFOS, Map())
+            content = Map(bkr_rsp.get_content())
+            time_zone = content.get(Map.timezone)
+            time = content.get(Map.serverTime)
+            ratelimits = content.get(Map.rateLimits)
+            limits = Map({
+                Map.weight: ratelimits[0],
+                Map.second: ratelimits[1],
+                Map.day: ratelimits[2]
+            })
+            symbols = content.get(Map.symbols)
+            symbols_infos = Map({Pair(row[Map.baseAsset], row[Map.quoteAsset]).__str__(): row for row in symbols})
+            for symbol, infos in symbols_infos.get_map().items():
+                for k, v in infos.items():
+                    if k == Map.filters:
+                        filters = {row[Map.filterType].lower(): row for row in v}
+                        symbols_infos.put(filters, symbol, k)
+            BinanceAPI._EXCHANGE_INFOS = Map({
+                Map.timezone: time_zone,
+                Map.time: time,
+                Map.limit: limits.get_map(),
+                Map.symbol: symbols_infos.get_map()
+            })
+
+    @staticmethod
+    def _get_exchange_infos() -> Map:
+        """
+        To get exchange's infos\n
+        :return: exchange's infos
+                 Map[Map.timezone]: {str}   # ex: "UTC"
+                 Map[Map.time]:     {int}
+                 Map[Map.limit][Map.weight][Map.rateLimitType]: {str}
+                 Map[Map.limit][Map.weight][Map.interval]:      {str}
+                 Map[Map.limit][Map.weight][Map.intervalNum]:   {int}
+                 Map[Map.limit][Map.weight][Map.limit]:         {int}
+                 Map[Map.limit][Map.second][Map.rateLimitType]: {str}
+                 Map[Map.limit][Map.second][Map.interval]:      {str}
+                 Map[Map.limit][Map.second][Map.intervalNum]:   {int}
+                 Map[Map.limit][Map.second][Map.limit]:         {int}
+                 Map[Map.limit][Map.day][Map.rateLimitType]:    {str}
+                 Map[Map.limit][Map.day][Map.interval]:         {str}
+                 Map[Map.limit][Map.day][Map.intervalNum]:      {int}
+                 Map[Map.limit][Map.day][Map.limit]:            {int}
+                 Map[Map.symbol][Pair.__str__()][Map.price_filter]:         {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.lot_size]:             {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.market_lot_size]:      {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.iceberg_parts]:        {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.percent_price]:        {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.min_notional]:         {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.max_num_orders]:       {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.max_num_algo_orders]:  {dict}
+        """
+        if BinanceAPI._EXCHANGE_INFOS is None:
+            raise Exception(f"Exchange's infos is not set")
+        return BinanceAPI._EXCHANGE_INFOS
+
+    @staticmethod
+    def get_exchange_info(*keys):
+        ex_infos = BinanceAPI._get_exchange_infos()
+        info = ex_infos.get(*keys)
+        if info is None:
+            keys_str = "', '".join(keys)
+            raise IndexError(f"This key(s) ['{keys_str}'] don't exist in exchange's infos.")
+        return info
 
     @staticmethod
     def __get_request_configs() -> dict:
@@ -476,7 +556,7 @@ class BinanceAPI:
         :param prms_map: params of a request
         """
         # ds_map.put(recvWindow, Map.recvWindow)
-        stamp = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
+        stamp = _MF.get_timestamp(_MF.TIME_MILLISEC)
         prms_map.put(stamp, Map.timestamp)
         sgt = self.__generate_signature(prms_map.get_map())
         prms_map.put(sgt, Map.signature)
@@ -542,6 +622,7 @@ class BinanceAPI:
         :param prms_map: params to send
         :return: API's response
         """
+        _stage = Config.get(Config.STAGE_MODE)
         rq_cfg = BinanceAPI.get_request_config(rq)
         hdrs = self.__generate_headers()
         url = self._generate_url(rq)
@@ -558,6 +639,121 @@ class BinanceAPI:
             raise Exception(f"The request method {mtd} is not supported")
         bkr_rsp = BrokerResponse(rsp)
         rsp_status = bkr_rsp.get_status_code()
+        # Backup Down
+        self._save_response(rq, rsp)
+        # Backup Up
         if rsp_status != 200:
             raise Exception(f"(status code: {rsp_status}): {bkr_rsp.get_content()}")
         return bkr_rsp
+
+    @staticmethod
+    def fixe_price(pair: Pair, price: Price) -> Price:
+        """
+        To fixe price to pass Broker's price filters\n
+        :param pair: the pair traded
+        :param price: the price to fixe
+        :return: the new price fixed
+        """
+        price_filter = Map(BinanceAPI.get_exchange_info(Map.symbol, pair.__str__(), Map.filters, Map.price_filter))
+        price_val = price.get_value()
+        _min_price = float(price_filter.get(Map.minPrice))
+        if (_min_price != 0) and (price_val < _min_price):
+            raise ValueError(f"For trade pair '{pair.__str__().upper()}', the minimum price"
+                             f" is '{Price(_min_price, price.get_asset().get_symbol())}', instead '{Price}'.")
+        _max_price = float(price_filter.get(Map.maxPrice))
+        if (_max_price != 0) and (price_val > _max_price):
+            raise ValueError(f"For trade pair '{pair.__str__().upper()}', the maximum price"
+                             f" is '{Price(_max_price, price.get_asset().get_symbol())}', instead '{Price}'.")
+        _tick_size = float(price_filter.get(Map.tickSize))
+        if _tick_size != 0:
+            new_price_val = BinanceAPI._get_new_price(price_val, _tick_size, _min_price)
+            valid = BinanceAPI._will_pass_filter(new_price_val, _tick_size, _min_price)
+            if not valid:
+                raise Exception(f"the new price will not pass API's price filter, "
+                                f"('price':{price_val}, 'tickSize': {_tick_size}, 'min_price': {_min_price}), "
+                                f"'new_price': {new_price_val}).")
+        else:
+            new_price_val = price_val
+        return Price(new_price_val, price.get_asset().get_symbol())
+
+    @staticmethod
+    def fixe_quantity(pair: Pair, quantity: Price, is_market_order: bool) -> Price:
+        """
+        To fixe price to pass Broker's price filters\n
+        :param pair: the pair traded
+        :param quantity: the price to fixe
+        :param is_market_order: set True if the quantity is for a market Order else set False
+        :return: the new price fixed
+        """
+        if is_market_order:
+            qty_filter = Map(BinanceAPI.get_exchange_info(Map.symbol, pair.__str__(), Map.filters, Map.market_lot_size))
+        else:
+            qty_filter = Map(BinanceAPI.get_exchange_info(Map.symbol, pair.__str__(), Map.filters, Map.lot_size))
+        qty_val = quantity.get_value()
+        _min_qty = float(qty_filter.get(Map.minQty))
+        if (_min_qty != 0) and (qty_val < _min_qty):
+            raise ValueError(f"For trade pair '{pair.__str__().upper()}', the minimum price"
+                             f" is '{Price(_min_qty, quantity.get_asset().get_symbol())}', instead '{Price}'.")
+        _max_qty = float(qty_filter.get(Map.maxQty))
+        if (_max_qty != 0) and (qty_val > _max_qty):
+            raise ValueError(f"For trade pair '{pair.__str__().upper()}', the maximum price"
+                             f" is '{Price(_max_qty, quantity.get_asset().get_symbol())}', instead '{Price}'.")
+        _step_size = float(qty_filter.get(Map.stepSize))
+        if _step_size != 0:
+            new_qty_val = BinanceAPI._get_new_price(qty_val, _step_size, _min_qty)
+            valid = BinanceAPI._will_pass_filter(new_qty_val, _step_size, _min_qty)
+            if not valid:
+                raise Exception(f"the new price will not pass API's price filter, "
+                                f"('price':{qty_val}, 'tickSize': {_step_size}, 'min_price': {_min_qty}), "
+                                f"'new_price': {new_qty_val}).")
+        else:
+            new_qty_val = qty_val
+        return Price(new_qty_val, quantity.get_asset().get_symbol())
+
+    @staticmethod
+    def _get_new_price(value, _step, _min) -> float:
+        """
+        To generate a new value that will pass Binance API's filters\n
+        :param value: the value to convert
+        :param _step: the step size
+        :param _min: the minimum value allowed
+        :return: a new value that will pass Binance API's filters
+        """
+        nb_tick_in = int((value - _min) / _step)
+        new_value = nb_tick_in * _step + _min
+        nb_decimal = _MF.get_nb_decimal(value)
+        return round(new_value, nb_decimal)  # if nb_decimal is not None else round(new_value)
+
+    @staticmethod
+    def _will_pass_filter(new_value, _step, _min) -> bool:
+        """
+        To check if the new value will pass Binance API's filter\n
+        :param new_value: the new value generated  with «BinanceAPI._get_new_price()»
+        :param _step: the step size
+        :param _min: the minimum value allowed
+        :return: True if will pass Broker's filter else False
+        """
+        rest = (new_value - _min) % _step
+        rounded = round(rest, 1)
+        return rounded == 0
+
+    @staticmethod
+    def _save_response(rq: str, rsp: Response) -> None:
+        from model.tools.FileManager import FileManager
+        _cls = BinanceAPI
+        p = Config.get(Config.DIR_SAVE_API_RSP)
+        row = {
+            Map.request: rq,
+            Map.method: rsp.request.__dict__[Map.method],
+            "status_code": rsp.status_code,
+            "reason": rsp.reason,
+            "url": rsp.url,
+            "request_headers": _MF.json_encode(dict(rsp.request.__dict__["headers"])),
+            "response_headers": _MF.json_encode(dict(rsp.headers)),
+            "response_content": rsp.content,
+            "request_content": rsp.request.__dict__["body"]
+        }
+        rows = [row]
+        fields = list(rows[0].keys())
+        overwrite = False
+        FileManager.write_csv(p, fields, rows, overwrite)

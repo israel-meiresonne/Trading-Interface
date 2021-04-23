@@ -14,6 +14,13 @@ class Order(ABC, Request):
     TYPE_MARKET = "_set_market"
     TYPE_LIMIT = "_set_limit"
     TYPE_STOP = "_set_stop"
+    TYPE_STOP_LIMIT = "_set_stop_limit"
+    ODR_TYPES = [
+        TYPE_MARKET,
+        TYPE_LIMIT,
+        TYPE_STOP,
+        TYPE_STOP_LIMIT
+    ]
     # Moves
     MOVE_BUY = "MOVE_BUY"
     MOVE_SELL = "MOVE_SELL"
@@ -50,16 +57,22 @@ class Order(ABC, Request):
         super().__init__()
         self.__id = self.PREFIX_ID + ModelFeature.new_code()
         self.__broker_id = None
+        if odr_type not in self.ODR_TYPES:
+            raise ValueError(f"This Order type '{odr_type}' is not supported")
         self.__type = odr_type
         self.__status = None
-        self.__move = params.get(Map.move)
-        self.__pair = params.get(Map.pair)
+        self.__move = None  # set in _set_order
+        pair = params.get(Map.pair)
+        if not isinstance(pair, Pair):
+            raise ValueError(f"Pair must be an instance of the Pair class, instead '{type(pair)}': '{pair}'")
+        self.__pair = pair
         self.__market = None
-        self.__limit = None
-        self.__stop = None
-        self.__quantity = None
+        self._limit = None
+        self._stop = None
+        self._quantity = None
         self.__amount = None
-        self.__params = None
+        self.__order_params = params
+        self.__request_params = None
         self.__settime = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
         self.__execution_price = None
         self.__subexecutions = None
@@ -68,15 +81,25 @@ class Order(ABC, Request):
 
     def _set_order(self, params: Map) -> None:
         odr_type = self.get_type()
+        qty = params.get(Map.quantity)
         if odr_type == self.TYPE_MARKET:
             self._check_market(params)
-            self._set_quantity(params.get(Map.quantity))
+            self._set_move(params.get(Map.move))
+            self._set_quantity(qty) if qty is not None else None
             self._set_amount(params.get(Map.amount))
         elif odr_type == self.TYPE_STOP:
             self._check_stop(params)
+            self._set_move(params.get(Map.move))
             self._set_stop_price(params.get(Map.stop))
-            self._set_quantity(params.get(Map.quantity))
-            self._set_amount(params.get(Map.amount))
+            self._set_quantity(qty)
+        elif odr_type == self.TYPE_STOP_LIMIT:
+            self._check_stop_limit(params)
+            self._set_move(params.get(Map.move))
+            self._set_stop_price(params.get(Map.stop))
+            self._set_limit_price(params.get(Map.limit))
+            self._set_quantity(qty)
+        else:
+            raise Exception(f"This Order type is not supported '{odr_type}'.")
 
     @staticmethod
     def _check_market(params: Map) -> None:
@@ -110,19 +133,47 @@ class Order(ABC, Request):
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to make a stop Order")
         # check logic
+        Order._check_logic(params)
+
+    @staticmethod
+    def _check_stop_limit(params: Map) -> None:
+        # Check params
+        ks = [Map.pair, Map.move, Map.stop, Map.limit, Map.quantity]
+        rtn = ModelFeature.keys_exist(ks, params.get_map())
+        if rtn is not None:
+            raise ValueError(f"This param '{rtn}' is required to make a stop limit Order")
+        # Check logic
+        Order._check_logic(params)
+
+    @staticmethod
+    def _check_logic(params: Map) -> None:
+        """
+        To check logic of params\n
+        """
+        move = params.get(Map.move)
+        if (move == Order.MOVE_BUY) and (move == Order.MOVE_BUY):
+            raise ValueError(f"This Order move '{move}' is not supported.")
         pr = params.get(Map.pair)
         pr_l_sbl = pr.get_left().get_symbol()
         pr_r_sbl = pr.get_right().get_symbol()
         stop = params.get(Map.stop)
-        stop_sbl = stop.get_asset().get_symbol()
-        if stop_sbl != pr_r_sbl:
-            raise ValueError(f"Stop price asset '{stop_sbl}' must the same "
-                             f"that the right asset of the pair '{pr}'")
+        if stop is not None:
+            stop_sbl = stop.get_asset().get_symbol()
+            if stop_sbl != pr_r_sbl:
+                raise ValueError(f"Stop price's asset '{stop_sbl}' must the same "
+                                 f"that the right asset of the pair '{pr}'")
+        limit = params.get(Map.limit)
+        if limit is not None:
+            limit_sbl = limit.get_asset().get_symbol()
+            if limit_sbl != pr_r_sbl:
+                raise ValueError(f"Limit price's asset '{limit_sbl}' must the same "
+                                 f"that the right asset of the pair '{pr}'")
         qty = params.get(Map.quantity)
-        qty_sbl = qty.get_asset().get_symbol()
-        if qty_sbl != pr_l_sbl:
-            raise ValueError(f"Quantity asset '{qty_sbl}' must the same "
-                             f"that the left asset of the pair '{pr}'")
+        if qty is not None:
+            qty_sbl = qty.get_asset().get_symbol()
+            if qty_sbl != pr_l_sbl:
+                raise ValueError(f"Quantity's asset '{qty_sbl}' must the same "
+                                 f"that the left asset of the pair '{pr}'")
 
     def get_id(self) -> str:
         return self.__id
@@ -152,23 +203,32 @@ class Order(ABC, Request):
     def get_status(self) -> str:
         return self.__status
 
+    def _set_move(self, move: str) -> None:
+        self.__move = move
+
     def get_move(self) -> str:
         return self.__move
 
     def get_pair(self) -> Pair:
         return self.__pair
 
+    def _set_limit_price(self, limit: Price) -> None:
+        self._limit = limit
+
+    def get_limit_price(self) -> Price:
+        return self._limit
+
     def _set_stop_price(self, stop: Price) -> None:
-        self.__stop = stop
+        self._stop = stop
 
     def get_stop_price(self) -> Price:
-        return self.__stop
+        return self._stop
 
     def _set_quantity(self, qty: Price) -> None:
-        self.__quantity = qty
+        self._quantity = qty
 
     def get_quantity(self) -> Price:
-        return self.__quantity
+        return self._quantity
 
     def _set_amount(self, amount: Price) -> None:
         self.__amount = amount
@@ -178,6 +238,8 @@ class Order(ABC, Request):
 
     def _set_execution_price(self, prc: Price) -> None:
         _stage = Config.get(Config.STAGE_MODE)
+        if self.__execution_price is not None:
+            raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{prc}').")
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             pass
         elif _stage == Config.STAGE_3:
@@ -189,8 +251,6 @@ class Order(ABC, Request):
         self.__execution_price = prc
 
     def get_execution_price(self) -> Price:
-        if self.__execution_price is None:
-            raise Exception("The execution price must be set")
         return self.__execution_price
 
     def _set_subexecutions(self, fills: list) -> None:
@@ -212,15 +272,13 @@ class Order(ABC, Request):
         self.__execution_time = int(time)
 
     def get_execution_time(self) -> int:
-        if self.__execution_time is None:
-            raise Exception("The execution time must be set")
         return self.__execution_time
 
-    def _set_params(self, params: Map) -> None:
-        self.__params = params
+    def _set_request_params(self, params: Map) -> None:
+        self.__request_params = params
 
-    def _get_params(self) -> Map:
-        return self.__params
+    def _get_request_params(self) -> Map:
+        return self.__request_params
 
     def get_settime(self) -> int:
         return self.__settime
@@ -250,11 +308,22 @@ class Order(ABC, Request):
     def _set_stop(self) -> None:
         """
         To prepare a stop order request\n
-        :param params: params to config a stop Order
-                        params[Map.pair]    => {Pair}
-                        params[Map.move]    => {str}
-                        params[Map.stop]    => {Price}  # in right asset
-                        params[Map.quantity]=> {Price}  # in left asset
+            params[Map.pair]    => {Pair}
+            params[Map.move]    => {str}
+            params[Map.stop]    => {Price}  # in right asset
+            params[Map.quantity]=> {Price}  # in left asset
+        """
+        pass
+
+    @abstractmethod
+    def _set_stop_limit(self) -> None:
+        """
+        To prepare a stop order request\n
+            params[Map.pair]    => {Pair}
+            params[Map.move]    => {str}
+            params[Map.stop]    => {Price}  # in right asset
+            params[Map.limit]   => {Price}  # in right asset
+            params[Map.quantity]=> {Price}  # in left asset
         """
         pass
 
