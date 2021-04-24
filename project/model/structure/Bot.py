@@ -70,19 +70,19 @@ class Bot(ModelFeature):
         stg = self._get_strategy()
         end = False
         print("Bot started to trade...")
-        i = 1
-        sleep_time = 60
+        i = 0
+        sleep_time = 5  # 60
         _stage = Config.get(Config.STAGE_MODE)
         while not end:
             print(f"Trade n°{i}")
             stg.trade(bkr)
-            if _stage == Config.STAGE_2:
+            if _stage != Config.STAGE_1:
                 print(f"Bot sleep for {sleep_time}seconds...")
                 sleep(sleep_time)
             end = self._still_active()
             i += 1
-            if i == 3:
-                raise Exception("End Code!🙂")
+            # if i == 2:
+            #     raise Exception("End Code!🙂")
 
     @staticmethod
     def _still_active() -> bool:

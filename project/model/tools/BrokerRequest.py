@@ -109,17 +109,17 @@ class BrokerRequest(ABC, Request):
         """
         To get datas about submitted Orders\n
         :return: datas about submitted Orders
-                 orders[order_id{string}][      # Broker's Order id
+                 orders[order_id{string}][          # Broker's Order id
                     Map.symbol:     {string}
-                    Map.id:         {string}    # Broker's Order id
-                    Map.price:      {float}     # execution price
-                    Map.quantity:   {float}     # executed submitted
-                    Map.qty:        {float}     # executed quantity
-                    Map.amount:     {float}     # amount spent for executed qty
-                    Map.status:     {string}
-                    Map.type:       {string}    # Order's execution type (Market, Limit, etc...)
-                    Map.side:       {string}    # Buy | Sell
-                    Map.time:       {int}       # execution unix time
+                    Map.id:         {string}        # Broker's Order id
+                    Map.price:      {float|None}    # execution price
+                    Map.quantity:   {float}         # submitted quantity
+                    Map.qty:        {float|None}    # executed quantity
+                    Map.amount:     {float|None}    # amount spent to execute the submitted quantity
+                    Map.status:     {string}        # Order's status converted to System's status for Order
+                    Map.type:       {string}        # Order's execution type (Market, Limit, etc...)
+                    Map.move:       {string}        # Buy | Sell (Order.Move_*)
+                    Map.time:       {int}           # execution unix time
                  ]
         """
         pass

@@ -98,7 +98,7 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         p = _cls._FILE_LOGS
         unix_date = _cls._get_date(log_id)
-        date = _MF.unix_to_date(unix_date)
+        date = _MF.unix_to_date(unix_date, _MF.FORMAT_D_H_M_S)
         id_datas = {
             Map.date: date,
             Map.id: log_id,
@@ -153,7 +153,7 @@ class BinanceFakeAPI(BinanceAPI):
     @staticmethod
     def _execute_order(log_id: str, rq: str, params: Map) -> dict:
         _cls = BinanceFakeAPI
-        actual_close = _cls._get_actual_close(log_id)
+        actual_close = float(_cls._get_actual_close(log_id))
         now_date = _cls._get_date(log_id)
         rows = [{
             Map.date: _MF.unix_to_date(now_date),
@@ -173,10 +173,22 @@ class BinanceFakeAPI(BinanceAPI):
         p = _cls._FILE_SAVE_ORDERS
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
-        exec_prc = None
+        exec_time = None
+        exec_qty = 0
+        exec_amount = 0
         if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
             status = _cls.STATUS_ORDER_FILLED
-            exec_prc = now_date
+            exec_time = now_date
+            quantity = params.get(Map.quantity)
+            amount = params.get(Map.quoteOrderQty)
+            if quantity is not None:
+                exec_qty = float(quantity)
+                exec_amount = actual_close * exec_qty
+            elif amount is not None:
+                exec_amount = amount
+                exec_qty = exec_amount / actual_close
+            else:
+                raise Exception("The quantity or the amount must be set for market Order.")
         elif (rq == _cls.RQ_ORDER_STOP_LOSS) \
                 or (rq == _cls.RQ_ORDER_STOP_LOSS_LIMIT):
             status = _cls.STATUS_ORDER_NEW
@@ -189,7 +201,9 @@ class BinanceFakeAPI(BinanceAPI):
             Map.orderId: Order.PREFIX_ID + _cls.__name__.lower() + "_" + _MF.new_code(),
             Map.status: status,
             Map.price: actual_close,
-            Map.transactTime: exec_prc
+            Map.transactTime: exec_time,
+            Map.executedQty: exec_qty,
+            Map.cummulativeQuoteQty: exec_amount
         }
         return rsp_d
 

@@ -73,10 +73,13 @@ class Order(ABC, Request):
         self.__amount = None
         self.__order_params = params
         self.__request_params = None
+        self.__cancel_request_params = None
         self.__settime = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
-        self.__execution_price = None
-        self.__subexecutions = None
         self.__execution_time = None
+        self.__execution_price = None
+        self.__executed_quantity = None
+        self.__executed_amount = None
+        self.__subexecutions = None
         self._set_order(params)
 
     def _set_order(self, params: Map) -> None:
@@ -236,6 +239,14 @@ class Order(ABC, Request):
     def get_amount(self) -> Price:
         return self.__amount
 
+    def _set_execution_time(self, time: int) -> None:
+        if self.__execution_time is not None:
+            raise Exception(f"The execution time can't be updated.")
+        self.__execution_time = int(time)
+
+    def get_execution_time(self) -> int:
+        return self.__execution_time
+
     def _set_execution_price(self, prc: Price) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         if self.__execution_price is not None:
@@ -253,6 +264,24 @@ class Order(ABC, Request):
     def get_execution_price(self) -> Price:
         return self.__execution_price
 
+    def _set_executed_quantity(self, quantity: Price) -> None:
+        if self.__executed_quantity is not None:
+            raise Exception(f"The execution quantity "
+                            f"'{self.__executed_quantity}' is already set, (new quantity '{quantity}').")
+        self.__executed_quantity = quantity
+
+    def get_executed_quantity(self) -> Price:
+        return self.__executed_quantity
+
+    def _set_executed_amount(self, amount: Price) -> None:
+        if self.__executed_amount is not None:
+            raise Exception(f"The execution amount "
+                            f"'{self.__executed_amount}' is already set, (new amount '{amount}').")
+        self.__executed_amount = amount
+
+    def get_executed_amount(self) -> Price:
+        return self.__executed_amount
+
     def _set_subexecutions(self, fills: list) -> None:
         """
         To set
@@ -266,19 +295,14 @@ class Order(ABC, Request):
             raise Exception("The subexecutions must be set")
         return self.__subexecutions
 
-    def _set_execution_time(self, time: int) -> None:
-        if self.__execution_time is not None:
-            raise Exception(f"The execution time can't be updated.")
-        self.__execution_time = int(time)
-
-    def get_execution_time(self) -> int:
-        return self.__execution_time
-
     def _set_request_params(self, params: Map) -> None:
         self.__request_params = params
 
     def _get_request_params(self) -> Map:
         return self.__request_params
+
+    def _set_cancel_request_params(self, params: Map) -> None:
+        self.__cancel_request_params = params
 
     def get_settime(self) -> int:
         return self.__settime

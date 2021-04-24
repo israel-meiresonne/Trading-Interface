@@ -234,14 +234,13 @@ class MinMax(Strategy):
         # Save
         self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
-        #
         # raise Exception("End Code!🙂")
         if self._has_position():
             odrs_map = self._try_sell(bkr, mkt_prc)
         else:
             odrs_map = self._try_buy(bkr, mkt_prc)
         bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
-        raise Exception("End Code!🙂")
+        # raise Exception("End Code!🙂")
 
     # TREND(RSI)&TREND(CLOSE)V5.0: BUY
     '''
@@ -432,16 +431,21 @@ class MinMax(Strategy):
         return odrs
     '''
 
+    # TEST STAGE_3
+    # """
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+        if self._get_secure_order() is not None:
+            raise Exception("End Code!🙂")
         odrs = Map()
         self._buy(bkr, mkt_prc, odrs)
         return odrs
 
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         odrs = Map()
-        self._move_up_secure_order(bkr, mkt_prc, odrs)
+        # self._move_up_secure_order(bkr, mkt_prc, odrs)
         self._sell(bkr, odrs)
         return odrs
+    # """
 
     def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
         # buy order

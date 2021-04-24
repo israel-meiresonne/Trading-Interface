@@ -633,7 +633,7 @@ class BinanceAPI:
             rsp = rq_post(url, prms_map.get_map(), headers=hdrs)
         elif mtd == Map.DELETE:
             ds = prms_map.get_map()
-            url += '?' + '&'.join([f'k={v}' for k, v in ds.items()])
+            url += '?' + '&'.join([f'{k}={v}' for k, v in ds.items()])
             rsp = rq_delete(url, headers=hdrs)
         else:
             raise Exception(f"The request method {mtd} is not supported")

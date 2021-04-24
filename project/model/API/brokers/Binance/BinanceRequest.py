@@ -133,8 +133,9 @@ class BinanceRequest(BrokerRequest):
             rsp = self._get_response()
             content = rsp.get_content()
             for row in content:
-                odr_id = row[Map.orderId]
+                odr_id = str(row[Map.orderId])
                 status = BinanceOrder.convert_status(row[Map.status])
+                move = BinanceOrder.convert_order_move(row[Map.side])
                 exec_qty = float(row[Map.executedQty])
                 exec_amount = float(row[Map.cummulativeQuoteQty])
                 exec_price = None
@@ -145,11 +146,11 @@ class BinanceRequest(BrokerRequest):
                     Map.id: odr_id,
                     Map.price: exec_price,
                     Map.quantity: float(row[Map.origQty]),
-                    Map.qty: exec_qty,
-                    Map.amount: exec_amount,
+                    Map.qty: exec_qty if exec_qty > 0 else None,
+                    Map.amount: exec_amount if exec_amount > 0 else None,
                     Map.status: status,
                     Map.type: row[Map.type],
-                    Map.side: row[Map.side],
+                    Map.move: move,
                     Map.time: row[Map.updateTime],
                     Map.response: row
                 }

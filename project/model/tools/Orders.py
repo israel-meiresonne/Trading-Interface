@@ -9,9 +9,10 @@ from model.tools.Price import Price
 
 
 class Orders(Order):
-    SAVE_ACTION_GENERATE = "GENERATE"
+    SAVE_ACTION_GENERATE = "GENERATE_REQUEST"
     SAVE_ACTION_HANDLE = "HANDLE_REQUEST"
     SAVE_ACTION_UPDATE = "UPDATE_COMPLETED"
+    SAVE_ACTION_CANCEL = "GENERATE_CANCEL"
 
     def __init__(self):
         self.__orders = Map()
@@ -137,11 +138,9 @@ class Orders(Order):
                 if odr_type == Order.TYPE_MARKET:
                     pass
                 elif odr_type == Order.TYPE_STOP:
-                    odr_stop = odr.get_stop_price()
-                    if (status != Order.STATUS_COMPLETED) and (odr_stop.get_value() >= close_val):
-                        odr._set_execution_price(odr_stop)
-                        odr._set_status(Order.STATUS_COMPLETED)
-                        odr._set_execution_time(market.get_time())
+                    stop_price = odr.get_stop_price()
+                    if (status != Order.STATUS_COMPLETED) and (stop_price.get_value() >= close_val):
+                        self._update_algo_order_stage_1_2(odr, market)
                         # Backup
                         self.insert_order(self.SAVE_ACTION_UPDATE, odr)
                 elif odr_type == Order.TYPE_LIMIT:
@@ -152,13 +151,30 @@ class Orders(Order):
                     if limit_price.get_value() != stop_price.get_value():
                         raise Exception("Must implement Order update when stop and limit price are different")
                     if (status != Order.STATUS_COMPLETED) and (stop_price.get_value() >= close_val):
+                        """
                         odr._set_execution_price(stop_price)
                         odr._set_status(Order.STATUS_COMPLETED)
                         odr._set_execution_time(market.get_time())
+                        """
+                        self._update_algo_order_stage_1_2(odr, market)
                         # Backup
                         self.insert_order(self.SAVE_ACTION_UPDATE, odr)
                 else:
                     raise Exception(f"Unknown Order's type '{odr_type}'")
+
+    @staticmethod
+    def _update_algo_order_stage_1_2(odr: Order, market: MarketPrice) -> None:
+        stop_price = odr.get_stop_price()
+        # close = market.get_close()
+        qty_obj = odr.get_quantity()
+        # qty_val = qty_obj.get_value()
+        exec_qty_obj = qty_obj  # Price(qty_val, qty_obj.get_asset().get_symbol())
+        exec_amount_obj = stop_price  # Price(stop_price.get_value(), odr.get_pair().get_right().get_symbol())
+        odr._set_execution_price(stop_price)
+        odr._set_status(Order.STATUS_COMPLETED)
+        odr._set_execution_time(market.get_time())
+        odr._set_executed_quantity(exec_qty_obj)  # if odr.get_quantity() is None else None
+        odr._set_executed_amount(exec_amount_obj)  # if odr.get_amount() is None else None
 
     def _update_stage_3(self, bkr: Broker) -> None:
         odrs = self._get_orders()
@@ -183,24 +199,66 @@ class Orders(Order):
             exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
             bkr_rq = eval(bkr_rq_cls + f"('{BrokerRequest.RQ_ORDERS}', rq_prms)")
             bkr.request(bkr_rq)
-            api_odrs = bkr_rq.get_orders()
+            odrs_datas = bkr_rq.get_orders()
             for idx, odr in odrs.get_map().items():
                 odr_status = odr.get_status()
                 if (odr_status == Order.STATUS_SUBMITTED) or (odr_status == Order.STATUS_PROCESSING):
+                    """
                     # Get api Order
                     odr_bkr_id = odr.get_broker_id()
-                    api_odr = api_odrs.get(odr_bkr_id)
+                    api_odr = odrs_datas.get(odr_bkr_id)
                     # Get api Order's properties
                     exec_price = api_odr.get(Map.price)
+                    # exec_price_obj = Price(exec_price, odr.get_pair().__str__())  # ⚠️ instead odr.get_pair().get_symbol()
                     exec_price_obj = Price(exec_price, odr.get_pair().__str__())
                     api_odr_status = api_odr.get(Map.status)
                     api_exec_time = api_odr.get(Map.time)
+                    exec_qty = float(odrs_datas.get(Map.qty))
+                    exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty > 0 else None
+                    exec_amount = float(odrs_datas.get(Map.amount))
+                    exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount > 0 else None
                     # Update
                     odr._set_execution_price(exec_price_obj)
                     odr._set_status(api_odr_status)
                     odr._set_execution_time(api_exec_time)
+                    odr._set_executed_quantity(exec_qty_obj)  # if odr.get_quantity() is None else None
+                    odr._set_executed_amount(exec_amount_obj)  # if odr.get_amount() is None else None
+                    """
+                    odr_bkr_id = odr.get_broker_id()
+                    odr_datas = Map(odrs_datas.get(odr_bkr_id))
+                    self._update_algo_order_stage_3(odr, odr_datas)
                     # Backup
                     self.insert_order(self.SAVE_ACTION_UPDATE, odr)
+
+    @staticmethod
+    def _update_algo_order_stage_3(odr: Order, odr_datas: Map) -> None:
+        r_symbol = odr.get_pair().get_right().get_symbol()
+        l_symbol = odr.get_pair().get_left().get_symbol()
+        # Get api Order
+        # odr_bkr_id = odr.get_broker_id()
+        # odr_datas = odrs_datas.get(odr_bkr_id)
+        # Get api Order's properties
+        new_status = odr_datas.get(Map.status)
+        exec_time = odr_datas.get(Map.time) \
+            if (new_status == Order.STATUS_PROCESSING) or (new_status == Order.STATUS_COMPLETED) else None
+        # Exec Price
+        exec_price = odr_datas.get(Map.price)
+        exec_price_obj = Price(exec_price, r_symbol) if exec_price is not None else None
+        # Exec Quantity
+        exec_qty = odr_datas.get(Map.qty)
+        exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty is not None else None
+        # Exec Amount
+        exec_amount = odr_datas.get(Map.amount)
+        exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount is not None else None
+        # Update
+        odr._set_status(new_status)
+        odr._set_execution_time(exec_time) if exec_time is not None else None
+        odr._set_execution_price(exec_price_obj) if (odr.get_execution_price() is None) \
+                                                    and (exec_price_obj is not None) else None
+        odr._set_executed_quantity(exec_qty_obj) if (odr.get_executed_quantity() is None) \
+                                                    and (exec_price_obj is not None) else None
+        odr._set_executed_amount(exec_amount_obj) if (odr.get_executed_amount() is None) \
+                                                     and (exec_amount_obj is not None) else None
 
     @staticmethod
     def _sum_orders(odrs: Map) -> Map:
@@ -219,6 +277,7 @@ class Orders(Order):
         pr_str = pr.__str__
         lspot = 0
         rspot = 0
+        """
         for _, odr in odrs.get_map().items():
             if pr_str != odr.get_pair().__str__:
                 raise Exception(f"All Order must have the same pair of asset: {pr_str}!={odr.get_pair().__str__}")
@@ -247,6 +306,22 @@ class Orders(Order):
                         rspot += amnt.get_value()
                     else:
                         raise Exception("Unknown Order state")
+                else:
+                    raise Exception("Unknown Order move")
+        """
+        for _, odr in odrs.get_map().items():
+            if pr_str != odr.get_pair().__str__:
+                raise Exception(f"All Order must have the same pair of asset: {pr_str}!={odr.get_pair().__str__}")
+            if odr.get_status() == Order.STATUS_COMPLETED:
+                move = odr.get_move()
+                exec_qty = odr.get_executed_quantity()
+                exec_amount = odr.get_executed_amount()
+                if move == Order.MOVE_BUY:
+                    lspot += exec_qty.get_value()
+                    rspot -= exec_amount.get_value()
+                elif move == Order.MOVE_SELL:
+                    lspot -= exec_qty.get_value()
+                    rspot += exec_amount.get_value()
                 else:
                     raise Exception("Unknown Order move")
         odrs_sum = Map({

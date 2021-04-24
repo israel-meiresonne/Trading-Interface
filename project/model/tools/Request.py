@@ -5,6 +5,9 @@ class Request:
     def __init__(self):
         self.__response = None
 
+    def _set_response(self, rsp: RequestResponse) -> None:
+        self.__response = rsp
+
     def _get_response(self) -> RequestResponse:
         if self.__response is None:
             raise Exception("Request's response is not set")
@@ -15,4 +18,4 @@ class Request:
         To handle response returned after a request\n
         :param rsp: response returned after a request
         """
-        self.__response = rsp
+        self._set_response(rsp)

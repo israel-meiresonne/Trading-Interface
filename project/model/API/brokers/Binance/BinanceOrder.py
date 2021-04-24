@@ -17,6 +17,10 @@ class BinanceOrder(Order):
         BinanceAPI.STATUS_ORDER_REJECTED: Order.STATUS_FAILED,
         BinanceAPI.STATUS_ORDER_EXPIRED: Order.STATUS_EXPIRED
     })
+    _CONV_ORDER_MOVE = Map({
+        BinanceAPI.SIDE_BUY: Order.MOVE_BUY,
+        BinanceAPI.SIDE_SELL: Order.MOVE_SELL
+    })
 
     def __init__(self, odr_type: str, params: Map) -> None:
         super().__init__(odr_type, params)
@@ -172,20 +176,33 @@ class BinanceOrder(Order):
         return Map(_MF.clean(prms.get_map()))
 
     def generate_cancel_order(self) -> Map:
-        odr_params = Map({
+        cancel_params = Map({
             Map.symbol: self.get_pair().get_merged_symbols().upper(),
             Map.orderId: self.get_broker_id(),
             Map.origClientOrderId: None,
             Map.newClientOrderId: None,
             Map.recvWindow: None,
         })
-        return odr_params
+        self._set_cancel_request_params(cancel_params)
+        # Backup
+        from model.tools.Orders import Orders
+        Orders.insert_order(Orders.SAVE_ACTION_CANCEL, self)
+        return Map(_MF.clean(cancel_params.get_map()))
 
     def handle_response(self, rsp: BrokerResponse) -> None:
+        self._set_response(rsp)
         _stage = Config.get(Config.STAGE_MODE)
+        r_symbol = self.get_pair().get_right().get_symbol()
+        l_symbol = self.get_pair().get_left().get_symbol()
+        # Extract From Rsp
         content = Map(rsp.get_content())
         status = self.convert_status(content.get(Map.status))
-        exec_time = content.get(Map.transactTime)
+        exec_time = content.get(Map.transactTime) \
+            if (status == Order.STATUS_PROCESSING) or (status == Order.STATUS_COMPLETED) else None
+        exec_qty = float(content.get(Map.executedQty))
+        exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty > 0 else None
+        exec_amount = float(content.get(Map.cummulativeQuoteQty))
+        exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount > 0 else None
         odr_bkr_id = content.get(Map.orderId)
         # Stages
         prc_obj = None
@@ -201,12 +218,14 @@ class BinanceOrder(Order):
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
         if prc_val is not None:
-            prc_obj = Price(prc_val, self.get_pair().get_right().get_symbol())
+            prc_obj = Price(prc_val, r_symbol)
         # Update
-        self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
         self._set_status(status)
-        self._set_execution_price(prc_obj) if self.get_execution_price() is None else None
+        self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
         self._set_execution_time(exec_time) if (self.get_execution_time() is None) and (exec_time is not None) else None
+        self._set_execution_price(prc_obj) if self.get_execution_price() is None else None
+        self._set_executed_quantity(exec_qty_obj) if self.get_executed_quantity() is None else None
+        self._set_executed_amount(exec_amount_obj) if self.get_executed_amount() is None else None
         # Backup
         from model.tools.Orders import Orders
         Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
@@ -217,11 +236,28 @@ class BinanceOrder(Order):
 
     @staticmethod
     def convert_status(api_status: str) -> str:
+        """
+        To convert Binance's Order status into System's\n
+        :param api_status: Binance's Order status
+        :return: Binance's Order status into System's
+        """
         _cls = BinanceOrder
         converter = _cls._get_status_converter()
         if api_status not in converter.get_keys():
-            raise ValueError(f"This status '{api_status}' is not supported")
+            raise ValueError(f"This Order status '{api_status}' is not supported.")
         return _cls.CONV_STATUS.get(api_status)
+
+    @staticmethod
+    def convert_order_move(side: str) -> str:
+        """
+        To convert Binance's Order move (buy & sell) into System's\n
+        :param side: Binance's Order move
+        :return: Binance's Order move into System's
+        """
+        converter = BinanceOrder._CONV_ORDER_MOVE
+        if side not in converter.get_keys():
+            raise ValueError(f"This Order move '{side}' is not supported.")
+        return converter.get(side)
 
     @staticmethod
     def resume_subexecution(fills: list) -> Map:
