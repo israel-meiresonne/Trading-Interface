@@ -191,7 +191,7 @@ class Orders(Order):
             rq_prms = Map({
                 Map.symbol: first_odr.get_pair().get_merged_symbols(),
                 Map.id: None,
-                Map.begin_time: starttime,
+                Map.begin_time: starttime - (60*10),
                 Map.end_time: None,
                 Map.limit: None,
                 Map.timeout: None

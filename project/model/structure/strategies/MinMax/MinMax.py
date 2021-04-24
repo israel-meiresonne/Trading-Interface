@@ -3,7 +3,7 @@ from typing import Union
 from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
-from model.structure.database.ModelFeature import ModelFeature
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -433,8 +433,10 @@ class MinMax(Strategy):
 
     # TEST STAGE_3
     # """
+    TOUR = 0
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
-        if self._get_secure_order() is not None:
+        self.TOUR += 1
+        if self.TOUR == 3:
             raise Exception("End Code!🙂")
         odrs = Map()
         self._buy(bkr, mkt_prc, odrs)
@@ -546,9 +548,9 @@ class MinMax(Strategy):
         mkt_prc = params_map.get('mkt_prc')
         closes = mkt_prc.get_closes()
         closes_str = [str(v) for v in closes]
-        market_json = ModelFeature.json_encode(closes_str)
+        market_json = _MF.json_encode(closes_str)
         params_map.put(market_json, 'market_json')
-        params_map.put(ModelFeature.unix_to_date(mkt_prc.get_time()), Map.time)
+        params_map.put(_MF.unix_to_date(mkt_prc.get_time()), Map.time)
         params_map.put(mkt_prc.get_rsis(), 'rsis')
         params_map.put(mkt_prc.get_tsis(), 'tsis')
         params_map.put(mkt_prc.get_close(), Map.close)
@@ -582,18 +584,21 @@ class MinMax(Strategy):
     def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
         cap = self._get_capital()
-        s_qty = self._get_sell_quantity()
-        b_amount = self._get_buy_capital()
-        value = s_qty.get_value() * close if s_qty.get_value() > 0 else b_amount.get_value()
-        perf = (value/cap.get_value() - 1) * 100
+        sell_qty = self._get_sell_quantity()
+        buy_amount = self._get_buy_capital()
+        odrs = self._get_orders()
+        positions_value = sell_qty.get_value() * close if sell_qty.get_value() > 0 else 0
+        current_capital = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
+        perf = (current_capital/cap.get_value() - 1) * 100
         rows = [{
-            Map.time: ModelFeature.unix_to_date(time),
+            Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
             'close': close,
-            'initial': cap.__str__(),
-            'left': s_qty.__str__(),
-            'right': b_amount.__str__(),
-            'value': value,
-            'performance': f"{round(perf, 2)}%"
+            'initial': cap,
+            'current': Price(current_capital, cap.get_asset().get_symbol()),
+            'left': sell_qty,
+            'right': buy_amount,
+            'positions_value': positions_value,
+            'capital_perf': f"{round(perf, 2)}%"
         }]
         fields = list(rows[0].keys())
         overwrite = False
