@@ -638,12 +638,12 @@ class BinanceAPI:
         else:
             raise Exception(f"The request method {mtd} is not supported")
         bkr_rsp = BrokerResponse(rsp)
-        rsp_status = bkr_rsp.get_status_code()
         # Backup Down
         self._save_response(rq, rsp)
         # Backup Up
-        if rsp_status != 200:
-            raise Exception(f"(status code: {rsp_status}): {bkr_rsp.get_content()}")
+        # rsp_status = bkr_rsp.get_status_code()
+        # if rsp_status != 200:
+        #    raise Exception(f"(status code: {rsp_status}): {bkr_rsp.get_content()}")
         return bkr_rsp
 
     @staticmethod
@@ -743,6 +743,7 @@ class BinanceAPI:
         _cls = BinanceAPI
         p = Config.get(Config.DIR_SAVE_API_RSP)
         row = {
+            Map.time: _MF.unix_to_date(_MF.get_timestamp()),
             Map.request: rq,
             Map.method: rsp.request.__dict__[Map.method],
             "status_code": rsp.status_code,

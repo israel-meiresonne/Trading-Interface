@@ -130,7 +130,9 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             raise Exception(f"Unknown request '{rq}'")
         rsp = Response()
+        rsp.status_code = 200
         rsp._content = json_encode(rsp_d).encode()
+        rsp.request = params
         _cls._save_log(log_id, rq, params)
         return BrokerResponse(rsp)
 

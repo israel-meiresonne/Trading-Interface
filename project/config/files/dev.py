@@ -22,3 +22,6 @@ DIR_SAVE_CAPITAL = f'content/v0.01/tests/{_DATE}_capital.csv'
 DIR_SAVE_MARKET = f'content/v0.01/tests/{_DATE}_market.csv'
 DIR_SAVE_API_RSP = f'content/v0.01/tests/{_DATE}_broker_response.csv'
 DIR_SAVE_BOT_ERRORS = f'content/v0.01/tests/{_DATE}_bot_error.csv'
+# Constantes
+DOGE_STRATEGY_MAX_LOSS = -0.01
+BNB_STRATEGY_MAX_LOSS = -0.005

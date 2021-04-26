@@ -15,12 +15,14 @@ from model.tools.Price import Price
 class MinMax(Strategy):
     _CONF_MAKET_PRICE = "config_market_price"
     _CONF_MAX_DR = "CONF_MAX_DR"
+    _CONF_STRATEGY_MAX_LOSS = "STRATEGY_MAX_LOSS"
 
     def __init__(self, prms: Map):
         super().__init__(prms)
         self.__configs = None
         self.__secure_order = None
-        self._last_dropping_super = None
+        # self._last_red_trend = None
+        self._last_red_close = None
         self._last_dropping_close = None
 
     def _init_strategy(self, bkr: Broker) -> None:
@@ -88,6 +90,9 @@ class MinMax(Strategy):
                 Map.number: 100
             }),
             self._CONF_MAX_DR: -0.05,
+            # self._CONF_STRATEGY_MAX_LOSS: -0.01  # DOGE
+            # self._CONF_STRATEGY_MAX_LOSS: -0.005  # BNB
+            self._CONF_STRATEGY_MAX_LOSS: Config.get(f"{self.get_pair().get_left().get_symbol().upper()}_STRATEGY_MAX_LOSS")
         })
 
     def __get_constants(self) -> Map:
@@ -236,11 +241,33 @@ class MinMax(Strategy):
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         # raise Exception("End Code!🙂")
         if self._has_position():
-            odrs_map = self._try_sell(bkr, mkt_prc)
+            odrs_to_exec = self._try_sell(bkr, mkt_prc)
         else:
-            odrs_map = self._try_buy(bkr, mkt_prc)
-        bkr.execute(odrs_map) if len(odrs_map.get_map()) > 0 else None
+            odrs_to_exec = self._try_buy(bkr, mkt_prc)
+        has_execution = len(odrs_to_exec.get_map()) > 0
+        bkr.execute(odrs_to_exec) if has_execution else None
         # raise Exception("End Code!🙂")
+        self._check_execution(bkr, mkt_prc, odrs_to_exec) if has_execution else None
+
+    def _check_execution(self, bkr: Broker, mkt_prc: MarketPrice, odrs_to_exec: Map) -> None:
+        odrs_failed = Map({idx: odr for idx, odr in odrs_to_exec.get_map().items()
+                           if (odr.get_status() == Order.STATUS_FAILED) or (odr.get_status() == Order.STATUS_EXPIRED)})
+        has_failed = len(odrs_failed.get_map()) > 0
+        if has_failed:
+            new_odrs_to_exec = Map()
+            for idx, odr in odrs_failed.get_map().items():
+                move = odr.get_move()
+                odr_type = odr.get_type()
+                if (move == Order.MOVE_BUY) and (odr_type == Order.TYPE_MARKET):
+                    pass
+                elif (move == Order.MOVE_SELL) and (odr_type == Order.TYPE_MARKET):
+                    new_odrs_to_exec.put(self._new_sell_order(bkr), len(new_odrs_to_exec.get_map()))
+                elif (move == Order.MOVE_SELL) and (odr_type == Order.TYPE_STOP_LIMIT):
+                    new_odrs_to_exec.put(self._new_secure_order(bkr, mkt_prc), len(new_odrs_to_exec.get_map()))
+                else:
+                    odr_id = odr.get_id()
+                    raise Exception(f"Unknown Order's state (move: '{move}', type: '{odr_type}', id: '{odr_id}').")
+            bkr.execute(new_odrs_to_exec) if len(new_odrs_to_exec.get_map()) > 0 else None
 
     # TREND(RSI)&TREND(CLOSE)V5.0: BUY
     '''
@@ -319,28 +346,31 @@ class MinMax(Strategy):
         rsi_trend_ok = (rsi > rsis_trend) or ((rsi < last_rsis_trend) and (rsi == rsis_trend))
         """
         # Switch Point
-        if (close_trend == MarketPrice.SUPERTREND_RISING) and (self._last_dropping_super is None):
+        if (close_trend == MarketPrice.SUPERTREND_RISING) and (self._last_red_close is None):
             switchers = MarketPrice.get_super_trend_switchers(closes, closes_supers)
             trend_first_idx = switchers.get_keys()[-1] if close_trend_ok else None
             last_trend_idx = (trend_first_idx - 1) if trend_first_idx is not None else None
-            self._last_dropping_super = closes_supers[last_trend_idx] if last_trend_idx is not None else None
-            # self._last_dropping_super = closes[last_trend_idx] if last_trend_idx is not None else None
-        if (close_trend == MarketPrice.SUPERTREND_DROPING) and (self._last_dropping_super is not None):
-            self._last_dropping_super = None
+            # self._last_red_trend = closes_supers[last_trend_idx] if last_trend_idx is not None else None
+            self._last_red_close = closes[last_trend_idx] if last_trend_idx is not None else None
+        if (close_trend == MarketPrice.SUPERTREND_DROPING) and (self._last_red_close is not None):
+            self._last_red_close = None
         super_trend = closes_supers[-1]
         # super_trend = closes[-1]
-        is_above_switch = super_trend >= self._last_dropping_super if self._last_dropping_super is not None else False
+        is_above_switch = super_trend >= self._last_red_close if self._last_red_close is not None else False
+        """
         # Peak
         maxs = mkt_prc.get_maximums()
         close_idx = 1
         last_is_peak = close_idx in maxs
+        """
         # Checking
-        if close_trend_ok and is_above_switch and last_is_peak:
+        # if close_trend_ok and is_above_switch and last_is_peak:
+        if close_trend_ok and is_above_switch:
             self._buy(bkr, mkt_prc, odrs)
-            self._last_dropping_super = None
+            self._last_red_close = None
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_BUY, _last_dropping_super=self._last_dropping_super)  # \
+        self._save_move(**vars(), move=Order.MOVE_BUY, _last_red_close=self._last_red_close)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
@@ -353,7 +383,7 @@ class MinMax(Strategy):
             'close_trend_ok',
             'is_above_switch',
             'last_is_peak',
-            '_last_dropping_super',
+            '_last_red_close',
             'super_trend',
             'trend_first_idx',
             'last_trend_idx',
@@ -566,7 +596,7 @@ class MinMax(Strategy):
             'close_trend_ok',
             'is_above_switch',
             'last_is_peak',
-            '_last_dropping_super',
+            '_last_red_close',
             'super_trend',
             'trend_first_idx',
             'last_trend_idx',

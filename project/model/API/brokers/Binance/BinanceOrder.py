@@ -169,7 +169,7 @@ class BinanceOrder(Order):
         prms = self._get_request_params()
         prms.put(prms.get(Map.symbol).upper(), Map.symbol)
         prms.put(prms.get(Map.side).upper(), Map.side)
-        self._set_status(self.STATUS_SUBMITTED)
+        # self._set_status(self.STATUS_SUBMITTED)
         # Backup
         from model.tools.Orders import Orders
         Orders.insert_order(Orders.SAVE_ACTION_GENERATE, self)
@@ -191,6 +191,17 @@ class BinanceOrder(Order):
 
     def handle_response(self, rsp: BrokerResponse) -> None:
         self._set_response(rsp)
+        _stage = Config.get(Config.STAGE_MODE)
+        status_code = rsp.get_status_code()
+        if status_code != 200:
+            self._set_status(Order.STATUS_FAILED)
+        else:
+            self._update_order(rsp)
+        # Backup
+        from model.tools.Orders import Orders
+        Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
+
+    def _update_order(self, rsp: BrokerResponse) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         r_symbol = self.get_pair().get_right().get_symbol()
         l_symbol = self.get_pair().get_left().get_symbol()
@@ -226,9 +237,6 @@ class BinanceOrder(Order):
         self._set_execution_price(prc_obj) if self.get_execution_price() is None else None
         self._set_executed_quantity(exec_qty_obj) if self.get_executed_quantity() is None else None
         self._set_executed_amount(exec_amount_obj) if self.get_executed_amount() is None else None
-        # Backup
-        from model.tools.Orders import Orders
-        Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
 
     @staticmethod
     def _get_status_converter() -> Map:

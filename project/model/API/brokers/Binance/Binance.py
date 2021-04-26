@@ -74,6 +74,7 @@ class Binance(Broker):
             "BTC/USDT",
             "BNB/USDT",
             "EGLD/USDT",
-            "COS/USDT"
+            "COS/USDT",
+            "DOGE/USDT"
         ]
         return prs
