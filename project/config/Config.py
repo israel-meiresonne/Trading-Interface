@@ -28,6 +28,7 @@ class Config(ABC):
     DIR_SAVE_CAPITAL = "DIR_SAVE_CAPITAL"
     DIR_SAVE_MARKET = "DIR_SAVE_MARKET"
     DIR_SAVE_API_RSP = "DIR_SAVE_API_RSP"
+    DIR_SAVE_BOT_ERRORS = "DIR_SAVE_BOT_ERRORS"
 
     @abstractmethod
     def __init__(self):

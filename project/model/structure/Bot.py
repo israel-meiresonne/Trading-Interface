@@ -1,7 +1,7 @@
 from time import sleep
 
 from config.Config import Config
-from model.structure.database.ModelFeature import ModelFeature
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.tools.Map import Map
@@ -9,7 +9,7 @@ from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
-class Bot(ModelFeature):
+class Bot(_MF):
     SEPARATOR = "-"
 
     def __init__(self, bkr: str, stg: str, prcd: str, configs: Map):
@@ -71,18 +71,28 @@ class Bot(ModelFeature):
         end = False
         print("Bot started to trade...")
         i = 0
-        sleep_time = 5  # 60
+        sleep_time = 60
         _stage = Config.get(Config.STAGE_MODE)
+        nb_error = 0
+        limit_error = 5
         while not end:
             print(f"Trade n°{i}")
-            stg.trade(bkr)
+            try:
+                stg.trade(bkr)
+                nb_error = 0
+            except Exception as error:
+                nb_error += 1
+                if _stage != Config.STAGE_1:
+                    self._save_error(error)
+                else:
+                    raise error
+                if nb_error > limit_error:
+                    raise error
             if _stage != Config.STAGE_1:
                 print(f"Bot sleep for {sleep_time}seconds...")
                 sleep(sleep_time)
             end = self._still_active()
             i += 1
-            # if i == 2:
-            #     raise Exception("End Code!🙂")
 
     @staticmethod
     def _still_active() -> bool:
@@ -92,3 +102,21 @@ class Bot(ModelFeature):
     @staticmethod
     def _generate_id(bkr: str, stg: str, prsbl: str) -> str:
         return bkr.lower() + Bot.SEPARATOR + stg.lower() + Bot.SEPARATOR + prsbl.lower()
+
+    @staticmethod
+    def _save_error(error: Exception) -> None:
+        from model.tools.FileManager import FileManager
+        from traceback import format_exc
+        orange = "\033[93m"
+        normal = "\033[0m"
+        print(orange + error.__str__() + normal)
+        rows = [{
+            Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+            "class": error.__class__.__name__,
+            "message": error.__str__(),
+            "trace": format_exc()
+        }]
+        fields = list(rows[0].keys())
+        path = Config.get(Config.DIR_SAVE_BOT_ERRORS)
+        overwrite = False
+        FileManager.write_csv(path, fields, rows, overwrite)

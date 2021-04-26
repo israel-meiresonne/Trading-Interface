@@ -326,34 +326,15 @@ def get_super_trend(closes: list, ups: list, downs: list) -> list:
 
 
 if __name__ == '__main__':
-    """
-    src = 'content/v0.01/2021-04-09 14.06.45_market.csv'
-    depot = 'content/v0.01/BTC_USDT-2021-04-09 14.06.45.csv'
-    apimarket_to_market(src, depot)
-    """
-    Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    rq_params = Map({
-        Map.symbol: 'BNBUSDT',
-        Map.id: None,
-        Map.begin_time: 1618783200000,
-        Map.end_time: None,
-        Map.limit: 30,
-        Map.timeout: None,
-    })
-    bnc_rq = BinanceRequest(BrokerRequest.RQ_ORDERS, rq_params)
-    bkr_params = Map({
-        Map.api_pb: '',
-        Map.api_sk: '',
-        Map.test_mode: False,
-    })
-    bnc_api = BinanceAPI(bkr_params.get(Map.api_pb), bkr_params.get(Map.api_sk), bkr_params.get(Map.test_mode))
-    # print(_MF.json_encode(bnc_api.get_exchange_info(Map.symbol, Pair("BNB/USDT").__str__())))
-    print(_MF.json_encode(bnc_api.get_exchange_info(Map.symbol)))
-    """
-    bnc = Binance(bkr_params)
-    bnc.request(bnc_rq)
-    rsp = bnc_rq.get_orders()
-    print(_MF.json_encode(rsp.get_map()))
-    """
+    import traceback
+    try:
+        raise ValueError("hello error")
+    except Exception as error:
+        trace = traceback.format_exc()
+        orange = "\033[93m"
+        normal = "\033[0m"
+        print(orange + error.__str__() + normal)
+        print("hello" + orange)
+        print("world")
 
 

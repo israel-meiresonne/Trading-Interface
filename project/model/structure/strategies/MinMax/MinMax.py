@@ -294,7 +294,7 @@ class MinMax(Strategy):
     '''
 
     # TREND(RSI)&TREND(CLOSE)V5.1: BUY
-    '''
+    # '''
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
@@ -366,7 +366,7 @@ class MinMax(Strategy):
         ]
         """
         return odrs
-    '''
+    # '''
 
     # TREND(RSI)&TREND(CLOSE)V5.2: BUY
     '''
@@ -432,7 +432,7 @@ class MinMax(Strategy):
     '''
 
     # TEST STAGE_3
-    # """
+    """
     TOUR = 0
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         self.TOUR += 1
@@ -447,7 +447,7 @@ class MinMax(Strategy):
         # self._move_up_secure_order(bkr, mkt_prc, odrs)
         self._sell(bkr, odrs)
         return odrs
-    # """
+    """
 
     def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
         # buy order
@@ -498,7 +498,7 @@ class MinMax(Strategy):
     '''
 
     # TREND(RSI)&TREND(CLOSE)V5.1,V5.2: SELL
-    '''
+    # '''
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
@@ -525,7 +525,7 @@ class MinMax(Strategy):
         self._save_move(**vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
-    '''
+    # '''
 
     def _sell(self, bkr: Broker, odrs: Map) -> None:
         old_scr_odr = self._get_secure_order()
@@ -566,7 +566,7 @@ class MinMax(Strategy):
             'close_trend_ok',
             'is_above_switch',
             'last_is_peak',
-            '_last_dropping_close',
+            '_last_dropping_super',
             'super_trend',
             'trend_first_idx',
             'last_trend_idx',
