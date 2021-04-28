@@ -15,21 +15,16 @@ from model.tools.Price import Price
 class MinMax(Strategy):
     _CONF_MAKET_PRICE = "config_market_price"
     _CONF_MAX_DR = "CONF_MAX_DR"
-    _CONF_STRATEGY_MAX_LOSS = "STRATEGY_MAX_LOSS"
 
     def __init__(self, prms: Map):
         super().__init__(prms)
         self.__configs = None
         self.__secure_order = None
-        # self._last_red_trend = None
         self._last_red_close = None
         self._last_dropping_close = None
 
     def _init_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
-            # _stage = Config.get(Config.STAGE_MODE)
-            # bkr_cls = bkr.__class__.__name__
-            # bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
             # Set Configs
             self._init_constants(bkr)
             # Set Capital
@@ -37,32 +32,13 @@ class MinMax(Strategy):
 
     def _init_capital(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        # bkr_cls = bkr.__class__.__name__
-        # bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
         cap = None
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             cap = Price(1000, self.get_pair().get_right().get_symbol())
         elif _stage == Config.STAGE_3:
-            """
-            snap_rq_prms = Map({
-                Map.account: BrokerRequest.ACCOUNT_MAIN,
-                Map.begin_time: None,
-                Map.end_time: self.get_timestamp(self.TIME_MILLISEC),
-                Map.number: 5,
-                Map.timeout: None,
-            })
-            exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
-            snap_rq = eval(bkr_rq_cls+f"('{BrokerRequest.RQ_ACCOUNT_SNAP}', snap_rq_prms)")
-            bkr.get_account_snapshot(snap_rq)
-            accounts = snap_rq.get_account_snapshot()
-            right = self.get_pair().get_right()
-            times = list(accounts.get(Map.account).keys())
-            cap = accounts.get(Map.account, times[-1], right.get_symbol())
-            """
             pass
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
-            # Raise error if set capital is bellow Broker's minimum trade amount
         self._set_capital(cap) if cap is not None else None
 
     def _init_constants(self, bkr: Broker) -> None:
@@ -89,10 +65,7 @@ class MinMax(Strategy):
                 Map.end_time: None,
                 Map.number: 100
             }),
-            self._CONF_MAX_DR: -0.05,
-            # self._CONF_STRATEGY_MAX_LOSS: -0.01  # DOGE
-            # self._CONF_STRATEGY_MAX_LOSS: -0.005  # BNB
-            self._CONF_STRATEGY_MAX_LOSS: Config.get(f"{self.get_pair().get_left().get_symbol().upper()}_STRATEGY_MAX_LOSS")
+            self._CONF_MAX_DR: -0.05
         })
 
     def __get_constants(self) -> Map:
@@ -145,15 +118,6 @@ class MinMax(Strategy):
         :return: True if holding else False
         """
         odrs = self._get_orders()
-        """
-        ks = odrs.get_keys()
-        ks.reverse()
-        for k in ks:
-            odr = odrs.get(k)
-            if odr.get_status() == Order.STATUS_COMPLETED:
-                has_pos = odr.get_move() == Order.MOVE_BUY
-                break
-        """
         return odrs.has_position()
 
     def _get_market_price(self, bkr: Broker) -> MarketPrice:
@@ -233,23 +197,31 @@ class MinMax(Strategy):
 
     def trade(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
+        # Init Strategy in First turn
         self._init_strategy(bkr)
+        # Get Market
         mkt_prc = self._get_market_price(bkr)
+        # Updatee Orders
         self._update_orders(bkr, mkt_prc)
-        # Save
-        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())  # \
-        # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
-        # raise Exception("End Code!🙂")
+        # Backup Capital
+        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())
+        # Get And Execute Orders
         if self._has_position():
             odrs_to_exec = self._try_sell(bkr, mkt_prc)
         else:
             odrs_to_exec = self._try_buy(bkr, mkt_prc)
         has_execution = len(odrs_to_exec.get_map()) > 0
         bkr.execute(odrs_to_exec) if has_execution else None
-        # raise Exception("End Code!🙂")
+        # Check Order Execution
         self._check_execution(bkr, mkt_prc, odrs_to_exec) if has_execution else None
 
     def _check_execution(self, bkr: Broker, mkt_prc: MarketPrice, odrs_to_exec: Map) -> None:
+        """
+        To check if all Order have been executed and retry execution of failed Order\n
+        :param bkr: access to a Broker's API
+        :param mkt_prc: market price
+        :param odrs_to_exec: executed Order
+        """
         odrs_failed = Map({idx: odr for idx, odr in odrs_to_exec.get_map().items()
                            if (odr.get_status() == Order.STATUS_FAILED) or (odr.get_status() == Order.STATUS_EXPIRED)})
         has_failed = len(odrs_failed.get_map()) > 0
@@ -325,7 +297,8 @@ class MinMax(Strategy):
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
-        :param bkr: an access to a Broker's API
+        :param bkr: access to a Broker's API
+        :param mkt_prc: market price
         :return: set of order to execute
                  Map[index{int}] => {Order}
         """
@@ -337,14 +310,6 @@ class MinMax(Strategy):
         # Close Trend
         close_trend = MarketPrice.get_super_trend_trend(closes, closes_supers, -1)
         close_trend_ok = close_trend == MarketPrice.SUPERTREND_RISING
-        """
-        # RSI Trend
-        rsi = mkt_prc.get_rsi()
-        rsis_trends = mkt_prc.get_super_trend_rsis()
-        rsis_trend = rsis_trends[0]
-        last_rsis_trend = rsis_trends[1]
-        rsi_trend_ok = (rsi > rsis_trend) or ((rsi < last_rsis_trend) and (rsi == rsis_trend))
-        """
         # Switch Point
         if (close_trend == MarketPrice.SUPERTREND_RISING) and (self._last_red_close is None):
             switchers = MarketPrice.get_super_trend_switchers(closes, closes_supers)
@@ -357,14 +322,7 @@ class MinMax(Strategy):
         super_trend = closes_supers[-1]
         # super_trend = closes[-1]
         is_above_switch = super_trend >= self._last_red_close if self._last_red_close is not None else False
-        """
-        # Peak
-        maxs = mkt_prc.get_maximums()
-        close_idx = 1
-        last_is_peak = close_idx in maxs
-        """
         # Checking
-        # if close_trend_ok and is_above_switch and last_is_peak:
         if close_trend_ok and is_above_switch:
             self._buy(bkr, mkt_prc, odrs)
             self._last_red_close = None
@@ -480,6 +438,13 @@ class MinMax(Strategy):
     """
 
     def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
+        """
+        To generate buy Order\n
+        NOTE: its include Buy Order and a secure Order\n
+        :param bkr: access to a Broker's API
+        :param mkt_prc: market price
+        :param odrs: where to place generated Order
+        """
         # buy order
         b_odr = self._new_buy_order(bkr)
         odrs.put(b_odr, len(odrs.get_map()))
@@ -558,12 +523,24 @@ class MinMax(Strategy):
     # '''
 
     def _sell(self, bkr: Broker, odrs: Map) -> None:
+        """
+        To generate sell Order\n
+        NOTE: its cancel secure Order and generate a sell Order\n
+        :param bkr: access to a Broker's API
+        :param odrs: where to place generated Order
+        """
         old_scr_odr = self._get_secure_order()
         bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
         s_odr = self._new_sell_order(bkr)
         odrs.put(s_odr, len(odrs.get_map()))
 
     def _move_up_secure_order(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
+        """
+        To move up the secure Order\n
+        :param bkr: access to a Broker's API
+        :param mkt_prc: market price
+        :param odrs: where to place generated Order
+        """
         old_scr_odr = self._get_secure_order()
         bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
         scr_odr = self._new_secure_order(bkr, mkt_prc)
