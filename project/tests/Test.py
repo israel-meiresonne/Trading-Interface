@@ -119,7 +119,7 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     for time in times:
         mkt = mkts[time]
         row = {
-            Map.time: int(mkt[0] / 1000),
+            Map.time: int(int(mkt[0]) / 1000),
             Map.open: mkt[1],
             Map.high: mkt[2],
             Map.low: mkt[3],
@@ -326,15 +326,6 @@ def get_super_trend(closes: list, ups: list, downs: list) -> list:
 
 
 if __name__ == '__main__':
-    import traceback
-    try:
-        raise ValueError("hello error")
-    except Exception as error:
-        trace = traceback.format_exc()
-        orange = "\033[93m"
-        normal = "\033[0m"
-        print(orange + error.__str__() + normal)
-        print("hello" + orange)
-        print("world")
-
-
+    src_path = 'content/v0.01/2021-04-29 00.23.04_market.csv'
+    depot_path = 'content/v0.01/DOGE_USDT-2021-04-29 00.23.04.csv'
+    apimarket_to_market(src_path, depot_path)

@@ -74,7 +74,7 @@ class Bot(_MF):
         sleep_time = 60
         _stage = Config.get(Config.STAGE_MODE)
         nb_error = 0
-        limit_error = 5
+        limit_error = 60
         while not end:
             print(f"Trade n°{i}")
             try:

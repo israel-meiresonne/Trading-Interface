@@ -44,49 +44,54 @@ class Controller:
         return True
 
     def new_bot(self):
+        _stage = Config.get(Config.STAGE_MODE)
         md = self.__get_model()
         vw = self.__get_view()
-        """
+        # """
         # params
-        bkrs = md.list_brokers()
-        stgs = md.list_strategies()
-        bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
-        stg = stgs[vw.menu("Choose a Strategy:", stgs)]
-        prcds = md.list_paires(bkr)
-        prcd = prcds[vw.menu("Choose a Pair to trade:", prcds)]
-        # configs
-        mds = {"Test mode": True, "Real mode": False}
-        mds_ks = list(mds.keys())
-        configs = Map({
-            bkr: {
-                Map.api_pb: vw.input(msg=f"Enter the public key for {bkr}", secure=True),
-                Map.api_sk: vw.input(msg=f"Enter the secret key for {bkr}", secure=True),
-                Map.test_mode: mds[mds_ks[vw.menu("Choose your mode:", mds_ks)]]
-            },
-            stg: {
-                Map.capital: 1000,
-                Map.rate: None
-            }
-        })
-        print(configs.get_map())
-        """
-        bkr = 'Binance'
-        stg = 'MinMax'
-        pair_codes = md.list_paires(bkr)
-        pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
-        # prcd = 'BTC/USDT'
-        configs = Map({
-            bkr: {
-                Map.api_pb: 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5',
-                Map.api_sk: 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr',
-                Map.test_mode: False
-            },
-            stg: {
-                Map.maximum: None,
-                Map.capital: 20,
-                Map.rate: 1
-            }
-        })
+        if _stage == Config.STAGE_3:
+            bkrs = md.list_brokers()
+            stgs = md.list_strategies()
+            bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
+            stg = stgs[vw.menu("Choose a Strategy:", stgs)]
+            pair_codes = md.list_paires(bkr)
+            pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
+            # configs
+            bkr_modes = {"Test mode": True, "Real mode": False}
+            bkr_modes_ks = list(bkr_modes.keys())
+            configs = Map({
+                bkr: {
+                    Map.api_pb: vw.input(message=f"Enter the public key for {bkr}", secure=True),
+                    Map.api_sk: vw.input(message=f"Enter the secret key for {bkr}", secure=True),
+                    Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
+                },
+                stg: {
+                    Map.capital: vw.input(message="Enter initial capital to used.", type_func="float"),
+                    Map.maximum: None,
+                    Map.rate: vw.input(message="Enter rate of total capital usable.(domain: ]0, 1]).", type_func="float")
+                }
+            })
+        elif (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
+            # """
+            bkr = 'Binance'
+            stg = 'MinMax'
+            pair_codes = md.list_paires(bkr)
+            pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
+            # prcd = 'BTC/USDT'
+            configs = Map({
+                bkr: {
+                    Map.api_pb: 'api_pb',
+                    Map.api_sk: 'api_sk',
+                    Map.test_mode: False
+                },
+                stg: {
+                    Map.maximum: None,
+                    Map.capital: 20,
+                    Map.rate: 1
+                }
+            })
+        else:
+            raise Exception(f"Unknwon stage '{_stage}'.")
         print(configs.get_map())
         # """
         # create Bot

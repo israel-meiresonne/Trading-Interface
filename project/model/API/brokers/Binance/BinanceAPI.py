@@ -711,7 +711,7 @@ class BinanceAPI:
         return Price(new_qty_val, quantity.get_asset().get_symbol())
 
     @staticmethod
-    def _get_new_price(value, _step, _min) -> float:
+    def _get_new_price(value: float, _step: [int, float], _min: [int, float]) -> float:
         """
         To generate a new value that will pass Binance API's filters\n
         :param value: the value to convert
@@ -719,13 +719,20 @@ class BinanceAPI:
         :param _min: the minimum value allowed
         :return: a new value that will pass Binance API's filters
         """
+        """
         nb_tick_in = int((value - _min) / _step)
         new_value = nb_tick_in * _step + _min
         nb_decimal = _MF.get_nb_decimal(value)
-        return round(new_value, nb_decimal)  # if nb_decimal is not None else round(new_value)
+        return round(new_value, nb_decimal)
+        """
+        value = float(value)
+        nb_tick_in = int((value - _min) / _step)
+        new_value = nb_tick_in * _step + _min
+        nb_decimal = _MF.get_nb_decimal(value)
+        return float(round(new_value, nb_decimal))
 
     @staticmethod
-    def _will_pass_filter(new_value, _step, _min) -> bool:
+    def _will_pass_filter(new_value: float, _step: [int, float], _min: [int, float]) -> bool:
         """
         To check if the new value will pass Binance API's filter\n
         :param new_value: the new value generated  with «BinanceAPI._get_new_price()»
@@ -733,9 +740,22 @@ class BinanceAPI:
         :param _min: the minimum value allowed
         :return: True if will pass Broker's filter else False
         """
+        """
         rest = (new_value - _min) % _step
         rounded = round(rest, 1)
         return rounded == 0
+        """
+        """
+        nb_decimal = _MF.get_nb_decimal(new_value)
+        nb_step = round((round((new_value - _min), nb_decimal) / _step), nb_decimal)
+        decimal = float(str(nb_step).split(".")[-1])
+        return decimal == 0
+        """
+        new_value = float(new_value)
+        nb_decimal = _MF.get_nb_decimal(new_value)
+        nb_step = round((round((new_value - _min), nb_decimal) / _step), nb_decimal)
+        decimal = float(str(nb_step).split(".")[-1])
+        return decimal == 0
 
     @staticmethod
     def _save_response(rq: str, rsp: Response) -> None:

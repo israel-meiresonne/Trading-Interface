@@ -6,7 +6,7 @@ from config.Config import Config
 _DATE = datetime.now().strftime("%Y-%m-%d %H.%M.%S")
 # Stage Modes
 # STAGE_MODE = Config.STAGE_2
-STAGE_MODE = None  # Config.STAGE_1
+STAGE_MODE = None
 # Files
 DIR_BINANCE_EXCHANGE_INFOS = "tests/datas/API/brokers/Binance/BinanceFakeAPI/response_exchange_infos.json"
 # Directories

@@ -265,5 +265,5 @@ class ModelFeature(ModelAccess):
         """
         if not isinstance(value, float):
             raise ValueError(f"The given value must be a float, instead '{value}'({type(value)})")
-        return len(str(value).split(".")[-1])  # if isinstance(value, float) else None
+        return len(str(float(value)).split(".")[-1])  # if isinstance(value, float) else None
 
