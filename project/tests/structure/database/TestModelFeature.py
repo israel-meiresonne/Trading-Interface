@@ -5,6 +5,15 @@ from model.structure.database.ModelFeature import ModelFeature
 
 
 class TestModelFeature(unittest.TestCase, ModelFeature):
+    def test_get_timestamp(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_date_to_unix(self) -> None:
+        raise Exception("Must implement this test")
+
+    def test_unix_to_date(self) -> None:
+        raise Exception("Must implement this test")
+
     def test_keys_exist(self) -> None:
         d = {"a": 1, "b": None, "c": "3", "d": ""}
         ks = ['a', 'b', 'c', 'd']

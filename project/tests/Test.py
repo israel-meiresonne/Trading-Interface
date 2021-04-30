@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 from pandas_ta import er as _er
@@ -326,6 +328,19 @@ def get_super_trend(closes: list, ups: list, downs: list) -> list:
 
 
 if __name__ == '__main__':
+    """
     src_path = 'content/v0.01/2021-04-29 00.23.04_market.csv'
     depot_path = 'content/v0.01/DOGE_USDT-2021-04-29 00.23.04.csv'
     apimarket_to_market(src_path, depot_path)
+    """
+    time = _MF.get_timestamp()
+    date = _MF.unix_to_date(time)
+    print(time)
+    print(date)
+    new_time = _MF.date_to_unix(date)
+    print(new_time)
+    print(_MF.unix_to_date(new_time))
+    """
+    1619803537718
+    2021-04-30 19:25:37.718
+    """

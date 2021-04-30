@@ -1,5 +1,6 @@
 from config.Config import Config
 from model.structure.Broker import Broker
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
@@ -335,7 +336,11 @@ class Orders(Order):
         from config.Config import Config
         from model.tools.FileManager import FileManager
         p = Config.get(Config.DIR_SAVE_ORDER_ACTIONS)
-        d = {Map.action: action, **odr.__dict__}
+        d = {
+            Map.time: _MF.unix_to_date(_MF.get_timestamp()),
+            Map.action: action,
+            **odr.__dict__
+        }
         key1 = "_Order__order_params"
         for k, v in d[key1].get_map().items():
             if isinstance(v, Price) or isinstance(v, Pair):

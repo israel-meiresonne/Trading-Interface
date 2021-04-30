@@ -44,7 +44,7 @@ class ModelFeature(ModelAccess):
         return datetime.fromisoformat(date).timestamp()
 
     @staticmethod
-    def unix_to_date(time: int, form: str = FORMAT_D_H_M_S_MS) -> str:
+    def unix_to_date(time: int, form: str = FORMAT_D_H_M_S) -> str:
         return datetime.fromtimestamp(time).strftime(form)
 
     # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ

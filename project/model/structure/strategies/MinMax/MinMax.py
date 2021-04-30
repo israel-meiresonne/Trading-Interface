@@ -530,7 +530,11 @@ class MinMax(Strategy):
         :param odrs: where to place generated Order
         """
         old_scr_odr = self._get_secure_order()
-        bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+        # bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+        secure_odr_status = old_scr_odr.get_status()
+        bkr.cancel(old_scr_odr) \
+            if (secure_odr_status == Order.STATUS_SUBMITTED) \
+               or (secure_odr_status == Order.STATUS_PROCESSING) else None
         s_odr = self._new_sell_order(bkr)
         odrs.put(s_odr, len(odrs.get_map()))
 
@@ -542,7 +546,11 @@ class MinMax(Strategy):
         :param odrs: where to place generated Order
         """
         old_scr_odr = self._get_secure_order()
-        bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+        # bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
+        secure_odr_status = old_scr_odr.get_status()
+        bkr.cancel(old_scr_odr) \
+            if (secure_odr_status == Order.STATUS_SUBMITTED) \
+               or (secure_odr_status == Order.STATUS_PROCESSING) else None
         scr_odr = self._new_secure_order(bkr, mkt_prc)
         odrs.put(scr_odr, len(odrs.get_map()))
 

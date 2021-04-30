@@ -872,7 +872,10 @@ class MarketPrice(ABC):
         mkt = [[str(v) for v in row] for row in mkt]
         # mkt = list(mkt)
         mkt.reverse()
-        rows = [{Map.market: _MF.json_encode(mkt)}]
+        rows = [{
+            Map.time: _MF.unix_to_date(_MF.get_timestamp()),
+            Map.market: _MF.json_encode(mkt)
+        }]
         fields = list(rows[0].keys())
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)

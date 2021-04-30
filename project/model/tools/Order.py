@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from config.Config import Config
-from model.structure.database.ModelFeature import ModelFeature as ModelFeat, ModelFeature
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
 from model.tools.Paire import Pair
 from model.tools.Price import Price
@@ -55,7 +55,7 @@ class Order(ABC, Request):
                         params[Map.amount]      => {Price}
         """
         super().__init__()
-        self.__id = self.PREFIX_ID + ModelFeature.new_code()
+        self.__id = self.PREFIX_ID + _MF.new_code()
         self.__broker_id = None
         if odr_type not in self.ODR_TYPES:
             raise ValueError(f"This Order type '{odr_type}' is not supported")
@@ -74,7 +74,7 @@ class Order(ABC, Request):
         self.__order_params = params
         self.__request_params = None
         self.__cancel_request_params = None
-        self.__settime = ModelFeat.get_timestamp(ModelFeat.TIME_MILLISEC)
+        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
         self.__execution_time = None
         self.__execution_price = None
         self.__executed_quantity = None
@@ -108,7 +108,7 @@ class Order(ABC, Request):
     def _check_market(params: Map) -> None:
         # Check Keys
         ks = [Map.pair, Map.move]
-        rtn = ModelFeature.keys_exist(ks, params.get_map())
+        rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to make a market Order")
         # Check Quantity and Amount
@@ -132,7 +132,7 @@ class Order(ABC, Request):
     def _check_stop(params: Map) -> None:
         # check params
         ks = [Map.pair, Map.move, Map.stop, Map.quantity]
-        rtn = ModelFeature.keys_exist(ks, params.get_map())
+        rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to make a stop Order")
         # check logic
@@ -142,7 +142,7 @@ class Order(ABC, Request):
     def _check_stop_limit(params: Map) -> None:
         # Check params
         ks = [Map.pair, Map.move, Map.stop, Map.limit, Map.quantity]
-        rtn = ModelFeature.keys_exist(ks, params.get_map())
+        rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to make a stop limit Order")
         # Check logic
