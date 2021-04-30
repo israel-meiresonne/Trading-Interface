@@ -3,12 +3,13 @@ from abc import ABC, abstractmethod
 
 class ViewInterface(ABC):
     @abstractmethod
-    def input(self, t=None):
+    def input(self, message: str = None, type_func: str = None, secure: bool = False) -> [str, int, float, bool]:
         """
-        To get input value\n
-        :param t: function name to convert input into that type
-        (i.e: str(), int(),...)
-        :return: the value entered
+        To input value\n
+        :param message: Message to display
+        :param type_func: Function used to convert input into a other type
+        :param secure: Set True to hide input in console else False to display input typed
+        :return: the value typed
         """
         pass
 

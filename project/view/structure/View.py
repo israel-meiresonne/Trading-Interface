@@ -32,18 +32,24 @@ class View(ViewInterface):
     def get_menus():
         return View.__MENUS
 
-    def input(self, msg=None, t=None, secure=False) -> [str, int, float, bool]:
-        msg = msg if msg is not None else ""
+    def input(self, message: str = None, type_func: str = None, secure: bool = False) -> [str, int, float, bool]:
+        """
+        To input value\n
+        :param message: Message to display
+        :param type_func: Function used to convert input into a other type
+        :param secure: Set True to hide input in console else False to display input typed
+        :return: the value typed
+        """
+        message = message if message is not None else ""
         if secure:
-            v = getpass.getpass(msg)
+            v = getpass.getpass(message)
         else:
-            v = input(msg)
-        if not secure and t is not None:
+            v = input(message)
+        if not secure and type_func is not None:
             s = False
             while not s:
                 try:
-                    # exec("v = "+t+"(v)")
-                    v = eval(t + "(v)")
+                    v = eval(type_func + "(v)")
                     s = True
                 except BaseException as e:
                     self.output(View.FILE_ERROR, e.__str__())
@@ -61,7 +67,7 @@ class View(ViewInterface):
         self.output("menu", dv_mp)
         s = False
         while not s:
-            v = self.input(t="int")
+            v = self.input(type_func="int")
             s = (0 <= v < len(cs))
             self.output(View.FILE_ERROR, "Option '{}' don't exit in menu".format(v)) \
                 if not s else None
@@ -70,7 +76,8 @@ class View(ViewInterface):
     def output(self, f: str, vd=None) -> None:
         print(self.__generate_file(f, vd))
 
-    def __generate_file(self, fc: str, vd=None) -> str:
+    @staticmethod
+    def __generate_file(fc: str, vd=None) -> str:
         c = ""
         with Buffer() as ls:
             exec("from view.files.view_func import " + fc)
