@@ -152,11 +152,6 @@ class Orders(Order):
                     if limit_price.get_value() != stop_price.get_value():
                         raise Exception("Must implement Order update when stop and limit price are different")
                     if (status != Order.STATUS_COMPLETED) and (stop_price.get_value() >= close_val):
-                        """
-                        odr._set_execution_price(stop_price)
-                        odr._set_status(Order.STATUS_COMPLETED)
-                        odr._set_execution_time(market.get_time())
-                        """
                         self._update_algo_order_stage_1_2(odr, market)
                         # Backup
                         self.insert_order(self.SAVE_ACTION_UPDATE, odr)
@@ -166,16 +161,26 @@ class Orders(Order):
     @staticmethod
     def _update_algo_order_stage_1_2(odr: Order, market: MarketPrice) -> None:
         stop_price = odr.get_stop_price()
-        # close = market.get_close()
+        pair = odr.get_pair()
+        r_symbol = pair.get_right().get_symbol()
+        l_symbol = pair.get_left().get_symbol()
         qty_obj = odr.get_quantity()
-        # qty_val = qty_obj.get_value()
-        exec_qty_obj = qty_obj  # Price(qty_val, qty_obj.get_asset().get_symbol())
-        exec_amount_obj = stop_price  # Price(stop_price.get_value(), odr.get_pair().get_right().get_symbol())
+        amount_obj = odr.get_amount()
+        fee_obj = Price(Order.FAKE_FEE, r_symbol)
+        exec_qty_obj = None
+        exec_amount_obj = None
+        if qty_obj is not None:
+            exec_qty_obj = qty_obj
+            exec_amount_obj = Price(stop_price * qty_obj, r_symbol)
+        elif amount_obj is not None:
+            exec_amount_obj = amount_obj
+            exec_qty_obj = Price(exec_amount_obj / stop_price, l_symbol)
         odr._set_execution_price(stop_price)
         odr._set_status(Order.STATUS_COMPLETED)
         odr._set_execution_time(market.get_time())
-        odr._set_executed_quantity(exec_qty_obj)  # if odr.get_quantity() is None else None
-        odr._set_executed_amount(exec_amount_obj)  # if odr.get_amount() is None else None
+        odr._set_executed_quantity(exec_qty_obj)
+        odr._set_executed_amount(exec_amount_obj)
+        odr._set_fee(fee_obj)
 
     def _update_stage_3(self, bkr: Broker) -> None:
         odrs = self._get_orders()
@@ -204,27 +209,6 @@ class Orders(Order):
             for idx, odr in odrs.get_map().items():
                 odr_status = odr.get_status()
                 if (odr_status == Order.STATUS_SUBMITTED) or (odr_status == Order.STATUS_PROCESSING):
-                    """
-                    # Get api Order
-                    odr_bkr_id = odr.get_broker_id()
-                    api_odr = odrs_datas.get(odr_bkr_id)
-                    # Get api Order's properties
-                    exec_price = api_odr.get(Map.price)
-                    # exec_price_obj = Price(exec_price, odr.get_pair().__str__())  # ⚠️ instead odr.get_pair().get_symbol()
-                    exec_price_obj = Price(exec_price, odr.get_pair().__str__())
-                    api_odr_status = api_odr.get(Map.status)
-                    api_exec_time = api_odr.get(Map.time)
-                    exec_qty = float(odrs_datas.get(Map.qty))
-                    exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty > 0 else None
-                    exec_amount = float(odrs_datas.get(Map.amount))
-                    exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount > 0 else None
-                    # Update
-                    odr._set_execution_price(exec_price_obj)
-                    odr._set_status(api_odr_status)
-                    odr._set_execution_time(api_exec_time)
-                    odr._set_executed_quantity(exec_qty_obj)  # if odr.get_quantity() is None else None
-                    odr._set_executed_amount(exec_amount_obj)  # if odr.get_amount() is None else None
-                    """
                     odr_bkr_id = odr.get_broker_id()
                     odr_datas = Map(odrs_datas.get(odr_bkr_id))
                     self._update_algo_order_stage_3(odr, odr_datas)
@@ -270,14 +254,20 @@ class Orders(Order):
         :return: amount stilling in each asset
                  Map[Map.left]  => {Price}
                  Map[Map.right] => {Price}
+                 Map[Map.fee]   => {Price}  # Price in right Asset
         """
         if len(odrs.get_map()) <= 0:
             raise ValueError("The collection of Order can't be empty")
         ks = odrs.get_keys()
         pr = odrs.get(ks[0]).get_pair()
         pr_str = pr.__str__
-        lspot = 0
-        rspot = 0
+        r_asset = pr.get_right()
+        l_asset = pr.get_left()
+        r_symbol = r_asset.get_symbol()
+        l_symbol = l_asset.get_symbol()
+        lspot = Price(0, l_symbol)
+        rspot = Price(0, r_symbol)
+        fees = Price(0, r_symbol)
         """
         for _, odr in odrs.get_map().items():
             if pr_str != odr.get_pair().__str__:
@@ -317,17 +307,21 @@ class Orders(Order):
                 move = odr.get_move()
                 exec_qty = odr.get_executed_quantity()
                 exec_amount = odr.get_executed_amount()
+                l_fee = odr.get_fee(l_asset)
+                r_fee = odr.get_fee(r_asset)
+                fees += r_fee
                 if move == Order.MOVE_BUY:
-                    lspot += exec_qty.get_value()
-                    rspot -= exec_amount.get_value()
+                    lspot += exec_qty - l_fee
+                    rspot -= exec_amount
                 elif move == Order.MOVE_SELL:
-                    lspot -= exec_qty.get_value()
-                    rspot += exec_amount.get_value()
+                    lspot -= exec_qty
+                    rspot += exec_amount - r_fee
                 else:
                     raise Exception("Unknown Order move")
         odrs_sum = Map({
-            Map.left: Price(lspot, pr.get_left().get_symbol()),
-            Map.right: Price(rspot, pr.get_right().get_symbol())
+            Map.left: lspot,
+            Map.right: rspot,
+            Map.fee: fees
         })
         return odrs_sum
 

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.Asset import Asset
 from model.tools.Map import Map
 from model.tools.Paire import Pair
 from model.tools.Price import Price
@@ -39,6 +40,8 @@ class Order(ABC, Request):
         STATUS_FAILED,
         STATUS_EXPIRED
     ]
+    # Constants
+    FAKE_FEE = 0.001
 
     @abstractmethod
     def __init__(self, odr_type: str, params: Map):
@@ -75,10 +78,12 @@ class Order(ABC, Request):
         self.__request_params = None
         self.__cancel_request_params = None
         self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
+        # After Execution Down
         self.__execution_time = None
         self.__execution_price = None
         self.__executed_quantity = None
         self.__executed_amount = None
+        self.__fee = None
         self.__subexecutions = None
         self._set_order(params)
 
@@ -241,16 +246,19 @@ class Order(ABC, Request):
 
     def _set_execution_time(self, time: int) -> None:
         if self.__execution_time is not None:
-            raise Exception(f"The execution time can't be updated.")
+            raise Exception(f"Order's execution time can't be updated.")
         self.__execution_time = int(time)
 
     def get_execution_time(self) -> int:
+        # if self.__execution_time is None:
+        #     raise Exception("The execution time must be set before.")
         return self.__execution_time
 
     def _set_execution_price(self, prc: Price) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
+        # _stage = Config.get(Config.STAGE_MODE)
         if self.__execution_price is not None:
             raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{prc}').")
+        """
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             pass
         elif _stage == Config.STAGE_3:
@@ -259,9 +267,12 @@ class Order(ABC, Request):
                 raise Exception("In stage 3, The sub-executions must be set before to set the execution price")
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
+        """
         self.__execution_price = prc
 
     def get_execution_price(self) -> Price:
+        # if self.__execution_price is None:
+        #     raise Exception("The execution price must be set before.")
         return self.__execution_price
 
     def _set_executed_quantity(self, quantity: Price) -> None:
@@ -271,6 +282,8 @@ class Order(ABC, Request):
         self.__executed_quantity = quantity
 
     def get_executed_quantity(self) -> Price:
+        # if self.__executed_quantity is None:
+        #     raise Exception("The executed quantity must be set before.")
         return self.__executed_quantity
 
     def _set_executed_amount(self, amount: Price) -> None:
@@ -280,7 +293,38 @@ class Order(ABC, Request):
         self.__executed_amount = amount
 
     def get_executed_amount(self) -> Price:
+        # if self.__executed_amount is None:
+        #     raise Exception("The executed amount must be set before.")
         return self.__executed_amount
+
+    def _set_fee(self, fee: Price) -> None:
+        if self.__fee is not None:
+            raise Exception(f"Order's fee can't be updated.")
+        pair = self.get_pair()
+        l_symbol = pair.get_left().get_symbol()
+        r_symbol = pair.get_right().get_symbol()
+        fee_symbol = fee.get_asset().get_symbol()
+        exec_price = self.get_execution_price()
+        if fee_symbol == l_symbol:
+            l_fee = fee
+            r_fee = Price(fee * exec_price, r_symbol)
+        elif fee_symbol == r_symbol:
+            l_fee = Price(fee / exec_price, l_symbol)
+            r_fee = fee
+        else:
+            raise ValueError(f"The fee's symbol '{fee_symbol}' don't match Order's pair '{pair}'.")
+        self.__fee = Map({
+            l_symbol: l_fee,
+            r_symbol: r_fee,
+        })
+
+    def get_fee(self, asset: Asset) -> Price:
+        # if self.__fee is None:
+        #    raise Exception("The fee must be set before.")
+        pair = self.get_pair()
+        if (asset != pair.get_left()) and (asset != pair.get_right()):
+            raise ValueError(f"There is not fee with this symbol '{asset}' (Order's pair '{pair}').")
+        return self.__fee.get(asset.get_symbol()) if isinstance(self.__fee, Map) else None
 
     def _set_subexecutions(self, fills: list) -> None:
         """
@@ -291,8 +335,8 @@ class Order(ABC, Request):
         self.__subexecutions = fills
 
     def get_subexecutions(self) -> list:
-        if self.__subexecutions is None:
-            raise Exception("The subexecutions must be set")
+        # if self.__subexecutions is None:
+        #     raise Exception("The subexecutions must be set before.")
         return self.__subexecutions
 
     def _set_request_params(self, params: Map) -> None:

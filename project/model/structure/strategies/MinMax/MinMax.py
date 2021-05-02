@@ -599,21 +599,29 @@ class MinMax(Strategy):
     def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
         cap = self._get_capital()
+        r_symbol = cap.get_asset().get_symbol()
         sell_qty = self._get_sell_quantity()
         buy_amount = self._get_buy_capital()
         odrs = self._get_orders()
         positions_value = sell_qty.get_value() * close if sell_qty.get_value() > 0 else 0
-        current_capital = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
-        perf = (current_capital/cap.get_value() - 1) * 100
+        current_capital_val = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
+        perf = (current_capital_val / cap.get_value() - 1) * 100
+        sum_odr = odrs.get_sum() if odrs.get_size() > 0 else None
+        fees = sum_odr.get(Map.fee) if sum_odr is not None else Price(0, r_symbol)
+        real_perf = ((current_capital_val - fees.get_value()) / cap - 1) * 100
+        current_capital_obj = Price(current_capital_val, r_symbol)
         rows = [{
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
             'close': close,
             'initial': cap,
-            'current': Price(current_capital, cap.get_asset().get_symbol()),
+            'current_capital': current_capital_obj,
+            'real_capital': current_capital_obj - fees,
+            'fees': fees,
             'left': sell_qty,
             'right': buy_amount,
             'positions_value': positions_value,
-            'capital_perf': f"{round(perf, 2)}%"
+            'capital_perf': f"{round(perf, 2)}%",
+            'real_perf': f"{round(real_perf, 2)}%"
         }]
         fields = list(rows[0].keys())
         overwrite = False

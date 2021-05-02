@@ -190,8 +190,8 @@ class BinanceOrder(Order):
         return Map(_MF.clean(cancel_params.get_map()))
 
     def handle_response(self, rsp: BrokerResponse) -> None:
-        self._set_response(rsp)
         _stage = Config.get(Config.STAGE_MODE)
+        self._set_response(rsp)
         status_code = rsp.get_status_code()
         if status_code != 200:
             self._set_status(Order.STATUS_FAILED)
@@ -203,8 +203,9 @@ class BinanceOrder(Order):
 
     def _update_order(self, rsp: BrokerResponse) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        r_symbol = self.get_pair().get_right().get_symbol()
-        l_symbol = self.get_pair().get_left().get_symbol()
+        pair = self.get_pair()
+        r_symbol = pair.get_right().get_symbol()
+        l_symbol = pair.get_left().get_symbol()
         # Extract From Rsp
         content = Map(rsp.get_content())
         status = self.convert_status(content.get(Map.status))
@@ -216,27 +217,31 @@ class BinanceOrder(Order):
         exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount > 0 else None
         odr_bkr_id = content.get(Map.orderId)
         # Stages
-        prc_obj = None
+        # exec_price_obj = None
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            prc_val = content.get(Map.price)
+            exec_price_val = content.get(Map.price)
+            fee_obj = Price(Order.FAKE_FEE, r_symbol) if exec_price_val is not None else None
         elif _stage == Config.STAGE_3:
             # Execution price
-            subexec = content.get(Map.fills)
-            subexec = subexec if subexec is not None else []
-            self._set_subexecutions(subexec)
-            subexec_datas = self.resume_subexecution(subexec) if len(subexec) > 0 else None
-            prc_val = subexec_datas.get(Map.price) if subexec_datas is not None else None
+            fills = content.get(Map.fills)
+            # subexec = fills if fills is not None else None
+            self._set_subexecutions(fills) if fills is not None else None
+            subexec_datas = self.resume_subexecution(fills) if fills is not None else None
+            exec_price_val = subexec_datas.get(Map.price) if subexec_datas is not None else None
+            fee_obj = subexec_datas.get(Map.fee) if subexec_datas is not None else None
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
-        if prc_val is not None:
-            prc_obj = Price(prc_val, r_symbol)
+        # if exec_price_val is not None:
+        #    exec_price_obj = Price(exec_price_val, r_symbol)
+        exec_price_obj = Price(exec_price_val, r_symbol) if exec_price_val is not None else None
         # Update
         self._set_status(status)
         self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
         self._set_execution_time(exec_time) if (self.get_execution_time() is None) and (exec_time is not None) else None
-        self._set_execution_price(prc_obj) if self.get_execution_price() is None else None
+        self._set_execution_price(exec_price_obj) if self.get_execution_price() is None else None
         self._set_executed_quantity(exec_qty_obj) if self.get_executed_quantity() is None else None
         self._set_executed_amount(exec_amount_obj) if self.get_executed_amount() is None else None
+        self._set_fee(fee_obj) if fee_obj is not None else None
 
     @staticmethod
     def _get_status_converter() -> Map:
@@ -271,18 +276,18 @@ class BinanceOrder(Order):
     def resume_subexecution(fills: list) -> Map:
         """
         To extract datas from sub-execution\n
+                    [
+                        {
+                          "price": "4000.00000000",
+                          "qty": "1.00000000",
+                          "commission": "4.00000000",
+                          "commissionAsset": "USDT"
+                        }
+                    ]\n
         :param fills: list of Binance's sub-executions
-        [
-            {
-              "price": "4000.00000000",
-              "qty": "1.00000000",
-              "commission": "4.00000000",
-              "commissionAsset": "USDT"
-            }
-        ]
-        :return: extracted datas
-        datas[Map.price]: {float}   | average execution price
-        datas[Map.fee]:   {Price}   | total fees
+        :return: extracted datas\n
+                 datas[Map.price]: {float}   | average execution price
+                 datas[Map.fee]:   {Price}   | total fees
         """
         if len(fills) == 0:
             raise ValueError(f"The lis of sub-executions can't be empty")
