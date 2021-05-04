@@ -333,14 +333,15 @@ if __name__ == '__main__':
     depot_path = 'content/v0.01/DOGE_USDT-2021-04-29 00.23.04.csv'
     apimarket_to_market(src_path, depot_path)
     """
-    time = _MF.get_timestamp()
-    date = _MF.unix_to_date(time)
-    print(time)
-    print(date)
-    new_time = _MF.date_to_unix(date)
-    print(new_time)
-    print(_MF.unix_to_date(new_time))
-    """
-    1619803537718
-    2021-04-30 19:25:37.718
-    """
+    bnc_conf = Map({
+        Map.api_pb: '',
+        Map.api_sk: '',
+        Map.test_mode: False
+    })
+    bnc = Binance(bnc_conf)
+    fees1 = bnc.get_trade_fee(Pair("BNB/USDT"))
+    print(id(fees1))
+    print(fees1)
+    fees2 = bnc.get_trade_fee(Pair("BNB/USDT"))
+    print(id(fees2))
+    print(fees2)

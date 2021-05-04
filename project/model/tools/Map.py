@@ -66,6 +66,10 @@ class Map:
     minQty = "minQty"
     maxQty = "maxQty"
     stepSize = "stepSize"
+    taker = "taker"
+    maker = "maker"
+    takerCommission = "takerCommission"
+    makerCommission = "makerCommission"
     # BinanceOrder
     move = "move"
     pair = "pair"

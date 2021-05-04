@@ -6,6 +6,7 @@ from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
 from model.tools.Map import Map
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 
 
 class Binance(Broker):
@@ -50,6 +51,11 @@ class Binance(Broker):
         prms = bnc_rq.generate_request()
         rsp = api.request_api(rq, prms)
         bnc_rq.handle_response(rsp)
+
+    def get_trade_fee(self, pair: Pair) -> Map:
+        api = self.__get_api()
+        fee = api.get_trade_fee(pair)
+        return Map(fee)
 
     def execute(self, order: Order) -> None:
         api = self.__get_api()

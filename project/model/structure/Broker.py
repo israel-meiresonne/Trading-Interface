@@ -5,6 +5,7 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Order import Order
 from config.Config import Config
+from model.tools.Paire import Pair
 
 
 class Broker(ModelFeature):
@@ -31,6 +32,15 @@ class Broker(ModelFeature):
         """
         To get the MarketPrice\n
         :param bkr_rq: holds parameters required
+        """
+        pass
+
+    @abstractmethod
+    def get_trade_fee(self, pair: Pair) -> Map:
+        """
+        To get trade fees of the given Pair from Binance's API\n
+        :param pair: the pair to get the trade fees
+        :return: trade fees of the given Pair
         """
         pass
 

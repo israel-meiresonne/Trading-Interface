@@ -21,6 +21,7 @@ class BinanceAPI:
     RQ_EXCHANGE_INFOS = "RQ_EXCHANGE_INFOS"
     RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
+    RQ_TRADE_FEE = "RQ_TRADE_FEE"
     # Orders
     RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
     RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
@@ -75,6 +76,18 @@ class BinanceAPI:
                 Map.startTime,
                 Map.endTime,
                 Map.limit
+            ]
+        },
+        RQ_TRADE_FEE: {
+            Map.signed: True,
+            Map.method: Map.GET,
+            Map.path: "/sapi/v1/asset/tradeFee",
+            Map.mandatory: [
+                # Map.timestamp | automatically added in BinanceAPI.__sign()
+            ],
+            Map.params: [
+                Map.symbol,
+                Map.recvWindow
             ]
         },
         RQ_ALL_ORDERS: {
@@ -349,6 +362,12 @@ class BinanceAPI:
     CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT = 30
     # API Constants
     _EXCHANGE_INFOS = None
+    _TRADE_FEES = None
+    """
+    _TRADE_FEES[symbol{str}][Map.symbol]:     {str}   # Symbol Format: bnb/usdt => 'bnbusdt'
+    _TRADE_FEES[symbol{str}][Map.taker]:      {float}
+    _TRADE_FEES[symbol{str}][Map.maker]:      {float}
+    """
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
         """
@@ -367,6 +386,7 @@ class BinanceAPI:
             BinanceAPI.__PATH_ORDER = self.ORDER_TEST_PATH
         self._update_order_config()
         self._set_exchange_infos()
+        self._set_trade_fees() if self._get_trade_fees() is None else None
 
     def _update_order_config(self) -> None:
         rq_configs = self.__get_request_configs()
@@ -443,6 +463,41 @@ class BinanceAPI:
             keys_str = "', '".join(keys)
             raise IndexError(f"This key(s) ['{keys_str}'] don't exist in exchange's infos.")
         return info
+
+    def _set_trade_fees(self) -> None:
+        if BinanceAPI._TRADE_FEES is not None:
+            raise Exception(f"Trade fees are already set.")
+        rsp = self.request_api(self.RQ_TRADE_FEE, Map())
+        fees_list = rsp.get_content()
+        fees = Map()
+        for row in fees_list:
+            symbol = row[Map.symbol].lower()
+            fee = {
+                Map.pair: symbol,
+                Map.taker: float(row[Map.takerCommission]),
+                Map.maker: float(row[Map.makerCommission])
+            }
+            fees.put(fee, symbol)
+        BinanceAPI._TRADE_FEES = fees
+
+    @staticmethod
+    def _get_trade_fees() -> Map:
+        return BinanceAPI._TRADE_FEES
+
+    @staticmethod
+    def get_trade_fee(pair: Pair) -> dict:
+        """
+        To get trade fees of the given Pair from Binance's API\n
+        :param pair: the pair to get the trade fees
+        :return: trade fees of the given Pair
+        """
+        fees = BinanceAPI._get_trade_fees()
+        if fees is None:
+            raise Exception(f"Trade fees must be set before. (pair: '{pair}')")
+        fee = fees.get(pair.get_merged_symbols())
+        if fee is None:
+            raise ValueError(f"Binance's API don't support this pair '{pair}'.")
+        return fee
 
     @staticmethod
     def __get_request_configs() -> dict:
