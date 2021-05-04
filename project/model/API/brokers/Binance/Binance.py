@@ -1,6 +1,7 @@
 from random import random
 
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
 from model.tools.Map import Map
@@ -50,20 +51,19 @@ class Binance(Broker):
         rsp = api.request_api(rq, prms)
         bnc_rq.handle_response(rsp)
 
-    def execute(self, odrs: Map) -> None:
+    def execute(self, order: Order) -> None:
         api = self.__get_api()
-        for _, odr in odrs.get_map().items():
-            rq = odr.get_api_request()
-            rq_prms = odr.generate_order()
-            rq_rsp = api.request_api(rq, rq_prms)
-            odr.handle_response(rq_rsp)
+        rq = order.get_api_request()
+        rq_params = order.generate_order()
+        rq_rsp = api.request_api(rq, rq_params)
+        order.handle_response(rq_rsp)
 
-    def cancel(self, odr: Order) -> None:
-        params = odr.generate_cancel_order()
-        rq = BinanceAPI.RQ_CANCEL_ORDER
+    def cancel(self, order: Order) -> None:
         api = self.__get_api()
+        params = order.generate_cancel_order()
+        rq = BinanceAPI.RQ_CANCEL_ORDER
         rsp = api.request_api(rq, params)
-        odr.handle_response(rsp)
+        order.handle_response(rsp)
 
     def get_next_trade_time(self) -> int:
         return int(random() * 10)

@@ -38,7 +38,7 @@ class BinanceAPI:
         RQ_SYS_STATUS: {
             Map.signed: False,
             Map.method: Map.GET,
-            Map.path: "/wapi/v3/systemStatus.html",
+            Map.path: "/sapi/v1/system/status",
             Map.mandatory: [],
             Map.params: []
         },

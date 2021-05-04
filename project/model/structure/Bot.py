@@ -77,6 +77,7 @@ class Bot(_MF):
         limit_error = 60
         while not end:
             print(f"Trade n°{i}")
+            # Trade
             try:
                 stg.trade(bkr)
                 nb_error = 0
@@ -88,6 +89,8 @@ class Bot(_MF):
                     raise error
                 if nb_error > limit_error:
                     raise error
+            # raise Exception("End Code!🙂")
+            # Sleep
             if _stage != Config.STAGE_1:
                 print(f"Bot sleep for {sleep_time}seconds...")
                 sleep(sleep_time)

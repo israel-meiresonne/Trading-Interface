@@ -35,18 +35,18 @@ class Broker(ModelFeature):
         pass
 
     @abstractmethod
-    def execute(self, odrs: Map) -> None:
+    def execute(self, order: Order) -> None:
         """
-        To submit Order requests to Broker's API\n
-        :param odrs: the Orders to execute
+        To submit Order to Broker's API\n
+        :param order: the Order to execute
         """
         pass
 
     @abstractmethod
-    def cancel(self, odr: Order) -> None:
+    def cancel(self, order: Order) -> None:
         """
         To cancel an Order\n
-        :param odr: the order to cancel
+        :param order: the order to cancel
         """
         pass
 

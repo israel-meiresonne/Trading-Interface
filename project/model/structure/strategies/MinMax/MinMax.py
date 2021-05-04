@@ -15,6 +15,10 @@ from model.tools.Price import Price
 class MinMax(Strategy):
     _CONF_MAKET_PRICE = "config_market_price"
     _CONF_MAX_DR = "CONF_MAX_DR"
+    _EXEC_BUY = "EXEC_BUY"
+    _EXEC_PLACE_SECURE = "EXEC_PLACE_SECURE"
+    _EXEC_SELL = "EXEC_SELL"
+    _EXEC_CANCEL_SECURE = "EXEC_CANCEL_SECURE"
 
     def __init__(self, prms: Map):
         super().__init__(prms)
@@ -207,14 +211,40 @@ class MinMax(Strategy):
         self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())
         # Get And Execute Orders
         if self._has_position():
-            odrs_to_exec = self._try_sell(bkr, mkt_prc)
+            executions = self._try_sell(mkt_prc)
         else:
-            odrs_to_exec = self._try_buy(bkr, mkt_prc)
-        has_execution = len(odrs_to_exec.get_map()) > 0
-        bkr.execute(odrs_to_exec) if has_execution else None
+            executions = self._try_buy(mkt_prc)
+        # has_execution = len(executions.get_map()) > 0
+        # bkr.execute(odrs_to_exec) if has_execution else None
+        self.execute(bkr, mkt_prc, executions)
         # Check Order Execution
-        self._check_execution(bkr, mkt_prc, odrs_to_exec) if has_execution else None
+        # self._check_execution(bkr, mkt_prc, odrs_to_exec) if has_execution else None
 
+    def execute(self, bkr: Broker, mkt_prc: MarketPrice, executions: Map) -> None:
+        # from time import sleep                                          # ❌
+        # sleep_time = 5                                                  # ❌
+        for idx, execution in executions.get_map().items():
+            # print(f"Execution: '{execution}'")                          # ❌
+            if execution == self._EXEC_BUY:
+                buy_order = self._new_buy_order(bkr)
+                bkr.execute(buy_order)
+            elif execution == self._EXEC_PLACE_SECURE:
+                secure_order = self._new_secure_order(bkr, mkt_prc)
+                bkr.execute(secure_order)
+            elif execution == self._EXEC_SELL:
+                sell_order = self._new_sell_order(bkr)
+                bkr.execute(sell_order)
+            elif execution == self._EXEC_CANCEL_SECURE:
+                old_secure_order = self._get_secure_order()
+                secure_odr_status = old_secure_order.get_status()
+                if secure_odr_status == Order.STATUS_SUBMITTED:  # or (secure_odr_status == Order.STATUS_PROCESSING):
+                    bkr.cancel(old_secure_order)
+            else:
+                raise Exception(f"Unknown execution '{execution}'.")
+            # print(f"sleep for {sleep_time} seconds...")                 # ❌
+            # sleep(sleep_time)                                           # ❌
+
+    '''
     def _check_execution(self, bkr: Broker, mkt_prc: MarketPrice, odrs_to_exec: Map) -> None:
         """
         To check if all Order have been executed and retry execution of failed Order\n
@@ -240,6 +270,7 @@ class MinMax(Strategy):
                     odr_id = odr.get_id()
                     raise Exception(f"Unknown Order's state (move: '{move}', type: '{odr_type}', id: '{odr_id}').")
             bkr.execute(new_odrs_to_exec) if len(new_odrs_to_exec.get_map()) > 0 else None
+    '''
 
     # TREND(RSI)&TREND(CLOSE)V5.0: BUY
     '''
@@ -294,7 +325,7 @@ class MinMax(Strategy):
 
     # TREND(RSI)&TREND(CLOSE)V5.1: BUY
     # '''
-    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+    def _try_buy(self, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
         :param bkr: access to a Broker's API
@@ -302,7 +333,7 @@ class MinMax(Strategy):
         :return: set of order to execute
                  Map[index{int}] => {Order}
         """
-        odrs = Map()
+        executions = Map()
         closes = list(mkt_prc.get_closes())
         closes.reverse()
         closes_supers = list(mkt_prc.get_super_trend())
@@ -324,7 +355,7 @@ class MinMax(Strategy):
         is_above_switch = super_trend >= self._last_red_close if self._last_red_close is not None else False
         # Checking
         if close_trend_ok and is_above_switch:
-            self._buy(bkr, mkt_prc, odrs)
+            self._buy(executions)
             self._last_red_close = None
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
@@ -353,7 +384,7 @@ class MinMax(Strategy):
             'super_trends'
         ]
         """
-        return odrs
+        return executions
     # '''
 
     # TREND(RSI)&TREND(CLOSE)V5.2: BUY
@@ -421,29 +452,24 @@ class MinMax(Strategy):
 
     # TEST STAGE_3
     """
-    TOUR = 0
     def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
-        self.TOUR += 1
-        if self.TOUR == 3:
-            raise Exception("End Code!🙂")
-        odrs = Map()
-        self._buy(bkr, mkt_prc, odrs)
-        return odrs
+        executions = Map()
+        self._buy(bkr, mkt_prc, executions)
+        self._move_up_secure_order(bkr, mkt_prc, executions)
+        self._sell(bkr, executions)
+        return executions
 
     def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
-        odrs = Map()
-        # self._move_up_secure_order(bkr, mkt_prc, odrs)
-        self._sell(bkr, odrs)
-        return odrs
+        raise Exception("❌ NO TRY SELL")
+        return executions
     """
 
-    def _buy(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
+    def _buy(self, executions: Map) -> None:
         """
-        To generate buy Order\n
+        To add buy execution\n
         NOTE: its include Buy Order and a secure Order\n
-        :param bkr: access to a Broker's API
-        :param mkt_prc: market price
-        :param odrs: where to place generated Order
+        :param executions: where to place generated Order
+        """
         """
         # buy order
         b_odr = self._new_buy_order(bkr)
@@ -451,6 +477,11 @@ class MinMax(Strategy):
         # secure order
         scr_odr = self._new_secure_order(bkr, mkt_prc)
         odrs.put(scr_odr, len(odrs.get_map()))
+        """
+        # Buy Order
+        executions.put(self._EXEC_BUY, len(executions.get_map()))
+        # Place Secure order
+        executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
     # ——————————————————————— BUY UP ————————————————————————————————————————————
     # ——————————————————————— SELL DOWN —————————————————————————————————————————
@@ -494,7 +525,7 @@ class MinMax(Strategy):
 
     # TREND(RSI)&TREND(CLOSE)V5.1,V5.2: SELL
     # '''
-    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+    def _try_sell(self, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
         :param bkr: an access to a Broker's API
@@ -502,7 +533,7 @@ class MinMax(Strategy):
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
         """
-        odrs = Map()
+        executions = Map()
         # Close Trend
         close = mkt_prc.get_close()
         closes_supers = mkt_prc.get_super_trend()
@@ -512,22 +543,23 @@ class MinMax(Strategy):
         stop_base_prc = secure_odr_prc / (1 + self._get_constant(self._CONF_MAX_DR))
         # CHECK
         if close_trend_ok:
-            self._sell(bkr, odrs)
+            self._sell(executions)
         elif mkt_prc.get_close() > stop_base_prc:
-            self._move_up_secure_order(bkr, mkt_prc, odrs)
+            self._move_up_secure_order(executions)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
         self._save_move(**vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
-        return odrs
+        return executions
     # '''
 
-    def _sell(self, bkr: Broker, odrs: Map) -> None:
+    def _sell(self, executions: Map) -> None:
         """
         To generate sell Order\n
         NOTE: its cancel secure Order and generate a sell Order\n
         :param bkr: access to a Broker's API
-        :param odrs: where to place generated Order
+        :param executions: where to place generated Order
+        """
         """
         old_scr_odr = self._get_secure_order()
         # bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
@@ -537,13 +569,19 @@ class MinMax(Strategy):
                or (secure_odr_status == Order.STATUS_PROCESSING) else None
         s_odr = self._new_sell_order(bkr)
         odrs.put(s_odr, len(odrs.get_map()))
+        """
+        # Cancel Secure Order
+        executions.put(self._EXEC_CANCEL_SECURE, len(executions.get_map()))
+        # Sell
+        executions.put(self._EXEC_SELL, len(executions.get_map()))
 
-    def _move_up_secure_order(self, bkr: Broker, mkt_prc: MarketPrice, odrs: Map) -> None:
+    def _move_up_secure_order(self, executions: Map) -> None:
         """
         To move up the secure Order\n
         :param bkr: access to a Broker's API
         :param mkt_prc: market price
-        :param odrs: where to place generated Order
+        :param executions: where to place generated Order
+        """
         """
         old_scr_odr = self._get_secure_order()
         # bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
@@ -553,6 +591,11 @@ class MinMax(Strategy):
                or (secure_odr_status == Order.STATUS_PROCESSING) else None
         scr_odr = self._new_secure_order(bkr, mkt_prc)
         odrs.put(scr_odr, len(odrs.get_map()))
+        """
+        # Cancel Secure Order
+        executions.put(self._EXEC_CANCEL_SECURE, len(executions.get_map()))
+        # Place Secure order
+        executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
     # ——————————————— SAVE DOWN ———————————————
 
@@ -603,25 +646,25 @@ class MinMax(Strategy):
         sell_qty = self._get_sell_quantity()
         buy_amount = self._get_buy_capital()
         odrs = self._get_orders()
-        positions_value = sell_qty.get_value() * close if sell_qty.get_value() > 0 else 0
+        positions_value = sell_qty.get_value() * close # if sell_qty.get_value() > 0 else 0
         current_capital_val = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
         perf = (current_capital_val / cap.get_value() - 1) * 100
         sum_odr = odrs.get_sum() if odrs.get_size() > 0 else None
         fees = sum_odr.get(Map.fee) if sum_odr is not None else Price(0, r_symbol)
-        real_perf = ((current_capital_val - fees.get_value()) / cap - 1) * 100
+        # real_perf = ((current_capital_val - fees.get_value()) / cap - 1) * 100
         current_capital_obj = Price(current_capital_val, r_symbol)
         rows = [{
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
             'close': close,
             'initial': cap,
             'current_capital': current_capital_obj,
-            'real_capital': current_capital_obj - fees,
+            # 'real_capital': current_capital_obj - fees,
             'fees': fees,
             'left': sell_qty,
             'right': buy_amount,
             'positions_value': positions_value,
             'capital_perf': f"{round(perf, 2)}%",
-            'real_perf': f"{round(real_perf, 2)}%"
+            # 'real_perf': f"{round(real_perf, 2)}%"
         }]
         fields = list(rows[0].keys())
         overwrite = False

@@ -33,9 +33,11 @@ class BinanceOrder(Order):
     def _set_stop_price(self, stop: Price) -> None:
         self._stop = BinanceAPI.fixe_price(self.get_pair(), stop)
 
-    def _set_quantity(self, qty: Price) -> None:
+    def _set_quantity(self, quanty: Price) -> None:
+        pair = self.get_pair()
+        new_qty = BinanceAPI.fixe_quantity(pair, quanty, False)
         is_market_order = self.get_type() == self.TYPE_MARKET
-        self._quantity = BinanceAPI.fixe_quantity(self.get_pair(), qty, is_market_order)
+        self._quantity = BinanceAPI.fixe_quantity(pair, new_qty, is_market_order) if is_market_order else new_qty
 
     def __set_api_request(self, rq: str) -> None:
         self.__api_request = rq
@@ -225,8 +227,9 @@ class BinanceOrder(Order):
             # Execution price
             fills = content.get(Map.fills)
             # subexec = fills if fills is not None else None
-            self._set_subexecutions(fills) if fills is not None else None
-            subexec_datas = self.resume_subexecution(fills) if fills is not None else None
+            fills_ok = (fills is not None) and (len(fills) > 0)
+            self._set_subexecutions(fills) if fills_ok else None
+            subexec_datas = self.resume_subexecution(fills) if fills_ok else None
             exec_price_val = subexec_datas.get(Map.price) if subexec_datas is not None else None
             fee_obj = subexec_datas.get(Map.fee) if subexec_datas is not None else None
         else:
@@ -290,7 +293,7 @@ class BinanceOrder(Order):
                  datas[Map.fee]:   {Price}   | total fees
         """
         if len(fills) == 0:
-            raise ValueError(f"The lis of sub-executions can't be empty")
+            raise ValueError(f"The list of sub-executions can't be empty.")
         qty_total = 0
         fees = 0
         new_fills = []
