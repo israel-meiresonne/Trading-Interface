@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 
 from config.Config import Config
 from model.structure.Broker import Broker
@@ -385,6 +385,7 @@ class MinMax(Strategy):
         ]
         """
         return executions
+
     # '''
 
     # TREND(RSI)&TREND(CLOSE)V5.2: BUY
@@ -551,6 +552,7 @@ class MinMax(Strategy):
         self._save_move(**vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return executions
+
     # '''
 
     def _sell(self, executions: Map) -> None:
@@ -646,7 +648,7 @@ class MinMax(Strategy):
         sell_qty = self._get_sell_quantity()
         buy_amount = self._get_buy_capital()
         odrs = self._get_orders()
-        positions_value = sell_qty.get_value() * close # if sell_qty.get_value() > 0 else 0
+        positions_value = sell_qty.get_value() * close  # if sell_qty.get_value() > 0 else 0
         current_capital_val = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
         perf = (current_capital_val / cap.get_value() - 1) * 100
         sum_odr = odrs.get_sum() if odrs.get_size() > 0 else None
@@ -669,3 +671,85 @@ class MinMax(Strategy):
         fields = list(rows[0].keys())
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
+
+    # ——————————————— STATIC METHOD DOWN ———————————————
+
+    @staticmethod
+    def get_performance(closes: list, super_trends: list, fee_rate: float) -> Map:
+        """
+        To get performance of the Strategy\n
+        :param closes: Market closes
+        :param super_trends: Supertrend of given closes
+        :param fee_rate: transaction fee
+        :return:
+        """
+        init_capital = 100
+        rates = MinMax._performance_get_rates(closes, super_trends)
+        transactions = MinMax._performance_get_transactions(init_capital, fee_rate, rates)
+        last_transac = transactions[-1]
+        roi = last_transac.get(Map.capital) / init_capital - 1
+        perf = Map({
+            Map.roi: roi,
+            Map.fee: fee_rate,
+            Map.rate: rates,
+            Map.transaction: transactions,
+        })
+        return perf
+
+    @staticmethod
+    def _performance_get_transactions(initial_capital: float, fee_rate: float, rates: List[float]) -> List[Map]:
+        transactions = []
+        # Initialize First Capital
+        transaction1 = Map()
+        transaction1.put(initial_capital, Map.capital)
+        transaction1.put(None, Map.buy)
+        transaction1.put(None, Map.sell)
+        transaction1.put(initial_capital * fee_rate, Map.fee)
+        transactions.append(transaction1)
+        for rate in rates:
+            last_transac = transactions[-1]
+            # Add Buy Transaction
+            last_capital = last_transac.get(Map.capital)
+            last_fee = last_transac.get(Map.fee)
+            buy_transac = Map()
+            buy = last_capital - last_fee
+            sell_fee = buy * fee_rate
+            buy_transac.put(buy, Map.capital)
+            buy_transac.put(buy, Map.buy)
+            buy_transac.put(sell_fee, Map.fee)
+            transactions.append(buy_transac)
+            # Add Sell Transaction
+            sell_transact = Map()
+            sell = buy * (1 + rate) - sell_fee
+            buy_fee = sell * fee_rate
+            sell_transact.put(sell, Map.capital)
+            sell_transact.put(sell, Map.sell)
+            sell_transact.put(buy_fee, Map.fee)
+            transactions.append(sell_transact)
+        return transactions
+
+    @staticmethod
+    def _performance_get_rates(closes: list, super_trends: list) -> list:
+        switchers = MarketPrice.get_super_trend_switchers(closes, super_trends)
+        perf_rates = []
+        nb_close = len(closes)
+        periods = switchers.get_keys()
+        nb_period = len(switchers.get_map())
+        for i in range(nb_period):
+            period = periods[i]
+            trend = switchers.get(period)
+            if (trend == MarketPrice.SUPERTREND_RISING) and (period > 0):
+                start_period = period
+                end_period = periods[i + 1] if i < nb_period - 1 else nb_close
+                last_red_close = closes[start_period - 1]
+                entry_period = None
+                j = start_period
+                while j < end_period:
+                    super_trend = super_trends[j]
+                    if super_trend >= last_red_close:
+                        entry_period = j
+                        break
+                    j += 1
+                perf_rate = (closes[end_period - 1] / closes[entry_period] - 1) if entry_period is not None else None
+                perf_rates.append(perf_rate) if perf_rate is not None else None
+        return perf_rates

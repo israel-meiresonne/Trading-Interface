@@ -790,8 +790,8 @@ class MarketPrice(ABC):
         To get indexes where trend switch\n
         :param closes: values used to generate SuperTrend
         :param supers: SuperTrend values generated with closes param
-        :return: dict of firsts index of each trend in SuperTrend
-                 Map[index{int}]:   {string}    # MarketPrice.SUPERTREND_{RISING|TREND_DROPING}
+        :return: list of firsts index of each trend in SuperTrend
+                 Map[index{int}]:   {string}    # MarketPrice.SUPERTREND_{RISING|DROPING}
         """
         switchers = Map()
         last_trend = None

@@ -127,6 +127,8 @@ class BinanceFakeAPI(BinanceAPI):
             rsp_d = _cls._execute_order(log_id, rq, params)
         elif rq == _cls.RQ_EXCHANGE_INFOS:
             rsp_d = _cls._retreive_exchange_infos()
+        elif rq == _cls.RQ_TRADE_FEE:
+            rsp_d = _cls._retreive_trade_fees()
         else:
             raise Exception(f"Unknown request '{rq}'")
         rsp = Response()
@@ -215,6 +217,13 @@ class BinanceFakeAPI(BinanceAPI):
         content = FileManager.read(path)
         ex_infos = _MF.json_decode(content)
         return ex_infos
+
+    @staticmethod
+    def _retreive_trade_fees() -> list:
+        path = Config.get(Config.DIR_BINANCE_TRADE_FEE)
+        content = FileManager.read(path)
+        trade_fees = _MF.json_decode(content)
+        return trade_fees
 
 
 if __name__ == '__main__':

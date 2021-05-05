@@ -9,6 +9,8 @@ _DATE = datetime.now().strftime("%Y-%m-%d %H.%M.%S")
 STAGE_MODE = None
 # Files
 DIR_BINANCE_EXCHANGE_INFOS = "tests/datas/API/brokers/Binance/BinanceFakeAPI/response_exchange_infos.json"
+DIR_BINANCE_TRADE_FEE = "tests/datas/API/brokers/Binance/BinanceFakeAPI/trade_fee.json"
+DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03.26 00.52.00.csv'
 # Directories
 DIR_BROKERS = "model/API/brokers"
 DIR_STRATEGIES = "model/structure/strategies"

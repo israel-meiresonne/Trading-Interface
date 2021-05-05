@@ -10,7 +10,9 @@ from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
+from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.structure.strategies.MinMax.MinMax import MinMax
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -141,11 +143,13 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     print("🖨 File printed ✅")
 
 
-def get_historic(pr: Pair, period: int, nb_prd: int) -> MarketPrice:
+def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> BinanceMarketPrice:
+    """
     bnc = Binance(Map({Map.api_pb: "pb_k",
                        Map.api_sk: "sk_k",
                        Map.test_mode: False
                        }))
+    """
     rq_prm = Map({Map.pair: pr,
                   Map.period: period,
                   Map.number: nb_prd
@@ -333,6 +337,7 @@ if __name__ == '__main__':
     depot_path = 'content/v0.01/DOGE_USDT-2021-04-29 00.23.04.csv'
     apimarket_to_market(src_path, depot_path)
     """
+    """
     bnc_conf = Map({
         Map.api_pb: '',
         Map.api_sk: '',
@@ -345,3 +350,50 @@ if __name__ == '__main__':
     fees2 = bnc.get_trade_fee(Pair("BNB/USDT"))
     print(id(fees2))
     print(fees2)
+    """
+    """
+    path = 'content/v0.01/market-historic/active.csv'
+    csv = FileManager.get_csv(path)
+    market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
+    bnc_market = BinanceMarketPrice(market_list, "1m")
+    super_trends = list(bnc_market.get_super_trend())
+    super_trends.reverse()
+    closes = list(bnc_market.get_closes())
+    closes.reverse()
+    perfs = MinMax.get_performance(closes, super_trends, 0.001)
+    print(perfs)
+    """
+    # """
+    Config.update(Config.STAGE_MODE, Config.STAGE_3)
+    minute = 60
+    periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
+    pair = Pair("BNB/USDT")
+    nb_period = 1000
+    bnc = Binance(Map({Map.api_pb: "",
+                       Map.api_sk: "",
+                       Map.test_mode: False
+                       }))
+    fees = bnc.get_trade_fee(pair)
+    fee = fees.get(Map.taker)
+    rows = []
+    for period in periods:
+        print(f"Getting {pair}'s performance for the period '{period}'")
+        bnc_market = get_historic(bnc, pair, period, nb_period)
+        super_trends = list(bnc_market.get_super_trend())
+        super_trends.reverse()
+        closes = list(bnc_market.get_closes())
+        closes.reverse()
+        perf = MinMax.get_performance(closes, super_trends, fee)
+        row = {
+            f"{Map.time}(sec)": period,
+            f"{Map.number}_{Map.period}": nb_period,
+            Map.fee: fee,
+            Map.roi: perf.get(Map.roi)
+        }
+        rows.append(row)
+    # """
+    # rows = [{"hello": "world"}]
+    fields = list(rows[0].keys())
+    path = f'content/v0.01/print/performance-{pair.get_merged_symbols().upper()}.csv'
+    FileManager.write_csv(path, fields, rows, False)
+    print("Print Success! ✅")

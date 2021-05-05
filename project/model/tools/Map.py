@@ -11,6 +11,11 @@ class Map:
     maximum = "maximum"
     GET = "GET"
     POST = "POST"
+    real = "real"
+    buy = "buy"
+    sell = "sell"
+    transaction = "transaction"
+    roi = "roi"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"

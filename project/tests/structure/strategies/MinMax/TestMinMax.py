@@ -1,9 +1,11 @@
 import unittest
 
+from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.structure.strategies.MinMax.MinMax import MinMax
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
@@ -13,6 +15,7 @@ from model.tools.Price import Price
 
 class TestMinMax(unittest.TestCase, MinMax, Order):
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
         self.rsbl = "USDT"
         self.lsbl = "BTC"
         self.pr = Pair(self.lsbl, self.rsbl)
@@ -22,6 +25,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         # Strategy
         self.stg_params = Map({
             Map.pair: self.pr,
+            Map.maximum: None,
             Map.capital: self.max_cap,
             Map.rate: self.rate1
         })
@@ -88,6 +92,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         ]
         self.stg1 = MinMax(Map({
             Map.pair: self.pr,
+            Map.maximum: None,
             Map.capital: prc,
             Map.rate: 0.9
         }))
@@ -107,6 +112,9 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         pass
 
     def _set_stop(self) -> None:
+        pass
+
+    def _set_stop_limit(self) -> None:
         pass
 
     def generate_order(self) -> Map:
@@ -278,45 +286,20 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
     def test_try_sell(self):
         raise Exception("Must implement this test")
 
-    """
-    def test_get_peak_since_buy(self):
-        # Buy order is in MarketPrice's periods
-        self.odr2._set_status(Order.STATUS_COMPLETED)
-        self.odr2._set_execution_time(self.mkt_list[4][0])
-        exp_0 = 4
-        result_0 = self.stg1._get_peak_since_buy(self.mkt)
-        self.assertEqual(exp_0, result_0)
-        # Buy order is out of MarketPrice's periods
-        self.setUp()
-        self.odr2._set_status(Order.STATUS_COMPLETED)
-        self.odr2._set_execution_time(0)
-        exp_1 = 6
-        result_1 = self.stg1._get_peak_since_buy(self.mkt)
-        self.assertEqual(exp_1, result_1)
-        # Buy order period is the current period
-        self.setUp()
-        self.odr2._set_status(Order.STATUS_COMPLETED)
-        self.odr2._set_execution_time(self.mkt_list[9][0])
-        result_2 = self.stg1._get_peak_since_buy(self.mkt)
-        self.assertIsNone(result_2)
-        # There's no peak between Buy order's period and current period
-        self.setUp()
-        self.odr2._set_status(Order.STATUS_COMPLETED)
-        self.odr2._set_execution_time(self.mkt_list[6][0])
-        result_3 = self.stg1._get_peak_since_buy(self.mkt)
-        self.assertIsNone(result_3)
-        # There's two peak between Buy order's period and current period
-        self.setUp()
-        self.odr2._set_status(Order.STATUS_COMPLETED)
-        self.odr2._set_execution_time(self.mkt_list[1][0])
-        exp_4 = 6
-        result_4 = self.stg1._get_peak_since_buy(self.mkt)
-        self.assertEqual(exp_4, result_4)
-        # There no order completed
-        self.setUp()
-        with self.assertRaises(Exception):
-            self.stg1._get_peak_since_buy(self.mkt)
-    """
+    def test_get_performance(self) -> None:
+        path = Config.get(Config.DIR_HISTORIC_BNB)
+        csv = FileManager.get_csv(path)
+        market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
+        bnc_market = BinanceMarketPrice(market_list, "1m")
+        super_trends = list(bnc_market.get_super_trend())
+        super_trends.reverse()
+        closes = list(bnc_market.get_closes())
+        closes.reverse()
+        perfs = MinMax.get_performance(closes, super_trends, 0.001)
+        # ROI
+        exp1 = round(0.00786293204696, 4)
+        result1 = round(perfs.get(Map.roi), 4)
+        self.assertEqual(exp1, result1)
 
 
 if __name__ == '__main__':
