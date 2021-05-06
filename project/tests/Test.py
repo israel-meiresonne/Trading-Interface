@@ -205,130 +205,51 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
     print("🖨 File printed ✅")
 
 
-def delta_sum(xs: list, nb_prd: int = 14) -> list:
-    idx = nb_prd - 1
-    rs = []
-    nb_x = len(xs)
-    for i in range(nb_x):
-        if i < idx:
-            rs.append('NAN')
-            continue
-        seq = [xs[j] for j in range(nb_x) if (j > (idx - nb_prd)) and (j <= idx)]
-        dt_sum = 0
-        for k in range(1, len(seq)):
-            delta = (seq[k] / seq[k - 1]) - 1
-            dt_sum += delta
-        rs.append(dt_sum)
-        idx += 1
-    return rs
+def get_performance(bnc: Broker, pair: Pair, nb_period: int = 1000) -> list:
+    minute = 60
+    periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
+    # pair = Pair("BNB/USDT")
+    # nb_period = 1000
+    """
+    bnc = Binance(Map({Map.api_pb: "",
+                       Map.api_sk: "",
+                       Map.test_mode: False
+                       }))
+    """
+    fees = bnc.get_trade_fee(pair)
+    fee = fees.get(Map.taker)
+    rows = []
+    for period in periods:
+        print(f"Getting {pair}'s performance for the period '{period}'")
+        bnc_market = get_historic(bnc, pair, period, nb_period)
+        super_trends = list(bnc_market.get_super_trend())
+        super_trends.reverse()
+        closes = list(bnc_market.get_closes())
+        closes.reverse()
+        perf = MinMax.get_performance(closes, super_trends, fee)
+        row = {
+            f"{Map.time}(sec)": period,
+            f"{Map.number}_{Map.period}": nb_period,
+            Map.fee: fee,
+            Map.roi: perf.get(Map.roi)
+        }
+        rows.append(row)
+    return rows
 
 
-def get_true_range(closes: list, highs: list, lows: list) -> list:
-    nb = len(closes)
-    if (len(highs) != nb) or (len(lows) != nb):
-        raise ValueError(f"The closes, highs and lows collections must have the same length "
-                         f"('{nb}', '{len(highs)}, '{len(lows)}')")
-    trs = [None]
-    for i in range(1, nb):
-        hl = highs[i] - lows[i]
-        hc = abs(highs[i] - closes[i - 1]) if (i > 0) else 0
-        lc = abs(lows[i] - closes[i - 1]) if (i > 0) else 0
-        tr = max([hl, hc, lc])
-        trs.append(tr)
-    return trs
+def print_performance(rows: list, path: str) -> None:
+    fields = list(rows[0].keys())
+    # path = f'content/v0.01/print/performance-{pair.get_merged_symbols().upper()}.csv'
+    FileManager.write_csv(path, fields, rows, False)
+    print("Print Success! ✅")
 
 
-def get_average_true_range(trs: list, nb_prd: int = 10) -> list:
-    if nb_prd <= 1:
-        raise ValueError(f"The number of period must be at less 2 instead '{nb_prd}'")
-    idx = nb_prd - 1
-    atrs = []
-    nb = len(trs)
-    for i in range(nb):
-        if i < idx:
-            atrs.append(None)
-            continue
-        seq = [trs[j] for j in range(nb) if (j > (idx - nb_prd)) and (j <= idx)]
-        atr = sum(seq) / nb_prd
-        atrs.append(atr)
-        idx += 1
-    return atrs
-
-
-SUPER_TREND_COEF = 3
-
-
-def get_super_trend_up(idx: int, highs: list, lows: list, atrs: list, coef: float = SUPER_TREND_COEF) -> float:
-    return (highs[idx] + lows[idx]) / 2 - coef * atrs[idx]
-
-
-def get_super_trend_down(idx: int, highs: list, lows: list, atrs: list, coef: float = SUPER_TREND_COEF) -> float:
-    return (highs[idx] + lows[idx]) / 2 + coef * atrs[idx]
-
-
-def get_super_trend_up_trend(closes: list, highs: list, lows: list, atrs: list, coef: float = SUPER_TREND_COEF):
-    up_trends = []
-    for i in range(len(closes)):
-        if atrs[i] is None:
-            up_trends.append(None)
-            continue
-        down = get_super_trend_down(i, highs, lows, atrs, coef)
-        if up_trends[i - 1] is None:
-            up_trends.append(down)
-            continue
-        up_trend = down if (down < up_trends[i - 1]) or (closes[i - 1] > up_trends[i - 1]) else up_trends[i - 1]
-        up_trends.append(up_trend)
-    return up_trends
-
-
-def get_super_trend_down_trend(closes: list, highs: list, lows: list, atrs: list, coef: float = SUPER_TREND_COEF):
-    down_trends = []
-    for i in range(len(closes)):
-        if atrs[i] is None:
-            down_trends.append(None)
-            continue
-        up = get_super_trend_up(i, highs, lows, atrs, coef)
-        if down_trends[i - 1] is None:
-            down_trends.append(up)
-            continue
-        up_trend = up if (up > down_trends[i - 1]) or (closes[i - 1] < down_trends[i - 1]) else down_trends[i - 1]
-        down_trends.append(up_trend)
-    return down_trends
-
-
-"""
-1. ST=> BS(T), si : 
-              1) ST(T-1) = BS(T-1)
-               ET
-              2) Close(T) < BS(T)
-2. ST=>BS(T), si:
-               4) ST(T-1) = BI(T-1)
-               ET
-              6)Close(T) < BI(T)
-3. ST=> BI(T), si:
-               1) ST(T-1) = BS(T-1) 
-               ET
-              3) Close(T) > BS(T)
-4. ST=>BI(T), si :❌
-               4) ST(T-1) = BI(T-1) => 57638.36600000001 == 57638.36600000001
-               ET
-              5) Close(T) > BI(T)   => 57993.79 > 57696.29
-"""
-
-
-def get_super_trend(closes: list, ups: list, downs: list) -> list:
-    supers = []
-    for i in range(len(closes)):
-        if ups[i] is None:
-            supers.append(None)
-            continue
-        spr = ups[i] if ((supers[i - 1] == ups[i - 1]) and (closes[i] < ups[i])) \
-                        or ((supers[i - 1] == downs[i - 1]) and (closes[i] < downs[i])) else None
-        if spr is None:
-            spr = downs[i] if ((supers[i - 1] == ups[i - 1]) and (closes[i] > ups[i])) \
-                              or ((supers[i - 1] == downs[i - 1]) and (closes[i] > downs[i])) else None
-        supers.append(spr)
-    return supers
+def get_broker() -> Broker:
+    bnc = Binance(Map({Map.api_pb: "mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5",
+                       Map.api_sk: "xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr",
+                       Map.test_mode: False
+                       }))
+    return bnc
 
 
 if __name__ == '__main__':
@@ -363,37 +284,20 @@ if __name__ == '__main__':
     perfs = MinMax.get_performance(closes, super_trends, 0.001)
     print(perfs)
     """
-    # """
+    """
+    _init_stage = Config.get(Config.STAGE_MODE)
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    minute = 60
-    periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
-    pair = Pair("BNB/USDT")
-    nb_period = 1000
-    bnc = Binance(Map({Map.api_pb: "",
-                       Map.api_sk: "",
-                       Map.test_mode: False
-                       }))
-    fees = bnc.get_trade_fee(pair)
-    fee = fees.get(Map.taker)
-    rows = []
-    for period in periods:
-        print(f"Getting {pair}'s performance for the period '{period}'")
-        bnc_market = get_historic(bnc, pair, period, nb_period)
-        super_trends = list(bnc_market.get_super_trend())
-        super_trends.reverse()
-        closes = list(bnc_market.get_closes())
-        closes.reverse()
-        perf = MinMax.get_performance(closes, super_trends, fee)
-        row = {
-            f"{Map.time}(sec)": period,
-            f"{Map.number}_{Map.period}": nb_period,
-            Map.fee: fee,
-            Map.roi: perf.get(Map.roi)
-        }
-        rows.append(row)
-    # """
-    # rows = [{"hello": "world"}]
-    fields = list(rows[0].keys())
-    path = f'content/v0.01/print/performance-{pair.get_merged_symbols().upper()}.csv'
-    FileManager.write_csv(path, fields, rows, False)
-    print("Print Success! ✅")
+    bnc = get_broker()
+    pair = Pair('BNB/USDT')
+    date = _MF.unix_to_date(_MF.get_timestamp(), "%Y-%m-%d %H.%M.%S")
+    path = f'content/v0.01/print/performance-{pair.get_merged_symbols().upper()}-{date}.csv'
+    rows = get_performance(bnc, pair)
+    print_performance(rows, path)
+    Config.update(Config.STAGE_MODE, _init_stage)
+    """
+    Config.update(Config.STAGE_MODE, Config.STAGE_3)
+    bnc = get_broker()
+    bnc_rq = BinanceRequest(BinanceRequest.RQ_24H_STATISTICS, Map({Map.pair: Pair('BNB/USDT')}))
+    bnc.request(bnc_rq)
+    stats_24h = bnc_rq.get_24h_statistics()
+    print(_MF.json_encode(stats_24h.get_map()))

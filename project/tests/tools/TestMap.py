@@ -288,6 +288,20 @@ class TestMap(unittest.TestCase, Map):
         }
         print(len(dct))
 
+    def test_sort_ascending(self) -> None:
+        # Ascending
+        my_dict = {"c": 3, "b": 2, "d": 4, "a": 1}
+        exp1 = {"a": 1, "b": 2, "c": 3, "d": 4}
+        result1 = Map(my_dict)
+        result1.sort()
+        self.assertDictEqual(exp1, result1.get_map())
+        # Descending
+        my_dict = {"c": 3, "b": 2, "d": 4, "a": 1}
+        exp2 = {"d": 4, "c": 3, "b": 2, "a": 1}
+        result2 = Map(my_dict)
+        result2.sort(True)
+        self.assertDictEqual(exp2, result2.get_map())
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

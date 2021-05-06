@@ -84,9 +84,9 @@ class BinanceRequest(BrokerRequest):
     def get_account_snapshot(self) -> Map:
         accounts = self._get_result()
         if accounts is None:
+            accounts = Map()
             rsp = self._get_response()
             content = Map(rsp.get_content())
-            accounts = Map()
             for snap in content.get(Map.snapshotVos):
                 time = snap[Map.updateTime]
                 balances = snap[Map.data][Map.balances]
@@ -96,6 +96,44 @@ class BinanceRequest(BrokerRequest):
             accounts.put(content.get_map(), Map.response)
             self._set_result(accounts)
         return accounts
+
+    def _set_24h_statistics(self, params: Map) -> None:
+        pair = params.get(Map.pair)
+        request = Map({
+            Map.symbol: pair.get_merged_symbols().upper() if pair is not None else None
+        })
+        self._set_endpoint(BinanceAPI.RQ_24H_STATISTICS)
+        self._set_request(request)
+
+    def get_24h_statistics(self) -> Map:
+        stats = self._get_result()
+        if stats is None:
+            stats = Map()
+            rsp = self._get_response()
+            content = rsp.get_content()
+            if isinstance(content, dict):
+                content = [content]
+            for row in content:
+                symbol = BinanceAPI.symbol_to_pair(row[Map.symbol].lower())
+                stat = {
+                    Map.symbol: symbol,
+                    Map.price: float(row['priceChange']),
+                    Map.rate: float(row['priceChangePercent']),
+                    Map.low: float(row['lowPrice']),
+                    Map.high: float(row['highPrice']),
+                    Map.volume: {
+                        Map.left: float(row['volume']),
+                        Map.right: float(row['quoteVolume'])
+                    },
+                    Map.time: {
+                        Map.start: row['openTime'],
+                        Map.end: row['closeTime']
+                    }
+                }
+                stats.put(stat, symbol)
+            stats.sort()
+            self._set_result(stats)
+        return stats
 
     def _set_orders(self, prms: Map) -> None:
         ks = [Map.symbol]

@@ -14,6 +14,7 @@ class BrokerRequest(ABC, Request):
     RQ_MARKET_PRICE = "_set_market_price"
     RQ_ACCOUNT_SNAP = "_set_account_snapshot"
     RQ_ORDERS = "_set_orders"
+    RQ_24H_STATISTICS = "_set_24h_statistics"
     # Accounts
     ACCOUNT_MAIN = "ACCOUNT_MAIN"
     ACCOUNT_MARGIN = "ACCOUNT_MARGIN"
@@ -87,6 +88,33 @@ class BrokerRequest(ABC, Request):
         :return: account
                  Map[Map.account][time{int}][symbol{str}]:  {Price}
                  Map[Map.response]:                         {list}  | API's response
+        """
+        pass
+
+    @abstractmethod
+    def _set_24h_statistics(self, params: Map) -> None:
+        """
+        To prepare 24h statistics request\n
+        :param params: params required
+               params[Map.pair]:  {Pair|None}  # If None it will request all symbol
+        """
+        pass
+
+    @abstractmethod
+    def get_24h_statistics(self) -> Map:
+        """
+        To get statistics of the last 24h on a pair (or all pair if not symbol given)\n
+        :return: statistics of the last 24h of a pair or all pair
+                 # symbol Format: 'btc/usdt'
+                 Map[symbol{str}][Map.symbol]:              {str}   # symbol Format: 'btc/usdt'
+                 Map[symbol{str}][Map.price]:               {float} # Price change
+                 Map[symbol{str}][Map.rate]:                {float} # Rate change
+                 Map[symbol{str}][Map.low]:                 {float} # Lower price
+                 Map[symbol{str}][Map.high]:                {float} # Higher price
+                 Map[symbol{str}][Map.volume][Map.left]:    {float} # Volume in left asset
+                 Map[symbol{str}][Map.volume][Map.right]:   {float} # Volume in right asset
+                 Map[symbol{str}][Map.time][Map.start]:     {float} # Start time
+                 Map[symbol{str}][Map.time][Map.end]:       {float} # End time
         """
         pass
 

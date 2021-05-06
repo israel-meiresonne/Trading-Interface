@@ -1,11 +1,13 @@
 import unittest
 
+from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.Map import Map
 
 
 class TestBinanceAPI(unittest.TestCase, BinanceAPI):
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
         self.rq = BinanceAPI.RQ_SYS_STATUS
         self.rq_with_required = BinanceAPI.RQ_KLINES
         self.prms_with_required = Map({
@@ -121,6 +123,12 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
         exp4 = self.INTERVAL_1MONTH
         result4 = self.convert_interval(prd4)
         self.assertEqual(exp4, result4)
+
+    def test_symbol_to_pair(self) -> None:
+        symbol = 'BNBUSDT'
+        exp1 = 'bnb/usdt'
+        resul = BinanceAPI.symbol_to_pair(symbol)
+        self.assertEqual(exp1, resul)
 
     def test_fixe_price(self) -> None:
         raise Exception("Must implement this test")

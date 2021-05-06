@@ -22,6 +22,7 @@ class BinanceAPI:
     RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
     RQ_TRADE_FEE = "RQ_TRADE_FEE"
+    RQ_24H_STATISTICS = "RQ_24H_STATISTICS"
     # Orders
     RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
     RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
@@ -89,6 +90,13 @@ class BinanceAPI:
                 Map.symbol,
                 Map.recvWindow
             ]
+        },
+        RQ_24H_STATISTICS: {
+            Map.signed: False,
+            Map.method: Map.GET,
+            Map.path: "/api/v3/ticker/24hr",
+            Map.mandatory: [],
+            Map.params: [Map.symbol]
         },
         RQ_ALL_ORDERS: {
             Map.signed: True,
@@ -364,10 +372,11 @@ class BinanceAPI:
     _EXCHANGE_INFOS = None
     _TRADE_FEES = None
     """
-    _TRADE_FEES[symbol{str}][Map.symbol]:     {str}   # Symbol Format: bnb/usdt => 'bnbusdt'
+    _TRADE_FEES[symbol{str}][Map.symbol]:     {str}   # Symbol Format: 'bnbusdt' (= bnb/usdt)
     _TRADE_FEES[symbol{str}][Map.taker]:      {float}
     _TRADE_FEES[symbol{str}][Map.maker]:      {float}
     """
+    _SYMBOL_TO_PAIR = None  # 'BTCUSDT' => 'btc/usdt'
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
         """
@@ -442,14 +451,40 @@ class BinanceAPI:
                  Map[Map.limit][Map.day][Map.interval]:         {str}
                  Map[Map.limit][Map.day][Map.intervalNum]:      {int}
                  Map[Map.limit][Map.day][Map.limit]:            {int}
-                 Map[Map.symbol][Pair.__str__()][Map.price_filter]:         {dict}
-                 Map[Map.symbol][Pair.__str__()][Map.lot_size]:             {dict}
-                 Map[Map.symbol][Pair.__str__()][Map.market_lot_size]:      {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.filters][Map.price_filter]:         {dict}  # Symbol format: 'btc/usdt'
+                 Map[Map.symbol][Pair.__str__()][Map.filters][Map.lot_size]:             {dict}
+                 Map[Map.symbol][Pair.__str__()][Map.filters][Map.market_lot_size]:      {dict}
                  Map[Map.symbol][Pair.__str__()][Map.iceberg_parts]:        {dict}
                  Map[Map.symbol][Pair.__str__()][Map.percent_price]:        {dict}
                  Map[Map.symbol][Pair.__str__()][Map.min_notional]:         {dict}
                  Map[Map.symbol][Pair.__str__()][Map.max_num_orders]:       {dict}
                  Map[Map.symbol][Pair.__str__()][Map.max_num_algo_orders]:  {dict}
+                 Map[Map.symbol][Pair.__str__()]["symbol": "ETHBTC",
+                                                "status": "TRADING",
+                                                "baseAsset": "ETH",
+                                                "baseAssetPrecision": 8,
+                                                "quoteAsset": "BTC",
+                                                "quotePrecision": 8,
+                                                "quoteAssetPrecision": 8,
+                                                "orderTypes": [
+                                                    "LIMIT",
+                                                    "LIMIT_MAKER",
+                                                    "MARKET",
+                                                    "STOP_LOSS",
+                                                    "STOP_LOSS_LIMIT",
+                                                    "TAKE_PROFIT",
+                                                    "TAKE_PROFIT_LIMIT"
+                                                ],
+                                                "icebergAllowed": true,
+                                                "ocoAllowed": true,
+                                                "isSpotTradingAllowed": true,
+                                                "isMarginTradingAllowed": true,
+                                                "filters": [],  # ❌ changed
+                                                "permissions": [
+                                                    "SPOT",
+                                                    "MARGIN"
+                                                ]
+                 ]
         """
         if BinanceAPI._EXCHANGE_INFOS is None:
             raise Exception(f"Exchange's infos is not set")
@@ -498,6 +533,34 @@ class BinanceAPI:
         if fee is None:
             raise ValueError(f"Binance's API don't support this pair '{pair}'.")
         return fee
+
+    @staticmethod
+    def _set_symbol_to_pair() -> None:
+        infos = BinanceAPI._get_exchange_infos()
+        symbols = infos.get(Map.symbol)
+        symbol_to_pair = Map()
+        for pair, row in symbols.items():
+            symbol = row[Map.symbol].lower()
+            symbol_to_pair.put(pair, symbol)
+        symbol_to_pair.sort()
+        BinanceAPI._SYMBOL_TO_PAIR = symbol_to_pair
+
+    @staticmethod
+    def _get_symbol_to_pair() -> Map:
+        if BinanceAPI._SYMBOL_TO_PAIR is None:
+            BinanceAPI._set_symbol_to_pair()
+        return Map(dict(BinanceAPI._SYMBOL_TO_PAIR.get_map()))
+
+    @staticmethod
+    def symbol_to_pair(symbol: str) -> str:
+        """
+        To convert Binance symbol to System pair\n
+        i.e: 'BNBUSDT'|'bnbusdt' => 'bnb/usdt'
+        :param symbol: The symbol to convert
+        :return: the symbol converted
+        """
+        convertor = BinanceAPI._get_symbol_to_pair()
+        return convertor.get(symbol.lower())
 
     @staticmethod
     def __get_request_configs() -> dict:

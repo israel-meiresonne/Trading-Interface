@@ -82,6 +82,8 @@ class Map:
     status = "status"
     transactTime = "transactTime"
     fee = "fee"
+    start = "start"
+    end = "end"
     # BinanceRequest
     period = "period"
     number = "number"
@@ -128,9 +130,12 @@ class Map:
     pvalue = "pvalue"
     stderr = "stderr"
 
-    def __init__(self, mp=None):
-        mp = {} if mp is None else dict(mp)
-        self.__map = mp
+    def __init__(self, my_map: dict = None):
+        my_map = {} if my_map is None else dict(my_map)
+        self.__map = my_map
+
+    def _set_map(self, my_map: dict) -> None:
+        self.__map = my_map
 
     def get_map(self) -> dict:
         return self.__map
@@ -188,6 +193,14 @@ class Map:
 
     def get_keys(self) -> list:
         return list(self.__map.keys())
+
+    def sort(self, reverse: bool = False) -> None:
+        """
+        To order Map from lower key to higher\n
+        :param reverse: Set True to sort in descending (High -> Low) else False to sort in ascending (Low -> High)
+        """
+        my_map = self.get_map()
+        self._set_map(dict(sorted(my_map.items(), key=lambda row: row[0], reverse=reverse)))
 
     def __str__(self) -> str:
         return self.get_map().__str__()
