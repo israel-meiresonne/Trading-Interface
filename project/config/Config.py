@@ -31,6 +31,8 @@ class Config(ABC):
     DIR_SAVE_MARKET = "DIR_SAVE_MARKET"
     DIR_SAVE_API_RSP = "DIR_SAVE_API_RSP"
     DIR_SAVE_BOT_ERRORS = "DIR_SAVE_BOT_ERRORS"
+    # Constants
+    CONST_STABLECOINS = "CONST_STABLECOINS"
 
     @abstractmethod
     def __init__(self):

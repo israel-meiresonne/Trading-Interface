@@ -20,12 +20,15 @@ class BrokerRequest(ABC, Request):
     ACCOUNT_MARGIN = "ACCOUNT_MARGIN"
     ACCOUNT_FUTURE = "ACCOUNT_FUTURE"
 
-    def __init__(self, prms: Map):
+    def __init__(self, params: Map):
         super().__init__()
-        self.__params = prms
+        self.__params = params
         self.__endpoint = None
         self.__request = None
         self.__result = None
+
+    def get_params(self) -> Map:
+        return self.__params
 
     def _set_endpoint(self, endpoint: str) -> None:
         self.__endpoint = endpoint
@@ -106,7 +109,7 @@ class BrokerRequest(ABC, Request):
         To get statistics of the last 24h on a pair (or all pair if not symbol given)\n
         :return: statistics of the last 24h of a pair or all pair
                  # symbol Format: 'btc/usdt'
-                 Map[symbol{str}][Map.symbol]:              {str}   # symbol Format: 'btc/usdt'
+                 Map[symbol{str}][Map.pair]:                {str}   # symbol Format: 'btc/usdt'
                  Map[symbol{str}][Map.price]:               {float} # Price change
                  Map[symbol{str}][Map.rate]:                {float} # Rate change
                  Map[symbol{str}][Map.low]:                 {float} # Lower price

@@ -137,6 +137,15 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
     def test_get_nb_decimal(self) -> None:
         raise Exception("Must implement this test")
 
+    def test_regex_match(self) -> None:
+        regex = '^\w+/\w+$'
+        good_string = "bnb/usdt"
+        wrong_string = "bnb/wrong/usdt"
+        result1 = self.regex_match(regex, good_string)
+        result2 = self.regex_match(regex, wrong_string)
+        self.assertTrue(result1)
+        self.assertFalse(result2)
+
 
 if __name__ == '__main__':
     unittest.main

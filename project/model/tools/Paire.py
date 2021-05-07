@@ -42,5 +42,9 @@ class Pair:
     def get_merged_symbols(self) -> str:
         return self.get_left().get_symbol() + self.get_right().get_symbol()
 
+    def __eq__(self, other):
+        return self.get_left() == other.get_left() and \
+               self.get_right() == other.get_right()
+
     def __str__(self) -> str:
         return self.get_left().get_symbol() + self._SEPARATOR + self.get_right().get_symbol()

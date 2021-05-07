@@ -4,6 +4,7 @@ from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
+from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.strategies.MinMax.MinMax import MinMax
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -287,19 +288,39 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         raise Exception("Must implement this test")
 
     def test_get_performance(self) -> None:
+        """
         path = Config.get(Config.DIR_HISTORIC_BNB)
         csv = FileManager.get_csv(path)
         market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
         bnc_market = BinanceMarketPrice(market_list, "1m", Pair('BNB/USDT'))
+        """
+        _old_path = Config.get(Config.DIR_HISTORIC_PRICES)
+        path = Config.get(Config.DIR_HISTORIC_BNB)
+        Config.update(Config.DIR_HISTORIC_PRICES, path)
+        bnc = Binance(Map({
+            Map.api_pb: 'my_public',
+            Map.api_sk: 'my_sk',
+            Map.test_mode: True
+        }))
+        bnc_rq = BinanceRequest(BinanceRequest.RQ_MARKET_PRICE, Map({
+            Map.pair: Pair('BNB/USDT'),
+            Map.period: 60,
+            Map.begin_time: None,
+            Map.end_time: None,
+            Map.number: 999
+        }))
+        bnc.request(bnc_rq)
+        bnc_market = bnc_rq.get_market_price()
         super_trends = list(bnc_market.get_super_trend())
         super_trends.reverse()
         closes = list(bnc_market.get_closes())
         closes.reverse()
-        perfs = MinMax.get_performance(closes, super_trends, 0.001)
+        perfs = MinMax.get_performance(bnc, bnc_market)
         # ROI
         exp1 = round(0.00786293204696, 4)
         result1 = round(perfs.get(Map.roi), 4)
         self.assertEqual(exp1, result1)
+        Config.update(Config.DIR_HISTORIC_PRICES, _old_path)
 
 
 if __name__ == '__main__':

@@ -16,6 +16,8 @@ class Map:
     sell = "sell"
     transaction = "transaction"
     roi = "roi"
+    rank = "rank"
+    sum = "sum"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"

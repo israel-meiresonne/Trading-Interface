@@ -15,10 +15,10 @@ class BinanceRequest(BrokerRequest):
         BrokerRequest.ACCOUNT_FUTURE: BinanceAPI.ACCOUNT_TYPE_FUTURES,
     })
 
-    def __init__(self, rq: str, prms: Map):
-        super().__init__(prms)
+    def __init__(self, rq: str, params: Map):
+        super().__init__(params)
         self.__api_request = None
-        exec(f'self.{rq}(prms)')
+        exec(f'self.{rq}(params)')
 
     def _get_account_converter(self) -> Map:
         return self.CONV_ACCOUNT
@@ -42,8 +42,9 @@ class BinanceRequest(BrokerRequest):
         result = self._get_result()
         if result is None:
             request = self._get_request()
+            params = self.get_params()
             rsp = self._get_response()
-            result = BinanceMarketPrice(rsp.get_content(), request.get(Map.interval), request.get(Map.pair))
+            result = BinanceMarketPrice(rsp.get_content(), request.get(Map.interval), params.get(Map.pair))
             self._set_result(result)
         return result
 

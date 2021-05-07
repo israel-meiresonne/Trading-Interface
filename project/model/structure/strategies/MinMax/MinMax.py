@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import List
 
 from config.Config import Config
 from model.structure.Broker import Broker
@@ -385,7 +385,6 @@ class MinMax(Strategy):
         ]
         """
         return executions
-
     # '''
 
     # TREND(RSI)&TREND(CLOSE)V5.2: BUY
@@ -552,7 +551,6 @@ class MinMax(Strategy):
         self._save_move(**vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return executions
-
     # '''
 
     def _sell(self, executions: Map) -> None:
@@ -674,20 +672,20 @@ class MinMax(Strategy):
 
     # ——————————————— STATIC METHOD DOWN ———————————————
 
-    @staticmethod
-    def get_performance(closes: list, super_trends: list, fee_rate: float) -> Map:
-        """
-        To get performance of the Strategy\n
-        :param closes: Market closes
-        :param super_trends: Supertrend of given closes
-        :param fee_rate: transaction fee
-        :return:
-        """
-        init_capital = 100
-        rates = MinMax._performance_get_rates(closes, super_trends)
-        transactions = MinMax._performance_get_transactions(init_capital, fee_rate, rates)
+    @staticmethod   # Strategy
+    def get_performance(bkr: Broker, market_price: MarketPrice) -> Map:
+        initial_capital = Strategy.get_performance_init_capital()
+        pair = market_price.get_pair()
+        fees = bkr.get_trade_fee(pair)
+        fee_rate = fees.get(Map.taker)
+        closes = list(market_price.get_closes())
+        closes.reverse()
+        super_trends = list(market_price.get_super_trend())
+        super_trends.reverse()
+        rates = MinMax._performance_get_rates(market_price)
+        transactions = MinMax._performance_get_transactions(initial_capital, rates, fees)
         last_transac = transactions[-1]
-        roi = last_transac.get(Map.capital) / init_capital - 1
+        roi = last_transac.get(Map.capital) / initial_capital - 1
         perf = Map({
             Map.roi: roi,
             Map.fee: fee_rate,
@@ -696,16 +694,17 @@ class MinMax(Strategy):
         })
         return perf
 
-    @staticmethod
-    def _performance_get_transactions(initial_capital: float, fee_rate: float, rates: List[float]) -> List[Map]:
+    @staticmethod   # Strategy
+    def _performance_get_transactions(initial_capital: float, rates: List[float], fees: Map) -> List[dict]:
         transactions = []
+        fee_rate = fees.get(Map.taker)
         # Initialize First Capital
         transaction1 = Map()
         transaction1.put(initial_capital, Map.capital)
         transaction1.put(None, Map.buy)
         transaction1.put(None, Map.sell)
         transaction1.put(initial_capital * fee_rate, Map.fee)
-        transactions.append(transaction1)
+        transactions.append(transaction1.get_map())
         for rate in rates:
             last_transac = transactions[-1]
             # Add Buy Transaction
@@ -717,7 +716,7 @@ class MinMax(Strategy):
             buy_transac.put(buy, Map.capital)
             buy_transac.put(buy, Map.buy)
             buy_transac.put(sell_fee, Map.fee)
-            transactions.append(buy_transac)
+            transactions.append(buy_transac.get_map())
             # Add Sell Transaction
             sell_transact = Map()
             sell = buy * (1 + rate) - sell_fee
@@ -725,11 +724,15 @@ class MinMax(Strategy):
             sell_transact.put(sell, Map.capital)
             sell_transact.put(sell, Map.sell)
             sell_transact.put(buy_fee, Map.fee)
-            transactions.append(sell_transact)
+            transactions.append(sell_transact.get_map())
         return transactions
 
-    @staticmethod
-    def _performance_get_rates(closes: list, super_trends: list) -> list:
+    @staticmethod   # Strategy
+    def _performance_get_rates(market_price: MarketPrice) -> list:
+        closes = list(market_price.get_closes())
+        closes.reverse()
+        super_trends = list(market_price.get_super_trend())
+        super_trends.reverse()
         switchers = MarketPrice.get_super_trend_switchers(closes, super_trends)
         perf_rates = []
         nb_close = len(closes)

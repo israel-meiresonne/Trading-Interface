@@ -1,4 +1,5 @@
 from abc import abstractmethod
+
 from model.structure.database.ModelFeature import ModelFeature
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager

@@ -11,6 +11,7 @@ from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
+from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMax.MinMax import MinMax
 from model.tools.BrokerRequest import BrokerRequest
@@ -276,7 +277,7 @@ if __name__ == '__main__':
     path = 'content/v0.01/market-historic/active.csv'
     csv = FileManager.get_csv(path)
     market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
-    bnc_market = BinanceMarketPrice(market_list, "1m")
+    bnc_market = BinanceMarketPrice(market_list, "1m", Pair('BNB/USDT'))
     super_trends = list(bnc_market.get_super_trend())
     super_trends.reverse()
     closes = list(bnc_market.get_closes())
@@ -297,7 +298,22 @@ if __name__ == '__main__':
     """
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
     bnc = get_broker()
-    bnc_rq = BinanceRequest(BinanceRequest.RQ_24H_STATISTICS, Map({Map.pair: Pair('BNB/USDT')}))
-    bnc.request(bnc_rq)
-    stats_24h = bnc_rq.get_24h_statistics()
-    print(_MF.json_encode(stats_24h.get_map()))
+    # bnc_rq = BinanceRequest(BinanceRequest.RQ_24H_STATISTICS, Map({Map.pair: Pair('BNB/USDT')}))
+    # bnc.request(bnc_rq)
+    # stats_24h = bnc_rq.get_24h_statistics()
+    # print(_MF.json_encode(stats_24h.get_map()))
+    # top_volume = MinMax.get_top_volume(bnc, 10)
+    # print(_MF.json_encode(top_volume.get_map()))
+    # print(top_volume.get_map())
+    # minute = 60
+    # periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
+    # periods = [minute]
+    # top_period = MinMax.top_period(bnc, Pair("DOGE/USDT"), periods, 1000)
+    # print(_MF.json_encode(top_period.get_map()))
+    period = 60 * 5
+    nb_period = 1000
+    maximum = 3
+    top_asset = Strategy.get_top_asset(bnc, MinMax.__name__, period, nb_period, maximum)
+    for rank, row in top_asset.get_map().items():
+        row[Map.pair] = row[Map.pair].__str__()
+    print(_MF.json_encode(top_asset.get_map()))

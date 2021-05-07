@@ -1,3 +1,4 @@
+import re as rgx
 from abc import abstractmethod
 from datetime import datetime
 from json import dumps as json_encode
@@ -267,3 +268,12 @@ class ModelFeature(ModelAccess):
             raise ValueError(f"The given value must be a float, instead '{value}'({type(value)})")
         return len(str(float(value)).split(".")[-1])  # if isinstance(value, float) else None
 
+    @staticmethod
+    def regex_match(regex: str, string: str) -> bool:
+        """
+        To check if a given string match the whole given regex\n
+        :param regex: The regex to use
+        :param string: To string to check
+        :return: True if the string match the regex else False
+        """
+        return rgx.match(regex, string) is not None
