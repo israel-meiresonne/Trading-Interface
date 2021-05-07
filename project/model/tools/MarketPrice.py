@@ -14,6 +14,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 
 
 class MarketPrice(ABC):
@@ -57,7 +58,7 @@ class MarketPrice(ABC):
     SUPERTREND_DROPING = "TREND_DROPING"
 
     @abstractmethod
-    def __init__(self, mkt: list, prd_time: int):
+    def __init__(self, mkt: list, prd_time: int, pair: Pair):
         """
         Constructor\n
         :param mkt: market prices.
@@ -65,6 +66,7 @@ class MarketPrice(ABC):
         """
         self.__market = mkt
         self.__period_time = prd_time
+        self.__pair = pair
         self.__indicators = Map()
         self.__collections = Map({
             self.COLLECTION_OPENS: None,
@@ -93,11 +95,14 @@ class MarketPrice(ABC):
         stage = Config.get(Config.STAGE_MODE)
         self._save_market(self.get_market()) if stage != Config.STAGE_1 else None
 
+    def get_market(self) -> tuple:
+        return tuple(self.__market)
+
     def get_period_time(self) -> int:
         return self.__period_time
 
-    def get_market(self) -> tuple:
-        return tuple(self.__market)
+    def get_pair(self) -> Pair:
+        return self.__pair
 
     def __get_collections(self) -> Map:
         return self.__collections

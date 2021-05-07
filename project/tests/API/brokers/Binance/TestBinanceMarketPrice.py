@@ -1,6 +1,7 @@
 import unittest
 
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
+from model.tools.Paire import Pair
 
 
 class TestBinanceMarketPrice(unittest.TestCase, BinanceMarketPrice):
@@ -15,7 +16,7 @@ class TestBinanceMarketPrice(unittest.TestCase, BinanceMarketPrice):
             [self.times[4], '0', '0', '0', self.closes[4]],
             [self.times[5], '0', '0', '0', self.closes[5]]
         ]
-        self.mkt = BinanceMarketPrice(self.mkt_list, '1m')
+        self.mkt = BinanceMarketPrice(self.mkt_list, '1m', Pair('BTC/USDT'))
 
     def test_get_times(self):
         exp = list(self.times)

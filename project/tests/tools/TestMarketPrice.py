@@ -4,10 +4,12 @@ from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.Paire import Pair
 
 
 class TestMarketPrice(unittest.TestCase, MarketPrice):
     def setUp(self) -> None:
+        self.pair1 = Pair('BTC/USDT')
         self.list = ['1', '2', '3', '4', '5']
         self.tuple = tuple(self.list)
         self.highs = ['11', '12', '13', '14', '15']
@@ -70,19 +72,19 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             ['open_time', self.list[1], self.highs[3], self.lows[3], self.list[3]],
             ['open_time', self.list[0], self.highs[4], self.lows[4], self.list[4]]
         ]
-        self.bnc_mkt = BinanceMarketPrice(self.bnc_list, "1m")
-        self.bnc_mkt_u_u = BinanceMarketPrice(self.bnc_list_u_u, "1m")
-        self.bnc_mkt_u_d = BinanceMarketPrice(self.bnc_list_u_d, "1m")
-        self.bnc_mkt_d_u = BinanceMarketPrice(self.bnc_list_d_u, "1m")
-        self.bnc_mkt_d_d = BinanceMarketPrice(self.bnc_list_d_d, "1m")
-        self.bnc_mkt_flat = BinanceMarketPrice(self.bnc_list_flat, "1m")
+        self.bnc_mkt = BinanceMarketPrice(self.bnc_list, "1m", self.pair1)
+        self.bnc_mkt_u_u = BinanceMarketPrice(self.bnc_list_u_u, "1m", self.pair1)
+        self.bnc_mkt_u_d = BinanceMarketPrice(self.bnc_list_u_d, "1m", self.pair1)
+        self.bnc_mkt_d_u = BinanceMarketPrice(self.bnc_list_d_u, "1m", self.pair1)
+        self.bnc_mkt_d_d = BinanceMarketPrice(self.bnc_list_d_d, "1m", self.pair1)
+        self.bnc_mkt_flat = BinanceMarketPrice(self.bnc_list_flat, "1m", self.pair1)
         # RSI
         self.rsi_vals = [38.04, 36.47, 36.67, 36.91, 36.76, 36.76, 37.14, 37.72, 38.33, 37.74, 37.74, 37.42, 38.66,
                          39.10,
                          38.94, 39.28, 39.29, 40.03, 40.06, 40.53, 40.26]
         # Super Trend
         self.sptrend_mkt_list = self._datas_super_trend()
-        self.sptrend_bnc_mkt = BinanceMarketPrice(self.sptrend_mkt_list, '1m')
+        self.sptrend_bnc_mkt = BinanceMarketPrice(self.sptrend_mkt_list, '1m', self.pair1)
 
     @staticmethod
     def _datas_super_trend() -> list:
@@ -92,7 +94,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         return mkt_list
 
     def tearDown(self) -> None:
-        self.bnc_mkt = BinanceMarketPrice(self.list, "1m")
+        self.bnc_mkt = BinanceMarketPrice(self.list, "1m", self.pair1)
 
     def get_opens(self) -> tuple:
         pass
@@ -256,7 +258,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_get_rsis(self):
         mkt = [[0, 0, 0, 0, float(str(val))] for val in self.rsi_vals]
-        bnc_mkt = BinanceMarketPrice(mkt, '1m')
+        bnc_mkt = BinanceMarketPrice(mkt, '1m', self.pair1)
         rsis = bnc_mkt.get_rsis()
         """
         closes = list(bnc_mkt.get_closes())
@@ -269,7 +271,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def test_get_rsi(self):
         mkt = [[0, 0, 0, 0, float(str(val))] for val in self.rsi_vals]
-        bnc_mkt = BinanceMarketPrice(mkt, '1m')
+        bnc_mkt = BinanceMarketPrice(mkt, '1m', self.pair1)
         rsis = bnc_mkt.get_rsis()
         exp = rsis[0]
         result = bnc_mkt.get_rsi()
@@ -497,7 +499,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             ['0', '0', '0', '0', '2'],
             ['0', '0', '0', '0', '0']
         ]
-        mkt_1 = BinanceMarketPrice(mkt_list_1, '1m')
+        mkt_1 = BinanceMarketPrice(mkt_list_1, '1m', self.pair1)
         result_1 = mkt_1.get_slope(0, 3)
         self.assertEqual(exp_1, result_1)
         # Positive
@@ -509,7 +511,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             ['0', '0', '0', '0', '-0.5'],
             ['0', '0', '0', '0', '0']
         ]
-        mkt_2 = BinanceMarketPrice(mkt_list_2, '1m')
+        mkt_2 = BinanceMarketPrice(mkt_list_2, '1m', self.pair1)
         result_2 = mkt_2.get_slope(0, 3)
         self.assertEqual(exp_2, result_2)
 
@@ -525,7 +527,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             exp1.append(1)
         exp1.reverse()
         exp1 = tuple(exp1)
-        mkt = BinanceMarketPrice(mkt_list_1, '1m')
+        mkt = BinanceMarketPrice(mkt_list_1, '1m', self.pair1)
         result1 = mkt.get_slopes()
         self.assertTupleEqual(exp1, result1)
         # Negative
@@ -538,7 +540,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             exp2.append(-1.0)
         exp2.reverse()
         exp2 = tuple(exp2)
-        mkt = BinanceMarketPrice(mkt_list_1, '1m')
+        mkt = BinanceMarketPrice(mkt_list_1, '1m', self.pair1)
         result2 = mkt.get_slopes()
         self.assertTupleEqual(exp2, result2)
         # Same instance
@@ -553,7 +555,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         nb_none = nb_slp_prd + nb_avg_prd - 2
         nb_row = 20
         mkt_list_1 = [['0', '0', '0', '0', str(i)] for i in range(nb_row)]
-        mkt1 = BinanceMarketPrice(mkt_list_1, '1m')
+        mkt1 = BinanceMarketPrice(mkt_list_1, '1m', self.pair1)
         exp1 = [1.0 for i in range(20 - nb_none)]
         exp1 = tuple(exp1 + [None for i in range(nb_none)])
         result1 = mkt1.get_slopes_avg(nb_avg_prd, nb_slp_prd)
@@ -564,7 +566,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         vals = [1, 2, 3, 3, 2, 1, 1, 2, 3]
         exp2 = (0.8, 0.6, 0.6, 0.8, None, None, None, None, None)
         mkt_list_1 = [['0', '0', '0', '0', str(v)] for v in vals]
-        mkt2 = BinanceMarketPrice(mkt_list_1, '1m')
+        mkt2 = BinanceMarketPrice(mkt_list_1, '1m', self.pair1)
         result2 = mkt2.get_slopes_avg(nb_avg_prd, nb_slp_prd)
         self.assertTupleEqual(exp2, result2)
 
@@ -676,7 +678,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             ['0', '0', '0', '0', '2'],
             ['0', '0', '0', '0', '0']
         ]
-        mkt_1 = BinanceMarketPrice(mkt_list_1, '1m')
+        mkt_1 = BinanceMarketPrice(mkt_list_1, '1m', self.pair1)
         result_1 = mkt_1.get_indicator(self.INDIC_ACTUAL_SLOPE)
         self.assertEqual(exp_1, result_1)
         # Last extremum is minimum
@@ -692,7 +694,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             ['0', '0', '0', '0', '-0.5'],
             ['0', '0', '0', '0', '0']
         ]
-        mkt_2 = BinanceMarketPrice(mkt_list_2, '1m')
+        mkt_2 = BinanceMarketPrice(mkt_list_2, '1m', self.pair1)
         result_2 = mkt_2.get_indicator(self.INDIC_ACTUAL_SLOPE)
         self.assertEqual(exp_2, result_2)
 

@@ -43,7 +43,7 @@ class BinanceRequest(BrokerRequest):
         if result is None:
             request = self._get_request()
             rsp = self._get_response()
-            result = BinanceMarketPrice(rsp.get_content(), request.get(Map.interval))
+            result = BinanceMarketPrice(rsp.get_content(), request.get(Map.interval), request.get(Map.pair))
             self._set_result(result)
         return result
 
@@ -114,9 +114,9 @@ class BinanceRequest(BrokerRequest):
             if isinstance(content, dict):
                 content = [content]
             for row in content:
-                symbol = BinanceAPI.symbol_to_pair(row[Map.symbol].lower())
+                pair = BinanceAPI.symbol_to_pair(row[Map.symbol].lower())
                 stat = {
-                    Map.symbol: symbol,
+                    Map.pair: pair,
                     Map.price: float(row['priceChange']),
                     Map.rate: float(row['priceChangePercent']),
                     Map.low: float(row['lowPrice']),
@@ -130,7 +130,7 @@ class BinanceRequest(BrokerRequest):
                         Map.end: row['closeTime']
                     }
                 }
-                stats.put(stat, symbol)
+                stats.put(stat, pair)
             stats.sort()
             self._set_result(stats)
         return stats

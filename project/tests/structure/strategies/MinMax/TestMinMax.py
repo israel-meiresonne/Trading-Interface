@@ -71,7 +71,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             ['0', '0', '0', '0', 7500],
             ['0', '0', '0', '0', self.exec_prc0.get_value()]
         ]
-        self.bnc_mkt_u_u = BinanceMarketPrice(self.bnc_list_u_u, "1m")
+        self.bnc_mkt_u_u = BinanceMarketPrice(self.bnc_list_u_u, "1m", self.pr)
         # test_get_peak_since_buy
         cap = 1000
         prc = Price(cap, self.rsbl)
@@ -96,7 +96,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             Map.capital: prc,
             Map.rate: 0.9
         }))
-        self.mkt = BinanceMarketPrice(list(self.mkt_list), '1m')
+        self.mkt = BinanceMarketPrice(list(self.mkt_list), '1m', self.pr)
         self.odr2 = BinanceOrder(Order.TYPE_MARKET, Map({
             Map.pair: self.pr,
             Map.move: Order.MOVE_BUY,
@@ -290,7 +290,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         path = Config.get(Config.DIR_HISTORIC_BNB)
         csv = FileManager.get_csv(path)
         market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
-        bnc_market = BinanceMarketPrice(market_list, "1m")
+        bnc_market = BinanceMarketPrice(market_list, "1m", Pair('BNB/USDT'))
         super_trends = list(bnc_market.get_super_trend())
         super_trends.reverse()
         closes = list(bnc_market.get_closes())

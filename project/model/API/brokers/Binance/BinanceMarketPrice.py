@@ -1,10 +1,11 @@
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.MarketPrice import MarketPrice
+from model.tools.Paire import Pair
 
 
 class BinanceMarketPrice(MarketPrice):
-    def __init__(self, mkt: list, prd_str: str):
+    def __init__(self, mkt: list, prd_str: str, pair: Pair):
         """
         Constructor\n
         :param mkt: the market prices.
@@ -32,7 +33,7 @@ class BinanceMarketPrice(MarketPrice):
         """
         prd = BinanceAPI.get_interval(prd_str)
         mkt.reverse()
-        super().__init__(mkt, prd)
+        super().__init__(mkt, prd, pair)
 
     def get_opens(self) -> tuple:
         k = self.COLLECTION_OPENS
