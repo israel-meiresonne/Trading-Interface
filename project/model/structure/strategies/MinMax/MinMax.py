@@ -53,6 +53,7 @@ class MinMax(Strategy):
         bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
         # Prepare Set Configs
         best_period = self._get_best_period()
+        """
         mkt_rq_prms = Map({
             Map.pair: self.get_pair(),
             Map.period: best_period,
@@ -64,13 +65,14 @@ class MinMax(Strategy):
         bkr_rq = eval(bkr_rq_cls + f"('{BrokerRequest.RQ_MARKET_PRICE}', mkt_rq_prms)")
         bkr.get_market_price(bkr_rq)
         mkt_prc = bkr_rq.get_market_price()
+        """
         self.__configs = Map({
             self._CONF_MAKET_PRICE: Map({
                 Map.pair: self.get_pair(),
                 Map.period: best_period,
                 Map.begin_time: None,
                 Map.end_time: None,
-                Map.number: 100
+                Map.number: 250
             }),
             self._CONF_MAX_DR: -0.05
         })
@@ -205,18 +207,23 @@ class MinMax(Strategy):
         bkr_cls = bkr.__class__.__name__
         odr_cls = bkr_cls + Order.__name__
         pr = self.get_pair()
-        max_rate = 1
+        max_drop_rate = self._get_constant(self._CONF_MAX_DR)
+        # max_rate = 1
         if self._has_position():
             sum_odr = self._get_orders().get_sum()
             qty = sum_odr.get(Map.left)
-            qty = Price(qty.get_value() * max_rate, qty.get_asset().get_symbol())
+            # qty = Price(qty.get_value() * max_rate, qty.get_asset().get_symbol())
+            qty = Price(qty.get_value(), qty.get_asset().get_symbol())
         else:
             close_val = mkt_prc.get_close()
             b_cap = self._get_buy_capital()
             qty_val = b_cap.get_value() / close_val
-            # qty = Price(qty_val, pr.get_left().get_symbol())
-            qty = Price(qty_val * max_rate, pr.get_left().get_symbol())
-        stop = mkt_prc.get_futur_price(self._get_constant(self._CONF_MAX_DR))
+            qty = Price(qty_val, pr.get_left().get_symbol())
+            # qty = Price(qty_val * max_rate, pr.get_left().get_symbol())
+        # stop = mkt_prc.get_futur_price(self._get_constant(self._CONF_MAX_DR))
+        super_trend = mkt_prc.get_super_trend()[0]
+        # stop = super_trend * (1 + max_drop_rate)
+        stop = super_trend
         odr_prms = Map({
             Map.pair: pr,
             Map.move: Order.MOVE_SELL,
@@ -575,8 +582,9 @@ class MinMax(Strategy):
         # CHECK
         if close_trend_ok:
             self._sell(executions)
-        elif mkt_prc.get_close() > stop_base_prc:
-            self._move_up_secure_order(executions)
+        # elif mkt_prc.get_close() > stop_base_prc:
+        # elif closes_supers[0] > stop_base_prc:
+        #     self._move_up_secure_order(executions)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
         self._save_move(**vars(), move=Order.MOVE_SELL)  # \
