@@ -313,7 +313,12 @@ if __name__ == '__main__':
     period = 60 * 5
     nb_period = 1000
     maximum = 3
-    top_asset = Strategy.get_top_asset(bnc, MinMax.__name__, period, nb_period, maximum)
-    for rank, row in top_asset.get_map().items():
-        row[Map.pair] = row[Map.pair].__str__()
-    print(_MF.json_encode(top_asset.get_map()))
+    top_asset = Strategy.get_top_asset(bnc, MinMax.__name__, period, nb_period)
+    # period_ranking = MinMax.get_period_ranking(bnc, Pair("ETC/USDT"))
+    # for rank, row in top_asset.get_map().items():
+    #     row[Map.pair] = row[Map.pair].__str__()
+    # for key, val in period_ranking.get_map().items():
+    #     if key == Map.pair:
+    #         period_ranking.put(val.__str__(), key)
+    #         break
+    # print(_MF.json_encode(period_ranking.get_map()))

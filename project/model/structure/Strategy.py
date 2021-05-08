@@ -16,6 +16,8 @@ from model.tools.Price import Price
 
 class Strategy(_MF):
     _PERFORMANCE_INIT_CAPITAL = 100
+    _TOP_ASSET = None
+    _TOP_ASSET_MAX = 25
 
     @abstractmethod
     def __init__(self, prms: Map):
@@ -103,6 +105,15 @@ class Strategy(_MF):
         self._get_orders().update(bkr, mkt)
 
     @abstractmethod
+    def set_best_period(self, best: int) -> None:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
+        pass
+
+    @abstractmethod
     def trade(self, bkr: Broker) -> None:
         """
         To perform a trade\n
@@ -182,7 +193,7 @@ class Strategy(_MF):
         return eval(f"{stg_class}(params)")
 
     @staticmethod   # Broker
-    def get_top_asset(bkr: Broker, stg_class: str, period: int, nb_period: int, maximum: int = 20) -> Map:
+    def get_top_asset(bkr: Broker, stg_class: str, period: int, nb_period: int, maximum: int = _TOP_ASSET_MAX) -> Map:
         """
         To get ranking of pair with the best performance\n
         Criteria: volume (in usd stablecoin), the ROI for the given Strategy\n
@@ -192,41 +203,44 @@ class Strategy(_MF):
         :param nb_period: Number of period to use
         :param maximum: Max pair rank
         :return: ranking of pair with the best performance
-                 Map[rank{int}][*]:                     {MinMax.top_period()}   # Same structure than this function
+                 Map[rank{int}][*]:                     {MinMax.get_top_period()}   # Same structure than this function
                  Map[rank{int}][Map.volume]:            {float}                 # Transaction volume in last 24h
                  Map[rank{int}][Map.rank][Map.sum]:     {float}                 # Sum rank
                  Map[rank{int}][Map.rank][Map.roi]:     {int}                   # Roi rank
                  Map[rank{int}][Map.rank][Map.volume]:  {int}                   # Volume rank
         """
-        top_volume = Strategy.get_top_volume(bkr, maximum)
-        pairs = [row[Map.pair] for rank, row in top_volume.get_map().items()]
-        top_roi = Strategy.get_top_roi(bkr, stg_class, pairs, period, nb_period)
-        structures = []
-        for pair in pairs:
-            volume_rank = Strategy.extract_rank(top_volume, Map.pair, pair)
-            roi_rank = Strategy.extract_rank(top_roi, Map.pair, pair)
-            """
-            for rank, volume_struc in top_volume.get_map().items():
-                if volume_struc[Map.pair] == pair:
-                    volume_rank = rank
-                    break
-            for rank, roi_struc in top_roi.get_map().items():
-                if roi_struc[Map.pair] == pair:
-                    roi_rank = rank
-                    break
-            """
-            volume = top_volume.get(volume_rank, Map.volume)
-            rank_sum = (volume_rank / 2) + roi_rank
-            structure = Map(top_roi.get(roi_rank))
-            structure.put(volume,       Map.volume)
-            structure.put(rank_sum,     Map.rank, Map.sum)
-            structure.put(roi_rank,     Map.rank, Map.roi)
-            structure.put(volume_rank,  Map.rank, Map.volume)
-            structures.append(structure.get_map())
-        top_asset = sorted(structures,
-                           key=lambda row: (row[Map.rank][Map.sum], row[Map.rank][Map.roi], row[Map.rank][Map.volume]))
-        top_asset_keyed = Map({idx: top_asset[idx] for idx in range(len(top_asset))})
-        return top_asset_keyed
+        if Strategy._TOP_ASSET is None:
+            top_volume = Strategy.get_top_volume(bkr, maximum)
+            pairs = [row[Map.pair] for rank, row in top_volume.get_map().items()]
+            top_roi = Strategy.get_top_roi(bkr, stg_class, pairs, period, nb_period)
+            structures = []
+            for pair in pairs:
+                volume_rank = Strategy.extract_rank(top_volume, Map.pair, pair)
+                roi_rank = Strategy.extract_rank(top_roi, Map.pair, pair)
+                """
+                for rank, volume_struc in top_volume.get_map().items():
+                    if volume_struc[Map.pair] == pair:
+                        volume_rank = rank
+                        break
+                for rank, roi_struc in top_roi.get_map().items():
+                    if roi_struc[Map.pair] == pair:
+                        roi_rank = rank
+                        break
+                """
+                volume = top_volume.get(volume_rank, Map.volume)
+                rank_sum = (volume_rank / 2) + roi_rank
+                structure = Map(top_roi.get(roi_rank))
+                structure.put(volume,       Map.volume)
+                structure.put(rank_sum,     Map.rank, Map.sum)
+                structure.put(roi_rank,     Map.rank, Map.roi)
+                structure.put(volume_rank,  Map.rank, Map.volume)
+                structures.append(structure.get_map())
+            top_asset = sorted(structures,
+                               key=lambda row: (row[Map.rank][Map.sum], row[Map.rank][Map.roi], row[Map.rank][Map.volume]))
+            top_asset_keyed = Map({idx: top_asset[idx] for idx in range(len(top_asset))})
+            Strategy._save_top_asset(stg_class, top_asset_keyed)
+            Strategy._TOP_ASSET = top_asset_keyed
+        return Strategy._TOP_ASSET
 
     @staticmethod   # Broker
     def extract_rank(top: Map, key: str, match) -> int:
@@ -249,19 +263,19 @@ class Strategy(_MF):
         :param period: Period interval to use to evaluate ROI
         :param nb_period: Number of period to use
         :return: ranking of the given pairs following their ROI
-                 Map[rank{int}][*]: {MinMax.top_period()} # Same structure than this function
+                 Map[rank{int}][*]: {MinMax.get_top_period()} # Same structure than this function
         """
         structures = []
         periods = [period]
         for pair in pairs:
-            structure = Strategy.top_period(bkr, stg_class, pair, periods, nb_period)
+            structure = Strategy.get_top_period(bkr, stg_class, pair, periods, nb_period)
             structures.append(structure.get_map())
         structures_sorted = sorted(structures, key=lambda row: row[Map.period][0][Map.day], reverse=True)
         top_roi = Map({idx: structures_sorted[idx] for idx in range(len(structures_sorted))})
         return top_roi
 
     @staticmethod   # Broker
-    def top_period(bkr: Broker, stg_class: str, pair: Pair, periods: List[int], nb_period: int) -> Map():
+    def get_top_period(bkr: Broker, stg_class: str, pair: Pair, periods: List[int], nb_period: int) -> Map():
         """
         To get ranking of a pair following it's ROI/day for a given Strategy\n
         :param bkr: Access to a Broker's API
@@ -270,15 +284,15 @@ class Strategy(_MF):
         :param periods: Period interval in second for witch to evaluate ROI (i.e: [60] or [60, 60*3, 60*5])
         :param nb_period: Number of period to get from Broker's API to evaluate ROI
         :return: ranking of a pair following it's ROI/day
-                 Map[Map.pair]:                             {Pair}
-                 Map[Map.fee]:                              {float} # The fee charged for each transaction
-                 Map[Map.number]:                           {int}   # The number of period retrieve from Broker's API
-                 Map[Map.pair][rank{int}][Map.period]:      {int}   # Period in second
-                 Map[Map.pair][rank{int}][Map.roi]:         {float} # Roi evaluated with the given Strategy for this
-                                                                      period
-                 Map[Map.pair][rank{int}][Map.day]:         {float} # ROI per day
-                 Map[Map.pair][rank{int}][Map.transaction]: {dict}  # Result from Strategy.get_performance()
-                 Map[Map.pair][rank{int}][Map.rate]:        {List}  # Result from Strategy._performance_get_rates()
+                 Map[Map.pair]:                                 {Pair}
+                 Map[Map.fee]:                                  {float} # The fee charged for each transaction
+                 Map[Map.number]:                               {int}   # The number of period retrieve from Broker's API
+                 Map[Map.period][rank{int}][Map.period]:        {int}   # Period in second
+                 Map[Map.period][rank{int}][Map.roi]:           {float} # Roi evaluated with the given Strategy for this
+                                                                        period
+                 Map[Map.period][rank{int}][Map.day]:           {float} # ROI per day
+                 Map[Map.period][rank{int}][Map.transaction]:   {dict}  # Result from Strategy.get_performance()
+                 Map[Map.period][rank{int}][Map.rate]:          {List}  # Result from Strategy._performance_get_rates()
         """
         bkr_cls = bkr.__class__.__name__
         bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
@@ -333,7 +347,7 @@ class Strategy(_MF):
         return structures
 
     @staticmethod   # Broker
-    def get_top_volume(bkr: Broker, maximum: int = 25) -> Map():
+    def get_top_volume(bkr: Broker, maximum: int = _TOP_ASSET_MAX) -> Map():
         """
         To get ranking of pairs with the higher trading volume in last 24h\n
         Note: Ordered from the higher to the lower
@@ -376,3 +390,32 @@ class Strategy(_MF):
                           for idx in range(len(pairs)) if idx < maximum}
                          )
         return top_volume
+
+    # ——————————————— SAVE DOWN ———————————————
+
+    @staticmethod
+    def _save_top_asset(stg_class: str, top_asset: Map) -> None:
+        rows = []
+        date = _MF.unix_to_date(_MF.get_timestamp())
+        for rank, struc in top_asset.get_map().items():
+            row = {
+                Map.date: date,
+                "strategy": stg_class,
+                Map.rank: rank,
+                f"{Map.rank}_{Map.sum}": struc[Map.rank][Map.sum],
+                f"{Map.rank}_{Map.roi}": struc[Map.rank][Map.roi],
+                f"{Map.rank}_{Map.volume}": struc[Map.rank][Map.volume],
+                Map.pair: struc[Map.pair],
+                f"{Map.period}_minutes": struc[Map.period][0][Map.period] / 60,
+                Map.fee: struc[Map.fee],
+                f"{Map.number}_{Map.period}": struc[Map.number],
+                Map.roi: struc[Map.period][0][Map.roi],
+                Map.day: struc[Map.period][0][Map.day],
+                Map.volume: struc[Map.volume],
+                Map.transaction: _MF.json_encode(struc[Map.period][0][Map.transaction]),
+                Map.rate: _MF.json_encode(struc[Map.period][0][Map.rate])
+            }
+            rows.append(row)
+        path = Config.get(Config.DIR_SAVE_TOP_ASSET)
+        fields = list(rows[0].keys())
+        FileManager.write_csv(path, fields, rows, overwrite=False)

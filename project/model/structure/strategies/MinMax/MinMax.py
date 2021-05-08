@@ -9,6 +9,7 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
@@ -26,6 +27,7 @@ class MinMax(Strategy):
         self.__secure_order = None
         self._last_red_close = None
         self._last_dropping_close = None
+        self.__best_period = None
 
     def _init_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
@@ -50,9 +52,10 @@ class MinMax(Strategy):
         bkr_cls = bkr.__class__.__name__
         bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
         # Prepare Set Configs
+        best_period = self._get_best_period()
         mkt_rq_prms = Map({
             Map.pair: self.get_pair(),
-            Map.period: 60,
+            Map.period: best_period,
             Map.begin_time: None,
             Map.end_time: None,
             Map.number: 1
@@ -64,7 +67,7 @@ class MinMax(Strategy):
         self.__configs = Map({
             self._CONF_MAKET_PRICE: Map({
                 Map.pair: self.get_pair(),
-                Map.period: 60,
+                Map.period: best_period,
                 Map.begin_time: None,
                 Map.end_time: None,
                 Map.number: 100
@@ -80,6 +83,34 @@ class MinMax(Strategy):
         if k not in configs.get_keys():
             raise IndexError(f"There's  not constant with this key '{k}'")
         return configs.get(k)
+
+    """
+    def _set_best_period(self, bkr: Broker) -> None:
+        pair = self.get_pair()
+        period_ranking = MinMax.get_period_ranking(bkr, pair)
+    """
+    def set_best_period(self, best: int) -> None:
+        self.__best_period = best
+
+    @staticmethod
+    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
+        stg_name = MinMax.__name__
+        minute = 60
+        periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
+        nb_period = 1000
+        period_ranking = Strategy.get_top_period(bkr, stg_name, pair, periods, nb_period)
+        MinMax._save_period_ranking(period_ranking)
+        return period_ranking
+
+    def _get_best_period(self) -> int:
+        _stage = Config.get(Config.STAGE_MODE)
+        if _stage == Config.STAGE_1:
+            self.set_best_period(60) if self.__best_period is None else None
+            return self.__best_period
+        elif (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
+            if self.__best_period is None:
+                raise Exception(f"Strategy MinMax's best period must be set before.")
+            return self.__best_period
 
     def _set_secure_order(self, odr: Order) -> None:
         self.__secure_order = odr
@@ -354,12 +385,13 @@ class MinMax(Strategy):
         # super_trend = closes[-1]
         is_above_switch = super_trend >= self._last_red_close if self._last_red_close is not None else False
         # Checking
+        last_red_close = self._last_red_close
         if close_trend_ok and is_above_switch:
             self._buy(executions)
             self._last_red_close = None
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_BUY, _last_red_close=self._last_red_close)  # \
+        self._save_move(**vars(), move=Order.MOVE_BUY, _last_red_close=last_red_close)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
@@ -371,7 +403,6 @@ class MinMax(Strategy):
             # Buy
             'close_trend_ok',
             'is_above_switch',
-            'last_is_peak',
             '_last_red_close',
             'super_trend',
             'trend_first_idx',
@@ -623,7 +654,6 @@ class MinMax(Strategy):
             # Buy
             'close_trend_ok',
             'is_above_switch',
-            'last_is_peak',
             '_last_red_close',
             'super_trend',
             'trend_first_idx',
@@ -669,6 +699,31 @@ class MinMax(Strategy):
         fields = list(rows[0].keys())
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
+
+    @staticmethod
+    def _save_period_ranking(ranking: Map) -> None:
+        rows = []
+        base = {
+            Map.pair:  ranking.get(Map.pair),
+            Map.fee:  ranking.get(Map.fee),
+            Map.number:  ranking.get(Map.number)
+        }
+        date = _MF.unix_to_date(_MF.get_timestamp())
+        for rank, struc in ranking.get(Map.period).items():
+            row = {
+                Map.date: date,
+                Map.rank: rank,
+                f"{Map.period}_minutes": struc[Map.period] / 60,
+                **base,
+                Map.roi: struc[Map.roi],
+                Map.day: struc[Map.day],
+                Map.transaction: _MF.json_encode(struc[Map.transaction]),
+                Map.rate: _MF.json_encode(struc[Map.rate])
+            }
+            rows.append(row)
+        path = Config.get(Config.DIR_SAVE_PERIOD_RANKING)
+        fields = list(rows[0].keys())
+        FileManager.write_csv(path, fields, rows, overwrite=False)
 
     # ——————————————— STATIC METHOD DOWN ———————————————
 

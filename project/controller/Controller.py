@@ -97,6 +97,25 @@ class Controller:
         # create Bot
         md.create_bot(bkr, stg, pair_code, configs)
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
+        if (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
+            # Select period
+            bots = md.get_bots()
+            bt_ids = list(bots.keys())
+            bot = bots[bt_ids[0]]
+            period_ranking = bot.get_period_ranking()
+            options = []
+            best_periods = []
+            for rank, struc in period_ranking.get(Map.period).items():
+                period = struc[Map.period]
+                best_periods.append(period)
+                roi = round(struc[Map.roi]*100, 2)
+                roi_per_day = round(struc[Map.day]*100, 2)
+                option = f"rank:{rank} | minutes:{period / 60} | " \
+                         f"roi:{roi}% | day:{roi_per_day}%"
+                options.append(option)
+            best_period = best_periods[vw.menu(f"Select a trading interval for your pair '{pair_code.upper()}':", options)]
+            bot.set_best_period(best_period)
+            vw.output(View.FILE_MESSAGE, "✅ Trading interval set!")
 
     def start_bot(self):
         md = self.__get_model()

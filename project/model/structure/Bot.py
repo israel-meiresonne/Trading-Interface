@@ -102,6 +102,14 @@ class Bot(_MF):
         print("still trading...")
         return False
 
+    def get_period_ranking(self) -> Map:
+        bkr = self._get_broker()
+        pair = self._get_pair()
+        return self._get_strategy().get_period_ranking(bkr, pair)
+
+    def set_best_period(self, best: int) -> None:
+        self._get_strategy().set_best_period(best)
+
     @staticmethod
     def _generate_id(bkr: str, stg: str, prsbl: str) -> str:
         return bkr.lower() + Bot.SEPARATOR + stg.lower() + Bot.SEPARATOR + prsbl.lower()
