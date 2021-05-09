@@ -15,3 +15,6 @@ class Asset:
 
     def __str__(self) -> str:
         return self.get_symbol()
+
+    def __repr__(self) -> str:
+        return self.__str__()

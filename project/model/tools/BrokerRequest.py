@@ -13,8 +13,9 @@ class BrokerRequest(ABC, Request):
     # Requests
     RQ_MARKET_PRICE = "_set_market_price"
     RQ_ACCOUNT_SNAP = "_set_account_snapshot"
-    RQ_ORDERS = "_set_orders"
     RQ_24H_STATISTICS = "_set_24h_statistics"
+    RQ_ORDERS = "_set_orders"
+    RQ_TRADES = "_set_trades"
     # Accounts
     ACCOUNT_MAIN = "ACCOUNT_MAIN"
     ACCOUNT_MARGIN = "ACCOUNT_MARGIN"
@@ -126,8 +127,8 @@ class BrokerRequest(ABC, Request):
         """
         To prepare request to get datas about submitted Orders\n
         :param prms: params required
-                     prms[Map.symbol]:      {string}
-                     prms[Map.id]:          {string|None}    # an Order's id
+                     prms[Map.symbol]:      {str}
+                     prms[Map.id]:          {str|None}    # an Order's id
                      prms[Map.begin_time]:  {int|None}
                      prms[Map.end_time]:    {int|None}
                      prms[Map.limit]:       {int|None}
@@ -154,6 +155,37 @@ class BrokerRequest(ABC, Request):
                  ]
         """
         pass
+
+    @abstractmethod
+    def _set_trades(self, params: Map) -> None:
+        """
+        To prepare request to get trades of Order from Broker's API\n
+        :param params: params required
+                       Map[Map.pair]:       {Pair}
+                       Map[Map.begin_time]: {int|None}
+                       Map[Map.end_time]:   {int|None}
+                       Map[Map.id]:         {str|None} # A trade's id from witch to start if given
+                       Map[Map.limit]:      {int|None} # Max trade to return
+                       Map[Map.timeout]:    {int|None} # Max time to wait before request to expire
+        """
+        pass
+
+    @abstractmethod
+    def get_trades(self) -> Map:
+        """
+        To get trades of executed Order\n
+        :return: trades of executed
+                 Map[order_broker_id{str}][trade_id][Map.pair]:     {Pair}
+                 Map[order_broker_id{str}][trade_id][Map.order]:    {str}   # A Order's id
+                 Map[order_broker_id{str}][trade_id][Map.trade]:    {str}   # Trade's id
+                 Map[order_broker_id{str}][trade_id][Map.price]:    {Price} # Execution price
+                 Map[order_broker_id{str}][trade_id][Map.quantity]: {Price} # Quantity executed (left asset)
+                 Map[order_broker_id{str}][trade_id][Map.amount]:   {Price} # Amount executed (right asset)
+                 Map[order_broker_id{str}][trade_id][Map.fee]:      {Price} # Fee charged
+                 Map[order_broker_id{str}][trade_id][Map.time]:     {int}   # Execution time
+                 Map[order_broker_id{str}][trade_id][Map.buy]:      {bool}  # True if it's a buy trade else False
+                 Map[order_broker_id{str}][trade_id][Map.maker]:    {bool}  # True if it's a maker trade else False
+        """
 
     @abstractmethod
     def generate_request(self) -> Map:

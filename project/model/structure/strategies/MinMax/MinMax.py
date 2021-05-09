@@ -222,8 +222,8 @@ class MinMax(Strategy):
             # qty = Price(qty_val * max_rate, pr.get_left().get_symbol())
         # stop = mkt_prc.get_futur_price(self._get_constant(self._CONF_MAX_DR))
         super_trend = mkt_prc.get_super_trend()[0]
-        # stop = super_trend * (1 + max_drop_rate)
-        stop = super_trend
+        stop = super_trend * (1 + max_drop_rate)
+        # stop = super_trend
         odr_prms = Map({
             Map.pair: pr,
             Map.move: Order.MOVE_SELL,

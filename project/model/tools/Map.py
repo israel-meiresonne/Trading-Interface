@@ -18,6 +18,8 @@ class Map:
     roi = "roi"
     rank = "rank"
     sum = "sum"
+    order = "order"
+    trade = "trade"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"
@@ -77,6 +79,7 @@ class Map:
     maker = "maker"
     takerCommission = "takerCommission"
     makerCommission = "makerCommission"
+    fromId = "fromId"
     # BinanceOrder
     move = "move"
     pair = "pair"

@@ -5,6 +5,7 @@ from model.structure.database.ModelFeature import ModelFeature as ModelFeat
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
@@ -148,11 +149,11 @@ class BinanceRequest(BrokerRequest):
             raise ValueError(f"The Order's id can't be set when starttime or endtime are set.")
         limit = prms.get(Map.limit)
         if (limit is not None) and (limit > BinanceAPI.CONSTRAINT_LIMIT):
-            raise Exception(f"The number limit of Order returned per request is '{BinanceAPI.CONSTRAINT_LIMIT}',"
+            raise ValueError(f"The number limit of Order returned per request is '{BinanceAPI.CONSTRAINT_LIMIT}',"
                             f" instead '{limit}'.")
         recvwindow = prms.get(Map.timeout)
         if (recvwindow is not None) and (recvwindow > BinanceAPI.CONSTRAINT_RECVWINDOW):
-            raise Exception(f"The max time out to wait for a request response is '{BinanceAPI.CONSTRAINT_RECVWINDOW}',"
+            raise ValueError(f"The max time to wait for a request response is '{BinanceAPI.CONSTRAINT_RECVWINDOW}',"
                             f" instead '{recvwindow}'.")
         request = Map({
             Map.symbol: prms.get(Map.symbol).upper(),
@@ -194,6 +195,60 @@ class BinanceRequest(BrokerRequest):
                     Map.response: row
                 }
                 result.put(odr, odr_id)
+            self._set_result(result)
+        return result
+
+    def _set_trades(self, params: Map) -> None:
+        ks = [Map.pair]
+        rtn = ModelFeat.keys_exist(ks, params.get_map())
+        if rtn is not None:
+            raise ValueError(f"This param '{rtn}' is required to request executed trades.")
+        limit = params.get(Map.limit)
+        if (limit is not None) and (not (1 <= limit <= BinanceAPI.CONSTRAINT_ALL_TRADES_MAX_LIMIT)):
+            max_limit = BinanceAPI.CONSTRAINT_ALL_TRADES_MAX_LIMIT
+            raise ValueError(f"The number of trade to return is outside "
+                             f"the domain [1, {max_limit}], instead '{limit}'")
+        timeout = params.get(Map.timeout)
+        if (timeout is not None) and (not (1 <= timeout <= BinanceAPI.CONSTRAINT_RECVWINDOW)):
+            max_timeout = BinanceAPI.CONSTRAINT_RECVWINDOW
+            raise ValueError(f"The max time to wait for a request's response is outside "
+                             f"the domain [1, {max_timeout}], instead '{timeout}'")
+        request = Map({
+            Map.symbol: params.get(Map.pair).get_merged_symbols().upper(),
+            Map.fromId: params.get(Map.id),
+            Map.startTime: params.get(Map.begin_time),
+            Map.endTime: params.get(Map.end_time),
+            Map.limit: limit,
+            Map.recvWindow: timeout
+        })
+        self._set_endpoint(BinanceAPI.RQ_ALL_TRADES)
+        self._set_request(request)
+
+    def get_trades(self) -> Map:
+        result = self._get_result()
+        if result is None:
+            result = Map()
+            rsp = self._get_response()
+            content = rsp.get_content()
+            for row in content:
+                odr_bkr_id = row[Map.orderId]
+                trade_id = row[Map.id]
+                pair_str = BinanceAPI.symbol_to_pair(row[Map.symbol].lower())
+                pair = Pair(pair_str)
+                right_symbol = pair.get_right().get_symbol()
+                struc = {
+                    Map.pair: pair,
+                    Map.order: odr_bkr_id,
+                    Map.trade: trade_id,
+                    Map.price: Price(row[Map.price], right_symbol),
+                    Map.quantity: Price(row[Map.qty], pair.get_left().get_symbol()),
+                    Map.amount: Price(row['quoteQty'], right_symbol),
+                    Map.fee: Price(row[Map.commission], row[Map.commissionAsset]),
+                    Map.time: row[Map.time],
+                    Map.buy: row['isBuyer'], #  == Map.true,
+                    Map.maker: row['isMaker'] #  == Map.true
+                }
+                result.put(struc, odr_bkr_id, trade_id)
             self._set_result(result)
         return result
 

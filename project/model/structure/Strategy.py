@@ -228,7 +228,7 @@ class Strategy(_MF):
                         break
                 """
                 volume = top_volume.get(volume_rank, Map.volume)
-                rank_sum = (volume_rank / 2) + roi_rank
+                rank_sum = volume_rank + roi_rank
                 structure = Map(top_roi.get(roi_rank))
                 structure.put(volume,       Map.volume)
                 structure.put(rank_sum,     Map.rank, Map.sum)

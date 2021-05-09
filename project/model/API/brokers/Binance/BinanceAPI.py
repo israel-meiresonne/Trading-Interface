@@ -25,6 +25,7 @@ class BinanceAPI:
     RQ_24H_STATISTICS = "RQ_24H_STATISTICS"
     # Orders
     RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
+    RQ_ALL_TRADES = "RQ_ALL_TRADES"
     RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
     RQ_ORDER_LIMIT = "RQ_ORDER_LIMIT"
     RQ_ORDER_MARKET_qty = "RQ_ORDER_MARKET_qty"
@@ -108,6 +109,22 @@ class BinanceAPI:
             ],
             Map.params: [
                 Map.orderId,
+                Map.startTime,
+                Map.endTime,
+                Map.limit,
+                Map.recvWindow
+            ]
+        },
+        RQ_ALL_TRADES: {
+            Map.signed: True,
+            Map.method: Map.GET,
+            Map.path: "/api/v3/myTrades",
+            Map.mandatory: [
+                Map.symbol
+                # Map.timestamp | automatically added in BinanceAPI.__sign()
+            ],
+            Map.params: [
+                Map.fromId,
                 Map.startTime,
                 Map.endTime,
                 Map.limit,
@@ -368,6 +385,7 @@ class BinanceAPI:
     CONSTRAINT_RECVWINDOW = 60000
     CONSTRAINT_SNAP_ACCOUT_MIN_LIMIT = 5
     CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT = 30
+    CONSTRAINT_ALL_TRADES_MAX_LIMIT = 1000  # Default is 500
     # API Constants
     _EXCHANGE_INFOS = None
     _TRADE_FEES = None
@@ -555,7 +573,7 @@ class BinanceAPI:
     def symbol_to_pair(symbol: str) -> str:
         """
         To convert Binance symbol to System pair\n
-        i.e: 'BNBUSDT'|'bnbusdt' => 'bnb/usdt'
+        i.e: 'BNBUSDT'|'bnbusdt' => 'bnb/usdt'\n
         :param symbol: The symbol to convert
         :return: the symbol converted
         """

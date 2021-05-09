@@ -48,3 +48,6 @@ class Pair:
 
     def __str__(self) -> str:
         return self.get_left().get_symbol() + self._SEPARATOR + self.get_right().get_symbol()
+
+    def __repr__(self) -> str:
+        return self.__str__()

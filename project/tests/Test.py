@@ -19,6 +19,7 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Paire import Pair
+from model.tools.Price import Price
 
 
 def extract_market():
@@ -253,6 +254,14 @@ def get_broker() -> Broker:
     return bnc
 
 
+def get_top_asset(bnc: Broker, interval: int = 60 * 5, nb_period: int = 1000):
+    # period = 60 * 5
+    # nb_period = 1000
+    # maximum = 3
+    top_asset = Strategy.get_top_asset(bnc, MinMax.__name__, interval, nb_period)
+    return top_asset
+
+
 if __name__ == '__main__':
     """
     src_path = 'content/v0.01/2021-04-29 00.23.04_market.csv'
@@ -296,29 +305,20 @@ if __name__ == '__main__':
     print_performance(rows, path)
     Config.update(Config.STAGE_MODE, _init_stage)
     """
+    # """
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
     bnc = get_broker()
-    # bnc_rq = BinanceRequest(BinanceRequest.RQ_24H_STATISTICS, Map({Map.pair: Pair('BNB/USDT')}))
-    # bnc.request(bnc_rq)
-    # stats_24h = bnc_rq.get_24h_statistics()
-    # print(_MF.json_encode(stats_24h.get_map()))
-    # top_volume = MinMax.get_top_volume(bnc, 10)
-    # print(_MF.json_encode(top_volume.get_map()))
-    # print(top_volume.get_map())
-    # minute = 60
-    # periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
-    # periods = [minute]
-    # top_period = MinMax.top_period(bnc, Pair("DOGE/USDT"), periods, 1000)
-    # print(_MF.json_encode(top_period.get_map()))
-    period = 60 * 5
-    nb_period = 1000
-    maximum = 3
-    top_asset = Strategy.get_top_asset(bnc, MinMax.__name__, period, nb_period)
-    # period_ranking = MinMax.get_period_ranking(bnc, Pair("ETC/USDT"))
-    # for rank, row in top_asset.get_map().items():
-    #     row[Map.pair] = row[Map.pair].__str__()
-    # for key, val in period_ranking.get_map().items():
-    #     if key == Map.pair:
-    #         period_ranking.put(val.__str__(), key)
-    #         break
-    # print(_MF.json_encode(period_ranking.get_map()))
+    bnc_rq = BinanceRequest(BrokerRequest.RQ_TRADES, Map({
+        Map.pair: Pair("ETC/USDT"),
+        Map.begin_time: None,
+        Map.end_time: None,
+        Map.id: None,
+        Map.limit: 50,
+        Map.timeout: None
+    }))
+    bnc.request(bnc_rq)
+    trades = bnc_rq.get_trades()
+    print(trades)
+    # """
+    # bnc = get_broker()
+    # get_top_asset(bnc)
