@@ -284,20 +284,29 @@ class Strategy(_MF):
         :param periods: Period interval in second for witch to evaluate ROI (i.e: [60] or [60, 60*3, 60*5])
         :param nb_period: Number of period to get from Broker's API to evaluate ROI
         :return: ranking of a pair following it's ROI/day
-                 Map[Map.pair]:                                 {Pair}
-                 Map[Map.fee]:                                  {float} # The fee charged for each transaction
-                 Map[Map.number]:                               {int}   # The number of period retrieve from Broker's API
-                 Map[Map.period][rank{int}][Map.period]:        {int}   # Period in second
-                 Map[Map.period][rank{int}][Map.roi]:           {float} # Roi evaluated with the given Strategy for this
-                                                                        period
-                 Map[Map.period][rank{int}][Map.day]:           {float} # ROI per day
-                 Map[Map.period][rank{int}][Map.transaction]:   {dict}  # Result from Strategy.get_performance()
-                 Map[Map.period][rank{int}][Map.rate]:          {List}  # Result from Strategy._performance_get_rates()
+                 Map[Map.pair]:                                     {Pair}
+                 Map[Map.fee]:                                      {float} # The fee charged for each transaction
+                 Map[Map.number]:                                   {int}   # The number of period retrieve from
+                                                                              Broker's API
+                 Map[Map.period][rank{int}][Map.period]:            {int}   # Period in second
+                 Map[Map.period][rank{int}][Map.roi]:               {float} # Roi evaluated with the given Strategy for
+                                                                              this period
+                 Map[Map.period][rank{int}][Map.day]:               {float} # ROI per day
+                 Map[Map.period][rank{int}][Map.transaction]:       {dict}  # Result from
+                                                                              Strategy.get_performance()
+                 Map[Map.period][rank{int}][Map.rate]:              {List}  # Result from
+                                                                              Strategy._performance_get_rates()
+                 Map[Map.period][rank{int}][Map.rank][Map.sum]:     {int}   # Sum of period's rank and roi's rank
+                 Map[Map.period][rank{int}][Map.rank][Map.roi]:     {int}   # Rank of top roi
+                 Map[Map.period][rank{int}][Map.rank][Map.period]:  {int}   # Rank of this period in top interval
+                                                                              (lower -> Higher)
         """
-        bkr_cls = bkr.__class__.__name__
-        bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
-        exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
         exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
+        _bkr_cls = bkr.__class__.__name__
+        # Sort intervals
+        periods.sort()
+        top_intervals = {periods[rank]: rank for rank in range(len(periods))}
+        # Sort prepare top period's structure
         fees = bkr.get_trade_fee(pair)
         fee = fees.get(Map.taker)
         top_periods = []
@@ -308,7 +317,7 @@ class Strategy(_MF):
             Map.number: nb_period,
             Map.period: top_periods
         })
-        mkt_rq_prms = Map({
+        mkt_rq_params = Map({
             Map.pair: pair,
             Map.period: None,
             Map.begin_time: None,
@@ -318,15 +327,11 @@ class Strategy(_MF):
         for period in periods:
             print(f"Getting {pair.__str__().upper()}'s performance for {nb_period} intervals of "
                   f"'{int(period / 60)} minutes'.")
-            mkt_rq_prms.put(period, Map.period)
-            bkr_rq = eval(f"{bkr_rq_cls}('{BrokerRequest.RQ_MARKET_PRICE}', mkt_rq_prms)")
+            mkt_rq_params.put(period, Map.period)
+            # bkr_rq = eval(f"{bkr_rq_cls}('{BrokerRequest.RQ_MARKET_PRICE}', mkt_rq_prms)")
+            bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_rq_params)
             bkr.request(bkr_rq)
             market_price = bkr_rq.get_market_price()
-            # super_trends = list(market_price.get_super_trend())
-            # super_trends.reverse()
-            # closes = list(market_price.get_closes())
-            # closes.reverse()
-            # perf = MinMax.get_performance(bkr, market_price)
             perf = eval(f"{stg_class}.get_performance(bkr, market_price)")
             roi = perf.get(Map.roi)
             roi_per_sec = roi / (period * nb_period)
@@ -337,12 +342,23 @@ class Strategy(_MF):
                 Map.roi: roi,
                 Map.day: roi_per_day,
                 Map.transaction: perf.get(Map.transaction),
-                Map.rate: perf.get(Map.rate)
+                Map.rate: perf.get(Map.rate),
+                Map.rank: {
+                    Map.sum: None,
+                    Map.period: top_intervals[period],
+                    Map.roi: None
+                }
             }
             top_periods.append(top_period)
-        # structures.put(perf_periods, Map.period)  # Already put
-        top_periods = sorted(top_periods, key=lambda row: row[Map.day], reverse=True)
-        top_periods_keyed = {idx: top_periods[idx] for idx in range(len(top_periods))}
+        # structures.put(perf_periods, Map.period)  # Already put by reference
+        top_roi = sorted(top_periods, key=lambda row: row[Map.day], reverse=True)
+        for roi_rank in range(len(top_roi)):
+            struc = top_roi[roi_rank]
+            period_rank = struc[Map.rank][Map.period]
+            struc[Map.rank][Map.sum] = period_rank + roi_rank
+            struc[Map.rank][Map.roi] = roi_rank
+        top_periods_sorted = sorted(top_periods, key=lambda row: (row[Map.rank][Map.sum], row[Map.rank][Map.period]))
+        top_periods_keyed = {idx: top_periods_sorted[idx] for idx in range(len(top_periods_sorted))}
         structures.put(top_periods_keyed, Map.period)
         return structures
 

@@ -99,8 +99,15 @@ class Broker(ModelFeature):
         return eval(bkr+"(configs)")
 
     @staticmethod
-    def new_broker_request(bkr_cls: str, request_enum: str, request_params: Map) -> BrokerRequest:
-        _bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
-        exec(f"from model.API.brokers.{bkr_cls}.{_bkr_rq_cls} import {_bkr_rq_cls}")
+    def generate_broker_request(broker_class: str, request_enum: str, request_params: Map) -> BrokerRequest:
+        """
+        To generate a new BrokerRequest\n
+        :param broker_class: Class name of the Broker where the request will be submitted
+        :param request_enum: Name of the request (enum from BrokerRequest.RQ_{*} )
+        :param request_params: Params of the request
+        :return: an instance of BrokerRequest's children (i.e: BinanceRequest, KrakenRequest, etc...)
+        """
+        _bkr_rq_cls = BrokerRequest.get_request_class(broker_class)
+        exec(f"from model.API.brokers.{broker_class}.{_bkr_rq_cls} import {_bkr_rq_cls}")
         bkr_rq = eval(_bkr_rq_cls + f"('{request_enum}', request_params)")
         return bkr_rq

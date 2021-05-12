@@ -657,21 +657,26 @@ class MinMax(Strategy):
 
     @staticmethod
     def _save_period_ranking(ranking: Map) -> None:
+        def float_to_str(number: float) -> str:
+            return str(number).replace(".", ",")
         rows = []
         base = {
             Map.pair:  ranking.get(Map.pair),
-            Map.fee:  ranking.get(Map.fee),
+            Map.fee:  float_to_str(ranking.get(Map.fee)),
             Map.number:  ranking.get(Map.number)
         }
         date = _MF.unix_to_date(_MF.get_timestamp())
         for rank, struc in ranking.get(Map.period).items():
             row = {
                 Map.date: date,
-                Map.rank: rank,
-                f"{Map.period}_minutes": struc[Map.period] / 60,
+                f"{Map.sum}_{Map.rank}": rank,
+                Map.sum: struc[Map.rank][Map.sum],
+                f"{Map.period}_{Map.rank}": struc[Map.rank][Map.period],
+                f"{Map.roi}_{Map.rank}": struc[Map.rank][Map.roi],
                 **base,
-                Map.roi: struc[Map.roi],
-                Map.day: struc[Map.day],
+                f"{Map.period}_minutes": int(struc[Map.period] / 60),
+                Map.roi: float_to_str(struc[Map.roi]),
+                Map.day: float_to_str(struc[Map.day]),
                 Map.transaction: _MF.json_encode(struc[Map.transaction]),
                 Map.rate: _MF.json_encode(struc[Map.rate])
             }

@@ -275,7 +275,7 @@ class Orders(Order):
             Map.limit: None,
             Map.timeout: None
         })
-        bkr_rq = bkr.new_broker_request(_bkr_cls, BrokerRequest.RQ_ORDERS, rq_params)
+        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_ORDERS, rq_params)
         bkr.request(bkr_rq)
         odrs_datas = bkr_rq.get_orders()
         return odrs_datas
@@ -291,7 +291,7 @@ class Orders(Order):
             Map.limit: None,
             Map.timeout: None
         })
-        bkr_rq = bkr.new_broker_request(_bkr_cls, BrokerRequest.RQ_TRADES, rq_params)
+        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_TRADES, rq_params)
         bkr.request(bkr_rq)
         trade_datas = bkr_rq.get_trades()
         return trade_datas

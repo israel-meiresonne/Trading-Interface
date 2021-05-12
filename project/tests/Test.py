@@ -321,4 +321,6 @@ if __name__ == '__main__':
     print(trades)
     """
     bnc = get_broker()
-    get_top_asset(bnc)
+    # get_top_asset(bnc)
+    # top_periods = Strategy.get_top_period(bnc, MinMax.__name__, Pair("DOGE/USDT"), periods, nb_period)
+    period_ranking = MinMax.get_period_ranking(bnc, Pair("DOGE/USDT"))
