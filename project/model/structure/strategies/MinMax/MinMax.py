@@ -72,7 +72,7 @@ class MinMax(Strategy):
                 Map.period: best_period,
                 Map.begin_time: None,
                 Map.end_time: None,
-                Map.number: 250
+                Map.number: 100 if _stage == Config.STAGE_1 else 250
             }),
             self._CONF_MAX_DR: -0.05
         })
@@ -243,7 +243,7 @@ class MinMax(Strategy):
         self._init_strategy(bkr)
         # Get Market
         mkt_prc = self._get_market_price(bkr)
-        # Updatee Orders
+        # Update Orders
         self._update_orders(bkr, mkt_prc)
         # Backup Capital
         self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())
@@ -252,17 +252,16 @@ class MinMax(Strategy):
             executions = self._try_sell(mkt_prc)
         else:
             executions = self._try_buy(mkt_prc)
-        # has_execution = len(executions.get_map()) > 0
-        # bkr.execute(odrs_to_exec) if has_execution else None
         self.execute(bkr, mkt_prc, executions)
-        # Check Order Execution
-        # self._check_execution(bkr, mkt_prc, odrs_to_exec) if has_execution else None
 
     def execute(self, bkr: Broker, mkt_prc: MarketPrice, executions: Map) -> None:
-        # from time import sleep                                          # ❌
-        # sleep_time = 5                                                  # ❌
+        """
+        To executions to submit to Broker's API\n
+        :param bkr: Access to a Broker's API
+        :param mkt_prc: Market's prices
+        :param executions: Executions to execute
+        """
         for idx, execution in executions.get_map().items():
-            # print(f"Execution: '{execution}'")                          # ❌
             if execution == self._EXEC_BUY:
                 buy_order = self._new_buy_order(bkr)
                 bkr.execute(buy_order)
@@ -279,36 +278,6 @@ class MinMax(Strategy):
                     bkr.cancel(old_secure_order)
             else:
                 raise Exception(f"Unknown execution '{execution}'.")
-            # print(f"sleep for {sleep_time} seconds...")                 # ❌
-            # sleep(sleep_time)                                           # ❌
-
-    '''
-    def _check_execution(self, bkr: Broker, mkt_prc: MarketPrice, odrs_to_exec: Map) -> None:
-        """
-        To check if all Order have been executed and retry execution of failed Order\n
-        :param bkr: access to a Broker's API
-        :param mkt_prc: market price
-        :param odrs_to_exec: executed Order
-        """
-        odrs_failed = Map({idx: odr for idx, odr in odrs_to_exec.get_map().items()
-                           if (odr.get_status() == Order.STATUS_FAILED) or (odr.get_status() == Order.STATUS_EXPIRED)})
-        has_failed = len(odrs_failed.get_map()) > 0
-        if has_failed:
-            new_odrs_to_exec = Map()
-            for idx, odr in odrs_failed.get_map().items():
-                move = odr.get_move()
-                odr_type = odr.get_type()
-                if (move == Order.MOVE_BUY) and (odr_type == Order.TYPE_MARKET):
-                    pass
-                elif (move == Order.MOVE_SELL) and (odr_type == Order.TYPE_MARKET):
-                    new_odrs_to_exec.put(self._new_sell_order(bkr), len(new_odrs_to_exec.get_map()))
-                elif (move == Order.MOVE_SELL) and (odr_type == Order.TYPE_STOP_LIMIT):
-                    new_odrs_to_exec.put(self._new_secure_order(bkr, mkt_prc), len(new_odrs_to_exec.get_map()))
-                else:
-                    odr_id = odr.get_id()
-                    raise Exception(f"Unknown Order's state (move: '{move}', type: '{odr_type}', id: '{odr_id}').")
-            bkr.execute(new_odrs_to_exec) if len(new_odrs_to_exec.get_map()) > 0 else None
-    '''
 
     # TREND(RSI)&TREND(CLOSE)V5.0: BUY
     '''
@@ -366,7 +335,6 @@ class MinMax(Strategy):
     def _try_buy(self, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
-        :param bkr: access to a Broker's API
         :param mkt_prc: market price
         :return: set of order to execute
                  Map[index{int}] => {Order}
@@ -490,15 +458,15 @@ class MinMax(Strategy):
 
     # TEST STAGE_3
     """
-    def _try_buy(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
+    def _try_buy(self, mkt_prc: MarketPrice) -> Map:
         executions = Map()
-        self._buy(bkr, mkt_prc, executions)
-        self._move_up_secure_order(bkr, mkt_prc, executions)
-        self._sell(bkr, executions)
+        self._buy(executions)
+        # self._move_up_secure_order(bkr, mkt_prc, executions)
+        # self._sell(bkr, executions)
         return executions
 
-    def _try_sell(self, bkr: Broker, mkt_prc: MarketPrice) -> Map:
-        raise Exception("❌ NO TRY SELL")
+    def _try_sell(self, mkt_prc: MarketPrice) -> Map:
+        executions = Map()
         return executions
     """
 
@@ -507,14 +475,6 @@ class MinMax(Strategy):
         To add buy execution\n
         NOTE: its include Buy Order and a secure Order\n
         :param executions: where to place generated Order
-        """
-        """
-        # buy order
-        b_odr = self._new_buy_order(bkr)
-        odrs.put(b_odr, len(odrs.get_map()))
-        # secure order
-        scr_odr = self._new_secure_order(bkr, mkt_prc)
-        odrs.put(scr_odr, len(odrs.get_map()))
         """
         # Buy Order
         executions.put(self._EXEC_BUY, len(executions.get_map()))
@@ -566,7 +526,6 @@ class MinMax(Strategy):
     def _try_sell(self, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
-        :param bkr: an access to a Broker's API
         :param mkt_prc: market prices
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
@@ -596,18 +555,7 @@ class MinMax(Strategy):
         """
         To generate sell Order\n
         NOTE: its cancel secure Order and generate a sell Order\n
-        :param bkr: access to a Broker's API
         :param executions: where to place generated Order
-        """
-        """
-        old_scr_odr = self._get_secure_order()
-        # bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
-        secure_odr_status = old_scr_odr.get_status()
-        bkr.cancel(old_scr_odr) \
-            if (secure_odr_status == Order.STATUS_SUBMITTED) \
-               or (secure_odr_status == Order.STATUS_PROCESSING) else None
-        s_odr = self._new_sell_order(bkr)
-        odrs.put(s_odr, len(odrs.get_map()))
         """
         # Cancel Secure Order
         executions.put(self._EXEC_CANCEL_SECURE, len(executions.get_map()))
@@ -617,8 +565,7 @@ class MinMax(Strategy):
     def _move_up_secure_order(self, executions: Map) -> None:
         """
         To move up the secure Order\n
-        :param bkr: access to a Broker's API
-        :param mkt_prc: market price
+        :param executions: market price
         :param executions: where to place generated Order
         """
         """

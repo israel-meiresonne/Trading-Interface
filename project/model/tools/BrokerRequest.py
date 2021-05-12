@@ -148,7 +148,7 @@ class BrokerRequest(ABC, Request):
                     Map.quantity:   {float}         # submitted quantity
                     Map.qty:        {float|None}    # executed quantity
                     Map.amount:     {float|None}    # amount spent to execute the submitted quantity
-                    Map.status:     {string}        # Order's status converted to System's status for Order
+                    Map.status:     {string}        # Order's status converted to System's
                     Map.type:       {string}        # Order's execution type (Market, Limit, etc...)
                     Map.move:       {string}        # Buy | Sell (Order.Move_*)
                     Map.time:       {int}           # execution unix time
@@ -175,16 +175,18 @@ class BrokerRequest(ABC, Request):
         """
         To get trades of executed Order\n
         :return: trades of executed
+                 Map[order_broker_id{str}][trade_id][Map.time]:     {int}   # Execution time
                  Map[order_broker_id{str}][trade_id][Map.pair]:     {Pair}
-                 Map[order_broker_id{str}][trade_id][Map.order]:    {str}   # A Order's id
-                 Map[order_broker_id{str}][trade_id][Map.trade]:    {str}   # Trade's id
+                 Map[order_broker_id{str}][trade_id][Map.order]:    {str}   # A Order's id in Broker's System
+                 Map[order_broker_id{str}][trade_id][Map.trade]:    {str}   # Trade's id in Broker's System
                  Map[order_broker_id{str}][trade_id][Map.price]:    {Price} # Execution price
                  Map[order_broker_id{str}][trade_id][Map.quantity]: {Price} # Quantity executed (left asset)
                  Map[order_broker_id{str}][trade_id][Map.amount]:   {Price} # Amount executed (right asset)
                  Map[order_broker_id{str}][trade_id][Map.fee]:      {Price} # Fee charged
-                 Map[order_broker_id{str}][trade_id][Map.time]:     {int}   # Execution time
                  Map[order_broker_id{str}][trade_id][Map.buy]:      {bool}  # True if it's a buy trade else False
+                                                                              for a sell trade
                  Map[order_broker_id{str}][trade_id][Map.maker]:    {bool}  # True if it's a maker trade else False
+                                                                              for taker
         """
 
     @abstractmethod

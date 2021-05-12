@@ -231,12 +231,13 @@ class BinanceRequest(BrokerRequest):
             rsp = self._get_response()
             content = rsp.get_content()
             for row in content:
-                odr_bkr_id = row[Map.orderId]
-                trade_id = row[Map.id]
+                odr_bkr_id = str(row[Map.orderId])
+                trade_id = str(row[Map.id])
                 pair_str = BinanceAPI.symbol_to_pair(row[Map.symbol].lower())
                 pair = Pair(pair_str)
                 right_symbol = pair.get_right().get_symbol()
                 struc = {
+                    Map.time: row[Map.time],
                     Map.pair: pair,
                     Map.order: odr_bkr_id,
                     Map.trade: trade_id,
@@ -244,9 +245,8 @@ class BinanceRequest(BrokerRequest):
                     Map.quantity: Price(row[Map.qty], pair.get_left().get_symbol()),
                     Map.amount: Price(row['quoteQty'], right_symbol),
                     Map.fee: Price(row[Map.commission], row[Map.commissionAsset]),
-                    Map.time: row[Map.time],
-                    Map.buy: row['isBuyer'], #  == Map.true,
-                    Map.maker: row['isMaker'] #  == Map.true
+                    Map.buy: row['isBuyer'],
+                    Map.maker: row['isMaker']
                 }
                 result.put(struc, odr_bkr_id, trade_id)
             self._set_result(result)

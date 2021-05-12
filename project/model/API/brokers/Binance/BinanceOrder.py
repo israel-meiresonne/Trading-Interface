@@ -4,6 +4,7 @@ from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Map import Map
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
@@ -213,38 +214,57 @@ class BinanceOrder(Order):
         status = self.convert_status(content.get(Map.status))
         exec_time = content.get(Map.transactTime) \
             if (status == Order.STATUS_PROCESSING) or (status == Order.STATUS_COMPLETED) else None
+        """
         exec_qty = float(content.get(Map.executedQty))
         exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty > 0 else None
         exec_amount = float(content.get(Map.cummulativeQuoteQty))
         exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount > 0 else None
+        """
         odr_bkr_id = content.get(Map.orderId)
+        # Extract trade
+        rsp_trades = content.get(Map.fills)
+        move = self.get_move()
+        trades = self._structure_trades(rsp_trades, pair, exec_time, odr_bkr_id, move) \
+            if (rsp_trades is not None) and (len(rsp_trades) > 0) else None
+        '''
         # Stages
-        # exec_price_obj = None
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            exec_price_val = content.get(Map.price)
-            fee_obj = Price(Order.FAKE_FEE, r_symbol) if exec_price_val is not None else None
+            pass
+            # exec_price_val = content.get(Map.price)
+            # fee_obj = Price(Order.FAKE_FEE, r_symbol) if exec_price_val is not None else None
         elif _stage == Config.STAGE_3:
             # Execution price
+            """
             fills = content.get(Map.fills)
             # subexec = fills if fills is not None else None
             fills_ok = (fills is not None) and (len(fills) > 0)
-            self._set_subexecutions(fills) if fills_ok else None
+            self._set_trades(fills) if fills_ok else None
             subexec_datas = self.resume_subexecution(fills) if fills_ok else None
             exec_price_val = subexec_datas.get(Map.price) if subexec_datas is not None else None
             fee_obj = subexec_datas.get(Map.fee) if subexec_datas is not None else None
+            """
+            rsp_trades = content.get(Map.fills)
+            move = self.get_move()
+            trades = self._structure_trades(rsp_trades, pair, exec_time, odr_bkr_id, move)
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
-        # if exec_price_val is not None:
-        #    exec_price_obj = Price(exec_price_val, r_symbol)
+        '''
+        """
+        if exec_price_val is not None:
+           exec_price_obj = Price(exec_price_val, r_symbol)
         exec_price_obj = Price(exec_price_val, r_symbol) if exec_price_val is not None else None
+        """
         # Update
         self._set_status(status)
         self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
+        self._set_trades(trades) if trades is not None else None
+        """
         self._set_execution_time(exec_time) if (self.get_execution_time() is None) and (exec_time is not None) else None
         self._set_execution_price(exec_price_obj) if self.get_execution_price() is None else None
         self._set_executed_quantity(exec_qty_obj) if self.get_executed_quantity() is None else None
         self._set_executed_amount(exec_amount_obj) if self.get_executed_amount() is None else None
         self._set_fee(fee_obj) if fee_obj is not None else None
+        """
 
     @staticmethod
     def _get_status_converter() -> Map:
@@ -275,6 +295,7 @@ class BinanceOrder(Order):
             raise ValueError(f"This Order move '{side}' is not supported.")
         return converter.get(side)
 
+    '''
     @staticmethod
     def resume_subexecution(fills: list) -> Map:
         """
@@ -321,3 +342,39 @@ class BinanceOrder(Order):
             Map.fee: fees_obj
         })
         return datas
+    '''
+
+    @staticmethod
+    def _structure_trades(rsp_trades: list, pair: Pair, exec_time: int, order_bkr_id: str, move: str) -> Map:
+        trades = Map()
+        is_buy = None
+        if move == Order.MOVE_BUY:
+            is_buy = True
+        elif move == Order.MOVE_SELL:
+            is_buy = False
+        else:
+            raise ValueError(f"Unknown Order move '{move}'.")
+        for i in range(len(rsp_trades)):
+            trade_id = f"{order_bkr_id}_{i}"
+            rsp_trade = rsp_trades[i]
+            fee_symbol = rsp_trade[Map.commissionAsset]
+            left_symbol = pair.get_left().get_symbol()
+            right_symbol = pair.get_right().get_symbol()
+            exec_price = Price(rsp_trade[Map.price], right_symbol)
+            exec_quantity = Price(rsp_trade[Map.qty], left_symbol)
+            exec_amount = Price(exec_price * exec_quantity, right_symbol)
+            fee = Price(rsp_trade[Map.commission], fee_symbol)
+            trade = {
+                Map.pair: pair,
+                Map.order: order_bkr_id,
+                Map.trade: None,
+                Map.price: exec_price,
+                Map.quantity: exec_quantity,
+                Map.amount: exec_amount,
+                Map.fee: fee,
+                Map.time: exec_time,
+                Map.buy: is_buy,
+                Map.maker: None
+            }
+            trades.put(trade, trade_id)
+        return trades

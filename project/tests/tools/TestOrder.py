@@ -11,7 +11,6 @@ from model.tools.Price import Price
 
 
 class TestOrder(unittest.TestCase, Order):
-
     def setUp(self) -> None:
         _initial_stage = Config.get(Config.STAGE_MODE)
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
@@ -113,6 +112,76 @@ class TestOrder(unittest.TestCase, Order):
         self.odr1._set_fee(l_fee)
         with self.assertRaises(ValueError):
             self.odr1.get_fee(Asset("BNB"))
+
+    def test_resume_subexecution(self) -> None:
+        pair = Pair('DOGE/USDT')
+        right_symbol = pair.get_right().get_symbol()
+        left_symbol = pair.get_left().get_symbol()
+        # """
+        fills = [
+            {
+                "price": "130.8575",
+                "qty": "1.007",
+                "commission": "1.00000000",
+                "commissionAsset": right_symbol
+            },
+            {
+                "price": "130.8839",
+                "qty": "6.511",
+                "commission": "2.00000000",
+                "commissionAsset": right_symbol
+            },
+            {
+                "price": "130.8857",
+                "qty": "0.057",
+                "commission": "3.00000000",
+                "commissionAsset": right_symbol
+            }
+        ]
+        # """
+        trades = Map()
+        for i in range(len(fills)):
+            trade_id = f'trade_id{i}'
+            row = fills[i]
+            trade = {
+                Map.pair: pair,
+                Map.order: 'orderid_001',
+                Map.trade: trade_id,
+                Map.price: Price(row[Map.price], right_symbol),
+                Map.quantity: Price(row[Map.qty], left_symbol),
+                Map.amount: None,
+                Map.fee: Price(row[Map.commission], right_symbol),
+                Map.time: i,
+                Map.buy: True,
+                Map.maker: False
+            }
+            trades.put(trade, trade_id)
+        quantity_vals = [float(row[Map.qty]) for row in fills]
+        sum_quantity = sum(quantity_vals)
+        exec_price_obj = Price(130.880, right_symbol)
+        exec_quantity_obj = Price(sum_quantity, left_symbol)
+        exp1 = Map({
+            Map.time: 0,
+            Map.price: exec_price_obj,
+            Map.left: exec_quantity_obj,
+            # Map.right: Price(exec_price_obj * exec_quantity_obj, right_symbol),
+            Map.right: Price(round(exec_price_obj * exec_quantity_obj, 2), right_symbol),
+            Map.fee: Price(6.0, right_symbol)
+        })
+        result1 = self._exctract_trade_datas(trades)
+        # Round exec Price
+        exec_price_obj = result1.get(Map.price)
+        rounded_exec_price = round(exec_price_obj.get_value(), 2)
+        result1.put(Price(rounded_exec_price, exec_price_obj.get_asset().get_symbol()), Map.price)
+        # Round executed amount
+        exec_amount_obj = result1.get(Map.right)
+        rounded_exec_emount = round(exec_amount_obj.get_value(), 2)
+        result1.put(Price(rounded_exec_emount, exec_amount_obj.get_asset().get_symbol()), Map.right)
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
+        print(result1)
+        # Rise error
+        # with self.assertRaises(ValueError):
+        #    self._exctract_trade_datas([])
 
 
 if __name__ == '__main__':

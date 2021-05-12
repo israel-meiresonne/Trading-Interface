@@ -84,7 +84,7 @@ class Order(ABC, Request):
         self.__executed_quantity = None
         self.__executed_amount = None
         self.__fee = None
-        self.__subexecutions = None
+        self.__trades = None    # Usually an order is split by the Broker to sub-order (= trade) to be fill easier
         self._set_order(params)
 
     def _set_order(self, params: Map) -> None:
@@ -258,16 +258,6 @@ class Order(ABC, Request):
         # _stage = Config.get(Config.STAGE_MODE)
         if self.__execution_price is not None:
             raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{prc}').")
-        """
-        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            pass
-        elif _stage == Config.STAGE_3:
-            subexec = self.get_subexecutions()
-            if subexec is None:
-                raise Exception("In stage 3, The sub-executions must be set before to set the execution price")
-        else:
-            raise Exception(f"Unknown stage '{_stage}'.")
-        """
         self.__execution_price = prc
 
     def get_execution_price(self) -> Price:
@@ -319,25 +309,41 @@ class Order(ABC, Request):
         })
 
     def get_fee(self, asset: Asset) -> Price:
-        # if self.__fee is None:
-        #    raise Exception("The fee must be set before.")
         pair = self.get_pair()
         if (asset != pair.get_left()) and (asset != pair.get_right()):
             raise ValueError(f"There is not fee with this symbol '{asset}' (Order's pair '{pair}').")
         return self.__fee.get(asset.get_symbol()) if isinstance(self.__fee, Map) else None
 
-    def _set_subexecutions(self, fills: list) -> None:
+    def _set_trades(self, trades: Map) -> None:
         """
-        To set
-        Usually an order is split by the Broker to sub-order to be fill easier
-        :param fills: list of sub-order executed to execute the initial order
+        To set trades executed\n
+        :param trades: executed trades
+               Map[trade_id][*]:    {BrokerRequest.get_trades()}    # Same format
         """
-        self.__subexecutions = fills
+        # Raise error if trades if empty
+        if len(trades.get_map()) == 0:
+            raise ValueError(f"The list of executed trade can't be empty.")
+        trade_datas = self._exctract_trade_datas(trades)
+        # Set exec time with the older trade time
+        self._set_execution_time(trade_datas.get(Map.time))
+        # Set exec price
+        self._set_execution_price(trade_datas.get(Map.price))
+        # Set fee
+        self._set_fee(trade_datas.get(Map.fee))
+        # Set exec amount
+        self._set_executed_amount(trade_datas.get(Map.right))
+        # Set exec quantity
+        self._set_executed_quantity(trade_datas.get(Map.left))
+        # Set trades
+        self.__trades = trades
 
-    def get_subexecutions(self) -> list:
-        # if self.__subexecutions is None:
-        #     raise Exception("The subexecutions must be set before.")
-        return self.__subexecutions
+    def get_trades(self) -> Map:
+        """
+        To get executed trades\n
+        :return: executed trades
+                 Map[trade_id][*]:    {BrokerRequest.get_trades()}    # Same format
+        """
+        return self.__trades
 
     def _set_request_params(self, params: Map) -> None:
         self.__request_params = params
@@ -410,3 +416,53 @@ class Order(ABC, Request):
         :return: params to cancel the Order
         """
         pass
+
+    @staticmethod
+    def _exctract_trade_datas(trades: Map) -> Map:
+        """
+        To extract datas from trades\n
+        :param trades: executed trades
+               Map[trade_id][*]:    {BrokerRequest.get_trades()}    # Same format
+        :return: extracted datas\n
+                 Map[Map.time]:     {int}   # Execution time of the older trade
+                 Map[Map.price]:    {Price} # Average execution price
+                 Map[Map.left]:     {Price} # Executed quantity in left asset
+                 Map[Map.right]:    {Price} # Executed amount in right asset
+                 Map[Map.fee]:      {Price} # Total fees charged
+        """
+        new_trades = []
+        trade_ids = trades.get_keys()
+        trade = Map(trades.get(trade_ids[0]))
+        pair = trade.get(Map.pair)
+        right_symbol = pair.get_right().get_symbol()
+        fee = trade.get(Map.fee)
+        exec_time = trade.get(Map.time)
+        qty_total = Price(0, pair.get_left().get_symbol())
+        fees = Price(0, fee.get_asset().get_symbol())
+        for trade_id, trade in trades.get_map().items():
+            trade_time = trade[Map.time]
+            exec_time = trade_time if trade_time < exec_time else exec_time
+            price = trade[Map.price]
+            qty = trade[Map.quantity]
+            qty_total += qty
+            fee = trade[Map.fee]
+            fees += fee
+            new_trade = {
+                Map.price: price,
+                Map.qty: qty,
+                Map.commission: fee
+            }
+            new_trades.append(new_trade)
+        price_rates = [(row[Map.qty] / qty_total) * row[Map.price] for row in new_trades]
+        price_sum = sum(price_rates)
+        nb_decimal = _MF.get_nb_decimal(new_trades[0][Map.price].get_value())
+        price_exec = round(price_sum, nb_decimal)
+        exec_price_obj = Price(price_exec, right_symbol)
+        datas = Map({
+            Map.time: exec_time,
+            Map.price: exec_price_obj,
+            Map.left: qty_total,
+            Map.right: Price(price_exec * qty_total, right_symbol),
+            Map.fee: fees
+        })
+        return datas

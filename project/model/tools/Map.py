@@ -175,7 +175,7 @@ class Map:
     def get(self, *keys):
         nb = len(keys)
         if nb <= 0:
-            ValueError("Kyes can't be empty")
+            ValueError("Keys can't be empty")
         mp = self.get_map()
         if nb == 1:
             key = keys[0]

@@ -184,14 +184,22 @@ class Orders(Order):
 
     def _update_stage_3(self, bkr: Broker) -> None:
         odrs = self._get_orders()
+        starttime = Orders._update_stage_3_get_starttime(odrs)
+        starttime = starttime - (60 * 10) if starttime is not None else starttime
+        """
         starttime = None
         for idx, odr in odrs.get_map().items():
             status = odr.get_status()
             if (status == Order.STATUS_SUBMITTED) or (status == Order.STATUS_PROCESSING):
                 starttime = odr.get_settime()
                 break
+        """
         if starttime is not None:
             first_odr = self.get_order(idx=0)
+            pair = first_odr.get_pair()
+            # Get submitted Order since the last pending
+            odrs_datas = Orders._update_stage_3_get_order_datas(bkr, pair, starttime)
+            """
             bkr_cls = bkr.__class__.__name__
             bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
             rq_prms = Map({
@@ -206,24 +214,102 @@ class Orders(Order):
             bkr_rq = eval(bkr_rq_cls + f"('{BrokerRequest.RQ_ORDERS}', rq_prms)")
             bkr.request(bkr_rq)
             odrs_datas = bkr_rq.get_orders()
-            for idx, odr in odrs.get_map().items():
-                odr_status = odr.get_status()
-                if (odr_status == Order.STATUS_SUBMITTED) or (odr_status == Order.STATUS_PROCESSING):
-                    odr_bkr_id = odr.get_broker_id()
-                    odr_datas = Map(odrs_datas.get(odr_bkr_id))
-                    self._update_algo_order_stage_3(odr, odr_datas)
-                    # Backup
-                    self.insert_order(self.SAVE_ACTION_UPDATE, odr)
+            """
+            # Update Order
+            has_executed = Orders._update_stage_3_has_executed(odrs_datas)
+            if has_executed:
+                trade_datas = Orders._update_stage_3_get_trades_datas(bkr, pair, starttime)
+                print(trade_datas)
+                for idx, odr in odrs.get_map().items():
+                    odr_status = odr.get_status()
+                    if (odr_status == Order.STATUS_SUBMITTED) or (odr_status == Order.STATUS_PROCESSING):
+                        odr_bkr_id = odr.get_broker_id()
+                        odr_datas = Map(odrs_datas.get(odr_bkr_id))
+                        self._update_algo_order_stage_3(odr, odr_datas, trade_datas)
+                        # Backup
+                        self.insert_order(self.SAVE_ACTION_UPDATE, odr)
 
     @staticmethod
-    def _update_algo_order_stage_3(odr: Order, odr_datas: Map) -> None:
+    def _update_stage_3_has_executed(odrs_datas: Map) -> bool:
+        has_executed = False
+        for odr_bkr_id, odr_data in odrs_datas.get_map().items():
+            odr_bkr_status = odr_data[Map.status]
+            if (odr_bkr_status == Order.STATUS_COMPLETED) or (odr_bkr_status == Order.STATUS_PROCESSING):
+                has_executed = True
+                break
+        return has_executed
+
+    @staticmethod
+    def _update_stage_3_get_starttime(odrs: Map) -> int:
+        starttime = None
+        for idx, odr in odrs.get_map().items():
+            status = odr.get_status()
+            if (status == Order.STATUS_SUBMITTED) or (status == Order.STATUS_PROCESSING):
+                starttime = odr.get_settime()
+                break
+        return starttime
+
+    @staticmethod
+    def _update_stage_3_get_order_datas(bkr: Broker, pair: Pair, starttime: int) -> Map:
+        """
+        _bkr_cls = bkr.__class__.__name__
+        _bkr_rq_cls = BrokerRequest.get_request_class(_bkr_cls)
+        rq_prms = Map({
+            Map.symbol: pair.get_merged_symbols(),
+            Map.id: None,
+            Map.begin_time: starttime - (60*10),
+            Map.end_time: None,
+            Map.limit: None,
+            Map.timeout: None
+        })
+        exec(f"from model.API.brokers.{_bkr_cls}.{_bkr_rq_cls} import {_bkr_rq_cls}")
+        bkr_rq = eval(_bkr_rq_cls + f"('{BrokerRequest.RQ_ORDERS}', rq_prms)")
+        """
+        _bkr_cls = bkr.__class__.__name__
+        rq_params = Map({
+            # Map.symbol: first_odr.get_pair().get_merged_symbols(),
+            Map.symbol: pair.get_merged_symbols(),
+            Map.id: None,
+            Map.begin_time: starttime,
+            Map.end_time: None,
+            Map.limit: None,
+            Map.timeout: None
+        })
+        bkr_rq = bkr.new_broker_request(_bkr_cls, BrokerRequest.RQ_ORDERS, rq_params)
+        bkr.request(bkr_rq)
+        odrs_datas = bkr_rq.get_orders()
+        return odrs_datas
+
+    @staticmethod
+    def _update_stage_3_get_trades_datas(bkr: Broker, pair: Pair, starttime: int) -> Map:
+        _bkr_cls = bkr.__class__.__name__
+        rq_params = Map({
+            Map.pair: pair,
+            Map.begin_time: starttime,
+            Map.end_time: None,
+            Map.id: None,
+            Map.limit: None,
+            Map.timeout: None
+        })
+        bkr_rq = bkr.new_broker_request(_bkr_cls, BrokerRequest.RQ_TRADES, rq_params)
+        bkr.request(bkr_rq)
+        trade_datas = bkr_rq.get_trades()
+        return trade_datas
+
+    @staticmethod
+    def _update_algo_order_stage_3(odr: Order, odr_datas: Map, trade_datas: Map) -> None:
+        """
         r_symbol = odr.get_pair().get_right().get_symbol()
         l_symbol = odr.get_pair().get_left().get_symbol()
+        """
         # Get api Order
+        """
         # odr_bkr_id = odr.get_broker_id()
         # odr_datas = odrs_datas.get(odr_bkr_id)
+        """
         # Get api Order's properties
         new_status = odr_datas.get(Map.status)
+        """
         exec_time = odr_datas.get(Map.time) \
             if (new_status == Order.STATUS_PROCESSING) or (new_status == Order.STATUS_COMPLETED) else None
         # Exec Price
@@ -235,8 +321,15 @@ class Orders(Order):
         # Exec Amount
         exec_amount = odr_datas.get(Map.amount)
         exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount is not None else None
+        """
         # Update
         odr._set_status(new_status)
+        if (new_status == Order.STATUS_PROCESSING) or (new_status == Order.STATUS_COMPLETED):
+            odr_bkr_id = odr.get_broker_id()
+            odr_trades = Map(trade_datas.get(odr_bkr_id))
+            # odr_trades = Map(trade_datas.get_map()[odr_bkr_id])
+            odr._set_trades(odr_trades)
+        """
         odr._set_execution_time(exec_time) if exec_time is not None else None
         odr._set_execution_price(exec_price_obj) if (odr.get_execution_price() is None) \
                                                     and (exec_price_obj is not None) else None
@@ -244,6 +337,7 @@ class Orders(Order):
                                                     and (exec_price_obj is not None) else None
         odr._set_executed_amount(exec_amount_obj) if (odr.get_executed_amount() is None) \
                                                      and (exec_amount_obj is not None) else None
+        """
 
     @staticmethod
     def _sum_orders(odrs: Map) -> Map:
@@ -335,11 +429,14 @@ class Orders(Order):
             Map.action: action,
             **odr.__dict__
         }
+        """
         key1 = "_Order__order_params"
         for k, v in d[key1].get_map().items():
             if isinstance(v, Price) or isinstance(v, Pair):
                 # d[key1][k] = v.__str__()
                 d[key1].put(v.__str__(), k)
+        """
+        """
         key_fee = '_Order__fee'
         if isinstance(d[key_fee], Map):
             i = 1
@@ -350,6 +447,7 @@ class Orders(Order):
             d[f'fee_1'] = None
             d[f'fee_2'] = None
         # del d[key_fee]
+        """
         rows = [d]
         fields = list(rows[0].keys())
         overwrite = False

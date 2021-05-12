@@ -1,14 +1,18 @@
 import unittest
 
+from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.tools.Map import Map
+from model.tools.Order import Order
 from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
 class TestBinanceOrder(unittest.TestCase, BinanceOrder):
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
+        BinanceAPI("api_pb", "api_sk", True)
         self.lsbl = "BTC"
         self.rsbl = "USDT"
         # MARKET
@@ -103,8 +107,8 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
             Map.newOrderRespType: BinanceAPI.RSP_TYPE_FULL,
             Map.recvWindow: None
         })
-        self.stop_odr1 = BinanceOrder(BinanceOrder.TYPE_STOP, self.stop_prms1)
-        self.stop_odr2 = BinanceOrder(BinanceOrder.TYPE_STOP, self.stop_prms2)
+        # self.stop_odr1 = BinanceOrder(BinanceOrder.TYPE_STOP, self.stop_prms1)
+        # self.stop_odr2 = BinanceOrder(BinanceOrder.TYPE_STOP, self.stop_prms2)
 
     def test_constructor_market(self):
         # amount set
@@ -173,6 +177,7 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
     def test_generate_cancel_order(self):
         raise Exception("Must implement this test")
 
+    """
     def test_resume_subexecution(self) -> None:
         symbol = "USDT"
         fills = [
@@ -204,6 +209,77 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
         # Rise error
         with self.assertRaises(ValueError):
             self.resume_subexecution([])
+    """
+
+    def test_structure_trades(self) -> None:
+        pair = Pair("DOGE/USDT")
+        order_bkr_id = "order_bkr_id_001"
+        exec_time = 700
+        move = Order.MOVE_SELL
+        is_buy = False
+        rsp_trades = [
+            {
+                "price": "4000.00000000",
+                "qty": "1.00000000",
+                "commission": "4.00000000",
+                "commissionAsset": "USDT"
+            },
+            {
+                "price": "3999.00000000",
+                "qty": "5.00000000",
+                "commission": "19.99500000",
+                "commissionAsset": "USDT"
+            }
+        ]
+        """,
+            {
+                "price": "3998.00000000",
+                "qty": "2.00000000",
+                "commission": "7.99600000",
+                "commissionAsset": "USDT"
+            },
+            {
+                "price": "3997.00000000",
+                "qty": "1.00000000",
+                "commission": "3.99700000",
+                "commissionAsset": "USDT"
+            },
+            {
+                "price": "3995.00000000",
+                "qty": "1.00000000",
+                "commission": "3.99500000",
+                "commissionAsset": "USDT"
+            }
+        ]
+        """
+        exp1 = Map()
+        for i in range(len(rsp_trades)):
+            trade_id = f"{order_bkr_id}_{i}"
+            rsp_trade = rsp_trades[i]
+            fee_symbol = rsp_trade[Map.commissionAsset]
+            left_symbol = pair.get_left().get_symbol()
+            right_symbol = pair.get_right().get_symbol()
+            exec_price = Price(rsp_trade[Map.price], right_symbol)
+            exec_quantity = Price(rsp_trade[Map.qty], left_symbol)
+            exec_amount = Price(exec_price * exec_quantity, right_symbol)
+            fee = Price(rsp_trade[Map.commission], fee_symbol)
+            trade = {
+                Map.pair: pair,
+                Map.order: order_bkr_id,
+                Map.trade: None,
+                Map.price: exec_price,
+                Map.quantity: exec_quantity,
+                Map.amount: exec_amount,
+                Map.fee: fee,
+                Map.time: exec_time,
+                Map.buy: is_buy,
+                Map.maker: False
+            }
+            exp1.put(trade, trade_id)
+        result1 = BinanceOrder._structure_trades(rsp_trades, pair, exec_time, order_bkr_id, move)
+        print(exp1, '\n')
+        print(result1)
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
 
 
 if __name__ == '__main__':

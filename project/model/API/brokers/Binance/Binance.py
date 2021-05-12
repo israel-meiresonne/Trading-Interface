@@ -82,6 +82,7 @@ class Binance(Broker):
             "EGLD/USDT",
             "COS/USDT",
             "DOGE/USDT",
-            "ETC/USDT"
+            "ETC/USDT",
+            "RLC/USDT"
         ]
         return prs

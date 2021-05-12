@@ -305,7 +305,7 @@ if __name__ == '__main__':
     print_performance(rows, path)
     Config.update(Config.STAGE_MODE, _init_stage)
     """
-    # """
+    """
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
     bnc = get_broker()
     bnc_rq = BinanceRequest(BrokerRequest.RQ_TRADES, Map({
@@ -319,6 +319,6 @@ if __name__ == '__main__':
     bnc.request(bnc_rq)
     trades = bnc_rq.get_trades()
     print(trades)
-    # """
-    # bnc = get_broker()
-    # get_top_asset(bnc)
+    """
+    bnc = get_broker()
+    get_top_asset(bnc)

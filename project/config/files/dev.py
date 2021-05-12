@@ -26,5 +26,7 @@ DIR_SAVE_API_RSP = f'content/v0.01/tests/{_DATE}_broker_response.csv'
 DIR_SAVE_BOT_ERRORS = f'content/v0.01/tests/{_DATE}_bot_error.csv'
 DIR_SAVE_TOP_ASSET = f'content/v0.01/backups/top_asset/{_DATE}_top_asset.csv'
 DIR_SAVE_PERIOD_RANKING = f'content/v0.01/tests/{_DATE}_period_ranking.csv'
+DIR_BEGIN_BACKUP = f'content/v0.01/tests/{_DATE}_a————————————————————.csv'
+DIR_END_BACKUP = f'content/v0.01/tests/{_DATE}_z————————————————————.csv'
 # Constants
 CONST_STABLECOINS = ['usdt', 'usdc', 'busd', 'dai', 'ust', 'tusd', 'pax', 'husd', 'usdn']

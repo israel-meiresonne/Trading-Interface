@@ -1,5 +1,6 @@
 from config.Config import Config
 from model.structure.Log import Log
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from view.structure.View import View
 
@@ -35,6 +36,8 @@ class Controller:
         stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
         stage = stage_modes[vw.menu("Choose the stage mode:", stage_modes)]
         Config.update(Config.STAGE_MODE, stage)
+        FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}])
+        FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}])
         while not end:
             i = vw.menu("Choose an execution", cs)
             fc = ms[m_home][View.MENUS_KEY_FUNC][i]

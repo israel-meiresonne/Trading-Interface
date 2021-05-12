@@ -69,8 +69,9 @@ class Broker(ModelFeature):
         """
         pass
 
+    @staticmethod
     @abstractmethod
-    def list_paires(self=None) -> list:
+    def list_paires() -> list:
         """
         To get all Pair that can be trade with the Broker\n
         :return: list of available Broker
@@ -96,3 +97,10 @@ class Broker(ModelFeature):
         """
         exec("from model.API.brokers."+bkr+"."+bkr+" import "+bkr)
         return eval(bkr+"(configs)")
+
+    @staticmethod
+    def new_broker_request(bkr_cls: str, request_enum: str, request_params: Map) -> BrokerRequest:
+        _bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
+        exec(f"from model.API.brokers.{bkr_cls}.{_bkr_rq_cls} import {_bkr_rq_cls}")
+        bkr_rq = eval(_bkr_rq_cls + f"('{request_enum}', request_params)")
+        return bkr_rq

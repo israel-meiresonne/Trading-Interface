@@ -57,3 +57,4 @@ class Price:
 
     def __repr__(self) -> str:
         return self.__str__()
+        # return f"{self.__str__()}({type(self)})"

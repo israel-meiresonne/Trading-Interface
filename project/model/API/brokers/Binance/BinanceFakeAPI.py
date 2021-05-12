@@ -10,6 +10,7 @@ from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Order import Order
+from model.tools.Paire import Pair
 
 
 class BinanceFakeAPI(BinanceAPI):
@@ -159,13 +160,15 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         actual_close = float(_cls._get_actual_close(log_id))
         now_date = _cls._get_date(log_id)
+        binance_symbol = params.get(Map.symbol)
+        binance_move = params.get(Map.side)
         rows = [{
             Map.date: _MF.unix_to_date(now_date),
             Map.orderId: params.get(Map.orderId),
             Map.request: rq,
-            Map.symbol: params.get(Map.symbol),
+            Map.symbol: binance_symbol,
             Map.market: actual_close,
-            Map.side: params.get(Map.side),
+            Map.side: binance_move,
             Map.type: params.get(Map.type),
             Map.quantity: params.get(Map.quantity),
             Map.quoteOrderQty: params.get(Map.quoteOrderQty),
@@ -180,11 +183,14 @@ class BinanceFakeAPI(BinanceAPI):
         exec_time = None
         exec_qty = 0
         exec_amount = 0
+        fills = []
         if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
             status = _cls.STATUS_ORDER_FILLED
             exec_time = now_date
             quantity = params.get(Map.quantity)
             amount = params.get(Map.quoteOrderQty)
+            pair_str = BinanceAPI.symbol_to_pair(binance_symbol)
+            pair = Pair(pair_str)
             if quantity is not None:
                 exec_qty = float(quantity)
                 exec_amount = actual_close * exec_qty
@@ -193,6 +199,16 @@ class BinanceFakeAPI(BinanceAPI):
                 exec_qty = exec_amount / actual_close
             else:
                 raise Exception("The quantity or the amount must be set for market Order.")
+            fee_symbol = pair.get_right().get_symbol().upper() \
+                if binance_move == BinanceAPI.SIDE_BUY else pair.get_left().get_symbol().upper()
+            fills = [
+                {
+                    Map.price: actual_close,
+                    Map.qty: exec_qty,
+                    Map.commission: "0.000",
+                    Map.commissionAsset: fee_symbol
+                }
+            ]
         elif (rq == _cls.RQ_ORDER_STOP_LOSS) \
                 or (rq == _cls.RQ_ORDER_STOP_LOSS_LIMIT):
             status = _cls.STATUS_ORDER_NEW
@@ -202,12 +218,13 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             raise Exception(f"Unknown request '{rq}'")
         rsp_d = {
-            Map.orderId: Order.PREFIX_ID + _cls.__name__.lower() + "_" + _MF.new_code(),
+            Map.orderId: int(f"{123}_{_MF.new_code(salt=str(_MF.get_timestamp(_MF.TIME_MILLISEC)))}"),
             Map.status: status,
             Map.price: actual_close,
             Map.transactTime: exec_time,
             Map.executedQty: exec_qty,
-            Map.cummulativeQuoteQty: exec_amount
+            Map.cummulativeQuoteQty: exec_amount,
+            Map.fills: fills
         }
         return rsp_d
 
