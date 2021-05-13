@@ -418,6 +418,15 @@ class Order(ABC, Request):
         pass
 
     @staticmethod
+    def generate_broker_order(broker_class: str, order_type: str, params: Map) -> 'Order':
+        if order_type not in Order.ODR_TYPES:
+            raise ValueError(f"This Order type '{order_type}' is not supported.")
+        odr_class = broker_class + Order.__name__
+        exec(f"from model.API.brokers.{broker_class}.{odr_class} import {odr_class}")
+        odr = eval(f"{odr_class}('{order_type}', params)")
+        return odr
+
+    @staticmethod
     def _exctract_trade_datas(trades: Map) -> Map:
         """
         To extract datas from trades\n
