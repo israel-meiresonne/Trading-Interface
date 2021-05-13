@@ -328,7 +328,6 @@ class Strategy(_MF):
             print(f"Getting {pair.__str__().upper()}'s performance for {nb_period} intervals of "
                   f"'{int(period / 60)} minutes'.")
             mkt_rq_params.put(period, Map.period)
-            # bkr_rq = eval(f"{bkr_rq_cls}('{BrokerRequest.RQ_MARKET_PRICE}', mkt_rq_prms)")
             bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_rq_params)
             bkr.request(bkr_rq)
             market_price = bkr_rq.get_market_price()
@@ -374,10 +373,8 @@ class Strategy(_MF):
                  Map[rank{int}][Map.pair]:      {Pair}
                  Map[rank{int}][Map.volume]:    {float} # In right asset
         """
-        bkr_cls = bkr.__class__.__name__
-        bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
-        exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
-        bkr_rq = eval(bkr_rq_cls + f"('{BrokerRequest.RQ_24H_STATISTICS}', Map())")
+        _bkr_cls = bkr.__class__.__name__
+        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_24H_STATISTICS, Map())
         bkr.request(bkr_rq)
         stats_24h = bkr_rq.get_24h_statistics()
         stablecoins = Config.get(Config.CONST_STABLECOINS)

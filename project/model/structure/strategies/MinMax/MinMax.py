@@ -49,23 +49,7 @@ class MinMax(Strategy):
 
     def _init_constants(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        bkr_cls = bkr.__class__.__name__
-        bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
-        # Prepare Set Configs
         best_period = self._get_best_period()
-        """
-        mkt_rq_prms = Map({
-            Map.pair: self.get_pair(),
-            Map.period: best_period,
-            Map.begin_time: None,
-            Map.end_time: None,
-            Map.number: 1
-        })
-        exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
-        bkr_rq = eval(bkr_rq_cls + f"('{BrokerRequest.RQ_MARKET_PRICE}', mkt_rq_prms)")
-        bkr.get_market_price(bkr_rq)
-        mkt_prc = bkr_rq.get_market_price()
-        """
         self.__configs = Map({
             self._CONF_MAKET_PRICE: Map({
                 Map.pair: self.get_pair(),
@@ -163,49 +147,55 @@ class MinMax(Strategy):
         :param bkr: an access to Broker's API
         :return: MarketPrice
         """
-        bkr_cls = bkr.__class__.__name__
-        rq_cls = BrokerRequest.get_request_class(bkr_cls)
+        _bkr_cls = bkr.__class__.__name__
         mkt_prms = self._get_constant(self._CONF_MAKET_PRICE)
-        exec(f"from model.API.brokers.{bkr_cls}.{rq_cls} import {rq_cls}")
-        rq_mkt = eval(rq_cls + "('" + BrokerRequest.RQ_MARKET_PRICE + "', mkt_prms)")
-        bkr.get_market_price(rq_mkt)
-        return rq_mkt.get_market_price()
+        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_prms)
+        bkr.request(bkr_rq)
+        return bkr_rq.get_market_price()
 
     def _new_buy_order(self, bkr: Broker) -> Order:
-        bkr_cls = bkr.__class__.__name__
+        _bkr_cls = bkr.__class__.__name__
+        """
         odr_cls = bkr_cls + Order.__name__
-        pr = self.get_pair()
-        pr_right = pr.get_right()
+        """
+        pair = self.get_pair()
+        pr_right = pair.get_right()
         b_cpt = self._get_buy_capital()
-        odr_prms_map = Map({
-            Map.pair: pr,
+        odr_params = Map({
+            Map.pair: pair,
             Map.move: Order.MOVE_BUY,
             Map.amount: Price(b_cpt.get_value(), pr_right.get_symbol())
         })
+        """
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
         odr = eval(odr_cls + "('" + Order.TYPE_MARKET + "', odr_prms_map)")
+        """
+        odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_MARKET, odr_params)
         self._add_order(odr)
         return odr
 
     def _new_sell_order(self, bkr: Broker) -> Order:
-        bkr_cls = bkr.__class__.__name__
-        odr_cls = bkr_cls + Order.__name__
-        pr = self.get_pair()
-        pr_left = pr.get_left()
+        _bkr_cls = bkr.__class__.__name__
+        # odr_cls = bkr_cls + Order.__name__
+        pair = self.get_pair()
+        pr_left = pair.get_left()
         s_cpt = self._get_sell_quantity()
-        odr_prms = Map({
-            Map.pair: pr,
+        odr_params = Map({
+            Map.pair: pair,
             Map.move: Order.MOVE_SELL,
             Map.quantity: Price(s_cpt.get_value(), pr_left.get_symbol())
         })
+        """
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
-        odr = eval(bkr_cls + "Order('" + Order.TYPE_MARKET + "', odr_prms)")
+        odr = eval(bkr_cls + "Order('" + Order.TYPE_MARKET + "', odr_params)")
+        """
+        odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_MARKET, odr_params)
         self._add_order(odr)
         return odr
 
     def _new_secure_order(self, bkr: Broker, mkt_prc: MarketPrice) -> Order:
-        bkr_cls = bkr.__class__.__name__
-        odr_cls = bkr_cls + Order.__name__
+        _bkr_cls = bkr.__class__.__name__
+        # odr_cls = bkr_cls + Order.__name__
         pr = self.get_pair()
         max_drop_rate = self._get_constant(self._CONF_MAX_DR)
         # max_rate = 1
@@ -224,15 +214,18 @@ class MinMax(Strategy):
         super_trend = mkt_prc.get_super_trend()[0]
         stop = super_trend * (1 + max_drop_rate)
         # stop = super_trend
-        odr_prms = Map({
+        odr_params = Map({
             Map.pair: pr,
             Map.move: Order.MOVE_SELL,
             Map.stop: Price(stop, pr.get_right().get_symbol()),
             Map.limit: Price(stop, pr.get_right().get_symbol()),
             Map.quantity: qty
         })
+        """
         exec(f"from model.API.brokers.{bkr_cls}.{odr_cls} import {odr_cls}")
-        odr = eval(bkr_cls + "Order('" + Order.TYPE_STOP_LIMIT + "', odr_prms)")
+        odr = eval(bkr_cls + "Order('" + Order.TYPE_STOP_LIMIT + "', odr_params)")
+        """
+        odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_STOP_LIMIT, odr_params)
         self._add_order(odr)
         self._set_secure_order(odr)
         return odr

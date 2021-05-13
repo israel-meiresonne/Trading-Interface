@@ -199,22 +199,6 @@ class Orders(Order):
             pair = first_odr.get_pair()
             # Get submitted Order since the last pending
             odrs_datas = Orders._update_stage_3_get_order_datas(bkr, pair, starttime)
-            """
-            bkr_cls = bkr.__class__.__name__
-            bkr_rq_cls = BrokerRequest.get_request_class(bkr_cls)
-            rq_prms = Map({
-                Map.symbol: first_odr.get_pair().get_merged_symbols(),
-                Map.id: None,
-                Map.begin_time: starttime - (60*10),
-                Map.end_time: None,
-                Map.limit: None,
-                Map.timeout: None
-            })
-            exec(f"from model.API.brokers.{bkr_cls}.{bkr_rq_cls} import {bkr_rq_cls}")
-            bkr_rq = eval(bkr_rq_cls + f"('{BrokerRequest.RQ_ORDERS}', rq_prms)")
-            bkr.request(bkr_rq)
-            odrs_datas = bkr_rq.get_orders()
-            """
             # Update Order
             has_executed = Orders._update_stage_3_has_executed(odrs_datas)
             if has_executed:
@@ -251,20 +235,6 @@ class Orders(Order):
 
     @staticmethod
     def _update_stage_3_get_order_datas(bkr: Broker, pair: Pair, starttime: int) -> Map:
-        """
-        _bkr_cls = bkr.__class__.__name__
-        _bkr_rq_cls = BrokerRequest.get_request_class(_bkr_cls)
-        rq_prms = Map({
-            Map.symbol: pair.get_merged_symbols(),
-            Map.id: None,
-            Map.begin_time: starttime - (60*10),
-            Map.end_time: None,
-            Map.limit: None,
-            Map.timeout: None
-        })
-        exec(f"from model.API.brokers.{_bkr_cls}.{_bkr_rq_cls} import {_bkr_rq_cls}")
-        bkr_rq = eval(_bkr_rq_cls + f"('{BrokerRequest.RQ_ORDERS}', rq_prms)")
-        """
         _bkr_cls = bkr.__class__.__name__
         rq_params = Map({
             # Map.symbol: first_odr.get_pair().get_merged_symbols(),

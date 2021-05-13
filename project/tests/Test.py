@@ -323,4 +323,6 @@ if __name__ == '__main__':
     bnc = get_broker()
     # get_top_asset(bnc)
     # top_periods = Strategy.get_top_period(bnc, MinMax.__name__, Pair("DOGE/USDT"), periods, nb_period)
-    period_ranking = MinMax.get_period_ranking(bnc, Pair("DOGE/USDT"))
+    # period_ranking = MinMax.get_period_ranking(bnc, Pair("DOGE/USDT"))
+    # top_volume = Strategy.get_top_volume(bnc, 3)
+    # print(top_volume)
