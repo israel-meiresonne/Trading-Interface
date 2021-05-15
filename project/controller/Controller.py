@@ -77,7 +77,8 @@ class Controller:
         elif (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             # """
             bkr = 'Binance'
-            stg = 'MinMax'
+            stgs = md.list_strategies()
+            stg = stgs[vw.menu("Choose a Strategy:", stgs)]
             pair_codes = md.list_paires(bkr)
             pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
             # prcd = 'BTC/USDT'

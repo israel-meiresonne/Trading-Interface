@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMax.MinMax import MinMax
+from model.structure.strategies.Floor.Floor import Floor
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -145,7 +147,17 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     print("🖨 File printed ✅")
 
 
-def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> BinanceMarketPrice:
+def historic_to_market(path: str) -> MarketPrice:
+    _original_stage = Config.get(Config.STAGE_MODE)
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    # path = "content/v0.01/market-historic/DOGE/DOGEUSDT-5min-2021-05-13 13.44.54.csv"
+    csv = FileManager.get_csv(path)
+    mkt = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
+    market_price = BinanceMarketPrice(mkt, "5m", Pair("DOGE/USDT"))
+    Config.update(Config.STAGE_MODE, _original_stage)
+    return market_price
+
+def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> MarketPrice:
     """
     bnc = Binance(Map({Map.api_pb: "pb_k",
                        Map.api_sk: "sk_k",
@@ -162,10 +174,10 @@ def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> BinanceMark
     return mkt
 
 
-def print_historic(pr_str: str, prd: int = 60, nb_prd: int = 1000) -> None:
-    pr = Pair(pr_str)
-    mkt = get_historic(pr, prd, nb_prd)
-    print_market(mkt, pr)
+def print_historic(bkr, pair: Pair, prd: int = 60, nb_prd: int = 1000) -> None:
+    # pr = Pair(pr_str)
+    mkt = get_historic(bkr, pair, prd, nb_prd)
+    print_market(mkt, pair)
 
 
 def print_market(mkt: MarketPrice, pr: Pair) -> None:
@@ -178,7 +190,7 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
     spr_extrems = _MF.get_super_extremums(list(degs))
     # print(spr_extrems)
     super_rsis = mkt.get_super_trend_rsis()
-    super_tsis = mkt.get_super_trend_tsis()
+    # super_tsis = mkt.get_super_trend_tsis()
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -191,57 +203,112 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
             Map.super_trend: mkt.get_super_trend()[i],
             Map.tsi: mkt.get_tsis(use_nan=True)[i],
             Map.tsi + "_ema": mkt.get_tsis_emas()[i],
-            'super_tsis': super_tsis[i],
+            # 'super_tsis': super_tsis[i],
             'slopes': mkt.get_slopes(14)[i],
             'slope_deg': mkt.get_slopes_degree()[i],
             'extremuns': degs[i] if i in spr_extrems else None
         }
         rows.append(row)
     rows.reverse()
-    date_format = _MF.FORMAT_D_H_M_S_MS.replace(':', '.')
+    date_format = _MF.FORMAT_D_H_M_S.replace(':', '.')
     file = f"{pr.get_merged_symbols().upper()}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
-    p = f"content/v0.01/market-historic/{file}.csv"
+    p = f"content/v0.01/print/{file}.csv"
     fields = list(rows[0].keys())
     overwrite = True
     FileManager.write_csv(p, fields, rows, overwrite)
     print("🖨 File printed ✅")
 
 
-def get_performance(bnc: Broker, pair: Pair, nb_period: int = 1000) -> list:
-    minute = 60
-    periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
-    # pair = Pair("BNB/USDT")
-    # nb_period = 1000
-    """
-    bnc = Binance(Map({Map.api_pb: "",
-                       Map.api_sk: "",
-                       Map.test_mode: False
-                       }))
-    """
-    fees = bnc.get_trade_fee(pair)
-    fee = fees.get(Map.taker)
+def performance_get_rates(market_price: MarketPrice) -> list:
+    # Init
+    perf_rates = []
+    buy_price = None
+    sell_price = None       # ❌
+    last_floor = None       # ❌
+    perf_rate = None        # ❌
+    floors = [i * 10 for i in range(11)]
+    rsi_entry_trigger = 25
+    min_out_floor = 30
+    up_min_floor_once = None
+    # max_loss_rate = -0.03
+    # max_loss_close = None
+    # Extract lists
+    times = list(market_price.get_times())
+    times.reverse()
+    closes = list(market_price.get_closes())
+    closes.reverse()
+    rsis = list(market_price.get_rsis())
+    rsis.reverse()
+    # Print
     rows = []
-    for period in periods:
-        print(f"Getting {pair}'s performance for the period '{period}'")
-        bnc_market = get_historic(bnc, pair, period, nb_period)
-        super_trends = list(bnc_market.get_super_trend())
-        super_trends.reverse()
-        closes = list(bnc_market.get_closes())
-        closes.reverse()
-        perf = MinMax.get_performance(closes, super_trends, fee)
+    for i in range(len(rsis)):
+        rsi = rsis[i]
+        last_rsi = rsis[i - 1] if i > 0 else None
+        close = closes[i]
+        if (buy_price is None) \
+                and ((rsi is not None)
+                and (last_rsi is not None)) and ((last_rsi <= rsi_entry_trigger) and (rsi > last_rsi)):
+            buy_price = closes[i]
+            # max_loss_close = buy_price * (1 + max_loss_rate)
+            """
+            elif (buy_price is not None) and (close <= max_loss_close):
+                # sell_price = close
+                perf_rate = max_loss_close / buy_price - 1
+                perf_rates.append(perf_rate)
+                buy_price = None
+                up_min_floor_once = None
+                last_floor = None
+                max_loss_close = None
+            """
+        elif buy_price is not None:
+            up_min_floor_once = rsi > min_out_floor if (up_min_floor_once is None) or (not up_min_floor_once) else up_min_floor_once
+            if up_min_floor_once:
+                last_floor = floors[get_floor_index(last_rsi, floors)]
+                if (last_floor >= min_out_floor) and (rsi < last_floor):
+                    sell_price = close
+                    perf_rate = sell_price / buy_price - 1
+                    perf_rates.append(perf_rate)
+                    buy_price = None
+                    up_min_floor_once = None
+                    last_floor = None
+                    # max_loss_close = None
         row = {
-            f"{Map.time}(sec)": period,
-            f"{Map.number}_{Map.period}": nb_period,
-            Map.fee: fee,
-            Map.roi: perf.get(Map.roi)
+            Map.time: _MF.unix_to_date(times[i]),
+            Map.close: _MF.float_to_str(close),
+            Map.rsi: _MF.float_to_str(rsi),
+            "last_rsi": _MF.float_to_str(last_rsi),
+            "rsi_entry": _MF.float_to_str(rsi_entry_trigger),
+            "min_out_floor": _MF.float_to_str(min_out_floor),
+            "up_min_floor_once": up_min_floor_once,
+            "last_floor": _MF.float_to_str(last_floor),
+            # "max_loss_rate": max_loss_rate,
+            # "max_loss_close": max_loss_close,
+            "perf_rate": _MF.float_to_str(perf_rate),
+            Map.buy: _MF.float_to_str(buy_price),
+            Map.sell: _MF.float_to_str(sell_price),
+            "floors": floors
         }
         rows.append(row)
-    return rows
+        perf_rate = None
+        sell_price = None
+    date = _MF.unix_to_date(_MF.get_timestamp(), _MF.FORMAT_D_H_M_S).replace(":", ".")
+    path = f'content/v0.01/print/Floor_perf-{date}.csv'
+    fields = list(rows[0].keys())
+    FileManager.write_csv(path, fields, rows)
+    return perf_rates
+
+
+def get_floor_index(val: float, levels: List[int]) -> int:
+    idx = None
+    for i in range(len(levels)):
+        if val < levels[i]:
+            idx = i - 1
+            break
+    return idx
 
 
 def print_performance(rows: list, path: str) -> None:
     fields = list(rows[0].keys())
-    # path = f'content/v0.01/print/performance-{pair.get_merged_symbols().upper()}.csv'
     FileManager.write_csv(path, fields, rows, False)
     print("Print Success! ✅")
 
@@ -264,65 +331,28 @@ def get_top_asset(bnc: Broker, interval: int = 60 * 5, nb_period: int = 1000):
 
 if __name__ == '__main__':
     """
-    src_path = 'content/v0.01/2021-04-29 00.23.04_market.csv'
-    depot_path = 'content/v0.01/DOGE_USDT-2021-04-29 00.23.04.csv'
-    apimarket_to_market(src_path, depot_path)
+    for i in range(0, 2):
+        src_path = f'content/v0.01/2021-05-08 22.19.36_market-1-{i}.csv'
+        depot_path = f'content/v0.01/DOGE_USDT-2021-05-08 22.19.36-{i}.csv'
+        apimarket_to_market(src_path, depot_path)
     """
+    # bnc = get_broker()
+    # print_historic(bnc, Pair("DOGE/USDT"), 60*5)
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    path = "content/v0.01/market-historic/DOGE/DOGEUSDT-5min-2021-05-13 13.44.54.csv"
     """
-    bnc_conf = Map({
-        Map.api_pb: '',
-        Map.api_sk: '',
-        Map.test_mode: False
-    })
-    bnc = Binance(bnc_conf)
-    fees1 = bnc.get_trade_fee(Pair("BNB/USDT"))
-    print(id(fees1))
-    print(fees1)
-    fees2 = bnc.get_trade_fee(Pair("BNB/USDT"))
-    print(id(fees2))
-    print(fees2)
-    """
-    """
-    path = 'content/v0.01/market-historic/active.csv'
     csv = FileManager.get_csv(path)
-    market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
-    bnc_market = BinanceMarketPrice(market_list, "1m", Pair('BNB/USDT'))
-    super_trends = list(bnc_market.get_super_trend())
-    super_trends.reverse()
-    closes = list(bnc_market.get_closes())
-    closes.reverse()
-    perfs = MinMax.get_performance(closes, super_trends, 0.001)
-    print(perfs)
+    mkt = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
+    market_price = BinanceMarketPrice(mkt, "5m", Pair("DOGE/USDT"))
+    market_price = historic_to_market(path)
     """
     """
-    _init_stage = Config.get(Config.STAGE_MODE)
-    Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    bnc = get_broker()
-    pair = Pair('BNB/USDT')
-    date = _MF.unix_to_date(_MF.get_timestamp(), "%Y-%m-%d %H.%M.%S")
-    path = f'content/v0.01/print/performance-{pair.get_merged_symbols().upper()}-{date}.csv'
-    rows = get_performance(bnc, pair)
-    print_performance(rows, path)
-    Config.update(Config.STAGE_MODE, _init_stage)
+    rates = performance_get_rates(market_price)
+    print(rates)
+    print(sum(rates)*100)
     """
-    """
-    Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    bnc = get_broker()
-    bnc_rq = BinanceRequest(BrokerRequest.RQ_TRADES, Map({
-        Map.pair: Pair("ETC/USDT"),
-        Map.begin_time: None,
-        Map.end_time: None,
-        Map.id: None,
-        Map.limit: 50,
-        Map.timeout: None
-    }))
-    bnc.request(bnc_rq)
-    trades = bnc_rq.get_trades()
-    print(trades)
     """
     bnc = get_broker()
-    get_top_asset(bnc)
-    # top_periods = Strategy.get_top_period(bnc, MinMax.__name__, Pair("DOGE/USDT"), periods, nb_period)
-    # period_ranking = MinMax.get_period_ranking(bnc, Pair("DOGE/USDT"))
-    # top_volume = Strategy.get_top_volume(bnc, 3)
-    # print(top_volume)
+    perf = Floor.get_performance(bnc, Floor.__name__, market_price)
+    print(_MF.json_encode(perf.get_map()))
+    """

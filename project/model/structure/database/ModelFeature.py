@@ -277,3 +277,7 @@ class ModelFeature(ModelAccess):
         :return: True if the string match the regex else False
         """
         return rgx.match(regex, string) is not None
+
+    @staticmethod
+    def float_to_str(val: float) -> str:
+        return str(val).replace(".", ",") if val is not None else val

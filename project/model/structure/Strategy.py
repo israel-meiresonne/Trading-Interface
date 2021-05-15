@@ -121,6 +121,7 @@ class Strategy(_MF):
         """
         pass
 
+    '''
     @staticmethod
     @abstractmethod
     def get_performance(bkr: Broker, market_price: MarketPrice) -> Map:
@@ -135,7 +136,45 @@ class Strategy(_MF):
                  Map[Map.transaction]:  {Strategy._performance_get_transactions()}  # Same structure
         """
         pass
+    '''
 
+    @staticmethod
+    def get_performance(bkr: Broker, stg_class: str, market_price: MarketPrice) -> Map:
+        """
+        To get Strategy's performance\n
+        :param bkr: Access to a Broker's API
+        :param stg_class: A Strategy's class name
+        :param market_price: Market historic
+        :return: Strategy's performance
+                 Map[Map.roi]:          {float}
+                 Map[Map.fee]:          {float}
+                 Map[Map.rate]:         {Strategy._performance_get_rates()}         # Same structure
+                 Map[Map.transaction]:  {Strategy._performance_get_transactions()}  # Same structure
+        """
+        exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
+        initial_capital = Strategy.get_performance_init_capital()
+        pair = market_price.get_pair()
+        fees = bkr.get_trade_fee(pair)
+        fee_rate = fees.get(Map.taker)
+        closes = list(market_price.get_closes())
+        closes.reverse()
+        super_trends = list(market_price.get_super_trend())
+        super_trends.reverse()
+        # rates = MinMax._performance_get_rates(market_price)
+        rates = eval(f"{stg_class}._performance_get_rates(market_price)")
+        # transactions = MinMax._performance_get_transactions(initial_capital, rates, fees)
+        transactions = eval(f"{stg_class}._performance_get_transactions(initial_capital, rates, fees)")
+        last_transac = transactions[-1]
+        roi = last_transac.get(Map.capital) / initial_capital - 1
+        perf = Map({
+            Map.roi: roi,
+            Map.fee: fee_rate,
+            Map.rate: rates,
+            Map.transaction: transactions,
+        })
+        return perf
+
+    '''
     @staticmethod
     @abstractmethod
     def _performance_get_transactions(initial_capital: float, rates: List[float], fees: Map) -> List[dict]:
@@ -147,6 +186,47 @@ class Strategy(_MF):
         :return: transaction historic for each rate given
         """
         pass
+    '''
+
+    @staticmethod   # Strategy
+    def _performance_get_transactions(initial_capital: float, rates: List[float], fees: Map) -> List[dict]:
+        """
+        To get a simulation of multiple trade for each rate give including Order fee\n
+        :param initial_capital: Initial capital to use for simulation
+        :param rates: Rate from Strategy._performance_get_rates()
+        :param fees: Order fee rate charged for taker and maker
+        :return: transaction historic for each rate given
+        """
+        transactions = []
+        fee_rate = fees.get(Map.taker)
+        # Initialize First Capital
+        transaction1 = Map()
+        transaction1.put(initial_capital, Map.capital)
+        transaction1.put(None, Map.buy)
+        transaction1.put(None, Map.sell)
+        transaction1.put(initial_capital * fee_rate, Map.fee)
+        transactions.append(transaction1.get_map())
+        for rate in rates:
+            last_transac = transactions[-1]
+            # Add Buy Transaction
+            last_capital = last_transac.get(Map.capital)
+            last_fee = last_transac.get(Map.fee)
+            buy_transac = Map()
+            buy = last_capital - last_fee
+            sell_fee = buy * fee_rate
+            buy_transac.put(buy, Map.capital)
+            buy_transac.put(buy, Map.buy)
+            buy_transac.put(sell_fee, Map.fee)
+            transactions.append(buy_transac.get_map())
+            # Add Sell Transaction
+            sell_transact = Map()
+            sell = buy * (1 + rate) - sell_fee
+            buy_fee = sell * fee_rate
+            sell_transact.put(sell, Map.capital)
+            sell_transact.put(sell, Map.sell)
+            sell_transact.put(buy_fee, Map.fee)
+            transactions.append(sell_transact.get_map())
+        return transactions
 
     @staticmethod
     @abstractmethod
@@ -331,7 +411,7 @@ class Strategy(_MF):
             bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_rq_params)
             bkr.request(bkr_rq)
             market_price = bkr_rq.get_market_price()
-            perf = eval(f"{stg_class}.get_performance(bkr, market_price)")
+            perf = eval(f"{stg_class}.get_performance(bkr, stg_class, market_price)")
             roi = perf.get(Map.roi)
             roi_per_sec = roi / (period * nb_period)
             roi_per_h = roi_per_sec * 60 * 60

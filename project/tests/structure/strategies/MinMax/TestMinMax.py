@@ -315,7 +315,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         super_trends.reverse()
         closes = list(bnc_market.get_closes())
         closes.reverse()
-        perfs = MinMax.get_performance(bnc, bnc_market)
+        perfs = MinMax.get_performance(bnc, MinMax.__name__, bnc_market)
         # ROI
         exp1 = round(0.00786293204696, 4)
         result1 = round(perfs.get(Map.roi), 4)
