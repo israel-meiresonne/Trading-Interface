@@ -80,10 +80,14 @@ class BinanceFakeAPI(BinanceAPI):
     @staticmethod
     def _get_date(log_id) -> int:
         _cls = BinanceFakeAPI
-        idx = _cls._get_backed(log_id, Map.index)
-        hist_mkt = _cls._get_backed(log_id, Map.market)
-        date = hist_mkt[idx][0]
-        date = int(date/1000) if _cls._get_stage() != Config.STAGE_1 else date
+        date = None
+        if _cls._get_stage() == Config.STAGE_1:
+            idx = _cls._get_backed(log_id, Map.index)
+            hist_mkt = _cls._get_backed(log_id, Map.market)
+            date = hist_mkt[idx][0]
+            date = int(date/1000) if _cls._get_stage() != Config.STAGE_1 else date
+        else:
+            date = _MF.get_timestamp()
         return date
 
     @staticmethod
@@ -100,11 +104,15 @@ class BinanceFakeAPI(BinanceAPI):
         p = _cls._FILE_LOGS
         unix_date = _cls._get_date(log_id)
         date = _MF.unix_to_date(unix_date, _MF.FORMAT_D_H_M_S)
+        try:
+            actual_close = _cls._get_actual_close(log_id)
+        except Exception:
+            actual_close = None
         id_datas = {
             Map.date: date,
             Map.id: log_id,
             Map.request: rq,
-            Map.market: _cls._get_actual_close(log_id)
+            Map.market: actual_close
         }
         row = {
             **id_datas,
@@ -123,7 +131,6 @@ class BinanceFakeAPI(BinanceAPI):
         if rq == _cls.RQ_KLINES:
             stage = _cls._get_stage()
             rsp_d = _cls._get_market_price(log_id, params) if stage == Config.STAGE_1 else None
-            # _cls._save_log(log_id, rq, params) if stage == Config.STAGE_2 else None
         elif rgx.match('^RQ_ORDER.*$', rq) or (rq == _cls.RQ_CANCEL_ORDER):
             rsp_d = _cls._execute_order(log_id, rq, params)
         elif rq == _cls.RQ_EXCHANGE_INFOS:

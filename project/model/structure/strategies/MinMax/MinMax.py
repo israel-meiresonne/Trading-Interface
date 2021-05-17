@@ -21,13 +21,16 @@ class MinMax(Strategy):
     _EXEC_SELL = "EXEC_SELL"
     _EXEC_CANCEL_SECURE = "EXEC_CANCEL_SECURE"
 
-    def __init__(self, prms: Map):
-        super().__init__(prms)
+    def __init__(self, params: Map):
+        super().__init__(params)
         self.__configs = None
         self.__secure_order = None
         self._last_red_close = None
         self._last_dropping_close = None
-        self.__best_period = None
+        rtn = _MF.keys_exist([Map.period], params.get_map())
+        if rtn is not None:
+            raise ValueError(f"This param '{rtn}' is required.")
+        self.__best_period = params.get(Map.period)
 
     def _init_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
@@ -49,7 +52,7 @@ class MinMax(Strategy):
 
     def _init_constants(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        best_period = self._get_best_period()
+        best_period = self.get_best_period()
         self.__configs = Map({
             self._CONF_MAKET_PRICE: Map({
                 Map.pair: self.get_pair(),
@@ -75,20 +78,13 @@ class MinMax(Strategy):
         pair = self.get_pair()
         period_ranking = MinMax.get_period_ranking(bkr, pair)
     """
+    """
     def set_best_period(self, best: int) -> None:
         self.__best_period = best
+    """
 
-    @staticmethod
-    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
-        stg_name = MinMax.__name__
-        minute = 60
-        periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
-        nb_period = 1000
-        period_ranking = Strategy.get_top_period(bkr, stg_name, pair, periods, nb_period)
-        MinMax._save_period_ranking(period_ranking)
-        return period_ranking
-
-    def _get_best_period(self) -> int:
+    def get_best_period(self) -> int:
+        """
         _stage = Config.get(Config.STAGE_MODE)
         if _stage == Config.STAGE_1:
             self.set_best_period(60) if self.__best_period is None else None
@@ -97,6 +93,8 @@ class MinMax(Strategy):
             if self.__best_period is None:
                 raise Exception(f"Strategy MinMax's best period must be set before.")
             return self.__best_period
+        """
+        return self.__best_period
 
     def _set_secure_order(self, odr: Order) -> None:
         self.__secure_order = odr
@@ -245,14 +243,20 @@ class MinMax(Strategy):
             executions = self._try_sell(mkt_prc)
         else:
             executions = self._try_buy(mkt_prc)
-        self.execute(bkr, mkt_prc, executions)
+        self.execute(bkr, executions, mkt_prc)
 
-    def execute(self, bkr: Broker, mkt_prc: MarketPrice, executions: Map) -> None:
+    def stop_trading(self, bkr: Broker) -> None:
+        if self._has_position():
+            executions = Map()
+            self._sell(executions)
+            self.execute(bkr, executions)
+
+    def execute(self, bkr: Broker, executions: Map, mkt_prc: MarketPrice = None) -> None:
         """
         To executions to submit to Broker's API\n
         :param bkr: Access to a Broker's API
-        :param mkt_prc: Market's prices
         :param executions: Executions to execute
+        :param mkt_prc: Market's prices
         """
         for idx, execution in executions.get_map().items():
             if execution == self._EXEC_BUY:
@@ -347,7 +351,7 @@ class MinMax(Strategy):
             last_trend_idx = (trend_first_idx - 1) if trend_first_idx is not None else None
             # self._last_red_trend = closes_supers[last_trend_idx] if last_trend_idx is not None else None
             self._last_red_close = closes[last_trend_idx] if last_trend_idx is not None else None
-        if (close_trend == MarketPrice.SUPERTREND_DROPING) and (self._last_red_close is not None):
+        if (close_trend == MarketPrice.SUPERTREND_DROPPING) and (self._last_red_close is not None):
             self._last_red_close = None
         super_trend = closes_supers[-1]
         # super_trend = closes[-1]
@@ -363,6 +367,7 @@ class MinMax(Strategy):
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
+            'class',
             Map.time,
             'close',
             'move',
@@ -588,31 +593,47 @@ class MinMax(Strategy):
         market_json = _MF.json_encode(closes_str)
         params_map.put(market_json, 'market_json')
         params_map.put(_MF.unix_to_date(mkt_prc.get_time()), Map.time)
+        params_map.put(mkt_prc.get_rsis()[0], Map.rsi)
         params_map.put(mkt_prc.get_rsis(), 'rsis')
         params_map.put(mkt_prc.get_tsis(), 'tsis')
         params_map.put(mkt_prc.get_close(), Map.close)
         params_map.put(mkt_prc.get_super_trend(), 'super_trends')
         params_map.put(mkt_prc.get_super_trend()[0], 'super_trend')
+        params_map.put(MinMax.__name__, "class")
+        params_map.put(_MF.unix_to_date(_MF.get_timestamp()), Map.date)
         fields = [
+            "class",
+            Map.date,
             Map.time,
             'close',
             'move',
             'secure_odr_prc',
             'stop_base_prc',
+            'super_trend',
             # Buy
+            'MinMax->',
             'close_trend_ok',
             'is_above_switch',
             '_last_red_close',
-            'super_trend',
-            'trend_first_idx',
-            'last_trend_idx',
+            '<-MinMax',
+            'Floor->'
+            'rsi_ok',
+            'rsi_downstairs_ok',
+            'up_min_floor_once',
+            'last_floor',
+            'rsi',
+            'prev_rsi',
+            'rsi_entry_trigger',
+            '_min_out_floor',
+            '<-Floor',
             # Lists
-            'switchers',
-            'maxs',
-            'market_json',
             'rsis',
-            'super_trends'
+            'super_trends',
+            '_floors'
         ]
+        for k, v in params_map.get_map().items():
+            if isinstance(v, float):
+                params_map.put(_MF.float_to_str(v), k)
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
@@ -624,15 +645,17 @@ class MinMax(Strategy):
         sell_qty = self._get_sell_quantity()
         buy_amount = self._get_buy_capital()
         odrs = self._get_orders()
-        positions_value = sell_qty.get_value() * close  # if sell_qty.get_value() > 0 else 0
+        positions_value = sell_qty.get_value() * close
         current_capital_val = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
         perf = (current_capital_val / cap.get_value() - 1) * 100
         sum_odr = odrs.get_sum() if odrs.get_size() > 0 else None
         fees = sum_odr.get(Map.fee) if sum_odr is not None else Price(0, r_symbol)
-        # real_perf = ((current_capital_val - fees.get_value()) / cap - 1) * 100
         current_capital_obj = Price(current_capital_val, r_symbol)
         rows = [{
+            "class": MinMax.__name__,
+            Map.date: _MF.unix_to_date(_MF.get_timestamp(), _MF.FORMAT_D_H_M_S),
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
+            Map.period: int(self.get_best_period()) / 60,
             'close': close,
             'initial': cap,
             'current_capital': current_capital_obj,
@@ -680,8 +703,18 @@ class MinMax(Strategy):
 
     # ——————————————— STATIC METHOD DOWN ———————————————
 
+    @staticmethod
+    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
+        stg_name = MinMax.__name__
+        minute = 60
+        periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
+        nb_period = 1000
+        period_ranking = Strategy.get_top_period(bkr, stg_name, pair, periods, nb_period)
+        MinMax._save_period_ranking(period_ranking)
+        return period_ranking
+
     @staticmethod   # Strategy
-    def _performance_get_rates(market_price: MarketPrice) -> list:
+    def performance_get_rates(market_price: MarketPrice) -> list:
         closes = list(market_price.get_closes())
         closes.reverse()
         super_trends = list(market_price.get_super_trend())

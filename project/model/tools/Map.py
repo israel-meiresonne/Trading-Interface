@@ -20,6 +20,8 @@ class Map:
     sum = "sum"
     order = "order"
     trade = "trade"
+    green = "green"
+    red = "red"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"

@@ -55,7 +55,7 @@ class MarketPrice(ABC):
     _NB_PRD_SLOW_TSI = 25
     _NB_PRD_FAST_TSI = 13
     SUPERTREND_RISING = "TREND_RISING"
-    SUPERTREND_DROPING = "TREND_DROPING"
+    SUPERTREND_DROPPING = "TREND_DROPPING"
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -758,8 +758,9 @@ class MarketPrice(ABC):
         pd_lows = pd.Series(np.array(lows))
         supers_obj = _supertrend(pd_highs, pd_lows, pd_closes, nb_prd, coef)
         supers_serie = supers_obj[f'SUPERT_{nb_prd}_{float(coef)}']
-        supers = supers_serie.to_list()
-        return supers
+        super_trends = supers_serie.to_list()
+        super_trends[0] = float('nan')
+        return super_trends
 
     @staticmethod
     def get_super_trend_trend(closes: list, supers: list, prd: int) -> str:
@@ -786,7 +787,7 @@ class MarketPrice(ABC):
             trend_up = close > supers[prd]
             trend_dow = close < supers[prd]
         trend = MarketPrice.SUPERTREND_RISING if trend_up else None
-        trend = MarketPrice.SUPERTREND_DROPING if (trend is None) and trend_dow else trend
+        trend = MarketPrice.SUPERTREND_DROPPING if (trend is None) and trend_dow else trend
         return trend
 
     @staticmethod

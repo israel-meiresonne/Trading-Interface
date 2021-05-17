@@ -12,33 +12,27 @@ from model.tools.Price import Price
 class Bot(_MF):
     SEPARATOR = "-"
 
-    def __init__(self, bkr: str, stg: str, prcd: str, configs: Map):
+    def __init__(self, bkr: str, stg: str, pair_str: str, configs: Map):
         """
         To create a new Bot\n
         :param bkr: name of a supported Broker
         :param stg: name of a supported Strategy
-        :param prcd: code of the pair to Trade, i.e.: "BTC/USDT"
+        :param pair_str: code of the pair to Trade, i.e.: "BTC/USDT"
         :param configs: holds additional configs for the Bot
                     configs[{Bot}]      => {dict} Bot configs
                     configs[{Broker}]   => {dict} Broker configs
                     configs[{Strategy}] => {dict} Strategy's configs
         """
         super().__init__()
-        self.__id = Bot._generate_id(bkr, stg, prcd)
-        self.__pair = Pair(prcd)
+        self.__id = Bot._generate_id(bkr, stg, pair_str)
+        self.__pair = Pair(pair_str)
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
-        """
-        configs.put(pr, stg, Map.pair)
-        cap_val = configs.get(stg, Map.capital)
-        cap_prc = Price(cap_val, pr.get_right().get_symbol()) if cap_val is not None else None
-        configs.put(cap_prc, stg, Map.capital)
-        self.__strategy = Strategy.retrieve(stg, Map(configs.get(stg)))
-        """
         self._set_strategy(stg, configs)
 
-    def _set_strategy(self, stg: str, configs: Map) -> None:
+    def _set_strategy(self, stg_class: str, params: Map) -> None:
+        """
         # Put Pair
-        pr = self._get_pair()
+        pr = self.get_pair()
         configs.put(pr, stg, Map.pair)
         # Put Maximum
         max_value = configs.get(stg, Map.maximum)
@@ -49,6 +43,12 @@ class Bot(_MF):
         capital_obj = Price(capital_value, pr.get_right().get_symbol())
         configs.put(capital_obj, stg, Map.capital)
         self.__strategy = Strategy.retrieve(stg, Map(configs.get(stg)))
+        """
+        # Put Pair
+        pr = self.get_pair()
+        params.put(pr, stg_class, Map.pair)
+        exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
+        self.__strategy = eval(f"{stg_class}.generate_strategy(stg_class, Map(params.get(stg_class)))")
 
     def get_id(self) -> str:
         return self.__id
@@ -59,7 +59,7 @@ class Bot(_MF):
     def _get_strategy(self) -> Strategy:
         return self.__strategy
 
-    def _get_pair(self) -> Pair:
+    def get_pair(self) -> Pair:
         return self.__pair
 
     def start(self) -> None:
@@ -102,13 +102,15 @@ class Bot(_MF):
         print("still trading...")
         return False
 
+    '''
     def get_period_ranking(self) -> Map:
         bkr = self._get_broker()
-        pair = self._get_pair()
+        pair = self.get_pair()
         return self._get_strategy().get_period_ranking(bkr, pair)
 
     def set_best_period(self, best: int) -> None:
         self._get_strategy().set_best_period(best)
+    '''
 
     @staticmethod
     def _generate_id(bkr: str, stg: str, prsbl: str) -> str:

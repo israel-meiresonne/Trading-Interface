@@ -43,7 +43,8 @@ class Controller:
             fc = ms[m_home][View.MENUS_KEY_FUNC][i]
             end = eval("self." + fc + "()")
 
-    def quit(self):
+    @staticmethod
+    def quit():
         return True
 
     def new_bot(self):
@@ -81,7 +82,6 @@ class Controller:
             stg = stgs[vw.menu("Choose a Strategy:", stgs)]
             pair_codes = md.list_paires(bkr)
             pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
-            # prcd = 'BTC/USDT'
             configs = Map({
                 bkr: {
                     Map.api_pb: 'api_pb',
@@ -91,16 +91,24 @@ class Controller:
                 stg: {
                     Map.maximum: None,
                     Map.capital: 20,
-                    Map.rate: 1
+                    Map.rate: 1,
+                    Map.period: 60 * 60,
+                    Map.green: {
+                        Map.period: 60 * 15
+                    },
+                    Map.red: {
+                        Map.period: 60 * 5
+                    }
                 }
             })
         else:
-            raise Exception(f"Unknwon stage '{_stage}'.")
+            raise Exception(f"Unknown stage '{_stage}'.")
         print(configs.get_map())
         # """
         # create Bot
         md.create_bot(bkr, stg, pair_code, configs)
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
+        """
         if (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
             # Select period
             bots = md.get_bots()
@@ -120,6 +128,7 @@ class Controller:
             best_period = best_periods[vw.menu(f"Select a trading interval for your pair '{pair_code.upper()}':", options)]
             bot.set_best_period(best_period)
             vw.output(View.FILE_MESSAGE, "✅ Trading interval set!")
+        """
 
     def start_bot(self):
         md = self.__get_model()

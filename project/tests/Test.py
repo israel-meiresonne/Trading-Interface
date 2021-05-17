@@ -16,6 +16,7 @@ from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMax.MinMax import MinMax
 from model.structure.strategies.Floor.Floor import Floor
+from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -147,15 +148,17 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     print("🖨 File printed ✅")
 
 
-def historic_to_market(path: str) -> MarketPrice:
+def historic_to_market(path: str, pair: Pair, period: str) -> MarketPrice:
     _original_stage = Config.get(Config.STAGE_MODE)
     Config.update(Config.STAGE_MODE, Config.STAGE_1)
     # path = "content/v0.01/market-historic/DOGE/DOGEUSDT-5min-2021-05-13 13.44.54.csv"
     csv = FileManager.get_csv(path)
     mkt = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
-    market_price = BinanceMarketPrice(mkt, "5m", Pair("DOGE/USDT"))
+    # market_price = BinanceMarketPrice(mkt, "5m", Pair("DOGE/USDT"))
+    market_price = BinanceMarketPrice(mkt, period, pair)
     Config.update(Config.STAGE_MODE, _original_stage)
     return market_price
+
 
 def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> MarketPrice:
     """
@@ -356,3 +359,41 @@ if __name__ == '__main__':
     perf = Floor.get_performance(bnc, Floor.__name__, market_price)
     print(_MF.json_encode(perf.get_map()))
     """
+    # """
+    market_price = historic_to_market(path, Pair('DOGE/USDT'), '5m')
+    # rates = MinMaxFloor.performance_get_rates(market_price)
+    # print(rates)
+    # print(sum(rates))
+    # """
+    """
+    params = Map({
+        Map.pair: Pair('DOGE/USDT'),
+        Map.maximum: None,
+        Map.capital: 1000,
+        Map.rate: 1,
+        Map.green: {
+            Map.maximum: None,
+            Map.capital: 1000,
+            Map.rate: 1,
+            Map.period: 60 * 15
+        },
+        Map.red: {
+            Map.maximum: None,
+            Map.capital: 1000,
+            Map.rate: 1,
+            Map.period: 60 * 5
+        }
+    })
+    stg = MinMaxFloor.generate_strategy(MinMaxFloor.__name__, params)
+    print(stg.__dict__)
+    """
+    # get_top_asset(get_broker())
+    period = -1
+    closes = list(market_price.get_closes())
+    closes.reverse()
+    super_trends = list(market_price.get_super_trend())
+    super_trends.reverse()
+    trend = MarketPrice.get_super_trend_trend(closes, super_trends, period)
+    print(closes[period])
+    print(super_trends[period], type(super_trends[period]))
+    print(trend)

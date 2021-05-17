@@ -16,7 +16,7 @@ class TestBot(unittest.TestCase, Bot):
     """
     def test_bot_properties_has_correct_type(self):
         self.assertEqual(self.bt._get_broker().__class__.__name__, Broker.retrieve(self.bkr, {}).__class__.__name__)
-        self.assertEqual(self.bt._get_strategy().__class__.__name__, Strategy.retrieve(self.stg).__class__.__name__)
+        self.assertEqual(self.bt._get_strategy().__class__.__name__, Strategy.generate_strategy(self.stg).__class__.__name__)
         self.assertEqual(self.bt._get_pair().__class__.__name__, Pair.__name__)
     """
 

@@ -26,11 +26,14 @@ class Floor(Strategy):
     _EXEC_SELL = "EXEC_SELL"
     _EXEC_CANCEL_SECURE = "EXEC_CANCEL_SECURE"
 
-    def __init__(self, prms: Map):
-        super().__init__(prms)
+    def __init__(self, params: Map):
+        super().__init__(params)
         self.__configs = None
         self.__secure_order = None
-        self.__best_period = None
+        rtn = _MF.keys_exist([Map.period], params.get_map())
+        if rtn is not None:
+            raise ValueError(f"This param '{rtn}' is required.")
+        self.__best_period = params.get(Map.period)
         # Strategy
         self.up_min_floor_once = None
 
@@ -54,7 +57,7 @@ class Floor(Strategy):
 
     def _init_constants(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        best_period = self._get_best_period()
+        best_period = self.get_best_period()
         self.__configs = Map({
             self._CONF_MAKET_PRICE: Map({
                 Map.pair: self.get_pair(),
@@ -83,28 +86,23 @@ class Floor(Strategy):
         pair = self.get_pair()
         period_ranking = MinMax.get_period_ranking(bkr, pair)
     """
+    """
     def set_best_period(self, best: int) -> None:
         self.__best_period = best
+    """
 
-    @staticmethod
-    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
-        stg_name = Floor.__name__
-        minute = 60
-        periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
-        nb_period = 1000
-        period_ranking = Strategy.get_top_period(bkr, stg_name, pair, periods, nb_period)
-        Floor._save_period_ranking(period_ranking)
-        return period_ranking
-
-    def _get_best_period(self) -> int:
+    def get_best_period(self) -> int:
+        """
         _stage = Config.get(Config.STAGE_MODE)
         if _stage == Config.STAGE_1:
-            self.set_best_period(60) if self.__best_period is None else None
+            # self.set_best_period(60) if self.__best_period is None else None
             return self.__best_period
         elif (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
             if self.__best_period is None:
                 raise Exception(f"Strategy MinMax's best period must be set before.")
             return self.__best_period
+        """
+        return self.__best_period
 
     def _set_secure_order(self, odr: Order) -> None:
         self.__secure_order = odr
@@ -253,14 +251,20 @@ class Floor(Strategy):
             executions = self._try_sell(mkt_prc)
         else:
             executions = self._try_buy(mkt_prc)
-        self.execute(bkr, mkt_prc, executions)
+        self.execute(bkr, executions, mkt_prc)
 
-    def execute(self, bkr: Broker, mkt_prc: MarketPrice, executions: Map) -> None:
+    def stop_trading(self, bkr: Broker) -> None:
+        if self._has_position():
+            executions = Map()
+            self._sell(executions)
+            self.execute(bkr, executions)
+
+    def execute(self, bkr: Broker, executions: Map, mkt_prc: MarketPrice = None) -> None:
         """
         To executions to submit to Broker's API\n
         :param bkr: Access to a Broker's API
-        :param mkt_prc: Market's prices
         :param executions: Executions to execute
+        :param mkt_prc: Market's prices
         """
         for idx, execution in executions.get_map().items():
             if execution == self._EXEC_BUY:
@@ -308,6 +312,7 @@ class Floor(Strategy):
         """
         _stage = Config.get(Config.STAGE_MODE)
         fields = [
+            "class",
             Map.time,
             'close',
             'move',
@@ -404,6 +409,7 @@ class Floor(Strategy):
         _stage = Config.get(Config.STAGE_MODE)
         self._save_move(**vars(), move=Order.MOVE_SELL, up_min_floor_once=self.up_min_floor_once)
         return executions
+
     # '''
 
     def _sell(self, executions: Map) -> None:
@@ -450,19 +456,31 @@ class Floor(Strategy):
         market_json = _MF.json_encode(closes_str)
         params_map.put(market_json, 'market_json')
         params_map.put(_MF.unix_to_date(market_price.get_time()), Map.time)
+        params_map.put(market_price.get_rsis()[0], Map.rsi)
         params_map.put(market_price.get_rsis(), 'rsis')
         params_map.put(market_price.get_tsis(), 'tsis')
         params_map.put(market_price.get_close(), Map.close)
         params_map.put(market_price.get_super_trend(), 'super_trends')
         params_map.put(market_price.get_super_trend()[0], 'super_trend')
+        params_map.put(Floor.__name__, "class")
+        params_map.put(_MF.unix_to_date(_MF.get_timestamp()), Map.date)
         # """
         fields = [
+            "class",
+            Map.date,
             Map.time,
             'close',
             'move',
             'secure_odr_prc',
             'stop_base_prc',
+            'super_trend',
             # Buy
+            'MinMax->',
+            'close_trend_ok',
+            'is_above_switch',
+            '_last_red_close',
+            '<-MinMax',
+            'Floor->',
             'rsi_ok',
             'rsi_downstairs_ok',
             'up_min_floor_once',
@@ -471,13 +489,16 @@ class Floor(Strategy):
             'prev_rsi',
             'rsi_entry_trigger',
             '_min_out_floor',
-            'super_trend',
+            '<-Floor',
             # Lists
             'rsis',
             'super_trends',
             '_floors'
         ]
         # """
+        for k, v in params_map.get_map().items():
+            if isinstance(v, float):
+                params_map.put(_MF.float_to_str(v), k)
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
@@ -497,7 +518,10 @@ class Floor(Strategy):
         # real_perf = ((current_capital_val - fees.get_value()) / cap - 1) * 100
         current_capital_obj = Price(current_capital_val, r_symbol)
         rows = [{
+            "class": Floor.__name__,
+            Map.date: _MF.unix_to_date(_MF.get_timestamp(), _MF.FORMAT_D_H_M_S),
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
+            Map.period: int(self.get_best_period()) / 60,
             'close': close,
             'initial': cap,
             'current_capital': current_capital_obj,
@@ -517,11 +541,12 @@ class Floor(Strategy):
     def _save_period_ranking(ranking: Map) -> None:
         def float_to_str(number: float) -> str:
             return str(number).replace(".", ",")
+
         rows = []
         base = {
-            Map.pair:  ranking.get(Map.pair),
-            Map.fee:  float_to_str(ranking.get(Map.fee)),
-            Map.number:  ranking.get(Map.number)
+            Map.pair: ranking.get(Map.pair),
+            Map.fee: float_to_str(ranking.get(Map.fee)),
+            Map.number: ranking.get(Map.number)
         }
         date = _MF.unix_to_date(_MF.get_timestamp())
         for rank, struc in ranking.get(Map.period).items():
@@ -546,7 +571,17 @@ class Floor(Strategy):
     # ——————————————— STATIC METHOD DOWN ———————————————
 
     @staticmethod
-    def _performance_get_rates(market_price: MarketPrice) -> list:
+    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
+        stg_name = Floor.__name__
+        minute = 60
+        periods = [minute, minute * 3, minute * 5, minute * 15, minute * 30, minute * 60]
+        nb_period = 1000
+        period_ranking = Strategy.get_top_period(bkr, stg_name, pair, periods, nb_period)
+        Floor._save_period_ranking(period_ranking)
+        return period_ranking
+
+    @staticmethod
+    def performance_get_rates(market_price: MarketPrice) -> list:
         # Init
         perf_rates = []
         buy_price = None
@@ -570,7 +605,8 @@ class Floor(Strategy):
                          and (last_rsi is not None)) and ((last_rsi <= rsi_entry_trigger) and (rsi > last_rsi)):
                 buy_price = closes[i]
             elif buy_price is not None:
-                up_min_floor_once = rsi > min_out_floor if (up_min_floor_once is None) or (not up_min_floor_once) else up_min_floor_once
+                up_min_floor_once = rsi > min_out_floor if (up_min_floor_once is None) or (
+                    not up_min_floor_once) else up_min_floor_once
                 if up_min_floor_once:
                     last_floor = floors[Floor._get_floor_index(last_rsi, floors)]
                     if (last_floor >= min_out_floor) and (rsi < last_floor):

@@ -20,28 +20,28 @@ class Strategy(_MF):
     _TOP_ASSET_MAX = 25
 
     @abstractmethod
-    def __init__(self, prms: Map):
+    def __init__(self, params: Map):
         """
         Constructor\n
-        :param prms: params
-                     prms[Map.pair]     => {Pair}
-                     prms[Map.maximum]  => {Price|None} # maximum of capital to use (if set, maximum > 0)
-                     prms[Map.capital]  => {Price}      # initial capital
-                     prms[Map.rate]     => {float|None} # ]0,1]
+        :param params: params
+                     params[Map.pair]:       {Pair}
+                     params[Map.maximum]:    {Price|None} # maximum of capital to use (if set, maximum > 0)
+                     params[Map.capital]:    {Price}      # initial capital
+                     params[Map.rate]:       {float|None} # ]0,1]
         :Note : Map.capital and Map.rate can't both be None
         """
         super().__init__()
         ks = [Map.pair, Map.maximum, Map.capital, Map.rate]
-        rtn = _MF.keys_exist(ks, prms.get_map())
+        rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required")
-        pr = prms.get(Map.pair)
-        max_cap = prms.get(Map.maximum)
-        rate = prms.get(Map.rate)
+        pr = params.get(Map.pair)
+        max_cap = params.get(Map.maximum)
+        rate = params.get(Map.rate)
         self._check_max_capital(max_cap, rate)
         # capital = Price(prms.get(Map.capital), pr)
         self.__pair = pr
-        self.__capital = prms.get(Map.capital)
+        self.__capital = params.get(Map.capital)
         self.__max_capital = max_cap
         self.__rate = None if rate is None else rate
         self.__orders = Orders()
@@ -90,6 +90,9 @@ class Strategy(_MF):
     def get_rate(self) -> float:
         return self.__rate
 
+    def _set_orders(self, orders: Orders) -> None:
+        self.__orders = orders
+
     def _get_orders(self) -> Orders:
         return self.__orders
 
@@ -104,9 +107,11 @@ class Strategy(_MF):
         """
         self._get_orders().update(bkr, mkt)
 
+    """
     @abstractmethod
     def set_best_period(self, best: int) -> None:
         pass
+    """
 
     @staticmethod
     @abstractmethod
@@ -121,22 +126,64 @@ class Strategy(_MF):
         """
         pass
 
-    '''
-    @staticmethod
     @abstractmethod
-    def get_performance(bkr: Broker, market_price: MarketPrice) -> Map:
+    def stop_trading(self, bkr: Broker) -> None:
         """
-        To get Strategy's performance\n
-        :param bkr: Access to a Broker's API
-        :param market_price: Market historic
-        :return: Strategy's performance
-                 Map[Map.roi]:          {float}
-                 Map[Map.fee]:          {float}
-                 Map[Map.rate]:         {Strategy._performance_get_rates()}         # Same structure
-                 Map[Map.transaction]:  {Strategy._performance_get_transactions()}  # Same structure
+        To cancel pending Order and sell all positions\n
+        :param bkr: access to a Broker's API
         """
         pass
-    '''
+
+    @staticmethod
+    @abstractmethod
+    def performance_get_rates(market_price: MarketPrice) -> list:
+        """
+        To get list of roi rate realized following the Strategy's trade rule\n
+        :param market_price: Market historic
+        :return:
+        """
+        pass
+
+    @staticmethod
+    def generate_strategy(stg_class: str, params: Map) -> 'Strategy':
+        """
+        To generate a new Strategy\n
+        :param stg_class: A Strategy's class name
+        :param params: params
+                       params[Map.pair]:       {Pair}
+                       params[Map.maximum]:    {float|None} # maximum of capital to use (if set, maximum > 0)
+                       params[Map.capital]:    {float}      # initial capital
+                       params[Map.rate]:       {float|None} # ]0,1]
+        :return: instance of a Strategy
+        """
+        '''
+        pair = params.get(Map.pair)
+        right_symbol = pair.get_right().get_symbol()
+        # Put Maximum
+        max_value = params.get(Map.maximum)
+        max_obj = Price(max_value, right_symbol) if max_value is not None else None
+        params.put(max_obj, Map.maximum)
+        # Put Capital
+        capital_value = params.get(Map.capital)
+        capital_obj = Price(capital_value, right_symbol)
+        params.put(capital_obj, Map.capital)
+        '''
+        Strategy._generate_strategy_treat_params(params)
+        exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
+        return eval(f"{stg_class}(params)")
+
+    @staticmethod
+    def _generate_strategy_treat_params(params: Map) -> None:
+        pair = params.get(Map.pair)
+        right_symbol = pair.get_right().get_symbol()
+        # Put Maximum
+        max_value = params.get(Map.maximum)
+        max_obj = Price(max_value, right_symbol) if max_value is not None else None
+        params.put(max_obj, Map.maximum)
+        # Put Capital
+        capital_value = params.get(Map.capital)
+        capital_obj = Price(capital_value, right_symbol)
+        params.put(capital_obj, Map.capital)
 
     @staticmethod
     def get_performance(bkr: Broker, stg_class: str, market_price: MarketPrice) -> Map:
@@ -148,7 +195,7 @@ class Strategy(_MF):
         :return: Strategy's performance
                  Map[Map.roi]:          {float}
                  Map[Map.fee]:          {float}
-                 Map[Map.rate]:         {Strategy._performance_get_rates()}         # Same structure
+                 Map[Map.rate]:         {Strategy.performance_get_rates()}         # Same structure
                  Map[Map.transaction]:  {Strategy._performance_get_transactions()}  # Same structure
         """
         exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
@@ -160,8 +207,8 @@ class Strategy(_MF):
         closes.reverse()
         super_trends = list(market_price.get_super_trend())
         super_trends.reverse()
-        # rates = MinMax._performance_get_rates(market_price)
-        rates = eval(f"{stg_class}._performance_get_rates(market_price)")
+        # rates = MinMax.performance_get_rates(market_price)
+        rates = eval(f"{stg_class}.performance_get_rates(market_price)")
         # transactions = MinMax._performance_get_transactions(initial_capital, rates, fees)
         transactions = eval(f"{stg_class}._performance_get_transactions(initial_capital, rates, fees)")
         last_transac = transactions[-1]
@@ -181,7 +228,7 @@ class Strategy(_MF):
         """
         To get a simulation of multiple trade for each rate give including Order fee\n
         :param initial_capital: Initial capital to use for simulation
-        :param rates: Rate from Strategy._performance_get_rates()
+        :param rates: Rate from Strategy.performance_get_rates()
         :param fees: Order fee rate charged for taker and maker
         :return: transaction historic for each rate given
         """
@@ -193,7 +240,7 @@ class Strategy(_MF):
         """
         To get a simulation of multiple trade for each rate give including Order fee\n
         :param initial_capital: Initial capital to use for simulation
-        :param rates: Rate from Strategy._performance_get_rates()
+        :param rates: Rate from Strategy.performance_get_rates()
         :param fees: Order fee rate charged for taker and maker
         :return: transaction historic for each rate given
         """
@@ -229,16 +276,6 @@ class Strategy(_MF):
         return transactions
 
     @staticmethod
-    @abstractmethod
-    def _performance_get_rates(market_price: MarketPrice) -> list:
-        """
-        To get list of roi rate realized following the Strategy's trade rule\n
-        :param market_price: Market historic
-        :return:
-        """
-        pass
-
-    @staticmethod
     def _check_max_capital(max_cap: Price, rate: float) -> None:
         """
         To check if the max capital available and the rate is correct\n
@@ -260,17 +297,6 @@ class Strategy(_MF):
         """
         p = Config.get(Config.DIR_STRATEGIES)
         return FileManager.get_dirs(p, False)
-
-    @staticmethod
-    def retrieve(stg_class: str, params: Map):
-        """
-        To retrieve a Strategy\n
-        :param stg_class: name of a Strategy
-        :param params: params
-        :return: instance of a Strategy
-        """
-        exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
-        return eval(f"{stg_class}(params)")
 
     @staticmethod   # Broker
     def get_top_asset(bkr: Broker, stg_class: str, period: int, nb_period: int, maximum: int = _TOP_ASSET_MAX) -> Map:
@@ -375,7 +401,7 @@ class Strategy(_MF):
                  Map[Map.period][rank{int}][Map.transaction]:       {dict}  # Result from
                                                                               Strategy.get_performance()
                  Map[Map.period][rank{int}][Map.rate]:              {List}  # Result from
-                                                                              Strategy._performance_get_rates()
+                                                                              Strategy.performance_get_rates()
                  Map[Map.period][rank{int}][Map.rank][Map.sum]:     {int}   # Sum of period's rank and roi's rank
                  Map[Map.period][rank{int}][Map.rank][Map.roi]:     {int}   # Rank of top roi
                  Map[Map.period][rank{int}][Map.rank][Map.period]:  {int}   # Rank of this period in top interval
