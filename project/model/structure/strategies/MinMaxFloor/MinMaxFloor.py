@@ -15,10 +15,10 @@ class MinMaxFloor(Strategy):
         """
         Constructor\n
         :param params: params
-               params[*]:           {Strategy.__init__()}   # Same structure
-               params[Map.period]:  {int}   # Period interval in second
-               params[Map.green]:   {Map}   # Params for MinMax Strategy
-               params[Map.red]:     {Map}   # Params for Floor Strategy
+               params[*]:                       {Strategy.__init__()}   # Same structure
+               params[Map.period]:              {int}   # Period interval in second
+               params[Map.green][Map.period]:   {int}   # Period interval in second
+               params[Map.red][Map.period]:     {int}   # Period interval in second
         """
         super().__init__(params)
         # self.__green_strategy = Strategy.generate_strategy(MinMax.__name__, Map(params.get(Map.green)))

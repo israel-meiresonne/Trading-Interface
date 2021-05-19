@@ -22,6 +22,8 @@ class Map:
     trade = "trade"
     green = "green"
     red = "red"
+    strategy = "strategy"
+    param = "param"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"

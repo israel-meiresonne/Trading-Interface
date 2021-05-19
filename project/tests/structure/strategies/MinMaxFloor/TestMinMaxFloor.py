@@ -45,3 +45,7 @@ class TestMinMaxFloor(unittest.TestCase, MinMaxFloor):
         # Test capital value
         self.assertEqual(stg._get_capital(), green_stg._get_capital())
         self.assertEqual(stg._get_capital(), red_stg._get_capital())
+
+
+if __name__ == '__main__':
+    unittest.main

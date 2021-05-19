@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import List
 
 from model.structure.database.ModelFeature import ModelFeature
 from model.tools.BrokerRequest import BrokerRequest
@@ -42,6 +43,17 @@ class Broker(ModelFeature):
         To get trade fees of the given Pair from Binance's API\n
         :param pair: the pair to get the trade fees
         :return: trade fees of the given Pair
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_pairs(match: List[str] = None, no_match: List[str] = None) -> List[str]:
+        """
+        To get pairs available in Broker's API\n
+        :param match: Include only pair that match this list of regex
+        :param no_match: Exclude all pair that match this list of regex
+        :return: Pairs available in Broker's API
         """
         pass
 

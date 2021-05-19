@@ -194,8 +194,9 @@ class Strategy(_MF):
         :param market_price: Market historic
         :return: Strategy's performance
                  Map[Map.roi]:          {float}
+                 Map[Map.day]:          {float}                                     # Roi per day
                  Map[Map.fee]:          {float}
-                 Map[Map.rate]:         {Strategy.performance_get_rates()}         # Same structure
+                 Map[Map.rate]:         {Strategy.performance_get_rates()}          # Same structure
                  Map[Map.transaction]:  {Strategy._performance_get_transactions()}  # Same structure
         """
         exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
@@ -213,8 +214,12 @@ class Strategy(_MF):
         transactions = eval(f"{stg_class}._performance_get_transactions(initial_capital, rates, fees)")
         last_transac = transactions[-1]
         roi = last_transac.get(Map.capital) / initial_capital - 1
+        nb_period = len(closes)
+        period = market_price.get_period_time()
+        roi_per_day = roi/(nb_period * period) * 60 * 60 * 24
         perf = Map({
             Map.roi: roi,
+            Map.day: roi_per_day,
             Map.fee: fee_rate,
             Map.rate: rates,
             Map.transaction: transactions,

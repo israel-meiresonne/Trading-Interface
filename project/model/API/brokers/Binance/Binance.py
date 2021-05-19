@@ -1,4 +1,5 @@
 from random import random
+from typing import List
 
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
@@ -73,6 +74,10 @@ class Binance(Broker):
 
     def get_next_trade_time(self) -> int:
         return int(random() * 10)
+
+    @staticmethod
+    def get_pairs(match: List[str] = None, no_match: List[str] = None) -> List[str]:
+        return BinanceAPI.get_pairs(match=match, no_match=no_match)
 
     @staticmethod
     def list_paires() -> list:

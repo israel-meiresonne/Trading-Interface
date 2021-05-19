@@ -1,3 +1,5 @@
+from typing import List
+
 from requests import get as rq_get, Response
 from requests import post as rq_post
 from requests import delete as rq_delete
@@ -579,6 +581,18 @@ class BinanceAPI:
         """
         convertor = BinanceAPI._get_symbol_to_pair()
         return convertor.get(symbol.lower())
+
+    @staticmethod
+    def get_pairs(match: List[str] = None, no_match: List[str] = None) -> list:
+        symbol_to_pair = BinanceAPI._get_symbol_to_pair()
+        pair_strs = [pair_str for symbol, pair_str in symbol_to_pair.get_map().items()]
+        if match is not None:
+            regex_match = '|'.join(match)
+            pair_strs = [pair_str for pair_str in pair_strs if _MF.regex_match(regex_match, pair_str)]
+        if no_match is not None:
+            regex_no_match = '|'.join(no_match)
+            pair_strs = [pair_str for pair_str in pair_strs if not _MF.regex_match(regex_no_match, pair_str)]
+        return pair_strs
 
     @staticmethod
     def __get_request_configs() -> dict:

@@ -17,6 +17,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMax.MinMax import MinMax
 from model.structure.strategies.Floor.Floor import Floor
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
+from model.structure.strategies.Stalker.Stalker import Stalker
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -341,7 +342,7 @@ if __name__ == '__main__':
     """
     # bnc = get_broker()
     # print_historic(bnc, Pair("DOGE/USDT"), 60*5)
-    Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    Config.update(Config.STAGE_MODE, Config.STAGE_3)
     path = "content/v0.01/market-historic/DOGE/DOGEUSDT-5min-2021-05-13 13.44.54.csv"
     """
     csv = FileManager.get_csv(path)
@@ -360,7 +361,7 @@ if __name__ == '__main__':
     print(_MF.json_encode(perf.get_map()))
     """
     # """
-    market_price = historic_to_market(path, Pair('DOGE/USDT'), '5m')
+    # market_price = historic_to_market(path, Pair('DOGE/USDT'), '5m')
     # rates = MinMaxFloor.performance_get_rates(market_price)
     # print(rates)
     # print(sum(rates))
@@ -387,6 +388,7 @@ if __name__ == '__main__':
     stg = MinMaxFloor.generate_strategy(MinMaxFloor.__name__, params)
     print(stg.__dict__)
     """
+    """
     # get_top_asset(get_broker())
     period = -1
     closes = list(market_price.get_closes())
@@ -397,3 +399,46 @@ if __name__ == '__main__':
     print(closes[period])
     print(super_trends[period], type(super_trends[period]))
     print(trend)
+    """
+    """
+    bnc = get_broker()
+    bnc_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_24H_STATISTICS, Map())
+    bnc.request(bnc_rq)
+    stat_24h = bnc_rq.get_24h_statistics()
+    print(len(stat_24h.get_map()))
+    """
+    """
+    bnc = get_broker()
+    stablecoins = Config.get(Config.CONST_STABLECOINS)
+    concat_stable = '|'.join(stablecoins)
+    stablecoin_rgx = f'({concat_stable})/\w+$'
+    fiats = Config.get(Config.CONST_FIATS)
+    concat_fiat = '|'.join(fiats)
+    fiat_rgx = f'({concat_fiat})/\w+$'
+    no_match = ['^\w+(up|down|bear|bull)\/\w+$', '^(bear|bull)/\w+$', fiat_rgx, stablecoin_rgx]
+    match = ['^.+\/usdt']
+    pair_strs = BinanceAPI.get_pairs(match=match, no_match=no_match)
+    """
+    """
+    stg = Stalker(Map({
+        Map.pair: Pair('DOGE/USDT'),
+        Map.maximum: None,
+        Map.capital: 20,
+        Map.rate: 1,
+        Map.strategy: {}
+    }))
+    pair_strs = stg.get_no_active_pairs(get_broker())
+    print(_MF.json_encode(pair_strs))
+    """
+    """
+    bnc = get_broker()
+    market_price = get_historic(bnc, Pair('pax/USDT'), 60*60, 1000)
+    print(Stalker.eligible(market_price))
+    """
+    bnc = get_broker()
+    # market_price = historic_to_market(path, Pair('DOGE/USDT'), "5m")
+    market_price = get_historic(bnc, Pair('DOGE/USDT'), 60*60, 1000)
+    stalker_perf = Strategy.get_performance(bnc, Stalker.__name__, market_price)
+    # minmax_rates = MinMax.performance_get_rates(market_price)
+    print("stalker_rates\n", stalker_perf)
+    # print("minmax_rates\n", minmax_rates, sum(minmax_rates))

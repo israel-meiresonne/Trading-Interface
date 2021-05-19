@@ -37,6 +37,7 @@ class Config(ABC):
     DIR_END_BACKUP = "DIR_END_BACKUP"
     # Constants
     CONST_STABLECOINS = "CONST_STABLECOINS"
+    CONST_FIATS = "CONST_FIATS"
 
     @abstractmethod
     def __init__(self):

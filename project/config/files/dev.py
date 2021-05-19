@@ -29,4 +29,6 @@ DIR_SAVE_PERIOD_RANKING = f'content/v0.01/tests/{_DATE}_period_ranking.csv'
 DIR_BEGIN_BACKUP = f'content/v0.01/tests/{_DATE}_a————————————————————.csv'
 DIR_END_BACKUP = f'content/v0.01/tests/{_DATE}_z————————————————————.csv'
 # Constants
-CONST_STABLECOINS = ['usdt', 'usdc', 'busd', 'dai', 'ust', 'tusd', 'pax', 'husd', 'usdn']
+CONST_STABLECOINS = ['busd', 'dai', 'husd', 'pax', 'susd', 'tusd', 'usdc', 'usdn', 'usdt', 'ust', 'usdsb', 'usds']
+CONST_FIATS = ['aud', 'brl', 'eur', 'gbp', 'ghs', 'hkd', 'kes', 'kzt', 'ngn', 'nok', 'pen', 'rub', 'try', 'uah', 'ugx',
+               'usd']
