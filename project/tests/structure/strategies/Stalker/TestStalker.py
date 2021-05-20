@@ -71,11 +71,13 @@ class TestStalker(unittest.TestCase, Stalker):
         with self.assertRaises(ValueError):
             stg._delete_active_strategy(bkr, pair1)
 
+    """
     def test_stalke_market(self) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         Config.update(Config.STAGE_MODE, Config.STAGE_3)
-        print(self.stg._stalke_market(self.bkr))
+        print(self.stg._stalk_market(self.bkr))
         Config.update(Config.STAGE_MODE, _stage)
+    """
 
 
 if __name__ == '__main__':

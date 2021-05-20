@@ -11,10 +11,9 @@ from model.tools.Paire import Pair
 
 
 class Stalker(Strategy):
-    _ALLOWED_PAIRS = None
-    """
-    Map[index{int}]:    {Pair}   # pair format: 'doge/usdt'
-    """
+    _CONST_MARKET_PRICE = "MARKET_PRICE"
+    _CONST_STALK_INTERVAL = 60 * 60
+    _CONST_ALLOWED_PAIRS = None
 
     def __init__(self, params: Map):
         """
@@ -31,19 +30,28 @@ class Stalker(Strategy):
             raise ValueError(f"This param '{rtn}' is required")
         super().__init__(params)
         self.__pair = None
+        self.__next_stalk = None
         self.__max_strategy = params.get(Map.number)
         self.__strategy_to_trade = params.get(Map.strategy)
         self.__strategy_params = Map(params.get(Map.param))
         self.__active_strategies = None
+
+    @staticmethod
+    def get_stalk_interval() -> int:
         """
-        self.__active_strategies = Map({
-            Pair('DOGE/USDT').__str__(): 'strategy',
-            Pair('JUV/USDT').__str__(): 'strategy'
-        })
+        To get interval (in second) between each market stalk\n
+        :return: interval (in second) between each market stalk
         """
+        return Stalker._CONST_STALK_INTERVAL
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
+
+    def _set_next_stalk(self, unix_time: int) -> None:
+        self.__next_stalk = unix_time
+
+    def get_next_stalk(self) -> int:
+        return self.__next_stalk
 
     def get_strategy_to_trade(self) -> str:
         return self.__strategy_to_trade
@@ -60,14 +68,33 @@ class Stalker(Strategy):
         stgs = self.get_active_strategies()
         return stgs.get(pair.__str__())
 
+    def _get_market_price(self, bkr: Broker, pair: Pair) -> MarketPrice:
+        """
+        To request MarketPrice to Broker\n
+        :param bkr: an access to Broker's API
+        :return: MarketPrice
+        """
+        _bkr_cls = bkr.__class__.__name__
+        mkt_params = Map({
+            Map.pair: pair,
+            Map.period: 60 * 60,
+            Map.begin_time: None,
+            Map.end_time: None,
+            Map.number: 100
+        })
+        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
+        bkr.request(bkr_rq)
+        return bkr_rq.get_market_price()
+
     @staticmethod
     def _get_allowed_pairs(bkr: Broker) -> List[Pair]:
         """
         To get pair allowed to trade with this Strategy\n
         :param bkr: Access to Broker's API
         :return: Pair allowed to trade with this Strategy
+                 Map[index{int}]:   {Pair}
         """
-        if Stalker._ALLOWED_PAIRS is None:
+        if Stalker._CONST_ALLOWED_PAIRS is None:
             # Stablecoin regex
             stablecoins = Config.get(Config.CONST_STABLECOINS)
             concat_stable = '|'.join(stablecoins)
@@ -80,8 +107,8 @@ class Stalker(Strategy):
             no_match = ['^\w+(up|down|bear|bull)\/\w+$', '^(bear|bull)/\w+$', '^\w*inch\w*/\w+$',fiat_rgx, stablecoin_rgx]
             match = ['^.+\/usdt']
             pair_strs = bkr.get_pairs(match=match, no_match=no_match)
-            Stalker._ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
-        return Stalker._ALLOWED_PAIRS
+            Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
+        return Stalker._CONST_ALLOWED_PAIRS
 
     def _get_no_active_pairs(self, bkr: Broker) -> List[Pair]:
         allowed_pairs = Stalker._get_allowed_pairs(bkr)
@@ -93,7 +120,16 @@ class Stalker(Strategy):
         # no_active_pairs.append(Pair('TRXDOWN/USDT'))                                            # ❌
         return no_active_pairs
 
-    def _stalke_market(self, bkr: Broker) -> None:
+    def _can_stalk(self) -> bool:
+        active_strategies = self.get_active_strategies()
+        max_strategy = self.get_max_strategy()
+        max_reached = len(active_strategies.get_map()) >= max_strategy
+        unix_time = _MF.get_timestamp()
+        next_stalk = self.get_next_stalk()
+        time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
+        return (not max_reached) and time_to_stalk
+
+    def _stalk_market(self, bkr: Broker) -> None:
         _stg_cls = Stalker.__name__
         _bkr_cls = bkr.__class__.__name__
         max_strategy = self.get_max_strategy()
@@ -124,6 +160,8 @@ class Stalker(Strategy):
                 self._add_active_strategy(Pair(pair_str))
                 if len(active_strategies.get_map()) >= max_strategy:
                     break
+        next_stalk = _MF.get_timestamp() + self.get_stalk_interval()
+        self._set_next_stalk(next_stalk)
 
     @staticmethod
     def _eligible(market_price: MarketPrice) -> bool:
@@ -171,14 +209,31 @@ class Stalker(Strategy):
         active_strategies = self.get_active_strategies()
         pair_str = pair.__str__()
         if pair_str not in active_strategies.get_keys():
-            # raise ValueError(f"Can't delete active Strategy with this pair '{pair_str.upper()}' cause don't exist.")
             raise ValueError(f"There's no active Strategy with this pair '{pair_str.upper()}' to delete.")
         strategy = active_strategies.get(pair_str)
         strategy.stop_trading(bkr)
         del active_strategies.get_map()[pair_str]
 
     def trade(self, bkr: Broker) -> None:
-        pass
+        self._stalk_market(bkr) if self._can_stalk() else None
+        self._manage_strategies(bkr)
+
+    def _manage_strategies(self, bkr: Broker) -> None:
+        active_stgs = self.get_active_strategies()
+        for pair_str, active_stg in active_stgs.get_map().items():
+            pair = active_stg.get_pair()
+            market_price = self._get_market_price(bkr, pair)
+            closes = list(market_price.get_closes())
+            closes.reverse()
+            super_trends = list(market_price.get_super_trend())
+            super_trends.reverse()
+            trend = MarketPrice.get_super_trend_trend(closes, super_trends, -1)
+            if trend == MarketPrice.SUPERTREND_RISING:
+                active_stg.trade(bkr)
+            elif trend == MarketPrice.SUPERTREND_DROPPING:
+                self._delete_active_strategy(bkr, pair)
+            else:
+                raise Exception(f"Unknown trend '{trend}' of SuperTrend.")
 
     def stop_trading(self, bkr: Broker) -> None:
         pass
@@ -195,9 +250,7 @@ class Stalker(Strategy):
                        params[Map.rate]:       {float|None} # ]0,1]
         :return: instance of a Strategy
         """
-        Strategy._generate_strategy_treat_params(params)
-        exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
-        return eval(f"{stg_class}(params)")
+        raise Exception(f"Must implement.")
 
     @staticmethod
     def get_period_ranking(bkr: Broker, pair: Pair) -> Map:

@@ -120,7 +120,7 @@ class MinMaxFloor(Strategy):
                 self.get_green_strategy().stop_trading(bkr)
                 self._set_active_strategy(red_strategy)
         else:
-            raise Exception(f"Unknown trend '{trend}' of SuperTrend")
+            raise Exception(f"Unknown trend '{trend}' of SuperTrend.")
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'MinMaxFloor':
