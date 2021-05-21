@@ -12,6 +12,19 @@ class TestPrice(unittest.TestCase, Price):
         self.price3 = Price(3, self.symbol2)
         self.price4 = Price(4, self.symbol2)
 
+    def test_sum(self) -> None:
+        symbol = 'USDT'
+        prices = [
+            Price(1, symbol),
+            Price(2, symbol),
+            Price(-3, symbol)
+        ]
+        exp1 = Price(0, symbol)
+        result1 = Price.sum(prices)
+        self.assertEqual(exp1, result1)
+        # No Price to sum
+        self.assertIsNone(Price.sum([]))
+
     def test__add__(self) -> None:
         exp1 = Price(self.price1.get_value() + self.price2.get_value(), self.symbol1)
         result1 = self.price1 + self.price2

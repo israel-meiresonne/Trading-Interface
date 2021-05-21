@@ -6,6 +6,7 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Paire import Pair
+from model.tools.Price import Price
 
 
 class MinMaxFloor(Strategy):
@@ -124,6 +125,18 @@ class MinMaxFloor(Strategy):
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'MinMaxFloor':
+        """
+        To generate a new Strategy\n
+        :param stg_class: A Strategy's class name
+        :param params: params
+                       params[*]:                       {Strategy.generate_strategy()}  # Same structure that params
+                                                                                          required in
+                       params[Map.period]:              {int}   # Period interval in second
+                       params[Map.green][Map.period]:   {int}   # Period interval in second
+                       params[Map.red][Map.period]:     {int}   # Period interval in second
+        :return: instance of a Strategy
+        """
+        """
         keys = params.get_keys()
         new_params = Map({key: params.get(key) for key in keys if (key != Map.green) and (key != Map.red)})
         Strategy._generate_strategy_treat_params(new_params)
@@ -134,6 +147,30 @@ class MinMaxFloor(Strategy):
         red_params = dict(new_params.get_map())
         red_params[Map.period] = params.get(Map.red, Map.period)
         # Set params
+        new_params.put(green_params, Map.green)
+        new_params.put(red_params, Map.red)
+        """
+        pair = params.get(Map.pair)
+        maximum = params.get(Map.maximum)
+        capital = params.get(Map.capital)
+        right_symbol = pair.get_right().get_symbol()
+        new_params = Map({
+            Map.pair: pair,
+            Map.maximum: Price(maximum, right_symbol) if maximum is not None else None,
+            Map.capital: Price(capital, right_symbol),
+            Map.rate: params.get(Map.rate),
+            Map.period: params.get(Map.period),
+            # Map.green: params.get(Map.green),
+            # Map.red: params.get(Map.red)
+        })
+        green_params = {
+            **new_params.get_map(),
+            Map.period: params.get(Map.green, Map.period)
+        }
+        red_params = {
+            **new_params.get_map(),
+            Map.period: params.get(Map.red, Map.period)
+        }
         new_params.put(green_params, Map.green)
         new_params.put(red_params, Map.red)
         return MinMaxFloor(new_params)

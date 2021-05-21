@@ -25,10 +25,10 @@ class Strategy(_MF):
         Constructor\n
         :param params: params
                      params[Map.pair]:       {Pair}
-                     params[Map.maximum]:    {Price|None} # maximum of capital to use (if set, maximum > 0)
-                     params[Map.capital]:    {Price}      # initial capital
+                     params[Map.capital]:    {Price}      # Initial capital
+                     params[Map.maximum]:    {Price|None} # Maximum of capital to use (if set, maximum > 0)
                      params[Map.rate]:       {float|None} # ]0,1]
-        :Note : Map.capital and Map.rate can't both be None
+        :Note : Map.maximum and Map.rate can't both be None
         """
         super().__init__()
         ks = [Map.pair, Map.maximum, Map.capital, Map.rate]
@@ -53,16 +53,16 @@ class Strategy(_MF):
     def get_pair(self) -> Pair:
         return self.__pair
 
-    def _set_capital(self, cap: Price) -> None:
-        self.__capital = cap
+    def _set_capital(self, capital: Price) -> None:
+        self.__capital = capital
 
     def _get_capital(self) -> Price:
-        cap = self.__capital
-        if cap is None:
+        capital = self.__capital
+        if capital is None:
             raise Exception("The capital available is not set")
         max_cap = self.get_max_capital()
         rate = self.get_rate()
-        return self._generate_real_capital(cap, max_cap, rate)
+        return self._generate_real_capital(capital, max_cap, rate)
 
     @staticmethod
     def _generate_real_capital(cap: Price, max_cap: Price, rate: float) -> Price:
@@ -83,6 +83,27 @@ class Strategy(_MF):
         else:
             raise Exception(f"Unknown state for max capital '{max_cap}' and rate '{rate}'")
         return Price(real_cap, cap.get_asset().get_symbol())
+
+    def get_actual_capital(self) -> Map:
+        """
+        To get actual capital available to trade\n
+        :return: actual capital available to trade
+                 Map[Map.left]:     {Price} # Quantity of left Asset available
+                 Map[Map.right]:    {Price} # Quantity of right Asset available
+        """
+        init_capital = self._get_capital()
+        right_capital = init_capital
+        left_capital = Price(0, self.get_pair().get_left().get_symbol())
+        odrs = self._get_orders()
+        if odrs.get_size() > 0:
+            odrs_sum = odrs.get_sum()
+            right_capital += odrs_sum.get(Map.right)
+            left_capital += odrs_sum.get(Map.left)
+        actual_capital = Map({
+            Map.left: left_capital,
+            Map.right: right_capital
+        })
+        return actual_capital
 
     def get_max_capital(self) -> Price:
         return self.__max_capital
@@ -290,7 +311,7 @@ class Strategy(_MF):
         if (max_cap is None) and (rate is None):
             raise ValueError(f"The max capital and the capital rate can't both be null")
         if (max_cap is not None) and (max_cap.get_value() <= 0):
-            raise ValueError(f"The max capital can't be set at zero")
+            raise ValueError(f"The max capital must be greater than zero")
         if (rate is not None) and (rate <= 0 or rate > 1):
             raise ValueError(f"The capital rate '{rate}' must be between 0 and 1 (]0,1])")
 

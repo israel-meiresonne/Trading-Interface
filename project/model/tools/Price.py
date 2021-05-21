@@ -1,3 +1,5 @@
+from typing import List
+
 from model.tools.Asset import Asset
 
 
@@ -14,6 +16,21 @@ class Price:
 
     def get_asset(self) -> Asset:
         return self.__asset
+
+    @staticmethod
+    def sum(prices: List['Price']) -> 'Price':
+        """
+        To sum list of prices\n
+        :param prices: List of Price
+        :return: Price sum or None if list of Price is empty
+        """
+        price_sum = None
+        if len(prices) > 0:
+            price_sum = prices[0]
+            for i in range(1, len(prices)):
+                price = prices[i]
+                price_sum += price
+        return price_sum
 
     def __add__(self, other):
         if not isinstance(other, Price):

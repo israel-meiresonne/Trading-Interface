@@ -82,12 +82,13 @@ class Binance(Broker):
     @staticmethod
     def list_paires() -> list:
         prs = [
-            "BTC/USDT",
-            "BNB/USDT",
-            "EGLD/USDT",
-            "COS/USDT",
-            "DOGE/USDT",
-            "ETC/USDT",
-            "RLC/USDT"
+            '?/USDT',
+            'BTC/USDT',
+            'BNB/USDT',
+            'EGLD/USDT',
+            'COS/USDT',
+            'DOGE/USDT',
+            'ETC/USDT',
+            'RLC/USDT'
         ]
         return prs
