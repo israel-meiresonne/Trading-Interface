@@ -58,9 +58,9 @@ class BrokerRequest(ABC, Request):
         :param prms: params required to request MarketPrice to Broker
                          prms[Map.pair]         => {Pair}
                          prms[Map.period]       => {int}  # in second
-                         prms[Map.begin_time]   => {int|None}
-                         prms[Map.end_time]     => {int|None}
-                         prms[Map.number]       => {int|None}  # number of period
+                         prms[Map.begin_time]   => {int|None}   # The older unix time in millisecond
+                         prms[Map.end_time]     => {int|None}   # The most recent unix time in millisecond
+                         prms[Map.number]       => {int|None}   # number of period
         """
         pass
 

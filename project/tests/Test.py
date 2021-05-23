@@ -161,7 +161,7 @@ def historic_to_market(path: str, pair: Pair, period: str) -> MarketPrice:
     return market_price
 
 
-def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> MarketPrice:
+def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int, begin_time: int = None, end_time: int = None) -> MarketPrice:
     """
     bnc = Binance(Map({Map.api_pb: "pb_k",
                        Map.api_sk: "sk_k",
@@ -170,6 +170,8 @@ def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int) -> MarketPrice
     """
     rq_prm = Map({Map.pair: pr,
                   Map.period: period,
+                  Map.begin_time: begin_time,
+                  Map.end_time: end_time,
                   Map.number: nb_prd
                   })
     rq = BinanceRequest(BrokerRequest.RQ_MARKET_PRICE, rq_prm)
@@ -436,9 +438,24 @@ if __name__ == '__main__':
     print(Stalker.eligible(market_price))
     """
     bnc = get_broker()
+    """
     # market_price = historic_to_market(path, Pair('DOGE/USDT'), "5m")
     market_price = get_historic(bnc, Pair('DOGE/USDT'), 60*60, 1000)
     stalker_perf = Strategy.get_performance(bnc, Stalker.__name__, market_price)
     # minmax_rates = MinMax.performance_get_rates(market_price)
     print("stalker_rates\n", stalker_perf)
-    # print("minmax_rates\n", minmax_rates, sum(minmax_rates))
+    # print("minmax_rates\n", minmax_rates, sum(minmax_rates))  # 1621638000 - 13h => 86->87
+    """
+    # merket_price = get_historic(bnc, Pair('FIS/USDT'), 60 * 60, 100, end_time=1621594800*1000)  # 2021-05-21 02:00:00
+    pair = Pair('GXS/USDT')
+    market_price = get_historic(bnc, pair, 60 * 60, 250, end_time=1621692000*1000)
+    closes = list(market_price.get_closes())
+    closes.reverse()
+    super_trends = list(market_price.get_super_trend())
+    super_trends.reverse()
+    times = list(market_price.get_times())
+    times.reverse()
+    for i in range(len(closes)):
+        date = _MF.unix_to_date(times[i])
+        trend = MarketPrice.get_super_trend_trend(closes, super_trends, i)
+        print(f"{date}: close={closes[i]}, super_trend={super_trends[i]}, trend={trend}")

@@ -16,20 +16,25 @@ class TestStalker(unittest.TestCase, Stalker):
         self.pair1 = Pair('?/USDT')
         right_symbol = self.pair1.get_right().get_symbol()
         self.capital1 = Price(15000, right_symbol)
+        self.max_stg1 = 3
+        self.child_stg_period1 = 60 * 30
+        self.child_stg_period2 = 60 * 15
+        self.child_stg_period3 = 60 * 1
         self.stg_param1 = Map({
             Map.pair: self.pair1,
             Map.maximum: None,
             Map.capital: self.capital1,
             Map.rate: 1,
-            Map.number: 3,
+            Map.number: self.max_stg1,
             Map.strategy: MinMaxFloor.__name__,
             Map.param: {
                 Map.pair: Pair('DOGE/USDT'),
                 Map.maximum: None,
                 Map.capital: Price(20, right_symbol),
                 Map.rate: 1,
-                Map.green: {Map.period: 60 * 5},
-                Map.red: {Map.period: 60 * 5}
+                Map.period: self.child_stg_period1,
+                Map.green: {Map.period: self.child_stg_period2},
+                Map.red: {Map.period: self.child_stg_period3}
             }
         })
         self.stg = Stalker(self.stg_param1)
@@ -37,6 +42,52 @@ class TestStalker(unittest.TestCase, Stalker):
                                                           Map.api_sk: "api_sk",
                                                           Map.test_mode: False
                                                           }))
+
+    def test_active_strategies_is_full(self) -> None:
+        stg_params = self.stg_param1
+        stg_params.put(3, Map.number)
+        init_max_stg = Stalker._CONST_MAX_STRATEGY
+        Stalker._CONST_MAX_STRATEGY = 3
+        stg = Stalker(stg_params)
+        # False with any active Strategy
+        result1 = stg.active_strategies_is_full()
+        self.assertFalse(result1)
+        # False with some active Strategy
+        stg._add_active_strategy(Pair('DOGE/USDT'))
+        stg._add_active_strategy(Pair('FIS/USDT'))
+        result2 = stg.active_strategies_is_full()
+        self.assertFalse(result2)
+        # True
+        stg._add_active_strategy(Pair('TRU/USDT'))
+        result3 = stg.active_strategies_is_full()
+        self.assertTrue(result3)
+        Stalker._CONST_MAX_STRATEGY = init_max_stg
+
+    def test_set_next_stalk(self) -> None:
+        unix_time = 1621164878              # GMT: 16/05/21 11h34:38
+        unix_rounded = 1621164600           # GMT: 16/05/21 11h30:00
+        # Map.period is set in child Strategy
+        period = self.child_stg_period1
+        exp1 = unix_rounded + period        # + 15min => 16/05/21 11h45:00
+        self.stg._set_next_stalk(unix_time)
+        result1 = self.stg.get_next_stalk()
+        self.assertEqual(exp1, result1)
+        # Map.period of child Strategy is bellow Stalker's minimum stalk interval
+        self.setUp()
+        self.stg_param1.put(1, Map.param, Map.period)
+        stg2 = Stalker(self.stg_param1)
+        exp2 = unix_rounded + Stalker.get_minimum_stalk_interval()
+        stg2._set_next_stalk(unix_time)
+        result2 = stg2.get_next_stalk()
+        self.assertEqual(exp2, result2)
+        # Map.period is not set in child Strategy
+        self.setUp()
+        del self.stg_param1.get(Map.param)[Map.period]
+        stg3 = Stalker(self.stg_param1)
+        exp3 = unix_rounded + Stalker.get_minimum_stalk_interval()
+        stg3._set_next_stalk(unix_time)
+        result3 = stg3.get_next_stalk()
+        self.assertEqual(exp3, result3)
 
     def test_add_active_strategy(self) -> None:
         pair = Pair('DOGE/USDT')
@@ -164,13 +215,13 @@ class TestStalker(unittest.TestCase, Stalker):
         stg._get_total_capital()
         stg._get_strategy_capital()
 
-    """
-    def test_stalke_market(self) -> None:
+    # """
+    def test_stalk_market(self) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         Config.update(Config.STAGE_MODE, Config.STAGE_3)
-        print(self.stg._stalk_market(self.bkr))
+        self.stg._stalk_market(self.bkr)
         Config.update(Config.STAGE_MODE, _stage)
-    """
+    # """
 
 
 if __name__ == '__main__':

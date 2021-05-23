@@ -71,15 +71,15 @@ class Bot(_MF):
         end = False
         print("Bot started to trade...")
         i = 0
-        sleep_time = 60
+        sleep_time = None
         _stage = Config.get(Config.STAGE_MODE)
         nb_error = 0
         limit_error = 60
         while not end:
-            print(f"Trade n°{i}")
+            print(f"Trade n°{i} — {_MF.unix_to_date(_MF.get_timestamp())}")
             # Trade
             try:
-                stg.trade(bkr)
+                sleep_time = stg.trade(bkr)
                 nb_error = 0
             except Exception as error:
                 nb_error += 1
@@ -89,10 +89,14 @@ class Bot(_MF):
                     raise error
                 if nb_error > limit_error:
                     raise error
-            # raise Exception("End Code!🙂")
             # Sleep
             if _stage != Config.STAGE_1:
-                print(f"Bot sleep for {sleep_time}seconds...")
+                sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
+                unix_time = _MF.get_timestamp()
+                start_date = _MF.unix_to_date(unix_time)
+                end_date = _MF.unix_to_date(unix_time + sleep_time)
+                sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
+                print(f"Bot sleep for '{sleep_time_str}'seconds till '{start_date}'->'{end_date}'...")
                 sleep(sleep_time)
             end = self._still_active()
             i += 1

@@ -32,7 +32,7 @@ class Price:
                 price_sum += price
         return price_sum
 
-    def __add__(self, other):
+    def __add__(self, other) -> 'Price':
         if not isinstance(other, Price):
             raise ValueError(f"Price can only be add with an other Price, instead: '{type(other)}'.")
         if self.get_asset() != other.get_asset():
@@ -41,7 +41,7 @@ class Price:
         new_val = self.get_value() + other.get_value()
         return Price(new_val, self.get_asset().get_symbol())
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> 'Price':
         if not isinstance(other, Price):
             raise ValueError(f"Price can only be subtract with an other Price, instead: '{type(other)}'.")
         if self.get_asset() != other.get_asset():
@@ -62,10 +62,10 @@ class Price:
     def __rtruediv__(self, other: [int, float]) -> [int, float]:
         return other.get_value() / self.get_value() if isinstance(other, Price) else other / self.get_value()
 
-    def __neg__(self):
+    def __neg__(self) -> 'Price':
         return Price(-self.get_value(), self.get_asset().get_symbol())
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.get_value() == other.get_value() and \
                self.get_asset() == other.get_asset()
 

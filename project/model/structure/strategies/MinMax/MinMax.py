@@ -37,10 +37,10 @@ class MinMax(Strategy):
             # Set Configs
             self._init_constants(bkr)
             # Set Capital
-            self._init_capital(bkr)
+            # self._init_capital(bkr)
 
     def _init_capital(self, bkr: Broker) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
+        """
         cap = None
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             cap = Price(1000, self.get_pair().get_right().get_symbol())
@@ -49,6 +49,8 @@ class MinMax(Strategy):
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
         self._set_capital(cap) if cap is not None else None
+        """
+        pass
 
     def _init_constants(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
@@ -74,6 +76,7 @@ class MinMax(Strategy):
         return configs.get(k)
 
     """
+        _stage = Config.get(Config.STAGE_MODE)
     def _set_best_period(self, bkr: Broker) -> None:
         pair = self.get_pair()
         period_ranking = MinMax.get_period_ranking(bkr, pair)
@@ -131,6 +134,7 @@ class MinMax(Strategy):
         l_sbl = self.get_pair().get_left().get_symbol()
         return Price(s_qty, l_sbl)
 
+    '''
     def _has_position(self) -> bool:
         """
         Check if holding a left position\n
@@ -138,6 +142,7 @@ class MinMax(Strategy):
         """
         odrs = self._get_orders()
         return odrs.has_position()
+    '''
 
     def _get_market_price(self, bkr: Broker) -> MarketPrice:
         """
@@ -228,7 +233,7 @@ class MinMax(Strategy):
         self._set_secure_order(odr)
         return odr
 
-    def trade(self, bkr: Broker) -> None:
+    def trade(self, bkr: Broker) -> int:
         _stage = Config.get(Config.STAGE_MODE)
         # Init Strategy in First turn
         self._init_strategy(bkr)
@@ -244,6 +249,7 @@ class MinMax(Strategy):
         else:
             executions = self._try_buy(mkt_prc)
         self.execute(bkr, executions, mkt_prc)
+        return Strategy.get_bot_sleep_time()
 
     def stop_trading(self, bkr: Broker) -> None:
         if self._has_position():
@@ -363,7 +369,7 @@ class MinMax(Strategy):
             self._last_red_close = None
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_BUY, _last_red_close=last_red_close)  # \
+        self._save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_BUY, _last_red_close=last_red_close)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
@@ -544,7 +550,7 @@ class MinMax(Strategy):
         #     self._move_up_secure_order(executions)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_SELL)  # \
+        self._save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return executions
     # '''
@@ -584,8 +590,10 @@ class MinMax(Strategy):
     # ——————————————— SAVE DOWN ———————————————
 
     @staticmethod
-    def _save_move(**params):
+    def _save_move(pair: Pair, **params):
         p = Config.get(Config.DIR_SAVE_MOVES)
+        # pair = self.get_pair()
+        p = p.replace('$pair', pair.__str__().replace('/', '_').upper())
         params_map = Map(params)
         mkt_prc = params_map.get('mkt_prc')
         closes = mkt_prc.get_closes()
@@ -601,8 +609,10 @@ class MinMax(Strategy):
         params_map.put(mkt_prc.get_super_trend()[0], 'super_trend')
         params_map.put(MinMax.__name__, "class")
         params_map.put(_MF.unix_to_date(_MF.get_timestamp()), Map.date)
+        params_map.put(pair, Map.pair)
         fields = [
             "class",
+            Map.pair,
             Map.date,
             Map.time,
             'close',
@@ -616,7 +626,7 @@ class MinMax(Strategy):
             'is_above_switch',
             '_last_red_close',
             '<-MinMax',
-            'Floor->'
+            'Floor->',
             'rsi_ok',
             'rsi_downstairs_ok',
             'up_min_floor_once',
@@ -640,6 +650,7 @@ class MinMax(Strategy):
 
     def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
+        p = p.replace('$pair', self.get_pair().__str__().replace('/', '_').upper())
         cap = self._get_capital()
         r_symbol = cap.get_asset().get_symbol()
         sell_qty = self._get_sell_quantity()

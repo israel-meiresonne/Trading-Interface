@@ -90,12 +90,13 @@ class MinMaxFloor(Strategy):
         bkr.request(bkr_rq)
         return bkr_rq.get_market_price()
 
-    def trade(self, bkr: Broker) -> None:
+    def trade(self, bkr: Broker) -> int:
         self._init_strategy(bkr)
         market_price = self._get_market_price(bkr)
         # Switch
         self._switch_strategy(bkr, market_price)
         self.get_active_strategy().trade(bkr)
+        return Strategy.get_bot_sleep_time()
 
     def stop_trading(self, bkr: Broker) -> None:
         self.get_green_strategy().stop_trading(bkr)

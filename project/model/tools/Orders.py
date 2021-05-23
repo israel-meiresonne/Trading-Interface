@@ -394,30 +394,13 @@ class Orders(Order):
         from config.Config import Config
         from model.tools.FileManager import FileManager
         p = Config.get(Config.DIR_SAVE_ORDER_ACTIONS)
+        pair = odr.get_pair()
+        p = p.replace('$pair', pair.__str__().replace('/', '_').upper())
         d = {
             Map.time: _MF.unix_to_date(_MF.get_timestamp()),
             Map.action: action,
             **odr.__dict__
         }
-        """
-        key1 = "_Order__order_params"
-        for k, v in d[key1].get_map().items():
-            if isinstance(v, Price) or isinstance(v, Pair):
-                # d[key1][k] = v.__str__()
-                d[key1].put(v.__str__(), k)
-        """
-        """
-        key_fee = '_Order__fee'
-        if isinstance(d[key_fee], Map):
-            i = 1
-            for k, v in d[key_fee].get_map().items():
-                d[f'fee_{i}'] = v
-                i += 1
-        else:
-            d[f'fee_1'] = None
-            d[f'fee_2'] = None
-        # del d[key_fee]
-        """
         rows = [d]
         fields = list(rows[0].keys())
         overwrite = False

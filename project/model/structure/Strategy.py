@@ -15,6 +15,7 @@ from model.tools.Price import Price
 
 
 class Strategy(_MF):
+    _CONST_BOT_SLEEP_TIME = 60
     _PERFORMANCE_INIT_CAPITAL = 100
     _TOP_ASSET = None
     _TOP_ASSET_MAX = 25
@@ -35,12 +36,13 @@ class Strategy(_MF):
         rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required")
-        pr = params.get(Map.pair)
+        pair = params.get(Map.pair)
         max_cap = params.get(Map.maximum)
         rate = params.get(Map.rate)
         self._check_max_capital(max_cap, rate)
         # capital = Price(prms.get(Map.capital), pr)
-        self.__pair = pr
+        # self.__pair = pr
+        self._set_pair(pair)
         self.__capital = params.get(Map.capital)
         self.__max_capital = max_cap
         self.__rate = None if rate is None else rate
@@ -49,6 +51,9 @@ class Strategy(_MF):
     @staticmethod
     def get_performance_init_capital() -> float:
         return Strategy._PERFORMANCE_INIT_CAPITAL
+
+    def _set_pair(self, pair: Pair) -> None:
+        self.__pair = pair
 
     def get_pair(self) -> Pair:
         return self.__pair
@@ -128,6 +133,14 @@ class Strategy(_MF):
         """
         self._get_orders().update(bkr, mkt)
 
+    def _has_position(self) -> bool:
+        """
+        Check if holding a left position\n
+        :return: True if holding else False
+        """
+        odrs = self._get_orders()
+        return odrs.has_position()
+
     """
     @abstractmethod
     def set_best_period(self, best: int) -> None:
@@ -140,10 +153,11 @@ class Strategy(_MF):
         pass
 
     @abstractmethod
-    def trade(self, bkr: Broker) -> None:
+    def trade(self, bkr: Broker) -> int:
         """
         To perform a trade\n
         :param bkr: access to a Broker's API
+        :return: time to wait till the next trade
         """
         pass
 
@@ -164,6 +178,10 @@ class Strategy(_MF):
         :return:
         """
         pass
+
+    @staticmethod
+    def get_bot_sleep_time() -> int:
+        return Strategy._CONST_BOT_SLEEP_TIME
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'Strategy':
@@ -229,9 +247,7 @@ class Strategy(_MF):
         closes.reverse()
         super_trends = list(market_price.get_super_trend())
         super_trends.reverse()
-        # rates = MinMax.performance_get_rates(market_price)
         rates = eval(f"{stg_class}.performance_get_rates(market_price)")
-        # transactions = MinMax._performance_get_transactions(initial_capital, rates, fees)
         transactions = eval(f"{stg_class}._performance_get_transactions(initial_capital, rates, fees)")
         last_transac = transactions[-1]
         roi = last_transac.get(Map.capital) / initial_capital - 1
