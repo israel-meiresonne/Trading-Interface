@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import sleep
 from typing import List
 
 import numpy as np
@@ -24,7 +25,7 @@ from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Paire import Pair
 from model.tools.Price import Price
-
+_PRINT_SUCCESS = '🖨 File printed ✅'
 
 def extract_market():
     _fm_cls = FileManager
@@ -86,7 +87,7 @@ def capital_to_market(src_path: str, depot_path: str) -> None:
             for row in csv]
     fields = list(rows[0].keys())
     _fm_cls.write_csv(depot_path, fields, rows)
-    print("🖨 File printed ✅")
+    print(_PRINT_SUCCESS)
 
 
 def apimarket_to_market(src_path: str, depot_path: str) -> None:
@@ -146,7 +147,7 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
                         f"instead '{older_unix}({older})', '{recent_unix}({recent})',...")
     fields = list(rows[0].keys())
     _fm_cls.write_csv(depot_path, fields, rows)
-    print("🖨 File printed ✅")
+    print(_PRINT_SUCCESS)
 
 
 def historic_to_market(path: str, pair: Pair, period: str) -> MarketPrice:
@@ -222,7 +223,7 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
     fields = list(rows[0].keys())
     overwrite = True
     FileManager.write_csv(p, fields, rows, overwrite)
-    print("🖨 File printed ✅")
+    print(_PRINT_SUCCESS)
 
 
 def performance_get_rates(market_price: MarketPrice) -> list:
@@ -335,127 +336,91 @@ def get_top_asset(bnc: Broker, interval: int = 60 * 5, nb_period: int = 1000):
     return top_asset
 
 
+def resume_capital_files() -> None:
+    folder_path = 'content/v0.01/tests/'
+    file_names = FileManager.get_files(folder_path)
+    regex = '^[\w -.]+_g_capital_\w+.csv$'
+    capiatl_file_names = [file_name for file_name in file_names if _MF.regex_match(regex, file_name)]
+    # trade_sections = Map()
+    trade_sections = []
+    """
+    Map[Pair.__str__()][index{int}][Map.capital]:   {Price}
+    Map[Pair.__str__()][index{int}][Map.left]:      {Price}
+    Map[Pair.__str__()][index{int}][Map.right]:     {Price}
+    Map[Pair.__str__()][index{int}][Map.rate]:      {rate}
+    """
+    right_symbol = 'USDT'
+    # print(file_names)
+    for file_name in capiatl_file_names:
+        # if file_name != '2021-05-23 12.24.51_g_capital_EGLD_USDT.csv':
+        #     continue
+        file_path = folder_path + file_name
+        csv = FileManager.get_csv(file_path)
+        left_symbol, _ = csv[0][Map.left].split(' ')
+        nb_row = len(csv)
+        pair = Pair(left_symbol, right_symbol)
+        pair_str = pair.__str__()
+        # trade_sections.put([], pair_str)
+        for i in range(nb_row):
+            row = csv[i]
+            if (i == nb_row - 1) or row['initial'] != csv[i + 1]['initial']:
+                #  left_value = row[Map.left]
+                left_price = str_to_price(row[Map.left])     # Price(left_value, right_symbol)
+                right_price = str_to_price(row[Map.right])    # Price(right_value, right_symbol)
+                initial_capital_price = str_to_price(row['initial'])
+                actual_capital_price = str_to_price(row['current_capital'])
+                rate = actual_capital_price / initial_capital_price - 1
+                trade_section = {
+                    'unix_time': int(_MF.date_to_unix(row[Map.date])),
+                    Map.pair: pair_str.upper(),
+                    Map.date: row[Map.date],
+                    Map.time: row[Map.time],
+                    Map.close: row[Map.close],
+                    Map.capital: initial_capital_price,
+                    'actual_capital': actual_capital_price,
+                    Map.left: left_price,
+                    Map.right: right_price,
+                    Map.rate: rate*100
+                }
+                # trade_sections.get(pair_str).append(trade_section)
+                trade_sections.append(trade_section)
+    sections_sorted = sorted(trade_sections, key=lambda row: (row['unix_time'], row[Map.pair]))
+    date = _MF.unix_to_date(_MF.get_timestamp())
+    fields = list(sections_sorted[0].keys())
+    sum_rate = sum([row[Map.rate] for row in sections_sorted])
+    rows = [
+        {field: f'⬇️ {date} ⬇️' for field in fields},
+        *sections_sorted,
+        {**{field: f'—' for field in fields if field != Map.rate}, Map.rate: f"{sum_rate}%"}
+    ]
+    print_path = folder_path + '2021-05-23 12.24.51_fb_NEW_global_capital_👾.csv'
+    FileManager.write_csv(print_path, fields, rows, overwrite=False)
+    print(_PRINT_SUCCESS)
+
+
+def str_to_price(price_str: str) -> Price:
+    symbol, value = price_str.split(' ')
+    return Price(value, symbol)
+
+
+def print_global_capital() -> None:
+    interval = 60 * 5
+    end = False
+    while not end:
+        unix_time = _MF.get_timestamp()
+        resume_capital_files()
+        new_unix = _MF.get_timestamp()
+        unix_rounded = int(new_unix / interval) * interval
+        next_time = unix_rounded + interval
+        sleep_time = next_time - new_unix
+        date = _MF.unix_to_date(unix_time)
+        next_date = _MF.unix_to_date(next_time)
+        sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
+        print(f"Next print '{sleep_time_str}': '{date}'->'{next_date}'")
+        sleep(sleep_time)
+
+
 if __name__ == '__main__':
-    """
-    for i in range(0, 2):
-        src_path = f'content/v0.01/2021-05-08 22.19.36_market-1-{i}.csv'
-        depot_path = f'content/v0.01/DOGE_USDT-2021-05-08 22.19.36-{i}.csv'
-        apimarket_to_market(src_path, depot_path)
-    """
-    # bnc = get_broker()
-    # print_historic(bnc, Pair("DOGE/USDT"), 60*5)
-    Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    path = "content/v0.01/market-historic/DOGE/DOGEUSDT-5min-2021-05-13 13.44.54.csv"
-    """
-    csv = FileManager.get_csv(path)
-    mkt = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
-    market_price = BinanceMarketPrice(mkt, "5m", Pair("DOGE/USDT"))
-    market_price = historic_to_market(path)
-    """
-    """
-    rates = performance_get_rates(market_price)
-    print(rates)
-    print(sum(rates)*100)
-    """
-    """
-    bnc = get_broker()
-    perf = Floor.get_performance(bnc, Floor.__name__, market_price)
-    print(_MF.json_encode(perf.get_map()))
-    """
-    # """
-    # market_price = historic_to_market(path, Pair('DOGE/USDT'), '5m')
-    # rates = MinMaxFloor.performance_get_rates(market_price)
-    # print(rates)
-    # print(sum(rates))
-    # """
-    """
-    params = Map({
-        Map.pair: Pair('DOGE/USDT'),
-        Map.maximum: None,
-        Map.capital: 1000,
-        Map.rate: 1,
-        Map.green: {
-            Map.maximum: None,
-            Map.capital: 1000,
-            Map.rate: 1,
-            Map.period: 60 * 15
-        },
-        Map.red: {
-            Map.maximum: None,
-            Map.capital: 1000,
-            Map.rate: 1,
-            Map.period: 60 * 5
-        }
-    })
-    stg = MinMaxFloor.generate_strategy(MinMaxFloor.__name__, params)
-    print(stg.__dict__)
-    """
-    """
-    # get_top_asset(get_broker())
-    period = -1
-    closes = list(market_price.get_closes())
-    closes.reverse()
-    super_trends = list(market_price.get_super_trend())
-    super_trends.reverse()
-    trend = MarketPrice.get_super_trend_trend(closes, super_trends, period)
-    print(closes[period])
-    print(super_trends[period], type(super_trends[period]))
-    print(trend)
-    """
-    """
-    bnc = get_broker()
-    bnc_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_24H_STATISTICS, Map())
-    bnc.request(bnc_rq)
-    stat_24h = bnc_rq.get_24h_statistics()
-    print(len(stat_24h.get_map()))
-    """
-    """
-    bnc = get_broker()
-    stablecoins = Config.get(Config.CONST_STABLECOINS)
-    concat_stable = '|'.join(stablecoins)
-    stablecoin_rgx = f'({concat_stable})/\w+$'
-    fiats = Config.get(Config.CONST_FIATS)
-    concat_fiat = '|'.join(fiats)
-    fiat_rgx = f'({concat_fiat})/\w+$'
-    no_match = ['^\w+(up|down|bear|bull)\/\w+$', '^(bear|bull)/\w+$', fiat_rgx, stablecoin_rgx]
-    match = ['^.+\/usdt']
-    pair_strs = BinanceAPI.get_pairs(match=match, no_match=no_match)
-    """
-    """
-    stg = Stalker(Map({
-        Map.pair: Pair('DOGE/USDT'),
-        Map.maximum: None,
-        Map.capital: 20,
-        Map.rate: 1,
-        Map.strategy: {}
-    }))
-    pair_strs = stg.get_no_active_pairs(get_broker())
-    print(_MF.json_encode(pair_strs))
-    """
-    """
-    bnc = get_broker()
-    market_price = get_historic(bnc, Pair('pax/USDT'), 60*60, 1000)
-    print(Stalker.eligible(market_price))
-    """
-    bnc = get_broker()
-    """
-    # market_price = historic_to_market(path, Pair('DOGE/USDT'), "5m")
-    market_price = get_historic(bnc, Pair('DOGE/USDT'), 60*60, 1000)
-    stalker_perf = Strategy.get_performance(bnc, Stalker.__name__, market_price)
-    # minmax_rates = MinMax.performance_get_rates(market_price)
-    print("stalker_rates\n", stalker_perf)
-    # print("minmax_rates\n", minmax_rates, sum(minmax_rates))  # 1621638000 - 13h => 86->87
-    """
-    # merket_price = get_historic(bnc, Pair('FIS/USDT'), 60 * 60, 100, end_time=1621594800*1000)  # 2021-05-21 02:00:00
-    pair = Pair('GXS/USDT')
-    market_price = get_historic(bnc, pair, 60 * 60, 250, end_time=1621692000*1000)
-    closes = list(market_price.get_closes())
-    closes.reverse()
-    super_trends = list(market_price.get_super_trend())
-    super_trends.reverse()
-    times = list(market_price.get_times())
-    times.reverse()
-    for i in range(len(closes)):
-        date = _MF.unix_to_date(times[i])
-        trend = MarketPrice.get_super_trend_trend(closes, super_trends, i)
-        print(f"{date}: close={closes[i]}, super_trend={super_trends[i]}, trend={trend}")
+    # Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    pass
+
