@@ -741,6 +741,33 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertDictEqual(exp2, result2.get_map())
         """
 
+    def test_get_psar_trend(self) -> None:
+        closes = [4, 6, 5, 8, 6, 11, 13, 12, 13, 18, 15, 14, 5, 19, 18, 9, 8, 6, 7, 4, 3]
+        psar = [2, 4, 3, 6, 4, 9, 11, 10, 11, float('nan'), 17, 17, 8, 17, 16, 11, 10, 8, 9, 6, 5]
+        nb = len(closes)
+        exp1 = MarketPrice.PSAR_RISING
+        exp2 = MarketPrice.PSAR_DROPPING
+        result1 = MarketPrice.get_psar_trend(closes, psar, 0)
+        result2 = MarketPrice.get_psar_trend(closes, psar, -1)
+        result3 = MarketPrice.get_psar_trend(closes, psar, -12)
+        self.assertEqual(exp1, result1)
+        self.assertEqual(exp2, result2)
+        self.assertIsNone(result3)
+        self.assertEqual(MarketPrice.PSAR_RISING, MarketPrice.get_psar_trend(closes, psar, -nb))
+        self.assertEqual(MarketPrice.PSAR_DROPPING, MarketPrice.get_psar_trend(closes, psar, nb - 1))
+        # Different size
+        with self.assertRaises(ValueError):
+            MarketPrice.get_psar_trend([closes[i] for i in range(len(closes)) if i > 0], psar, 5)
+        with self.assertRaises(ValueError):
+            MarketPrice.get_psar_trend(closes, [psar[i] for i in range(len(psar)) if i > 0], 9)
+        # Index out
+        with self.assertRaises(IndexError):
+            MarketPrice.get_psar_trend(closes, psar, 21)
+        with self.assertRaises(IndexError):
+            MarketPrice.get_psar_trend(closes, psar, -30)
+        with self.assertRaises(IndexError):
+            MarketPrice.get_psar_trend(closes, psar, -nb - 1)
+
 
 if __name__ == '__main__':
     unittest.main

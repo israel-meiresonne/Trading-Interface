@@ -60,6 +60,8 @@ class MarketPrice(ABC):
     SUPERTREND_DROPPING = "TREND_DROPPING"
     _PSAR_STEP = 0.02
     _PSAR_MAX_STEP = 0.2
+    PSAR_RISING = "PSAR_RISING"
+    PSAR_DROPPING = "PSAR_DROPPING"
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -606,7 +608,7 @@ class MarketPrice(ABC):
     @staticmethod
     def get_super_trend_trend(closes: list, supers: list, prd: int) -> str:
         """
-        To evaluate the trend of SuperTrend on a given period\n
+        To evaluate the trend of SuperTrend at the given period\n
         :param closes: values used to generate SuperTrend
         :param supers: SuperTrend values generated with closes param
         :param prd: the period where to check the trend
@@ -683,6 +685,27 @@ class MarketPrice(ABC):
         psar_series = psar_obj.psar()
         psar = psar_series.to_list()
         return psar
+
+    @staticmethod
+    def get_psar_trend(closes: list, psars: list, index: int) -> str:
+        """
+        To evaluate the trend of Psar at the given period\n
+        :param closes: values used to generate SuperTrend
+        :param psars: Psar values generated with the given closes param
+        :param index: Index of the period to check the trend
+        :return: the trend at the given period else None if trend can't be evaluate
+        """
+        nb_close = len(closes)
+        nb_psar = len(psars)
+        if nb_close != nb_psar:
+            raise ValueError(f"The number of closes '{nb_close}' must match the number of Psar '{nb_psar}'.")
+        if (index >= nb_psar) or (abs(index) > nb_psar):
+            raise IndexError(f"The given index '{index}' is out of bound '{nb_psar}'.")
+        close = closes[index]
+        psar = psars[index]
+        trend = MarketPrice.PSAR_RISING if psar < close else None
+        trend = MarketPrice.PSAR_DROPPING if (trend is None) and (psar > close) else trend
+        return trend
 
     @staticmethod
     def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:
