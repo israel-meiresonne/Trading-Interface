@@ -82,50 +82,66 @@ class Controller:
             stg = stgs[vw.menu("Choose a Strategy:", stgs)]
             pair_codes = md.list_paires(bkr)
             pair_code = pair_codes[vw.menu("Choose the Pair to trade:", pair_codes)]
-            """
-            configs = Map({
-                bkr: {
-                    Map.api_pb: 'api_pb',
-                    Map.api_sk: 'api_sk',
-                    Map.test_mode: False
-                },
-                stg: {
-                    Map.maximum: None,
-                    Map.capital: 20,
-                    Map.rate: 1,
-                    Map.period: 60 * 60,
-                    Map.green: {
-                        Map.period: 60 * 15
+            if stg == 'MinMax':
+                configs = Map({
+                    bkr: {
+                        Map.api_pb: 'api_pb',
+                        Map.api_sk: 'api_sk',
+                        Map.test_mode: False
                     },
-                    Map.red: {
-                        Map.period: 60 * 5
-                    }
-                }
-            })
-            """
-            no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
-            configs = Map({
-                bkr: {
-                    Map.api_pb: 'api_pb',
-                    Map.api_sk: 'api_sk',
-                    Map.test_mode: False
-                },
-                stg: {
-                    Map.maximum: None,
-                    Map.capital: 1000,
-                    Map.rate: 1,
-                    # Map.period: 60 * 60,
-                    Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:", no_selected_stgs)],
-                    Map.param: {
+                    stg: {
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 5,
-                        # Map.green: {Map.period: 60 * 5},
-                        # Map.red: {Map.period: 60 * 5}
+                        Map.period: 60
                     }
-                }
-            })
+                })
+            elif stg == 'MinMaxFloor':
+                configs = Map({
+                    bkr: {
+                        Map.api_pb: 'api_pb',
+                        Map.api_sk: 'api_sk',
+                        Map.test_mode: False
+                    },
+                    stg: {
+                        Map.maximum: None,
+                        Map.capital: 20,
+                        Map.rate: 1,
+                        Map.period: 60 * 60,
+                        Map.green: {
+                            Map.period: 60 * 15
+                        },
+                        Map.red: {
+                            Map.period: 60 * 5
+                        }
+                    }
+                })
+            elif stg == 'Stalker':
+                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
+                configs = Map({
+                    bkr: {
+                        Map.api_pb: 'api_pb',
+                        Map.api_sk: 'api_sk',
+                        Map.test_mode: False
+                    },
+                    stg: {
+                        Map.maximum: None,
+                        Map.capital: 1000,
+                        Map.rate: 1,
+                        # Map.period: 60 * 60,
+                        Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:", no_selected_stgs)],
+                        Map.param: {
+                            Map.maximum: None,
+                            Map.capital: 1000,
+                            Map.rate: 1,
+                            Map.period: 60 * 5,
+                            # Map.green: {Map.period: 60 * 5},
+                            # Map.red: {Map.period: 60 * 5}
+                        }
+                    }
+                })
+            else:
+                raise Exception(f"Must implement menu for this Strategy '{stg}'.")
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
         print(configs.get_map())
