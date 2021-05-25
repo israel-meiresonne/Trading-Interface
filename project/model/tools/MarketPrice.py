@@ -6,6 +6,7 @@ import pandas as pd
 from pandas_ta import supertrend as _supertrend
 from ta.momentum import RSIIndicator
 from ta.momentum import TSIIndicator
+from ta.trend import PSARIndicator
 from ta.utils import _ema
 from scipy.signal import find_peaks
 
@@ -47,6 +48,7 @@ class MarketPrice(ABC):
     COLLECTION_SUPER_TREND_DOWNS = "COLLECTION_SUPER_TREND_DOWNS"
     COLLECTION_TRUE_RANGE_AVG = "COLLECTION_TRUE_RANGE_AVG"
     COLLECTION_TRUE_RANGE = "COLLECTION_TRUE_RANGE"
+    COLLECTION_PSAR = "COLLECTION_PSAR"
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
     _NB_PRD_SLOPES_AVG = 7
@@ -56,6 +58,8 @@ class MarketPrice(ABC):
     _NB_PRD_FAST_TSI = 13
     SUPERTREND_RISING = "TREND_RISING"
     SUPERTREND_DROPPING = "TREND_DROPPING"
+    _PSAR_STEP = 0.02
+    _PSAR_MAX_STEP = 0.2
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -89,7 +93,8 @@ class MarketPrice(ABC):
             self.COLLECTION_SUPER_TREND_UPS: None,
             self.COLLECTION_SUPER_TREND_DOWNS: None,
             self.COLLECTION_TRUE_RANGE_AVG: None,
-            self.COLLECTION_TRUE_RANGE: None
+            self.COLLECTION_TRUE_RANGE: None,
+            self.COLLECTION_PSAR: None
         })
         # Backup
         stage = Config.get(Config.STAGE_MODE)
@@ -457,7 +462,6 @@ class MarketPrice(ABC):
             raise ValueError(f"This period '{prd}' don't exist in the Slope average collection")
         return avgs[prd]
 
-    # SuperTrend DOWN
     def get_super_trend(self, nb_prd: int = _SUPERTREND_NB_PERIOD, coef: float = _SUPERTREND_COEF) -> tuple:
         """
         To get the Super Trend indicator\n
@@ -507,6 +511,22 @@ class MarketPrice(ABC):
             super_rsis = tuple(super_rsis)
             self._set_collection(k, super_rsis)
         return super_rsis
+
+    def get_psar(self) -> tuple:
+        k = self.COLLECTION_PSAR
+        psars = self._get_collection(k)
+        if psars is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            highs = list(self.get_highs())
+            highs.reverse()
+            lows = list(self.get_lows())
+            lows.reverse()
+            psars = MarketPrice.psar(highs, lows, closes)
+            psars.reverse()
+            psars = tuple(psars)
+            self._set_collection(k, psars)
+        return psars
 
     def _set_ms(self) -> None:
         """
@@ -644,6 +664,25 @@ class MarketPrice(ABC):
         tsis_series = tsis_obj.tsi()
         tsis = tsis_series.to_list()
         return tsis
+
+    @staticmethod
+    def psar(highs: list, lows: list, closes: list, step: float = _PSAR_STEP, max_step: float = _PSAR_MAX_STEP) -> list:
+        """
+        To generate the Parabolic Stop and Reverse (PSAR) indicator.\n
+        :param highs: Market's high prices.
+        :param lows: Market's low prices.
+        :param closes: Market's close prices.
+        :param step: The acceleration coefficient used to compute PSAR.
+        :param max_step: The maximum value allowed for the Acceleration Factor.
+        :return: The Parabolic Stop and Reverse (PSAR) indicator.
+        """
+        pd_closes = pd.Series(np.array(closes))
+        pd_highs = pd.Series(np.array(highs))
+        pd_lows = pd.Series(np.array(lows))
+        psar_obj = PSARIndicator(pd_highs, pd_lows, pd_closes, step, max_step)
+        psar_series = psar_obj.psar()
+        psar = psar_series.to_list()
+        return psar
 
     @staticmethod
     def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:

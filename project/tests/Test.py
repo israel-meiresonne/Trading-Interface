@@ -184,10 +184,11 @@ def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int, begin_time: in
 def print_historic(bkr, pair: Pair, prd: int = 60, nb_prd: int = 1000) -> None:
     # pr = Pair(pr_str)
     mkt = get_historic(bkr, pair, prd, nb_prd)
-    print_market(mkt, pair)
+    print_market(mkt)
 
 
-def print_market(mkt: MarketPrice, pr: Pair) -> None:
+def print_market(mkt: MarketPrice) -> None:
+    pair = mkt.get_pair()
     closes = mkt.get_closes()
     rows = []
     # times = [int(t / 1000) for t in mkt.get_times()]
@@ -195,9 +196,7 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
     degs = mkt.get_slopes_degree(14)
     degs = [v for v in degs if v is not None]
     spr_extrems = _MF.get_super_extremums(list(degs))
-    # print(spr_extrems)
     super_rsis = mkt.get_super_trend_rsis()
-    # super_tsis = mkt.get_super_trend_tsis()
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -207,6 +206,7 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
             Map.close: closes[i],
             Map.rsi: mkt.get_rsis()[i],
             'super_rsis': super_rsis[i],
+            'psar': mkt.get_psar()[i],
             Map.super_trend: mkt.get_super_trend()[i],
             Map.tsi: mkt.get_tsis(use_nan=True)[i],
             Map.tsi + "_ema": mkt.get_tsis_emas()[i],
@@ -218,7 +218,7 @@ def print_market(mkt: MarketPrice, pr: Pair) -> None:
         rows.append(row)
     rows.reverse()
     date_format = _MF.FORMAT_D_H_M_S.replace(':', '.')
-    file = f"{pr.get_merged_symbols().upper()}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
+    file = f"{pair.get_merged_symbols().upper()}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
     p = f"content/v0.01/print/{file}.csv"
     fields = list(rows[0].keys())
     overwrite = True
@@ -422,5 +422,6 @@ def print_global_capital() -> None:
 
 if __name__ == '__main__':
     # Config.update(Config.STAGE_MODE, Config.STAGE_1)
-    pass
+    bkr = get_broker()
+    print_historic(bkr, Pair('BURGER/USDT'), 60 * 15)
 
