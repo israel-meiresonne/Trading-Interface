@@ -75,17 +75,6 @@ class MinMax(Strategy):
             raise IndexError(f"There's  not constant with this key '{k}'")
         return configs.get(k)
 
-    """
-        _stage = Config.get(Config.STAGE_MODE)
-    def _set_best_period(self, bkr: Broker) -> None:
-        pair = self.get_pair()
-        period_ranking = MinMax.get_period_ranking(bkr, pair)
-    """
-    """
-    def set_best_period(self, best: int) -> None:
-        self.__best_period = best
-    """
-
     def get_best_period(self) -> int:
         """
         _stage = Config.get(Config.STAGE_MODE)
@@ -307,7 +296,7 @@ class MinMax(Strategy):
             self._buy(bkr, mkt_prc, odrs)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_BUY)  # \
+        self.save_move(**vars(), move=Order.MOVE_BUY)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
@@ -334,7 +323,7 @@ class MinMax(Strategy):
     '''
 
     # TREND(RSI)&TREND(CLOSE)V5.1: BUY
-    # '''
+    '''
     def _try_buy(self, mkt_prc: MarketPrice) -> Map:
         """
         To try to buy position\n
@@ -369,7 +358,7 @@ class MinMax(Strategy):
             self._last_red_close = None
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_BUY, _last_red_close=last_red_close)  # \
+        self.save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_BUY, _last_red_close=last_red_close)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
@@ -395,7 +384,7 @@ class MinMax(Strategy):
         ]
         """
         return executions
-    # '''
+    '''
 
     # TREND(RSI)&TREND(CLOSE)V5.2: BUY
     '''
@@ -432,7 +421,7 @@ class MinMax(Strategy):
             self._last_dropping_close = None
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_BUY, _last_dropping_close=self._last_dropping_close) # \
+        self.save_move(**vars(), move=Order.MOVE_BUY, _last_dropping_close=self._last_dropping_close) # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         """
         fields = [
@@ -459,6 +448,47 @@ class MinMax(Strategy):
         """
         return odrs
     '''
+
+    # PSAR+SUPERTREND_V5.3: BUY
+    def _try_buy(self, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to buy position\n
+        :param mkt_prc: market price
+        :return: set of execution instruction
+                 Map[index{int}]:   {str}
+        """
+        executions = Map()
+        # Extact closes
+        closes = list(mkt_prc.get_closes())
+        closes.reverse()
+        # Extact SuperTrend
+        supertrends = list(mkt_prc.get_super_trend())
+        supertrends.reverse()
+        # Extact Psar
+        psars = list(mkt_prc.get_psar())
+        psars.reverse()
+        # Check SuperTrend
+        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -1)
+        super_trend_rising = supertrend_trend == MarketPrice.SUPERTREND_RISING
+        # Check Psar
+        psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
+        psar_rising = psar_trend == MarketPrice.PSAR_RISING
+        # Evaluate Buy
+        if super_trend_rising and psar_rising:
+            self._buy(executions)
+        self.save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_BUY)
+        """
+        fields = [
+            'super_trend_rising',
+            'psar_rising',
+            'super_trend_dropping',
+            'psar_dropping',
+            'supertrend_trend',
+            'psar_trend',
+            'psar'
+        ]
+        """
+        return executions
 
     # TEST STAGE_3
     """
@@ -520,13 +550,13 @@ class MinMax(Strategy):
             self._move_up_secure_order(bkr, mkt_prc, odrs)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(**vars(), move=Order.MOVE_SELL)  # \
+        self.save_move(**vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return odrs
     '''
 
     # TREND(RSI)&TREND(CLOSE)V5.1,V5.2: SELL
-    # '''
+    '''
     def _try_sell(self, mkt_prc: MarketPrice) -> Map:
         """
         To try to sell position\n
@@ -550,10 +580,40 @@ class MinMax(Strategy):
         #     self._move_up_secure_order(executions)
         # Backup
         _stage = Config.get(Config.STAGE_MODE)
-        self._save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_SELL)  # \
+        self.save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_SELL)  # \
         # if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2) else None
         return executions
-    # '''
+    '''
+
+    # PSAR+SUPERTREND_V5.3: SELL
+    def _try_sell(self, mkt_prc: MarketPrice) -> Map:
+        """
+        To try to sell position\n
+        :param mkt_prc: market prices
+        :return: set of order to execute
+                 Map[symbol{str}] => {Order}
+        """
+        executions = Map()
+        # Extact closes
+        closes = list(mkt_prc.get_closes())
+        closes.reverse()
+        # Extact SuperTrend
+        supertrends = list(mkt_prc.get_super_trend())
+        supertrends.reverse()
+        # Extact Psar
+        psars = list(mkt_prc.get_psar())
+        psars.reverse()
+        # Check SuperTrend
+        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -1)
+        super_trend_dropping = supertrend_trend == MarketPrice.SUPERTREND_DROPPING
+        # Check Psar
+        psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
+        psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
+        # Evaluate Sell
+        if super_trend_dropping or psar_dropping:
+            self._sell(executions)
+        self.save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_SELL)
+        return executions
 
     def _sell(self, executions: Map) -> None:
         """
@@ -590,7 +650,7 @@ class MinMax(Strategy):
     # ——————————————— SAVE DOWN ———————————————
 
     @staticmethod
-    def _save_move(pair: Pair, **params):
+    def save_move(pair: Pair, **params):
         p = Config.get(Config.DIR_SAVE_MOVES)
         # pair = self.get_pair()
         p = p.replace('$pair', pair.__str__().replace('/', '_').upper())
@@ -610,6 +670,7 @@ class MinMax(Strategy):
         params_map.put(MinMax.__name__, "class")
         params_map.put(_MF.unix_to_date(_MF.get_timestamp()), Map.date)
         params_map.put(pair, Map.pair)
+        params_map.put(mkt_prc.get_psar()[0], 'psar')
         fields = [
             "class",
             Map.pair,
@@ -621,12 +682,16 @@ class MinMax(Strategy):
             'stop_base_prc',
             'super_trend',
             # Buy
-            'MinMax->',
-            'close_trend_ok',
-            'is_above_switch',
-            '_last_red_close',
-            '<-MinMax',
-            'Floor->',
+            'MinMax ➡️',
+            'super_trend_rising',
+            'psar_rising',
+            'super_trend_dropping',
+            'psar_dropping',
+            'supertrend_trend',
+            'psar_trend',
+            'psar',
+            '⬅️ MinMax',
+            'Floor ➡️',
             'rsi_ok',
             'rsi_downstairs_ok',
             'up_min_floor_once',
@@ -635,7 +700,7 @@ class MinMax(Strategy):
             'prev_rsi',
             'rsi_entry_trigger',
             '_min_out_floor',
-            '<-Floor',
+            '⬅️ Floor',
             # Lists
             'rsis',
             'super_trends',

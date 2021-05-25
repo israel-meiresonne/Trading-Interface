@@ -218,7 +218,7 @@ def print_market(mkt: MarketPrice) -> None:
         rows.append(row)
     rows.reverse()
     date_format = _MF.FORMAT_D_H_M_S.replace(':', '.')
-    file = f"{pair.get_merged_symbols().upper()}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
+    file = f"{pair.__str__().upper().replace('/','_')}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
     p = f"content/v0.01/print/{file}.csv"
     fields = list(rows[0].keys())
     overwrite = True
@@ -423,5 +423,5 @@ def print_global_capital() -> None:
 if __name__ == '__main__':
     # Config.update(Config.STAGE_MODE, Config.STAGE_1)
     bkr = get_broker()
-    print_historic(bkr, Pair('BURGER/USDT'), 60 * 15)
+    print_historic(bkr, Pair('UNFI/USDT'), 60 * 5)
 

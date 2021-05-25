@@ -454,6 +454,9 @@ class Floor(Strategy):
 
     @staticmethod
     def _save_move(pair: Pair, **params):
+        from model.structure.strategies.MinMax.MinMax import MinMax
+        MinMax.save_move(pair, **params)
+        '''
         p = Config.get(Config.DIR_SAVE_MOVES)
         # pair = self.get_pair()
         p = p.replace('$pair', pair.__str__().replace('/', '_').upper())
@@ -512,6 +515,7 @@ class Floor(Strategy):
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
+        '''
 
     def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
