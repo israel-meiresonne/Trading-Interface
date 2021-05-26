@@ -241,7 +241,8 @@ class Stalker(Strategy):
         market_prices = Map()
         market_params = Map({
             Map.pair: None,
-            Map.period: 60 * 60,
+            # Map.period: 60 * 60,
+            Map.period: self.get_stalk_interval(),
             Map.begin_time: None,
             Map.end_time: None,
             Map.number: 1000
@@ -300,49 +301,58 @@ class Stalker(Strategy):
 
     def _manage_strategies(self, bkr: Broker) -> None:
         _cls = Stalker
-        active_stgs = self.get_active_strategies()
-        to_delete_pairs = []
-        pair_to_closes = Map()  # ❌
-        print(_cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + f"Star manage strategies ({len(active_stgs.get_map())}):".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
-        for pair_str, active_stg in active_stgs.get_map().items():
-            print(_cls._TO_REMOVE_STYLE_CYAN + f"Managing pair '{pair_str.upper()}'...")
+        active_stgs_copy = Map(self.get_active_strategies().get_map())
+        pairs_to_delete = []    # ❌
+        pair_closes = Map()     # ❌
+        print(_cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + f"Star manage strategies ({len(active_stgs_copy.get_map())}):".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
+        for pair_str, active_stg in active_stgs_copy.get_map().items():
+            print(_cls._TO_REMOVE_STYLE_CYAN + f"Managing pair '{pair_str.upper()}'..." + _cls._TO_REMOVE_STYLE_NORMAL)
             pair = active_stg.get_pair()
             market_price = self._get_market_price(bkr, pair)
+            # Extract closes
             closes = list(market_price.get_closes())
             closes.reverse()
-            pair_to_closes.put(closes, pair_str)    # ❌
+            pair_closes.put(closes, pair_str)    # ❌
+            # Extract SuperTrend
             super_trends = list(market_price.get_super_trend())
             super_trends.reverse()
+            # Trade
             trend = MarketPrice.get_super_trend_trend(closes, super_trends, -1)
-            print(f"{pair_str.upper()}'s trend: {trend}." + _cls._TO_REMOVE_STYLE_NORMAL)
+            print(_cls._TO_REMOVE_STYLE_CYAN + f"{pair_str.upper()}'s trend: {trend}." + _cls._TO_REMOVE_STYLE_NORMAL)
             if trend == MarketPrice.SUPERTREND_RISING:
                 active_stg.trade(bkr)
                 print(_cls._TO_REMOVE_STYLE_GREEN + f"Pair {pair_str.upper()} trade with SUCCESS" + _cls._TO_REMOVE_STYLE_NORMAL)
             elif trend == MarketPrice.SUPERTREND_DROPPING:
-                to_delete_pairs.append(pair_str)
+                self._delete_active_strategy(bkr, pair)
+                pairs_to_delete.append(pair_str)
                 print(_cls._TO_REMOVE_STYLE_RED + f"Pair {pair_str.upper()} is DELETED." + _cls._TO_REMOVE_STYLE_NORMAL)
             else:
                 raise Exception(f"Unknown trend '{trend}' of SuperTrend.")
-        [self._delete_active_strategy(bkr, pair) for pair in to_delete_pairs]
+            """
+            if Stalker.CPT == 3:    # ❌
+                self._delete_active_strategy(bkr, pair)
+                pairs_to_delete.append(pair_str)
+                print(_cls._TO_REMOVE_STYLE_RED + f"Pair {pair_str.upper()} is DELETED." + _cls._TO_REMOVE_STYLE_NORMAL)
+            """
         """
         if Stalker.CPT == 0:
             # 1
-            pair1 = Pair('DOGE/USDT')
+            pair1 = Pair('ALICE/USDT')
             self._add_active_strategy(pair1)    # ❌
             market_price = self._get_market_price(bkr, pair1)
             closes = list(market_price.get_closes())
             closes.reverse()
-            pair_to_closes.put(closes, pair1.__str__())    # ❌
+            pair_closes.put(closes, pair1.__str__())    # ❌
             # 2
-            pair2 = Pair('BTC/USDT')
+            pair2 = Pair('ANKR/USDT')
             self._add_active_strategy(pair2)    # ❌
             market_price = self._get_market_price(bkr, pair2)
             closes = list(market_price.get_closes())
             closes.reverse()
-            pair_to_closes.put(closes, pair2.__str__())    # ❌
-            Stalker.CPT += 1
+            pair_closes.put(closes, pair2.__str__())    # ❌
+        Stalker.CPT += 1
         """
-        self._save_state(pair_to_closes, to_delete_pairs)
+        self._save_state(pair_closes, pairs_to_delete)
 
     def stop_trading(self, bkr: Broker) -> None:
         pass
