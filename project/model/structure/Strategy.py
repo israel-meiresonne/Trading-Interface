@@ -58,6 +58,9 @@ class Strategy(_MF):
     def get_pair(self) -> Pair:
         return self.__pair
 
+    def get_initial_capital(self) -> Price:
+        return self.__capital
+
     def _set_capital(self, capital: Price) -> None:
         self.__capital = capital
 
@@ -109,6 +112,36 @@ class Strategy(_MF):
             Map.right: right_capital
         })
         return actual_capital
+
+    def get_actual_capital_merged(self, market_price: MarketPrice) -> Price:
+        """
+        To get sum of left ad right  capital in right asset\n
+        :param market_price: Most recent market prices
+        :return: sum of left ad right  capital in right asset
+        """
+        pair = self.get_pair()
+        if pair != market_price.get_pair():
+            raise ValueError(f"MarketPrice's pair '{market_price.get_pair().__str__().upper()}' "
+                             f"must match Strategy's '{pair.__str__().upper()}'")
+        close = market_price.get_close()
+        actual_capital = self.get_actual_capital()
+        left_capital = actual_capital.get(Map.left)
+        left_capital_converted = Price(left_capital * close, pair.get_right().get_symbol())
+        right_capital = actual_capital.get(Map.right)
+        actual_capital_merged = right_capital + left_capital_converted
+        return actual_capital_merged
+
+    def get_roi(self, market_price: MarketPrice) -> float:
+        """
+        To get Strategy's return on invest (ROI)\n
+        NOTE: roi is in decimal (not in percent)
+        :param market_price: Most recent market prices
+        :return: Strategy's roi
+        """
+        initial_capital = self.get_initial_capital()
+        actual_capital = self.get_actual_capital_merged(market_price)
+        roi = actual_capital / initial_capital - 1
+        return roi
 
     def get_max_capital(self) -> Price:
         return self.__max_capital
