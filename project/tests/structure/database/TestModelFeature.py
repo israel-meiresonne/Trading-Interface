@@ -146,6 +146,13 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         self.assertTrue(result1)
         self.assertFalse(result2)
 
+    def test_round_time(self) -> None:
+        unix_time = 1620458043  # 2021-05-08 09:14:03
+        interval = 60 * 15
+        exp1 = 1620457200       # 2021-05-08 09:00:00
+        result1 = ModelFeature.round_time(unix_time, interval)
+        self.assertEqual(exp1, result1)
+
 
 if __name__ == '__main__':
     unittest.main

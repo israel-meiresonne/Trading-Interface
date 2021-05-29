@@ -281,3 +281,15 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def float_to_str(val: float) -> str:
         return str(val).replace(".", ",") if val is not None else val
+
+    @staticmethod
+    def round_time(unix_time: int, interval: int) -> int:
+        """
+        To round the unix time to the last multiple of interval\n
+        i.e: 2021-05-15 16:56:14 (interval=60*20) => 2021-05-15 16:40:00
+        :param unix_time: Unix time
+        :param interval: Interval in second
+        :return: The last multiple of interval in second following the unix time given
+        """
+        last_unix = int(unix_time / interval) * interval
+        return last_unix
