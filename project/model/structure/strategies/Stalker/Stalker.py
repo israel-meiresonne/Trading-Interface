@@ -17,13 +17,17 @@ class Stalker(Strategy):
     _CONST_STALK_INTERVAL = 60 * 60
     _CONST_MIN_STALK_INTERVAL = 60 * 15
     _CONST_ALLOWED_PAIRS = None
-    _CONST_MAX_STRATEGY = 10
+    _CONST_MAX_STRATEGY = 20
+    _CONST_MAX_LOSS_RATE = -0.05
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
     _TO_REMOVE_STYLE_BLACK = '\033[30m'
     _TO_REMOVE_STYLE_RED = '\033[31m'
     _TO_REMOVE_STYLE_GREEN = '\033[32m'
-    _TO_REMOVE_STYLE_CYAN = '\033[96m'
+    _TO_REMOVE_STYLE_CYAN = '\033[36m'
+    _TO_REMOVE_STYLE_PURPLE = '\033[35m'
+    _TO_REMOVE_STYLE_YELLOW = '\033[33m'
+    _TO_REMOVE_STYLE_BLUE = '\033[34m'
     _TO_REMOVE_STYLE_BACK_CYAN = '\033[46m'
 
     def __init__(self, params: Map):
@@ -40,7 +44,6 @@ class Stalker(Strategy):
             raise ValueError(f"This param '{rtn}' is required")
         super().__init__(params)
         right_symbol = self.get_pair().get_right().get_symbol()
-        #  self.__pair = Pair(f'?/{right_symbol}')
         self._set_pair(Pair(f'?/{right_symbol}'))
         self.__next_stalk = None
         self.__transactions = None
@@ -49,6 +52,8 @@ class Stalker(Strategy):
         child_stg_params = params.get(Map.param)
         self._set_strategy_params(Map(child_stg_params))
         self.__active_strategies = None
+        self.__next_blacklist_clean = None
+        self.__blacklist = None
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
@@ -63,7 +68,7 @@ class Stalker(Strategy):
             next_stalk = unix_rounded + min_stalk_interval
         else:
             unix_rounded = int(unix_time / period) * period
-            next_stalk = unix_rounded + period  # self.get_stalk_interval()
+            next_stalk = unix_rounded + period  # self.get_stalk_period()
         self.__next_stalk = next_stalk
 
     def get_next_stalk(self) -> int:
@@ -201,11 +206,44 @@ class Stalker(Strategy):
         # Delete active Strategy
         del active_stgs.get_map()[pair_str]
 
+    def _set_next_blacklist_clean(self) -> None:
+        """
+        To set the next time to empty the blacklist\n
+        """
+        unix_time = _MF.get_timestamp()
+        stalk_period = Stalker.get_stalk_period()
+        round_time = _MF.round_time(unix_time, stalk_period)
+        self.__next_blacklist_clean = round_time + stalk_period
+
+    def get_next_blacklist_clean(self) -> int:
+        return self.__next_blacklist_clean
+
+    def get_blacklist(self) -> List[Pair]:
+        next_clean = self.get_next_blacklist_clean()
+        unix_time = _MF.get_timestamp()
+        if (self.__blacklist is None) or ((next_clean is not None) and (unix_time >= next_clean)):
+            self.__blacklist = []
+            self.__next_blacklist_clean = None
+        return self.__blacklist
+
+    def _blacklist_pair(self, pair: Pair) -> None:
+        """
+        To blacklist a new pair\n
+        :param pair: Pair to blacklist
+        """
+        blacklist = self.get_blacklist()
+        if pair in blacklist:
+            raise ValueError(f"This pair '{pair.__str__().upper()}' already exist in blacklist.")
+        blacklist.append(pair)
+        self._set_next_blacklist_clean()
+
     def _get_no_active_pairs(self, bkr: Broker) -> List[Pair]:
         allowed_pairs = Stalker._get_allowed_pairs(bkr)
         active_strategies = self.get_active_strategies()
         pair_strs = active_strategies.get_keys()
-        no_active_pairs = [pair for pair in allowed_pairs if pair.__str__() not in pair_strs]
+        blacklist = self.get_blacklist()
+        no_active_pairs = [pair for pair in allowed_pairs
+                           if (pair.__str__() not in pair_strs) and (pair not in blacklist)]
         # no_active_pairs = [no_active_pairs[i] for i in range(len(no_active_pairs)) if i < 5]    # ❌
         # no_active_pairs.append(Pair('SUSD/USDT'))                                               # ❌
         # no_active_pairs.append(Pair('TRXDOWN/USDT'))                                            # ❌
@@ -242,7 +280,7 @@ class Stalker(Strategy):
         market_params = Map({
             Map.pair: None,
             # Map.period: 60 * 60,
-            Map.period: self.get_stalk_interval(),
+            Map.period: self.get_stalk_period(),
             Map.begin_time: None,
             Map.end_time: None,
             Map.number: 1000
@@ -301,39 +339,85 @@ class Stalker(Strategy):
 
     def _manage_strategies(self, bkr: Broker) -> None:
         _cls = Stalker
+        _normal = _cls._TO_REMOVE_STYLE_NORMAL
+        _color_black = _cls._TO_REMOVE_STYLE_BLACK
+        _color_cyan = _cls._TO_REMOVE_STYLE_CYAN
+        _color_green = _cls._TO_REMOVE_STYLE_GREEN
+        _color_purple = _cls._TO_REMOVE_STYLE_PURPLE
+        _color_red = _cls._TO_REMOVE_STYLE_RED
+        _color_yellow = _cls._TO_REMOVE_STYLE_YELLOW
+        _back_cyan = _cls._TO_REMOVE_STYLE_BACK_CYAN
+        #
         active_stgs_copy = Map(self.get_active_strategies().get_map())
         pairs_to_delete = []    # ❌
         pair_closes = Map()     # ❌
-        print(_cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + f"Star manage strategies ({len(active_stgs_copy.get_map())}):".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
+        rows = []               # ❌
+        print(_back_cyan + _color_black + f"Star manage strategies ({len(active_stgs_copy.get_map())}):".upper() + _normal)
         for pair_str, active_stg in active_stgs_copy.get_map().items():
-            print(_cls._TO_REMOVE_STYLE_CYAN + f"Managing pair '{pair_str.upper()}'..." + _cls._TO_REMOVE_STYLE_NORMAL)
+            print(_color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
+            # Prepare active Strategy
             pair = active_stg.get_pair()
+            has_position = active_stg._has_position()
             market_price = self._get_market_price(bkr, pair)
-            # Extract closes
+            # Prepare closes
             closes = list(market_price.get_closes())
             closes.reverse()
             pair_closes.put(closes, pair_str)    # ❌
-            # Extract SuperTrend
-            super_trends = list(market_price.get_super_trend())
-            super_trends.reverse()
+            # Prepare SuperTrends
+            supertrends = list(market_price.get_super_trend())
+            supertrends.reverse()
+            supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -1)
+            supertrend_rising = supertrend_trend == MarketPrice.SUPERTREND_RISING
+            # Prepare Psars
+            psars = list(market_price.get_psar())
+            psars.reverse()
+            psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
+            psar_rising = psar_trend == MarketPrice.PSAR_RISING
+            # Prepare capital
+            stg_roi = active_stg.get_roi(market_price)
+            max_loss_rate = Stalker.get_max_loss()
+            stg_roi_bellow_limit = stg_roi <= max_loss_rate
             # Trade
-            trend = MarketPrice.get_super_trend_trend(closes, super_trends, -1)
-            print(_cls._TO_REMOVE_STYLE_CYAN + f"{pair_str.upper()}'s trend: {trend}." + _cls._TO_REMOVE_STYLE_NORMAL)
-            if trend == MarketPrice.SUPERTREND_RISING:
+            if stg_roi_bellow_limit:
+                self._delete_active_strategy(bkr, pair)
+                self._blacklist_pair(pair)
+                print(_color_purple + f"Pair '{pair_str.upper()}' is BLACKLISTED (max loss ({max_loss_rate*100}%): "
+                                      f"{round(stg_roi*100, 2)}% <= {max_loss_rate*100}%)." + _normal)
+            elif supertrend_rising and psar_rising:
                 active_stg.trade(bkr)
-                print(_cls._TO_REMOVE_STYLE_GREEN + f"Pair {pair_str.upper()} trade with SUCCESS" + _cls._TO_REMOVE_STYLE_NORMAL)
-            elif trend == MarketPrice.SUPERTREND_DROPPING:
+                print(_color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
+            elif supertrend_rising and (not psar_rising):
+                if has_position:
+                    active_stg.stop_trading(bkr)
+                    print(_color_yellow + f"Pair {pair_str.upper()} is SUSPENDED." + _normal)
+                else:
+                    print(_color_yellow + f"Pair {pair_str.upper()} is ALREADY SUSPENDED." + _normal)
+            elif not supertrend_rising:
                 self._delete_active_strategy(bkr, pair)
                 pairs_to_delete.append(pair_str)
-                print(_cls._TO_REMOVE_STYLE_RED + f"Pair {pair_str.upper()} is DELETED." + _cls._TO_REMOVE_STYLE_NORMAL)
+                print(_color_red + f"Pair {pair_str.upper()} is DELETED (Supertrend dropping)." + _normal)
             else:
-                raise Exception(f"Unknown trend '{trend}' of SuperTrend.")
-            """
-            if Stalker.CPT == 3:    # ❌
-                self._delete_active_strategy(bkr, pair)
-                pairs_to_delete.append(pair_str)
-                print(_cls._TO_REMOVE_STYLE_RED + f"Pair {pair_str.upper()} is DELETED." + _cls._TO_REMOVE_STYLE_NORMAL)
-            """
+                raise Exception(f"Unknown state. ("
+                                f"stg_roi_bellow_limit: '{stg_roi_bellow_limit}'\n"
+                                f"has_position: '{has_position}'\n"
+                                f"supertrend_rising: '{supertrend_rising}'\n"
+                                f"psar_rising: '{psar_rising}')")
+            row = {
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.pair: pair,
+                Map.roi: f"{_MF.float_to_str(round(stg_roi * 100, 2))}%",
+                'max_loss': f"{_MF.float_to_str(round(max_loss_rate * 100, 2))}%",
+                'roi_bellow_limit': stg_roi_bellow_limit,
+                'has_position': has_position,
+                'supertrend_trend': supertrend_trend,
+                'supertrend_rising': supertrend_rising,
+                'psar_trend': psar_trend,
+                'psar_rising': psar_rising,
+                Map.close: _MF.float_to_str(closes[-1]),
+                Map.super_trend: _MF.float_to_str(supertrends[-1]),
+                'psar': _MF.float_to_str(psars[-1])
+            }
+            rows.append(row)
         """
         if Stalker.CPT == 0:
             # 1
@@ -353,12 +437,13 @@ class Stalker(Strategy):
         Stalker.CPT += 1
         """
         self._save_state(pair_closes, pairs_to_delete)
+        Stalker._save_moves(rows) if len(rows) > 0 else None
 
     def stop_trading(self, bkr: Broker) -> None:
         pass
 
     @staticmethod
-    def get_stalk_interval() -> int:
+    def get_stalk_period() -> int:
         """
         To get interval (in second) between each market stalk\n
         :return: interval (in second) between each market stalk
@@ -370,6 +455,10 @@ class Stalker(Strategy):
         return Stalker._CONST_MIN_STALK_INTERVAL
 
     @staticmethod
+    def get_max_loss() -> float:
+        return Stalker._CONST_MAX_LOSS_RATE
+
+    @staticmethod
     def _get_market_price(bkr: Broker, pair: Pair) -> MarketPrice:
         """
         To request MarketPrice to Broker\n
@@ -379,7 +468,7 @@ class Stalker(Strategy):
         _bkr_cls = bkr.__class__.__name__
         mkt_params = Map({
             Map.pair: pair,
-            Map.period: Stalker.get_stalk_interval(),
+            Map.period: Stalker.get_stalk_period(),
             Map.begin_time: None,
             Map.end_time: None,
             Map.number: 100
@@ -517,6 +606,7 @@ class Stalker(Strategy):
         capital_allocation_size = self._get_strategy_capital() \
             if not self.active_strategies_is_full() else total_capital_available
         roi = (total_capital / initial_capital - 1)
+        next_clean = self.get_next_blacklist_clean()
         row = {
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.pair: pair,
@@ -533,7 +623,9 @@ class Stalker(Strategy):
             'nb_active_strategies': len(active_stgs.get_map()),
             'max_strategy': self.get_max_strategy(),
             'active_strategies': _MF.json_encode(active_stgs.get_keys()),
-            'deleted_strategies': _MF.json_encode(to_delete_pairs)
+            'deleted_strategies': _MF.json_encode(to_delete_pairs),
+            'next_blacklist_clean': _MF.unix_to_date(next_clean) if next_clean is not None else '—',
+            'blacklist': self.get_blacklist()
         }
         rows = [row]
         fields = list(row.keys())
@@ -555,9 +647,17 @@ class Stalker(Strategy):
             }
             rows.append(row)
         fields = list(rows[0].keys())
-        separator = {field: '❌' for field in fields}
-        rows.append(separator)
+        separator = {field: '⬇️ ——— ⬇️' for field in fields}
+        rows.insert(0, separator)
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite)
+
+    @staticmethod
+    def _save_moves(rows: List[dict]) -> None:
+        path = Config.get(Config.DIR_SAVE_GLOBAL_MOVES)
+        path = path.replace('$class', Stalker.__name__)
+        fields = list(rows[0].keys())
+        rows.insert(0, {field: f"⬇️ ——— ⬇️" for field in fields})
+        FileManager.write_csv(path, fields, rows, overwrite=False)
 
 

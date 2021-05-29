@@ -336,10 +336,10 @@ def get_top_asset(bnc: Broker, interval: int = 60 * 5, nb_period: int = 1000):
     return top_asset
 
 
-def resume_capital_files() -> None:
+def resume_capital_files(prefix: str = '2021-05-27 16.28.25') -> None:
     folder_path = 'content/v0.01/tests/'
     file_names = FileManager.get_files(folder_path)
-    regex = '^[\w -.]+_g_capital_\w+.csv$'
+    regex = f'^{prefix}_g_capital_\w+.csv$'
     capiatl_file_names = [file_name for file_name in file_names if _MF.regex_match(regex, file_name)]
     # trade_sections = Map()
     trade_sections = []
@@ -393,7 +393,7 @@ def resume_capital_files() -> None:
         *sections_sorted,
         {**{field: f'—' for field in fields if field != Map.rate}, Map.rate: f"{sum_rate}%"}
     ]
-    print_path = folder_path + '2021-05-23 12.24.51_fb_NEW_global_capital_👾.csv'
+    print_path = folder_path + f'{prefix}_fb_global_capital_historic_👾.csv'
     FileManager.write_csv(print_path, fields, rows, overwrite=False)
     print(_PRINT_SUCCESS)
 
@@ -422,6 +422,7 @@ def print_global_capital() -> None:
 
 if __name__ == '__main__':
     # Config.update(Config.STAGE_MODE, Config.STAGE_1)
-    bkr = get_broker()
-    print_historic(bkr, Pair('UNFI/USDT'), 60 * 5)
+    # bkr = get_broker()
+    # print_historic(bkr, Pair('UNFI/USDT'), 60 * 5)
+    resume_capital_files()
 

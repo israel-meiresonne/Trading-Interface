@@ -193,6 +193,25 @@ class TestStalker(unittest.TestCase, Stalker):
         with self.assertRaises(ZeroDivisionError):
             stg._get_strategy_capital()
 
+    def test_blacklist_pair(self) -> None:
+        pair1 = Pair('DOGE/USDT')
+        pair2 = Pair('BTC/USDT')
+        pair3 = Pair('DOGE/USDT')
+        pair4 = Pair('UNFI/USDT')
+        stg = self.stg
+        stg._blacklist_pair(pair1)
+        stg._blacklist_pair(pair2)
+        blacklist = stg.get_blacklist()
+        self.assertTrue(pair1 in blacklist)     # same pair and reference
+        self.assertTrue(pair3 in blacklist)     # same pair only
+        self.assertFalse(pair4 in blacklist)    # different pair
+        # Pair already exist (same pair and reference)
+        with self.assertRaises(ValueError):
+            stg._blacklist_pair(pair1)
+        # Pair already exist (same pair only)
+        with self.assertRaises(ValueError):
+            stg._blacklist_pair(pair3)
+
     def test_generate_strategy(self) -> None:
         pair = Pair('?/USDT')
         stg = Stalker.generate_strategy(Stalker.__name__, Map({
@@ -215,13 +234,13 @@ class TestStalker(unittest.TestCase, Stalker):
         stg._get_total_capital()
         stg._get_strategy_capital()
 
-    # """
+    """
     def test_stalk_market(self) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         Config.update(Config.STAGE_MODE, Config.STAGE_3)
         self.stg._stalk_market(self.bkr)
         Config.update(Config.STAGE_MODE, _stage)
-    # """
+    """
 
 
 if __name__ == '__main__':
