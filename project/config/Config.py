@@ -41,6 +41,7 @@ class Config(ABC):
     # Constants
     CONST_STABLECOINS = "CONST_STABLECOINS"
     CONST_FIATS = "CONST_FIATS"
+    START_DATE = "START_DATE"
 
     @abstractmethod
     def __init__(self):

@@ -28,6 +28,7 @@ class Bot(_MF):
         self.__pair = Pair(pair_str)
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
         self._set_strategy(stg, configs)
+        Bot.save_bot(self)
 
     def _set_strategy(self, stg_class: str, params: Map) -> None:
         """
@@ -91,6 +92,7 @@ class Bot(_MF):
                     raise error
             # Sleep
             if _stage != Config.STAGE_1:
+                Bot.save_bot(self)
                 sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
                 unix_time = _MF.get_timestamp()
                 start_date = _MF.unix_to_date(unix_time)
@@ -137,3 +139,15 @@ class Bot(_MF):
         path = Config.get(Config.DIR_SAVE_BOT_ERRORS)
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite)
+
+    @staticmethod
+    def save_bot(bot: 'Bot') -> None:
+        from pickle import Pickler
+        start_date = Config.get(Config.START_DATE)
+        path = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
+               f'i&meim projects/apollo21/versions/v0.1/apollo21/project/content/v0.01/database/stage2/' \
+               f'{start_date}_bot_backup.data'
+        with open(path, 'wb') as file:
+            record = Pickler(file)
+            record.dump(bot)
+        print('💾 Bot saved! ✅')

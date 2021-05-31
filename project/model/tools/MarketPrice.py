@@ -58,8 +58,8 @@ class MarketPrice(ABC):
     _NB_PRD_FAST_TSI = 13
     SUPERTREND_RISING = "TREND_RISING"
     SUPERTREND_DROPPING = "TREND_DROPPING"
-    _PSAR_STEP = 0.02
-    _PSAR_MAX_STEP = 0.2
+    _PSAR_STEP = 0.1   # 0.02
+    _PSAR_MAX_STEP = 1   # 0.2
     PSAR_RISING = "PSAR_RISING"
     PSAR_DROPPING = "PSAR_DROPPING"
 
@@ -99,8 +99,8 @@ class MarketPrice(ABC):
             self.COLLECTION_PSAR: None
         })
         # Backup
-        stage = Config.get(Config.STAGE_MODE)
-        self._save_market(self) if stage != Config.STAGE_1 else None
+        # stage = Config.get(Config.STAGE_MODE)
+        # self._save_market(self) if stage != Config.STAGE_1 else None
 
     def get_market(self) -> tuple:
         return tuple(self.__market)

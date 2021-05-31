@@ -12,6 +12,7 @@ from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
+from model.structure.Bot import Bot
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -26,6 +27,7 @@ from model.tools.MarketPrice import MarketPrice
 from model.tools.Paire import Pair
 from model.tools.Price import Price
 _PRINT_SUCCESS = '🖨 File printed ✅'
+
 
 def extract_market():
     _fm_cls = FileManager
@@ -336,7 +338,7 @@ def get_top_asset(bnc: Broker, interval: int = 60 * 5, nb_period: int = 1000):
     return top_asset
 
 
-def resume_capital_files(prefix: str = '2021-05-27 16.28.25') -> None:
+def resume_capital_files(prefix: str) -> None:
     folder_path = 'content/v0.01/tests/'
     file_names = FileManager.get_files(folder_path)
     regex = f'^{prefix}_g_capital_\w+.csv$'
@@ -403,12 +405,12 @@ def str_to_price(price_str: str) -> Price:
     return Price(value, symbol)
 
 
-def print_global_capital() -> None:
+def print_global_capital(prefix: str) -> None:
     interval = 60 * 5
     end = False
     while not end:
         unix_time = _MF.get_timestamp()
-        resume_capital_files()
+        resume_capital_files(prefix)
         new_unix = _MF.get_timestamp()
         unix_rounded = int(new_unix / interval) * interval
         next_time = unix_rounded + interval
@@ -421,8 +423,36 @@ def print_global_capital() -> None:
 
 
 if __name__ == '__main__':
-    # Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
     # bkr = get_broker()
     # print_historic(bkr, Pair('UNFI/USDT'), 60 * 5)
-    resume_capital_files()
-
+    # resume_capital_files(prefix='2021-05-30_18.00.09')
+    """
+    bkr = Binance.__name__
+    stg = MinMax.__name__
+    configs = Map({
+        bkr: {
+            Map.api_pb: 'api_pb',
+            Map.api_sk: 'api_sk',
+            Map.test_mode: False
+        },
+        stg: {
+            Map.maximum: None,
+            Map.capital: 1000,
+            Map.rate: 1,
+            Map.period: 60
+        }
+    })
+    bot = Bot(bkr, stg, 'DOGE/USDT', configs)
+    Bot.save_bot(bot)
+    """
+    """
+    import pickle
+    path = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
+           'i&meim projects/apollo21/versions/v0.1/apollo21/project/content/v0.01/database/' \
+           'stage2/2021-05-30_17.49.32_bot_backup.data'
+    with open(path, "rb") as file:
+        get_record = pickle.Unpickler(file)
+        bot2 = get_record.load()
+    print(bot2)
+    """
