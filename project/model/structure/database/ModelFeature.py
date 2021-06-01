@@ -279,6 +279,18 @@ class ModelFeature(ModelAccess):
         return rgx.match(regex, string) is not None
 
     @staticmethod
+    def  regex_replace(regex: str, substitu: str, string: str) -> str:
+        """
+        To remplace the regex patern in the given string with a new one\n
+        :param regex: The regex
+        :param substitu: The replacement
+        :param string: The string to search in
+        :return: The given string with replacement if found
+        """
+        new_string = rgx.sub(regex, substitu, string)
+        return new_string
+
+    @staticmethod
     def float_to_str(val: float) -> str:
         return str(val).replace(".", ",") if val is not None else val
 

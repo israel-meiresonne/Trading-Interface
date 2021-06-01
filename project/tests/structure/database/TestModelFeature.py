@@ -146,6 +146,14 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         self.assertTrue(result1)
         self.assertFalse(result2)
 
+    def test_regex_replace(self) -> None:
+        regex = '[\w\.-]+$'
+        string = 'content/v0.01/print/hello/file_test.txt'
+        substitu = ''
+        exp1 = 'content/v0.01/print/hello/'.replace(string, substitu)
+        result1 = ModelFeature.regex_replace(regex, substitu, string)
+        self.assertEqual(exp1, result1)
+
     def test_round_time(self) -> None:
         unix_time = 1620458043  # 2021-05-08 09:14:03
         interval = 60 * 15
