@@ -1,29 +1,100 @@
+from pickle import Pickler, Unpickler
 from csv import DictReader
 from csv import DictWriter
 from abc import ABC, abstractmethod
-from os import walk
-from os import path as os_path
+from os import path as os_path, remove as os_remove, walk
+from pathlib import Path
 import re as rgx
+from typing import Any
+
+from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
 class FileManager(ABC):
-    ROOT_DIR = os_path.abspath(__file__).replace("FileManager.py", "../../")
+    _PROJECT_DIR = None
 
     @abstractmethod
     def __init__(self):
         pass
 
     @staticmethod
-    def read(path: str) -> str:
+    def get_project_directory() -> str:
+        """
+        To get the path from '/' to this project\n
+        :return: the path from '/' to this project
+        """
+        if FileManager._PROJECT_DIR is None:
+            FileManager._PROJECT_DIR = os_path.abspath(__file__).replace('model/tools/FileManager.py', '')
+        return FileManager._PROJECT_DIR
+
+    @staticmethod
+    def read(path: str, binary: bool = False) -> Any:
         """
         To read a file\n
-        :param path: the path to the file
-        :return: the content of the file
+        :param path: The path to the file
+        :param binary: Set True to read binary file else False to just read file
+        :return: The content of the file
         """
-        path = FileManager.ROOT_DIR + path
-        with open(path, "r") as file:
-            content = file.read()
+        path = FileManager.get_project_directory() + path
+        bin_mode = 'b' if binary else ''
+        with open(path, 'r' + bin_mode) as file:
+            if binary:
+                record = Unpickler(file)
+                content = record.load()
+            else:
+                content = file.read()
         return content
+
+    @staticmethod
+    def write(path: str, content: Any, binary: bool = False, overwrite: bool = True, make_dir: bool = False) -> None:
+        """
+        To write in a file\n
+        :param path: The path to the file
+        :param content: The content to write in file
+        :param binary: Set True to write in binary else False
+        :param binary: Set True to overwrite the file's content else False to add new line at file's end
+        :param make_dir: Set True create missing directory else False to raise error if miss directory
+        """
+        full_path = FileManager.get_project_directory() + path
+        bin_mode = 'b' if binary else ''
+        write_mode = 'w' if overwrite else 'a'
+        if make_dir:
+            regex = '[\w\.-]+$'
+            directory = _MF.regex_replace(regex, '', path)
+            FileManager.make_directory(directory)
+        with open(full_path, write_mode + bin_mode) as file:
+            if binary:
+                record = Pickler(file)
+                record.dump(content)
+            else:
+                file.write(content)
+
+    @staticmethod
+    def remove_file(path: str) -> None:
+        """
+        To remove file
+        :param path: The path the file to remove from the project's directory, i.e.: content/my/file.txt
+        """
+        path = FileManager.get_project_directory() + path
+        os_remove(path)
+
+    @staticmethod
+    def make_directory(path: str) -> None:
+        """
+        To create a new directory\n
+        :param path: The path from the project's directory to the new directory, i.e.: 'model/path/new/directory/'
+        """
+        full_path = project_path = FileManager.get_project_directory() + path
+        Path(full_path).mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def remove_directory(path: str) -> None:
+        """
+        To create a new directory\n
+        :param path: The path from '/' to the new directory, i.e.: 'model/path/new/directory/'
+        """
+        full_path = project_path = FileManager.get_project_directory() + path
+        Path(full_path).rmdir()
 
     @staticmethod
     def get_files(p: str, ex=True) -> list:
@@ -33,7 +104,7 @@ class FileManager(ABC):
         :param ex: set True to get files with their extension else False
         :return: list of files
         """
-        root = FileManager.ROOT_DIR
+        root = FileManager.get_project_directory()
         _, _, fs = next(walk(root + p))
         if not ex:
             ptr = "\.[A-z]*$"
@@ -51,7 +122,7 @@ class FileManager(ABC):
                         Special file supported: .ignore, __pychache__
          :return: list of directories
          """
-        root = FileManager.ROOT_DIR
+        root = FileManager.get_project_directory()
         _, drs, _ = next(walk(root + p))
         if not include:
             ptr = "^__[\w]*__$|^\.[\w]"
@@ -75,7 +146,7 @@ class FileManager(ABC):
         """
         if rgx.match('^.*\.csv$', p) is None:
             raise ValueError(f"This file '{p}' has not a csv extension")
-        root = FileManager.ROOT_DIR
+        root = FileManager.get_project_directory()
         with open(root + p, encoding='utf-8') as f:
             reader = DictReader(f, fieldnames=fields)
             rows = [{k: v for k, v in row.items() if k is not None} for row in reader]
@@ -102,7 +173,7 @@ class FileManager(ABC):
                 ks = list(rows[i].keys())
                 if fields != ks:
                     raise ValueError(f"This row's fields '{i}:{ks}' don't match the given fields '{fields}")
-        root = FileManager.ROOT_DIR
+        root = FileManager.get_project_directory()
         obs_p = root + p
         extrasaction = 'ignore' if ignore_extra else 'raise'
         mode = 'w' if overwrite else 'a'
