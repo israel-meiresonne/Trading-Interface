@@ -3,4 +3,4 @@ analyse/*
 .idea
 *.pyc
 project/content/
-project/env/
+# project/env/
