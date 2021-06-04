@@ -32,8 +32,8 @@ class BinanceRequest(BrokerRequest):
         request = Map({
             Map.symbol: prms.get(Map.pair).get_merged_symbols().upper(),
             Map.interval: BinanceAPI.convert_interval(prms.get(Map.period)),
-            Map.startTime: int(prms.get(Map.begin_time)) if prms.get(Map.begin_time) is not None else None,
-            Map.endTime: int(prms.get(Map.end_time)) if prms.get(Map.end_time) is not None else None,
+            Map.startTime: int(prms.get(Map.begin_time)) * 1000 if prms.get(Map.begin_time) is not None else None,
+            Map.endTime: int(prms.get(Map.end_time)) * 1000 if prms.get(Map.end_time) is not None else None,
             Map.limit: int(prms.get(Map.number)) if prms.get(Map.number) is not None else None
         })
         self._set_endpoint(BinanceAPI.RQ_KLINES)
