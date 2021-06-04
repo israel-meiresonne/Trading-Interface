@@ -12,6 +12,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 
 class FileManager(ABC):
     _PROJECT_DIR = None
+    _REGEX_FILE_END_PATH = '[\w\.-]+$'
 
     @abstractmethod
     def __init__(self):
@@ -26,6 +27,10 @@ class FileManager(ABC):
         if FileManager._PROJECT_DIR is None:
             FileManager._PROJECT_DIR = os_path.abspath(__file__).replace('model/tools/FileManager.py', '')
         return FileManager._PROJECT_DIR
+
+    @staticmethod
+    def get_regex_file_end_path() -> str:
+        return FileManager._REGEX_FILE_END_PATH
 
     @staticmethod
     def read(path: str, binary: bool = False) -> Any:
@@ -59,7 +64,7 @@ class FileManager(ABC):
         bin_mode = 'b' if binary else ''
         write_mode = 'w' if overwrite else 'a'
         if make_dir:
-            regex = '[\w\.-]+$'
+            regex = FileManager.get_regex_file_end_path()  # '[\w\.-]+$'
             directory = _MF.regex_replace(regex, '', path)
             FileManager.make_directory(directory)
         with open(full_path, write_mode + bin_mode) as file:
@@ -70,31 +75,59 @@ class FileManager(ABC):
                 file.write(content)
 
     @staticmethod
-    def remove_file(path: str) -> None:
+    def get_csv(p: str, fields: list = None) -> list:
         """
-        To remove file
-        :param path: The path the file to remove from the project's directory, i.e.: content/my/file.txt
+        To get content of a csv file\n
+        :param p: the path to the csv file ended by the file's name, ie: path/to/file.csv
+        :param fields: name of fileds to keep
+        :return: list of each row in the csv file
+                 List[Dict[]+]+
         """
-        path = FileManager.get_project_directory() + path
-        os_remove(path)
+        if rgx.match('^.*\.csv$', p) is None:
+            raise ValueError(f"This file '{p}' has not a csv extension")
+        root = FileManager.get_project_directory()
+        with open(root + p, encoding='utf-8') as f:
+            reader = DictReader(f, fieldnames=fields)
+            rows = [{k: v for k, v in row.items() if k is not None} for row in reader]
+        return rows
 
     @staticmethod
-    def make_directory(path: str) -> None:
+    def write_csv(path: str, fields: list, rows: list,
+                  overwrite=True, make_dir: bool = False, ignore_extra=False) -> None:
         """
-        To create a new directory\n
-        :param path: The path from the project's directory to the new directory, i.e.: 'model/path/new/directory/'
+        To write a csv file\n
+        :param path: the path to the csv file ended by the file's name, ie: path/to/file.csv
+        :Note : if the file don't exist a new one is created
+        :param fields: name of fields to write
+        :param rows: rows to write
+                     List[Disct[]+]+
+        :param overwrite: set True to replace to overwrite the file's content else False
+                          to add new row in the end of the file
+        :param make_dir: Set True create missing directory else False to raise error if miss directory
+        :param ignore_extra: set True to ignore format errors else False
         """
-        full_path = project_path = FileManager.get_project_directory() + path
-        Path(full_path).mkdir(parents=True, exist_ok=True)
-
-    @staticmethod
-    def remove_directory(path: str) -> None:
-        """
-        To create a new directory\n
-        :param path: The path from '/' to the new directory, i.e.: 'model/path/new/directory/'
-        """
-        full_path = project_path = FileManager.get_project_directory() + path
-        Path(full_path).rmdir()
+        if rgx.match(r'^.*\.csv$', path) is None:
+            raise ValueError(f"This file '{path}' has not a csv extension")
+        if not ignore_extra:
+            fields = list(fields)
+            for i in range(len(rows)):
+                ks = list(rows[i].keys())
+                if fields != ks:
+                    raise ValueError(f"This row's fields '{i}:{ks}' don't match the given fields '{fields}")
+        project_dir = FileManager.get_project_directory()
+        full_path = project_dir + path
+        extrasaction = 'ignore' if ignore_extra else 'raise'
+        mode = 'w' if overwrite else 'a'
+        if make_dir:
+            regex = FileManager.get_regex_file_end_path()
+            directory = _MF.regex_replace(regex, '', path)
+            FileManager.make_directory(directory)
+        with open(full_path, mode=mode, newline='') as f:
+            writer = DictWriter(f, fieldnames=fields, extrasaction=extrasaction)
+            f_size = os_path.getsize(full_path)
+            writer.writeheader() if (f_size <= 0) or overwrite else None
+            for row in rows:
+                writer.writerow(row)
 
     @staticmethod
     def get_files(p: str, ex=True) -> list:
@@ -136,50 +169,28 @@ class FileManager(ABC):
         return ndrs
 
     @staticmethod
-    def get_csv(p: str, fields: list = None) -> list:
+    def remove_file(path: str) -> None:
         """
-        To get content of a csv file\n
-        :param p: the path to the csv file ended by the file's name, ie: path/to/file.csv
-        :param fields: name of fileds to keep
-        :return: list of each row in the csv file
-                 List[Dict[]+]+
+        To remove file
+        :param path: The path the file to remove from the project's directory, i.e.: content/my/file.txt
         """
-        if rgx.match('^.*\.csv$', p) is None:
-            raise ValueError(f"This file '{p}' has not a csv extension")
-        root = FileManager.get_project_directory()
-        with open(root + p, encoding='utf-8') as f:
-            reader = DictReader(f, fieldnames=fields)
-            rows = [{k: v for k, v in row.items() if k is not None} for row in reader]
-        return rows
+        path = FileManager.get_project_directory() + path
+        os_remove(path)
 
     @staticmethod
-    def write_csv(p: str, fields: list, rows: list, overwrite=True, ignore_extra=False) -> None:
+    def make_directory(path: str) -> None:
         """
-        To write a csv file\n
-        :param p: the path to the csv file ended by the file's name, ie: path/to/file.csv
-        :Note : if the file don't exist a new one is created
-        :param fields: name of fields to write
-        :param rows: rows to write
-                     List[Disct[]+]+
-        :param overwrite: set True to replace to overwrite the file's content else False
-                          to add new row in the end of the file
-        :param ignore_extra: set True to ignore format errors else False
+        To create a new directory\n
+        :param path: The path from the project's directory to the new directory, i.e.: 'model/path/new/directory/'
         """
-        if rgx.match('^.*\.csv$', p) is None:
-            raise ValueError(f"This file '{p}' has not a csv extension")
-        if not ignore_extra:
-            fields = list(fields)
-            for i in range(len(rows)):
-                ks = list(rows[i].keys())
-                if fields != ks:
-                    raise ValueError(f"This row's fields '{i}:{ks}' don't match the given fields '{fields}")
-        root = FileManager.get_project_directory()
-        obs_p = root + p
-        extrasaction = 'ignore' if ignore_extra else 'raise'
-        mode = 'w' if overwrite else 'a'
-        with open(root + p, mode=mode, newline='') as f:
-            writer = DictWriter(f, fieldnames=fields, extrasaction=extrasaction)
-            f_size = os_path.getsize(obs_p)
-            writer.writeheader() if (f_size <= 0) or overwrite else None
-            for row in rows:
-                writer.writerow(row)
+        full_path = project_path = FileManager.get_project_directory() + path
+        Path(full_path).mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def remove_directory(path: str) -> None:
+        """
+        To create a new directory\n
+        :param path: The path from '/' to the new directory, i.e.: 'model/path/new/directory/'
+        """
+        full_path = project_path = FileManager.get_project_directory() + path
+        Path(full_path).rmdir()
