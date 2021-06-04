@@ -16,6 +16,7 @@ DIR_BROKERS = "model/API/brokers"
 DIR_STRATEGIES = "model/structure/strategies"
 # Backup Files
 DIR_HISTORIC_PRICES = 'content/v0.01/market-historic/active.csv'
+DIR_PRINT_HISTORIC = 'content/v0.01/market-historic/Broker/$broker/$pair/$period.csv'
 DIR_BEGIN_BACKUP = f'content/v0.01/tests/{START_DATE}_a_a————————————————————.csv'
 DIR_SAVE_BOT_ERRORS = f'content/v0.01/tests/{START_DATE}_b_bot_error.csv'
 DIR_SAVE_FAKE_API_RQ = f'content/v0.01/tests/{START_DATE}_c_logs.csv'

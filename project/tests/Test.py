@@ -422,37 +422,14 @@ def print_global_capital(prefix: str) -> None:
         sleep(sleep_time)
 
 
+
 if __name__ == '__main__':
-    Config.update(Config.STAGE_MODE, Config.STAGE_1)
-    # bkr = get_broker()
-    # print_historic(bkr, Pair('UNFI/USDT'), 60 * 5)
-    # resume_capital_files(prefix='2021-05-30_18.00.09')
-    """
-    bkr = Binance.__name__
-    stg = MinMax.__name__
-    configs = Map({
-        bkr: {
-            Map.api_pb: 'api_pb',
-            Map.api_sk: 'api_sk',
-            Map.test_mode: False
-        },
-        stg: {
-            Map.maximum: None,
-            Map.capital: 1000,
-            Map.rate: 1,
-            Map.period: 60
-        }
-    })
-    bot = Bot(bkr, stg, 'DOGE/USDT', configs)
-    Bot.save_bot(bot)
-    """
-    """
-    import pickle
-    path = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
-           'i&meim projects/apollo21/versions/v0.1/apollo21/project/content/v0.01/database/' \
-           'stage2/2021-05-30_17.49.32_bot_backup.data'
-    with open(path, "rb") as file:
-        get_record = pickle.Unpickler(file)
-        bot2 = get_record.load()
-    print(bot2)
-    """
+    Config.update(Config.STAGE_MODE, Config.STAGE_2)
+    pair = Pair('BTC/USDT')
+    periods = [60 * 3, 60 * 5]
+    start_time = 1622717757  # 11621906755
+    end_time = 1622721357
+    bkr = get_broker()
+    # completed_hist = extract_market_historic(bkr, pair, periods, start_time, end_time)
+    # print(_MF.json_encode(completed_hist.get_map()))
+    Broker.print_market_historic(bkr, pair, periods, start_time, end_time)

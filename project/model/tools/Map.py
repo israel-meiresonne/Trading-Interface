@@ -24,6 +24,7 @@ class Map:
     red = "red"
     strategy = "strategy"
     param = "param"
+    broker = "broker"
     # Binance
     api_pb = "api_pb"
     api_sk = "api_sk"
@@ -96,6 +97,7 @@ class Map:
     # BinanceRequest
     period = "period"
     number = "number"
+    start_time = "start_time"
     begin_time = "begin_time"
     end_time = "end_time"
     account = "account"
@@ -213,3 +215,6 @@ class Map:
 
     def __str__(self) -> str:
         return self.get_map().__str__()
+
+    def __repr__(self) -> str:
+        return self.__str__()
