@@ -160,7 +160,7 @@ class Broker(_MF):
                 market_rows = [*market_rows, *market_list]
             market_mapped = Map({int(row[0]/1000): row for row in market_rows})
             market_mapped.sort()
-            Broker._check_intervals(period, market_mapped)
+            # Broker._check_intervals(period, market_mapped)
             historics.put(market_mapped.get_map(), period)
         completed_hist = Map({period: [rows[next(iter(rows))]] for period, rows in historics.get_map().items()})
         index_time = start_rounded + min_interval
@@ -169,9 +169,13 @@ class Broker(_MF):
             to_extract = [period for period in periods if index_time % period == 0]
             to_repport = [period for period in periods if period not in to_extract]
             for period in to_extract:   # 1622538000
-                row = historics.get_map()[period][index_time]
-                # row = historics.get(period, index_time)
-                completed_hist.get(period).append(row)
+                # row = historics.get_map()[period][index_time] # 1613014860 don't exist
+                if index_time in historics.get(period):
+                    # row = historics.get(period, index_time)
+                    row = historics.get_map()[period][index_time]
+                    completed_hist.get(period).append(row)
+                else:
+                    to_repport.append(period)
             for period in to_repport:
                 rows = completed_hist.get_map()[period]
                 row = rows[-1]
@@ -190,12 +194,28 @@ class Broker(_MF):
 
     @staticmethod
     def _get_market_list(bkr: 'Broker', rq_params: Map, rq_start_time: int, rq_end_time: int, nb_period: int) -> list:
-        print(f"Get historic: '{_MF.unix_to_date(rq_end_time)}'->'{_MF.unix_to_date(rq_start_time)}' for '{nb_period}' periods")
+        from time import sleep
+        pair_str = rq_params.get(Map.pair).__str__().upper()
+        period_str = f"{int(rq_params.get(Map.period)/60)}min."
+        print(f"Get historic ('{pair_str}', '{period_str}'): "
+              f"'{_MF.unix_to_date(rq_start_time)}'->'{_MF.unix_to_date(rq_end_time)}' for '{nb_period}' periods")
         rq_params.put(rq_start_time, Map.begin_time)
         rq_params.put(rq_end_time, Map.end_time)
         rq_params.put(nb_period, Map.number)
         bkr_rq = Broker.generate_broker_request(bkr.__class__.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
-        bkr.request(bkr_rq)
+        max_error = 60
+        nb_error = 0
+        sleep_time = 30
+        success = False
+        while (not success) and (nb_error < max_error):
+            try:
+                bkr.request(bkr_rq)
+                success = True
+            except Exception as e:
+                nb_error += 1
+                print(f"sleep for '{sleep_time}sec.'")
+                print(e.__str__())
+                sleep(sleep_time)
         market_price = bkr_rq.get_market_price()
         market_list = list(market_price.get_market())
         market_list.reverse()
@@ -204,6 +224,8 @@ class Broker(_MF):
     @staticmethod
     def print_market_historic(bkr: 'Broker', pair: Pair, periods: List[int], start_time: int, end_time: int) -> None:
         # Get Historic
+        min_period = 60
+        periods.insert(0, min_period) if min_period not in periods else None
         hsitoric = Broker._extract_market_historic(bkr, pair, periods, start_time, end_time)
         # Print Historic
         _PRINT_SUCCESS = '🖨 File printed ✅'
@@ -211,10 +233,18 @@ class Broker(_MF):
         _bkr_cls = bkr.__class__.__name__
         unix_time = _MF.get_timestamp()
         merged_pair = pair.get_merged_symbols().upper()
-        file_date = _MF.unix_to_date(unix_time, '%Y-%m-%d_%H.%M.%S')
-        prepared_path = original_path.replace('$broker', _bkr_cls).replace('$pair', f"{merged_pair}%{file_date}")
-        config_path = prepared_path.replace('$period', 'config')
+        date_format = '%Y-%m-%d_%H.%M.%S'
+        file_date = f"{_MF.unix_to_date(start_time, date_format)}->{_MF.unix_to_date(end_time, date_format)}"
+        prepared_path = original_path.replace('$broker', _bkr_cls).replace('$pair_ref', f"{merged_pair}%{file_date}").replace('$pair', merged_pair)
         interval = end_time - start_time
+        for period, datas_rows in hsitoric.get_map().items():
+            final_path = prepared_path.replace('$period', str(period * 1000))
+            rows = [{i: datas[i] for i in range(len(datas))} for datas in datas_rows]
+            fields = list(rows[0].keys())
+            FileManager.write_csv(final_path, fields, rows, make_dir=True)
+            print(f"{_PRINT_SUCCESS}: period ('{merged_pair}'): '{int(period/60)}min.'")
+        # Print config file
+        config_path = prepared_path.replace('$period', 'config')
         day = int(interval/(3600*24))
         hour = int((interval % (3600*24)) / 3600)
         minute = int(((interval % (3600*24)) % 3600) / 60)
@@ -229,12 +259,6 @@ class Broker(_MF):
             Map.end_time: _MF.unix_to_date(end_time),
             Map.interval: interval_txt
         }]
-        for period, datas_rows in hsitoric.get_map().items():
-            final_path = prepared_path.replace('$period', str(period))
-            rows = [{i: datas[i] for i in range(len(datas))} for datas in datas_rows]
-            fields = list(rows[0].keys())
-            FileManager.write_csv(final_path, fields, rows, make_dir=True)
-            print(f"{_PRINT_SUCCESS}: period ('{merged_pair}'): '{int(period/60)}min.'")
         FileManager.write_csv(config_path, list(config_rows[0].keys()), config_rows)
         print(f"{_PRINT_SUCCESS}: config.csv")
 
