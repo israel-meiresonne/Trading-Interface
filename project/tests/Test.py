@@ -422,14 +422,21 @@ def print_global_capital(prefix: str) -> None:
         sleep(sleep_time)
 
 
-
 if __name__ == '__main__':
-    Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    pair = Pair('BTC/USDT')
-    periods = [60 * 3, 60 * 5]
-    start_time = 1622717757  # 11621906755
-    end_time = 1622721357
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
     bkr = get_broker()
-    # completed_hist = extract_market_historic(bkr, pair, periods, start_time, end_time)
-    # print(_MF.json_encode(completed_hist.get_map()))
-    Broker.print_market_historic(bkr, pair, periods, start_time, end_time)
+    bkr_rq = BrokerRequest(Map())
+    Config.update(Config.STAGE_MODE, Config.STAGE_3)
+    pair = Pair('DOGE/USDT')
+    periods = [3, 5, 15, 30, 60]
+    periods = [period * 60 for period in periods]
+    # start_time = 1609455600     # 2021-01-01 00:00:00
+    # end_time = 1622883988       # 2021-06-04 22:58:34
+    start_time = 1605855600     # 2020-11-20 08:00:00
+    end_time = 1622930915       # 2021-06-05 23:08:35
+    # start_time = 1619895513
+    # end_time = 1622721357
+    # start_time = 1622714157   # 2h
+    # end_time = 1622721357
+
+    # Broker.print_market_historic(bkr, pair, periods, start_time, end_time)

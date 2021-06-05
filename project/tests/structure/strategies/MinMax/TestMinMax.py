@@ -294,9 +294,9 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         market_list = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
         bnc_market = BinanceMarketPrice(market_list, "1m", Pair('BNB/USDT'))
         """
-        _old_path = Config.get(Config.DIR_HISTORIC_PRICES)
+        _old_path = Config.get(Config.DIR_MARKET_HISTORICS)
         path = Config.get(Config.DIR_HISTORIC_BNB)
-        Config.update(Config.DIR_HISTORIC_PRICES, path)
+        Config.update(Config.DIR_MARKET_HISTORICS, path)
         bnc = Binance(Map({
             Map.api_pb: 'my_public',
             Map.api_sk: 'my_sk',
@@ -320,7 +320,7 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         exp1 = round(0.00786293204696, 4)
         result1 = round(perfs.get(Map.roi), 4)
         self.assertEqual(exp1, result1)
-        Config.update(Config.DIR_HISTORIC_PRICES, _old_path)
+        Config.update(Config.DIR_MARKET_HISTORICS, _old_path)
 
 
 if __name__ == '__main__':

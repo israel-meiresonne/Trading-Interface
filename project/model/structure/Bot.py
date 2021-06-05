@@ -10,6 +10,7 @@ from model.tools.Price import Price
 
 
 class Bot(_MF):
+    _TRADE_INDEX = 0
     SEPARATOR = "-"
 
     def __init__(self, bkr: str, stg: str, pair_str: str, configs: Map):
@@ -65,19 +66,20 @@ class Bot(_MF):
 
     def start(self) -> None:
         """
-        To start trade
+        To start trade\n
         """
+        _stage = Config.get(Config.STAGE_MODE)
         bkr = self._get_broker()
         stg = self._get_strategy()
         end = False
-        print("Bot started to trade...")
-        i = 0
+        trade_index = Bot.get_trade_index()
         sleep_time = None
-        _stage = Config.get(Config.STAGE_MODE)
         nb_error = 0
         limit_error = 60
+        print("Bot started to trade...")
         while not end:
-            print(f"Trade n°{i} — {_MF.unix_to_date(_MF.get_timestamp())}")
+            Bot._set_trade_index(trade_index)
+            print(f"Trade n°{trade_index} — {_MF.unix_to_date(_MF.get_timestamp())}")
             # Trade
             try:
                 sleep_time = stg.trade(bkr)
@@ -101,22 +103,20 @@ class Bot(_MF):
                 print(f"Bot sleep for '{sleep_time_str}'seconds till '{start_date}'->'{end_date}'...")
                 sleep(sleep_time)
             end = self._still_active()
-            i += 1
+            trade_index += 1
 
     @staticmethod
     def _still_active() -> bool:
         print("still trading...")
         return False
 
-    '''
-    def get_period_ranking(self) -> Map:
-        bkr = self._get_broker()
-        pair = self.get_pair()
-        return self._get_strategy().get_period_ranking(bkr, pair)
+    @staticmethod
+    def _set_trade_index(index: int) -> None:
+        Bot._TRADE_INDEX = index
 
-    def set_best_period(self, best: int) -> None:
-        self._get_strategy().set_best_period(best)
-    '''
+    @staticmethod
+    def get_trade_index() -> int:
+        return Bot._TRADE_INDEX
 
     @staticmethod
     def _generate_id(bkr: str, stg: str, prsbl: str) -> str:

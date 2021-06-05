@@ -84,9 +84,8 @@ class BinanceMarketPrice(MarketPrice):
             idx = 0
             coll = self._extract_index(idx)
             _stage = Config.get(Config.STAGE_MODE)
-            times = tuple(int(v) for v in coll) if _stage == Config.STAGE_1 else tuple(int(int(v)/1000) for v in coll)
-            # times = tuple(int(int(v)/1000) for v in coll)
-            # times = tuple(int(v) for v in coll)
+            # times = tuple(int(v) for v in coll) if _stage == Config.STAGE_1 else tuple(int(int(v)/1000) for v in coll)
+            times = tuple(int(int(v)/1000) for v in coll)
             self._set_collection(k, times)
         return times
 

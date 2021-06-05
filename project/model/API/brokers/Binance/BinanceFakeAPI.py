@@ -1,10 +1,12 @@
 from json import dumps as json_encode
 import re as rgx
+from typing import Any
 
 from requests.models import Response
 
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+from model.structure.Bot import Bot
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
@@ -14,15 +16,15 @@ from model.tools.Paire import Pair
 
 
 class BinanceFakeAPI(BinanceAPI):
-    _FILE_HISTORIC_MARKET_PRICES = Config.get(Config.DIR_HISTORIC_PRICES)
     _FILE_SAVE_ORDERS = Config.get(Config.DIR_SAVE_ORDER_RQ)
     _FILE_LOGS = Config.get(Config.DIR_SAVE_FAKE_API_RQ)
-    _STAGE = Config.get(Config.STAGE_MODE)
-    BACKUP = Map()
+    _DIR_MARKET_HISTORICS = Config.get(Config.DIR_MARKET_HISTORICS)
+    _CONST_INITIAL_INDEX = 60 * BinanceAPI.CONSTRAINT_KLINES_MAX_PERIOD     # 60 000, to initialize index's position
+    _CONST_MIN_PERIOD_MILLI = 60 * 1000 # Period interval of the min period available all in millisecond
+    _VARS = None
     """
-    BACKUP[Map.id]      => {str}        # log's id
-    BACKUP[Map.market]  => {list}       # List[List[{date, open, high, low, close, adj_close, volume}]]
-    BACKUP[Map.index]   => {int|None}   # index of the most recent close returned
+    _VARS[Map.market][pair_merged{str}][period{int}]:   {List[list]}    # pair_merged format: 'DOGEUSDT', period in second
+    _VARS[Map.index]:                                   {int|None}      # Trade index of a Bot
     """
 
     def __init__(self):
@@ -30,56 +32,95 @@ class BinanceFakeAPI(BinanceAPI):
 
     @staticmethod
     def _get_stage() -> str:
-        return BinanceFakeAPI._STAGE
+        return Config.get(Config.STAGE_MODE)
 
     @staticmethod
-    def set_backup(log_id: str, hist_mkt=None) -> None:
+    def _get_dir_market_historics() -> str:
+        return BinanceFakeAPI._DIR_MARKET_HISTORICS
+
+    @staticmethod
+    def _load_market_historics() -> None:
         _cls = BinanceFakeAPI
-        stage = _cls._get_stage()
-        if stage == Config.STAGE_1:
-            p = _cls._FILE_HISTORIC_MARKET_PRICES
-            csv = FileManager.get_csv(p)
-            hist_mkt = [[row[k] for k in row] for row in csv]
-            # """
-            for row in hist_mkt:
-                for i in range(len(row)):
-                    if rgx.match('^[0-9]+$', row[i]):
-                        row[i] = int(row[i]) if (i == 0) else row[i]
-                    else:
-                        row[i] = int(_MF.date_to_unix(row[i])) if (i == 0) else row[i]
-            # """
-            _cls._add_backup(log_id, Map.id, log_id)
-            _cls._add_backup(log_id, Map.market, hist_mkt)
-            _cls._add_backup(log_id, Map.index, 0)
-        if stage == Config.STAGE_2:
-            _cls._add_backup(log_id, Map.id, log_id)
-            _cls._add_backup(log_id, Map.market, hist_mkt)
-            _cls._add_backup(log_id, Map.index, None)
+        _bkr_cls = BinanceAPI.__name__.replace('API', '')
+        original_path = _cls._get_dir_market_historics()
+        path_brokered = original_path.replace('$broker', _bkr_cls)
+        path_pair_folder = path_brokered.replace('$pair/', '')
+        pair_folders = FileManager.get_dirs(path_pair_folder)
+        print("Start loading market historic...♻️")
+        for pair_folder in pair_folders:
+            pair_merged = _MF.regex_replace('%.+$', '', pair_folder)
+            path_files_folder = path_brokered.replace('$pair', pair_folder)
+            market_files = FileManager.get_files(path_files_folder)
+            market_files = [file for file in market_files if _MF.regex_match('^[0-9]+.csv', file)]
+            for market_file in market_files:
+                path_market_file = path_files_folder + market_file
+                csv = FileManager.get_csv(path_market_file)
+                market_historic = [[row[k] for k in row] for row in csv]
+                for row in market_historic:
+                    for i in range(len(row)):
+                        if _MF.regex_match('^[0-9]+$', row[i]):
+                            row[i] = int(row[i]) if (i == 0) or (i == 6) else row[i]
+                period = int(market_file.replace('.csv', ''))
+                _cls.add_market_historic(pair_merged, period, market_historic)
+                print(f"📲 File historic of '{pair_merged}' for period '{int(period/(60*1000))}min.' is loaded️ ✅")
 
     @staticmethod
-    def _get_backup() -> Map:
-        return BinanceFakeAPI.BACKUP
+    def _get_vars() -> Map:
+        if BinanceFakeAPI._VARS is None:
+            BinanceFakeAPI._VARS = Map()
+        return BinanceFakeAPI._VARS
 
     @staticmethod
-    def _add_backup(log_id: str, k, v) -> None:
-        backup = BinanceFakeAPI._get_backup()
-        backup.put(v, log_id, k)
+    def _get_var(*keys) -> Any:
+        return BinanceFakeAPI._get_vars().get(*keys)
 
     @staticmethod
-    def _get_backed(log_id: str, k) -> [str, int, float, list, dict]:
+    def add_market_historic(pair_merged: str, period_milli: int, market: list) -> None:
+        """
+        To add new market historic\n
+        :param pair_merged: Merged pair's symbol, i.e.: 'DOGEUSDT'
+        :param period_milli: Period interval in millisecond, i.e.: 5min => 60 * 5 * 1000 = 300 000
+        :param market: Market historic
+        """
+        cls_vars = BinanceFakeAPI._get_vars()
+        cls_vars.put(market, Map.market, pair_merged.upper(), int(period_milli))
+
+    @staticmethod
+    def _get_market_historic(pair_merged: str, period_milli: int):
+        return BinanceFakeAPI._get_var(Map.market, pair_merged, period_milli)
+
+    @staticmethod
+    def get_index(pair_merged: str = None, period_milli: int = None) -> int:
+        """
+        To get market index\n
+        If Stage1 index is evaluated\n
+        If Stage2 index is the last index of market historic\n
+        :param pair_merged: Need in Stage2
+        :param period_milli: Need in Stage2
+        :return: market index
+        """
         _cls = BinanceFakeAPI
-        backup = BinanceFakeAPI._get_backup()
-        stage = _cls._get_stage()
-        if (k == Map.index) and (stage != Config.STAGE_1):
-            hist_mkt = _cls._get_backed(log_id, Map.market)
-            v = len(hist_mkt) - 1
+        _stage = _cls._get_stage()
+        if _stage == Config.STAGE_1:
+            trade_index = Bot.get_trade_index()
+            initial_index = BinanceFakeAPI._CONST_INITIAL_INDEX
+            index = (initial_index + trade_index)   # * nb_minute
+        elif _stage == Config.STAGE_2:
+            market_historic = _cls._get_vars().get(pair_merged, period_milli)
+            index = -len(market_historic)
         else:
-            v = backup.get(log_id, k)
-        return v
+            raise Exception(f"This stage '{_stage}' is not supported")
+        return index
 
     @staticmethod
-    def _get_date(log_id) -> int:
+    def _get_time(pair_merged: str, period_milli: int) -> int:
+        """
+        To get current time following the index\n
+        :param pair_merged: Merged pair's symbol, i.e.: 'DOGEUSDT'
+        :param period_milli: Period interval in millisecond, i.e.: 5min => 60 * 5 * 1000 = 300 000
+        """
         _cls = BinanceFakeAPI
+        """
         date = None
         if _cls._get_stage() == Config.STAGE_1:
             idx = _cls._get_backed(log_id, Map.index)
@@ -89,28 +130,57 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             date = _MF.get_timestamp()
         return date
+        """
+        if _cls._get_stage() == Config.STAGE_1:
+            index = _cls.get_index(pair_merged, period_milli)
+            merged_pairs = list(_cls._get_var(Map.market).keys())
+            market_hist = _cls._get_market_historic(merged_pairs[0], _cls._CONST_MIN_PERIOD_MILLI)
+            time = market_hist[index][0]
+        else:
+            time = _MF.get_timestamp(_MF.TIME_MILLISEC)
+        return time
 
     @staticmethod
-    def _get_actual_close(log_id) -> str:
+    def _get_actual_close(pair_merged: str, period_milli: int=None) -> str:
+        """
+        To get current time following the index\n
+        :param pair_merged: Merged pair's symbol, i.e.: 'DOGEUSDT'
+        :param period_milli: Period interval in millisecond, i.e.: 5min => 60 * 5 * 1000 = 300 000
+        """
         _cls = BinanceFakeAPI
+        _stage = _cls._get_stage()
+        """
         idx = _cls._get_backed(log_id, Map.index)
         hist_mkt = _cls._get_backed(log_id, Map.market)
         actual_close = hist_mkt[idx][4]
+        """
+        index = _cls.get_index(pair_merged, period_milli)
+        market_hist = _cls._get_market_historic(pair_merged, _cls._CONST_MIN_PERIOD_MILLI) \
+            if _stage == Config.STAGE_1 else _cls._get_market_historic(pair_merged, period_milli)
+        actual_close = market_hist[index][4]
         return actual_close
 
     @staticmethod
-    def _save_log(log_id: str, rq: str, params: Map) -> None:
+    def _extract_period_milli(params: Map) -> int:
+        period_str = params.get(Map.interval)
+        period = BinanceFakeAPI.get_interval(period_str) if period_str is not None else None
+        return period * 1000 if period is not None else None
+
+    @staticmethod
+    def _save_log(rq: str, params: Map) -> None:
         _cls = BinanceFakeAPI
-        p = _cls._FILE_LOGS
-        unix_date = _cls._get_date(log_id)
-        date = _MF.unix_to_date(unix_date, _MF.FORMAT_D_H_M_S)
+        path = _cls._FILE_LOGS
+        pair_merged = params.get(Map.symbol)
+        period_milli = _cls._extract_period_milli(params)
+        time_milli = _cls._get_time(pair_merged, period_milli)
+        date = _MF.unix_to_date(int(time_milli/1000), _MF.FORMAT_D_H_M_S)
         try:
-            actual_close = _cls._get_actual_close(log_id)
-        except Exception:
+            actual_close = _cls._get_actual_close(pair_merged, period_milli)
+        except Exception as e:
             actual_close = None
         id_datas = {
             Map.date: date,
-            Map.id: log_id,
+            'trade_index': Bot.get_trade_index(),
             Map.request: rq,
             Map.market: actual_close
         }
@@ -121,18 +191,18 @@ class BinanceFakeAPI(BinanceAPI):
         rows = [row]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(path, fields, rows, overwrite)
 
     @staticmethod
-    def steal_request(log_id: str, rq: str, params: Map) -> BrokerResponse:
+    def steal_request(rq: str, params: Map) -> BrokerResponse:
         _cls = BinanceFakeAPI
-        if _cls._get_backed(log_id, Map.id) is None:
-            _cls.set_backup(log_id)
+        _stage = _cls._get_stage()
+        if (_stage == Config.STAGE_1) and (_cls._VARS is None):
+            _cls._load_market_historics()
         if rq == _cls.RQ_KLINES:
-            stage = _cls._get_stage()
-            rsp_d = _cls._get_market_price(log_id, params) if stage == Config.STAGE_1 else None
+            rsp_d = _cls._get_market_price(params) if _stage == Config.STAGE_1 else None
         elif rgx.match('^RQ_ORDER.*$', rq) or (rq == _cls.RQ_CANCEL_ORDER):
-            rsp_d = _cls._execute_order(log_id, rq, params)
+            rsp_d = _cls._execute_order(rq, params)
         elif rq == _cls.RQ_EXCHANGE_INFOS:
             rsp_d = _cls._retreive_exchange_infos()
         elif rq == _cls.RQ_TRADE_FEE:
@@ -143,14 +213,15 @@ class BinanceFakeAPI(BinanceAPI):
         rsp.status_code = 200
         rsp._content = json_encode(rsp_d).encode()
         rsp.request = params
-        _cls._save_log(log_id, rq, params)
+        _cls._save_log(rq, params)
         return BrokerResponse(rsp)
 
     @staticmethod
-    def _get_market_price(log_id: str, params: Map) -> list:
+    def _get_market_price(params: Map) -> list:
+        """
         _cls = BinanceFakeAPI
         nb_prd = params.get(Map.limit)
-        idx = _cls._get_backed(log_id, Map.index)
+        idx = _cls.get_index()  # _cls._get_backed(log_id, Map.index)
         if (idx is None) or (idx < nb_prd):
             idx = nb_prd
         else:
@@ -161,16 +232,37 @@ class BinanceFakeAPI(BinanceAPI):
         d = [hist_mkt[i] for i in range(len(hist_mkt)) if (i <= idx) and (i > min_idx)]
         _cls._add_backup(log_id, Map.index, idx)
         return d
+        """
+        _cls = BinanceFakeAPI
+        pair_merged = params.get(Map.symbol)
+        period_milli = _cls._extract_period_milli(params)
+        nb_period = params.get(Map.limit)
+        index = _cls.get_index()
+        historic = _cls._get_market_historic(pair_merged, period_milli)
+        nb_minute = int(period_milli / (60 * 1000))
+        new_nb_period = nb_period * nb_minute
+        min_index = index - new_nb_period
+        market_duplic = historic[min_index:index]
+        market = [market_duplic[i] for i in range(len(market_duplic)) if (i == 0) or (market_duplic[i][0] != market_duplic[i-1][0])]
+        nb_row = len(market)
+        if nb_row > nb_period:
+            nb_to_delete = nb_row - nb_period
+            market = market[nb_to_delete:nb_row]
+        return market
 
     @staticmethod
-    def _execute_order(log_id: str, rq: str, params: Map) -> dict:
+    def _execute_order(rq: str, params: Map) -> dict:
         _cls = BinanceFakeAPI
-        actual_close = float(_cls._get_actual_close(log_id))
-        now_date = _cls._get_date(log_id)
+        pair_merged = params.get(Map.symbol)
+        period_milli = _cls._extract_period_milli(params)
+        # period = int(period_milli/1000)
+        actual_close = float(_cls._get_actual_close(pair_merged, period_milli))
+        actual_time_milli = _cls._get_time(pair_merged, period_milli)
+        actual_time = int(actual_time_milli/1000)
         binance_symbol = params.get(Map.symbol)
         binance_move = params.get(Map.side)
         rows = [{
-            Map.date: _MF.unix_to_date(now_date),
+            Map.date: _MF.unix_to_date(actual_time),
             Map.orderId: params.get(Map.orderId),
             Map.request: rq,
             Map.symbol: binance_symbol,
@@ -193,7 +285,7 @@ class BinanceFakeAPI(BinanceAPI):
         fills = []
         if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
             status = _cls.STATUS_ORDER_FILLED
-            exec_time = now_date
+            exec_time = actual_time
             quantity = params.get(Map.quantity)
             amount = params.get(Map.quoteOrderQty)
             pair_str = BinanceAPI.symbol_to_pair(binance_symbol)
@@ -251,58 +343,12 @@ class BinanceFakeAPI(BinanceAPI):
 
 
 if __name__ == '__main__':
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
     _cls = BinanceFakeAPI
-    """
-    # '''
-    from model.API.brokers.Binance.BinanceRequest import BinanceRequest
-    from model.API.brokers.Binance.BinanceOrder import BinanceOrder
-    from model.tools.Paire import Pair
-    from model.tools.Price import Price
-
-    log_id = 'id_123'
-    bkr_rq_params = Map({
-        Map.pair: Pair("BTC/USD"),
-        Map.period: 60,
-        Map.begin_time: None,
-        Map.end_time: None,
-        Map.number: 10
-    })
-    bnc_rq = BinanceRequest(BinanceRequest.RQ_MARKET_PRICE, bkr_rq_params)
-    bnc_rq_params = bnc_rq.generate_request()
-    rsp1 = _cls.steal_request(log_id, _cls.RQ_KLINES, bnc_rq_params)
-    print(f"market price returned {len(rsp1.get_content())} lines")
-    # '''
-    # rsp2 = _cls.steal_request(log_id, _cls.RQ_KLINES, bnc_rq_params)
-    i = 0
-    ds1 = rsp1.get_content()
-    # ds2 = rsp2.get_content()
-    nb_ds1 = len(ds1)
-    for i in range(nb_ds1):
-        print(f'{i + 1}: {ds1[i]}')
-    print('————————————————————')
-    '''
-    for i in range(len(ds2)):
-        print(f'{nb_ds1 + i + 1}: {ds2[i]}')
-    '''
-    # '''
-    odr_cls = BinanceOrder
-    _cls = BinanceFakeAPI
-    log_id = 'id_123'
-    rq = _cls.RQ_ORDER_MARKET_qty
-    rs_cancel = _cls.RQ_CANCEL_ORDER
-    pr = Pair("BTC/USD")
-    lsbl = pr.get_left().get_symbol()
-    rsbl = pr.get_right().get_symbol()
-    odr_params = Map({
-        Map.pair: pr,
-        Map.move: odr_cls.MOVE_BUY,
-        Map.quantity: Price(55, lsbl),
-        Map.amount: None
-    })
-    odr = BinanceOrder(odr_cls.TYPE_MARKET, odr_params)
-    rsp = _cls.steal_request(log_id, rq, odr.generate_order())
-    rsp_cancel = _cls.steal_request(log_id, rs_cancel, odr.generate_cancel_order())
-    print(rsp.get_content())
-    print(rsp_cancel.get_content())    
-    """
-    print(_cls._retreive_exchange_infos())
+    _cls._load_market_historics()
+    market = _cls._get_market_price(params=Map({
+        Map.symbol: Pair('DOGE/USDT').get_merged_symbols().upper(),
+        Map.interval: 60 * 5 * 1000,
+        Map.limit: 5
+    }))
+    print(_MF.json_encode(market))

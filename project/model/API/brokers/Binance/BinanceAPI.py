@@ -383,6 +383,7 @@ class BinanceAPI:
     INTERVAL_30MIN = '30m'
     INTERVAL_1MONTH = '1M'
     # Constraints
+    CONSTRAINT_KLINES_MAX_PERIOD = 1000
     CONSTRAINT_LIMIT = 1000
     CONSTRAINT_RECVWINDOW = 60000
     CONSTRAINT_SNAP_ACCOUT_MIN_LIMIT = 5
@@ -405,7 +406,7 @@ class BinanceAPI:
         :param api_sk: API's secret key
         :param test_mode: set True to call test API else False to call production API
         """
-        self.__id = 'binance_api_' + str(_MF.get_timestamp(_MF.TIME_MILLISEC))
+        # self.__id = 'binance_api_' + str(_MF.get_timestamp(_MF.TIME_MILLISEC))
         self.__api_public_key = api_pb
         self.__api_secret_key = api_sk
         self.__test_mode = test_mode
@@ -624,9 +625,6 @@ class BinanceAPI:
             raise IndexError(f"There is no production endpoint with this index '{i}'")
         return endps[Map.test][i] if test else endps[Map.api][i]
 
-    def get_id(self) -> str:
-        return self.__id
-
     def __get_api_public_key(self) -> str:
         """
         To get API's public key\n
@@ -649,10 +647,15 @@ class BinanceAPI:
         return Map(BinanceAPI._INTERVALS_INT.get_map())
 
     @staticmethod
-    def get_interval(k) -> int:
-        if k not in BinanceAPI._INTERVALS_INT.get_keys():
-            raise IndexError(f"This interval '{k}' is not supported")
-        return BinanceAPI._INTERVALS_INT.get(k)
+    def get_interval(period_str: str) -> int:
+        """
+        To convert str Binance interval to minute\n
+        :param period_str: Binance interval
+        :return: Interval in minute
+        """
+        if period_str not in BinanceAPI._INTERVALS_INT.get_keys():
+            raise IndexError(f"This interval '{period_str}' is not supported")
+        return BinanceAPI._INTERVALS_INT.get(period_str)
 
     @staticmethod
     def convert_interval(prd: int) -> str:
@@ -743,21 +746,22 @@ class BinanceAPI:
         _stage = Config.get(Config.STAGE_MODE)
         if _stage == Config.STAGE_1:
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            return BinanceFakeAPI.steal_request(self.get_id(), rq, params)
+            return BinanceFakeAPI.steal_request(rq, params)
         if _stage == Config.STAGE_2:
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            log_id = self.get_id()
             if rq == self.RQ_KLINES:
                 rq_cfg = self.get_request_config(rq)
                 self._check_params(rq, params)
                 if rq_cfg[Map.signed]:
                     self.__sign(params)
                 rsp = self._send_request(rq, params)
-                BinanceFakeAPI.set_backup(log_id, rsp.get_content())
-                BinanceFakeAPI.steal_request(log_id, rq, params)
+                pair_merged = params.get(Map.symbol)
+                period_milli = params.get(Map.interval)
+                BinanceFakeAPI.add_market_historic(pair_merged, period_milli, rsp.get_content())
+                BinanceFakeAPI.steal_request(rq, params)
                 return rsp
             else:
-                return BinanceFakeAPI.steal_request(log_id, rq, params)
+                return BinanceFakeAPI.steal_request(rq, params)
         rq_cfg = self.get_request_config(rq)
         self._check_params(rq, params)
         if rq_cfg[Map.signed]:
