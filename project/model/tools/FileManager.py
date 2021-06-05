@@ -147,7 +147,7 @@ class FileManager(ABC):
         return fs
 
     @staticmethod
-    def get_dirs(p: str, include: bool) -> list:
+    def get_dirs(p: str, include: bool = False) -> list:
         """
          To list directories of a directory\n
          :param p: the path of the directory
