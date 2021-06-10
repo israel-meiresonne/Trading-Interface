@@ -423,11 +423,14 @@ def print_global_capital(prefix: str) -> None:
 
 
 if __name__ == '__main__':
-    Config.update(Config.STAGE_MODE, Config.STAGE_1)
-    bkr = get_broker()
-    bkr_rq = BrokerRequest(Map())
+    """
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    pair = Pair('DOGE/USDT')
+    path = 'content/v0.01/print/available_pair.csv'
+    csv = FileManager.get_csv(path)
+    pair_strs = [row[Map.pair] for row in csv]
+    bkr = get_broker()
+
+    # pair = Pair('DOGE/USDT')
     periods = [3, 5, 15, 30, 60]
     periods = [period * 60 for period in periods]
     # start_time = 1609455600     # 2021-01-01 00:00:00
@@ -438,5 +441,10 @@ if __name__ == '__main__':
     # end_time = 1622721357
     # start_time = 1622714157   # 2h
     # end_time = 1622721357
-
-    # Broker.print_market_historic(bkr, pair, periods, start_time, end_time)
+    for i in range(4):
+        pair_str = pair_strs[i]
+        Broker.print_market_historic(bkr, Pair(pair_str), periods, start_time, end_time)
+    """
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    bkr = get_broker()
+    print(Stalker.get_allowed_pairs(bkr))

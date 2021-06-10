@@ -213,8 +213,8 @@ class Broker(_MF):
                 success = True
             except Exception as e:
                 nb_error += 1
-                print(f"sleep for '{sleep_time}sec.'")
                 print(e.__str__())
+                print(f"sleep for '{sleep_time}sec.'")
                 sleep(sleep_time)
         market_price = bkr_rq.get_market_price()
         market_list = list(market_price.get_market())

@@ -59,16 +59,23 @@ class Stalker(Strategy):
         return self.__max_strategy
 
     def _set_next_stalk(self, unix_time: int) -> None:
-        # unix_time = _MF.get_timestamp()
         stg_params = self.get_strategy_params()
         period = stg_params.get(Map.period)
         min_stalk_interval = Stalker.get_minimum_stalk_interval()
-        if (period is None) or (period <= min_stalk_interval):
-            unix_rounded = int(unix_time / min_stalk_interval) * min_stalk_interval
-            next_stalk = unix_rounded + min_stalk_interval
+        stalk_interval = min_stalk_interval if (period is None) or (period <= min_stalk_interval) else period
+        if Stalker._get_stage() == Config.STAGE_1:
+            trade_index = Stalker._get_trade_index()
+            stalk_trade_interval = int(stalk_interval / 60)
+            index_rounded = int(trade_index / stalk_trade_interval) * stalk_trade_interval
+            next_stalk = index_rounded + stalk_trade_interval
         else:
-            unix_rounded = int(unix_time / period) * period
-            next_stalk = unix_rounded + period  # self.get_stalk_period()
+            # if (period is None) or (period <= min_stalk_interval):
+            if stalk_interval == min_stalk_interval:
+                unix_rounded = int(unix_time / min_stalk_interval) * min_stalk_interval
+                next_stalk = unix_rounded + min_stalk_interval
+            else:
+                unix_rounded = int(unix_time / period) * period
+                next_stalk = unix_rounded + period  # self.get_stalk_period()
         self.__next_stalk = next_stalk
 
     def get_next_stalk(self) -> int:
@@ -210,17 +217,24 @@ class Stalker(Strategy):
         """
         To set the next time to empty the blacklist\n
         """
-        unix_time = _MF.get_timestamp()
         stalk_period = Stalker.get_stalk_period()
-        round_time = _MF.round_time(unix_time, stalk_period)
-        self.__next_blacklist_clean = round_time + stalk_period
+        if Stalker._get_stage() == Config.STAGE_1:
+            trade_index = Stalker._get_trade_index()
+            stalk_period_minute = int(stalk_period / 60)
+            index_rounded = int(trade_index / stalk_period_minute) * stalk_period_minute
+            next_blacklist_clean = index_rounded + stalk_period_minute
+        else:
+            unix_time = _MF.get_timestamp()
+            round_time = _MF.round_time(unix_time, stalk_period)
+            next_blacklist_clean = round_time + stalk_period
+        self.__next_blacklist_clean = next_blacklist_clean
 
     def get_next_blacklist_clean(self) -> int:
         return self.__next_blacklist_clean
 
     def get_blacklist(self) -> List[Pair]:
         next_clean = self.get_next_blacklist_clean()
-        unix_time = _MF.get_timestamp()
+        unix_time = _MF.get_timestamp() if Stalker._get_stage() != Config.STAGE_1 else Stalker._get_trade_index()
         if (self.__blacklist is None) or ((next_clean is not None) and (unix_time >= next_clean)):
             self.__blacklist = []
             self.__next_blacklist_clean = None
@@ -258,9 +272,14 @@ class Stalker(Strategy):
         active_strategies = self.get_active_strategies()
         max_strategy = self.get_max_strategy()
         max_reached = len(active_strategies.get_map()) >= max_strategy
-        unix_time = _MF.get_timestamp()
         next_stalk = self.get_next_stalk()
-        time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
+        # time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
+        if Stalker._get_stage() == Config.STAGE_1:
+            trade_index = Stalker._get_trade_index()
+            time_to_stalk = (next_stalk is None) or (trade_index >= next_stalk)
+        else:
+            unix_time = _MF.get_timestamp()
+            time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
         return (not max_reached) and time_to_stalk
 
     def _stalk_market(self, bkr: Broker) -> None:
@@ -312,24 +331,29 @@ class Stalker(Strategy):
         # Set next stalk time
         unix_time = _MF.get_timestamp()
         self._set_next_stalk(unix_time)
-        print(f"Next stalk: '{_MF.unix_to_date(self.get_next_stalk())}'" + _cls._TO_REMOVE_STYLE_NORMAL)
+        next_stalk = _MF.unix_to_date(self.get_next_stalk()) if Stalker._get_stage() != Config.STAGE_1 \
+            else self.get_next_stalk()
+        print(f"Next stalk: '{next_stalk}'" + _cls._TO_REMOVE_STYLE_NORMAL)
         # Backup
-        self._save_market_stalk(Map(perfs_sorted), market_prices)
+        self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
     def _get_sleep_time(self) -> int:
-        active_stgs = self.get_active_strategies()
-        if len(active_stgs.get_map()) == 0:
-            next_stalk = self.get_next_stalk()
-            unix_time = _MF.get_timestamp()
-            min_stalk = Stalker.get_minimum_stalk_interval()
-            min_stalk_next_time = int(unix_time / min_stalk) * min_stalk + min_stalk
-            min_next_stalk_time = min_stalk_next_time - unix_time
-            sleep_time = next_stalk - unix_time \
-                if (next_stalk is not None) \
-                   and (next_stalk > unix_time) \
-                   and ((next_stalk - unix_time) > min_stalk) else min_next_stalk_time
+        if Stalker._get_stage() == Config.STAGE_1:
+            sleep_time = None
         else:
-            sleep_time = Stalker.get_bot_sleep_time()
+            active_stgs = self.get_active_strategies()
+            if len(active_stgs.get_map()) == 0:
+                next_stalk = self.get_next_stalk()
+                unix_time = _MF.get_timestamp()
+                min_stalk = Stalker.get_minimum_stalk_interval()
+                min_stalk_next_time = int(unix_time / min_stalk) * min_stalk + min_stalk
+                min_next_stalk_time = min_stalk_next_time - unix_time
+                sleep_time = next_stalk - unix_time \
+                    if (next_stalk is not None) \
+                       and (next_stalk > unix_time) \
+                       and ((next_stalk - unix_time) > min_stalk) else min_next_stalk_time
+            else:
+                sleep_time = Stalker.get_bot_sleep_time()
         return sleep_time
 
     def trade(self, bkr: Broker) -> int:
@@ -443,6 +467,15 @@ class Stalker(Strategy):
         pass
 
     @staticmethod
+    def _get_stage() -> str:
+        return Config.get(Config.STAGE_MODE)
+
+    @staticmethod
+    def _get_trade_index() -> int:
+        from model.structure.Bot import Bot
+        return Bot.get_trade_index()
+
+    @staticmethod
     def get_stalk_period() -> int:
         """
         To get interval (in second) between each market stalk\n
@@ -486,18 +519,29 @@ class Stalker(Strategy):
                  Map[index{int}]:   {Pair}
         """
         if Stalker._CONST_ALLOWED_PAIRS is None:
-            # Stablecoin regex
-            stablecoins = Config.get(Config.CONST_STABLECOINS)
-            concat_stable = '|'.join(stablecoins)
-            stablecoin_rgx = f'({concat_stable})/\w+$'
-            # Fiat regex
-            fiats = Config.get(Config.CONST_FIATS)
-            concat_fiat = '|'.join(fiats)
-            fiat_rgx = f'({concat_fiat})/\w+$'
-            # Get pairs
-            no_match = ['^\w+(up|down|bear|bull)\/\w+$', '^(bear|bull)/\w+$', '^\w*inch\w*/\w+$',fiat_rgx, stablecoin_rgx]
-            match = ['^.+\/usdt']
-            pair_strs = bkr.get_pairs(match=match, no_match=no_match)
+            if Stalker._get_stage() == Config.STAGE_1:
+                path = Config.get(Config.DIR_MARKET_HISTORICS)
+                _bkr_cls = bkr.__class__.__name__
+                full_path = path.replace('$broker', _bkr_cls).replace('$pair/', '')
+                pair_folders = FileManager.get_dirs(full_path)
+                from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+                pair_strs = [BinanceAPI.symbol_to_pair(_MF.regex_replace('%.+$', '', pair_folder))
+                             for pair_folder in pair_folders]
+                # Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
+            else:
+                # Stablecoin regex
+                stablecoins = Config.get(Config.CONST_STABLECOINS)
+                concat_stable = '|'.join(stablecoins)
+                stablecoin_rgx = f'({concat_stable})/\w+$'
+                # Fiat regex
+                fiats = Config.get(Config.CONST_FIATS)
+                concat_fiat = '|'.join(fiats)
+                fiat_rgx = f'({concat_fiat})/\w+$'
+                # Get pairs
+                no_match = ['^\w+(up|down|bear|bull)\/\w+$', '^(bear|bull)/\w+$', '^\w*inch\w*/\w+$',fiat_rgx, stablecoin_rgx]
+                match = ['^.+\/usdt']
+                pair_strs = bkr.get_pairs(match=match, no_match=no_match)
+                # Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
             Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
         return Stalker._CONST_ALLOWED_PAIRS
 
@@ -588,6 +632,8 @@ class Stalker(Strategy):
         right_symbol = pair.get_right().get_symbol()
         active_stgs = self.get_active_strategies()
         next_stalk = self.get_next_stalk()
+        next_stalk_date = _MF.unix_to_date(next_stalk) \
+            if (Stalker._get_stage() != Config.STAGE_1) and (next_stalk is not None) else next_stalk
         lefts = []
         rights = []
         for pair_str, active_stg in active_stgs.get_map().items():
@@ -611,7 +657,7 @@ class Stalker(Strategy):
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.pair: pair,
             Map.strategy: self.get_strategy_class(),
-            'next_stalk': _MF.unix_to_date(next_stalk) if next_stalk is not None else '—',
+            'next_stalk': next_stalk_date if next_stalk_date is not None else '—',
             'initial_capital': initial_capital,
             'total_capital': total_capital,
             'total_capital_available': total_capital_available,

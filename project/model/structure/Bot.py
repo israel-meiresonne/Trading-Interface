@@ -10,7 +10,8 @@ from model.tools.Price import Price
 
 
 class Bot(_MF):
-    _TRADE_INDEX = 0
+    _TRADE_INDEX = 0    # 112800   # 0
+    _TRADE_INDEX_STOP = None
     SEPARATOR = "-"
 
     def __init__(self, bkr: str, stg: str, pair_str: str, configs: Map):
@@ -76,6 +77,7 @@ class Bot(_MF):
         sleep_time = None
         nb_error = 0
         limit_error = 60
+        stop_index = Bot.get_index_stop()
         print("Bot started to trade...")
         while not end:
             Bot._set_trade_index(trade_index)
@@ -104,6 +106,10 @@ class Bot(_MF):
                 sleep(sleep_time)
             end = self._still_active()
             trade_index += 1
+            # """
+            if (stop_index is not None) and (trade_index > stop_index):
+                raise Exception(f"End code!🙂")
+            # """
 
     @staticmethod
     def _still_active() -> bool:
@@ -117,6 +123,10 @@ class Bot(_MF):
     @staticmethod
     def get_trade_index() -> int:
         return Bot._TRADE_INDEX
+
+    @staticmethod
+    def get_index_stop() -> int:
+        return Bot._TRADE_INDEX_STOP
 
     @staticmethod
     def _generate_id(bkr: str, stg: str, prsbl: str) -> str:
