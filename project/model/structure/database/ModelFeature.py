@@ -20,6 +20,7 @@ class ModelFeature(ModelAccess):
     TIME_MILLISEC = "time_millisec"
     FORMAT_D_H_M_S_MS = '%Y-%m-%d %H:%M:%S.%f'
     FORMAT_D_H_M_S = '%Y-%m-%d %H:%M:%S'
+    FORMAT_D_H_M_S_FOR_FILE = '%Y-%m-%d_%H.%M.%S'
 
     @abstractmethod
     def __init__(self):
