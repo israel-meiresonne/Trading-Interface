@@ -14,6 +14,7 @@ from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Bot import Bot
 from model.structure.Broker import Broker
+from model.structure.Log import Log
 from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMax.MinMax import MinMax
@@ -445,6 +446,14 @@ if __name__ == '__main__':
         pair_str = pair_strs[i]
         Broker.print_market_historic(bkr, Pair(pair_str), periods, start_time, end_time)
     """
-    Config.update(Config.STAGE_MODE, Config.STAGE_1)
-    bkr = get_broker()
-    print(Stalker.get_allowed_pairs(bkr))
+    Config.update(Config.STAGE_MODE, Config.STAGE_2)
+    # """
+    log = Log()
+    bots = log.get_bots()
+    print(bots)
+    """
+    special = FileManager.get_files('content/storage/STAGE_2/Bot', extension=True, spacial=True)
+    print(special)
+    normal = FileManager.get_files('content/storage/STAGE_2/Bot', extension=True, spacial=False)
+    print(normal)
+    """

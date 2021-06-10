@@ -11,10 +11,12 @@ STAGE_MODE = None
 DIR_BINANCE_EXCHANGE_INFOS = "tests/datas/API/brokers/Binance/BinanceFakeAPI/response_exchange_infos.json"
 DIR_BINANCE_TRADE_FEE = "tests/datas/API/brokers/Binance/BinanceFakeAPI/trade_fee.json"
 DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03.26 00.52.00.csv'
+FILE_NAME_BOT_BACKUP = '$bot_ref_bot_backup.data'
 # Directories
 DIR_BROKERS = "model/API/brokers"
 DIR_STRATEGIES = "model/structure/strategies"
 # Backup Files
+DIR_DATABASE = 'content/storage/$stage/$class/'    # i.e.: 'content/database/STAGE_3/Bot/'
 DIR_MARKET_HISTORICS = 'content/v0.01/market-historic/Active/$broker/$pair/'
 DIR_PRINT_HISTORIC = 'content/v0.01/market-historic/Broker/$broker/$pair/$pair_ref/$period.csv'
 DIR_BEGIN_BACKUP = f'content/v0.01/tests/{START_DATE}_a_a————————————————————.csv'

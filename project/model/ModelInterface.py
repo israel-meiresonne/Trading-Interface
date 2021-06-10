@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 
-# from model.tools.Map import Map
+from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
 class ModelInterface(ABC):
-    def __init__(self):
-        self.log_id = "xxx"
+    def __init__(self, prefix: str):
+        self.log_id = prefix + _MF.new_code()
+        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
 
     @abstractmethod
     def create_bot(self, bkr: str, stg: str, prcd: str, configs: dict) -> None:

@@ -174,14 +174,13 @@ class Controller:
     def start_bot(self):
         md = self.__get_model()
         vw = self.__get_view()
-        bt_ids = list(md.get_bots().keys())
-        """
+        bots = md.get_bots()
+        bt_ids = bots.get_keys()
+        bot_refs = [bots.get(bot_id).__str__() for bot_id in bt_ids]
         if len(bt_ids) <= 0:
             vw.output(View.FILE_ERROR, "You have no Bot created")
             return None
-        bt_id = bt_ids[vw.menu("Choose the Bot to start:", bt_ids)]
-        """
-        bt_id = bt_ids[0]
+        bt_id = bt_ids[vw.menu("Choose the Bot to start:", bot_refs)]
         md.start_bot(bt_id)
         vw.output(View.FILE_MESSAGE, f"❌ Bot stopped: {bt_id}!")
 

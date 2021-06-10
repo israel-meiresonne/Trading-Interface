@@ -4,15 +4,16 @@ from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Paire import Pair
 from model.tools.Price import Price
 
 
 class Bot(_MF):
+    PREFIX_ID = 'bot_'
     _TRADE_INDEX = 0    # 112800   # 0
     _TRADE_INDEX_STOP = None
-    SEPARATOR = "-"
 
     def __init__(self, bkr: str, stg: str, pair_str: str, configs: Map):
         """
@@ -26,7 +27,8 @@ class Bot(_MF):
                     configs[{Strategy}] => {dict} Strategy's configs
         """
         super().__init__()
-        self.__id = Bot._generate_id(bkr, stg, pair_str)
+        self.__id = Bot.PREFIX_ID + _MF.new_code()
+        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
         self.__pair = Pair(pair_str)
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
         self._set_strategy(stg, configs)
@@ -55,6 +57,9 @@ class Bot(_MF):
 
     def get_id(self) -> str:
         return self.__id
+
+    def get_settime(self) -> int:
+        return self.__settime
 
     def _get_broker(self) -> Broker:
         return self.__broker
@@ -129,12 +134,7 @@ class Bot(_MF):
         return Bot._TRADE_INDEX_STOP
 
     @staticmethod
-    def _generate_id(bkr: str, stg: str, prsbl: str) -> str:
-        return bkr.lower() + Bot.SEPARATOR + stg.lower() + Bot.SEPARATOR + prsbl.lower()
-
-    @staticmethod
     def _save_error(error: Exception) -> None:
-        from model.tools.FileManager import FileManager
         from traceback import format_exc
         orange = "\033[93m"
         normal = "\033[0m"
@@ -152,12 +152,21 @@ class Bot(_MF):
 
     @staticmethod
     def save_bot(bot: 'Bot') -> None:
-        from pickle import Pickler
-        start_date = Config.get(Config.START_DATE)
-        path = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
-               f'i&meim projects/apollo21/versions/v0.1/apollo21/project/content/v0.01/database/stage2/' \
-               f'{start_date}_bot_backup.data'
-        with open(path, 'wb') as file:
-            record = Pickler(file)
-            record.dump(bot)
+        _stage = Config.get(Config.STAGE_MODE)
+        _start_date = Config.get(Config.START_DATE)
+        path = Config.get(Config.DIR_DATABASE)
+        file_name = f"{_start_date}|" + Config.get(Config.FILE_NAME_BOT_BACKUP).replace('$bot_ref', bot.__str__())
+        save_dir_path = path.replace('$stage', _stage).replace('$class', Bot.__name__)
+        backup_path = save_dir_path + file_name
+        FileManager.write(backup_path, bot, binary=True)
         print('💾 Bot saved! ✅')
+
+    def __str__(self) -> str:
+        date = _MF.unix_to_date(int(self.get_settime() / 1000), _MF.FORMAT_D_H_M_S_FOR_FILE)
+        bot_id = self.get_id()
+        bkr_cls = self._get_broker().__class__.__name__
+        stg_cls = self._get_strategy().__class__.__name__
+        return f"{date}|{bot_id}|{bkr_cls}|{stg_cls}"
+
+    def __repr__(self) -> str:
+        return self.__str__() + f"({id(self)})"

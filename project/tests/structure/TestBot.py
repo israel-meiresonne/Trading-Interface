@@ -8,10 +8,12 @@ class TestBot(unittest.TestCase, Bot):
         self.stg = "MinMax"
         self.prsbl = "BTC/USDT"
 
+    """
     def test_id_format_is_correct(self):
         bt_id = self._generate_id(self.bkr, self.stg, self.prsbl)
         exp_id = self.bkr.lower() + Bot.SEPARATOR + self.stg.lower() + Bot.SEPARATOR + self.prsbl.lower()
         self.assertEqual(bt_id, exp_id)
+    """
 
     """
     def test_bot_properties_has_correct_type(self):
