@@ -203,7 +203,6 @@ class Orders(Order):
             has_executed = Orders._update_stage_3_has_executed(odrs_datas)
             if has_executed:
                 trade_datas = Orders._update_stage_3_get_trades_datas(bkr, pair, starttime)
-                print(trade_datas)
                 for idx, odr in odrs.get_map().items():
                     odr_status = odr.get_status()
                     if (odr_status == Order.STATUS_SUBMITTED) or (odr_status == Order.STATUS_PROCESSING):
