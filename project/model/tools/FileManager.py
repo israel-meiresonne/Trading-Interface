@@ -5,14 +5,14 @@ from abc import ABC, abstractmethod
 from os import path as os_path, remove as os_remove, walk
 from pathlib import Path
 import re as rgx
-from typing import Any
+from typing import Any, List
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
 class FileManager(ABC):
     _PROJECT_DIR = None
-    _REGEX_FILE_END_PATH = '[\w\.-]+$'
+    _REGEX_FILE_END_PATH = r'[\w\.-]+$'
 
     @abstractmethod
     def __init__(self):
@@ -57,7 +57,7 @@ class FileManager(ABC):
         :param path: The path to the file
         :param content: The content to write in file
         :param binary: Set True to write in binary else False
-        :param binary: Set True to overwrite the file's content else False to add new line at file's end
+        :param overwrite: Set True to overwrite the file's content else False to add new line at file's end
         :param make_dir: Set True create missing directory else False to raise error if miss directory
         """
         full_path = FileManager.get_project_directory() + path
@@ -130,21 +130,26 @@ class FileManager(ABC):
                 writer.writerow(row)
 
     @staticmethod
-    def get_files(p: str, ex=True) -> list:
+    def get_files(path: str, extension: bool = True, spacial: bool = False) -> list:
         """
         To list files of a directory\n
-        :param p: the path of the directory
-        :param ex: set True to get files with their extension else False
+        :param path: the path of the directory
+        :param extension: set True to get files with their extension else False
+        :param spacial: set True to get special files (.ignore, .DS_Store, etc...) else False to exclude them
         :return: list of files
         """
-        root = FileManager.get_project_directory()
-        _, _, fs = next(walk(root + p))
-        if not ex:
-            ptr = "\.[A-z]*$"
-            for i in range(len(fs)):
-                f = fs[i]
-                fs[i] = rgx.sub(ptr, "", f)
-        return fs
+        project_dir = FileManager.get_project_directory()
+        _, _, files = next(walk(project_dir + path))
+        if not extension:
+            ptr = r"\.[A-z]*$"
+            for i in range(len(files)):
+                file = files[i]
+                files[i] = rgx.sub(ptr, "", file)
+        files = files
+        if not spacial:
+            regex_special = r'^\..+'
+            files = [file for file in files if not _MF.regex_match(regex_special, file)]
+        return files
 
     @staticmethod
     def get_dirs(p: str, include: bool = False) -> list:
