@@ -73,5 +73,4 @@ class Price:
         return f'{self.get_asset()} {self.get_value()}'.upper()
 
     def __repr__(self) -> str:
-        return self.__str__()
-        # return f"{self.__str__()}({type(self)})"
+        return self.__str__() + f"({id(self)})"

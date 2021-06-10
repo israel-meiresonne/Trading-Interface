@@ -50,5 +50,4 @@ class Pair:
         return self.get_left().get_symbol() + self._SEPARATOR + self.get_right().get_symbol()
 
     def __repr__(self) -> str:
-        return self.__str__()
-        # return f"{self.__str__()}({type(self)})"
+        return self.__str__() + f"({id(self)})"
