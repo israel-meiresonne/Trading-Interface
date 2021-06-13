@@ -81,6 +81,13 @@ class Broker(_MF):
         """
         pass
 
+    @abstractmethod
+    def close(self) -> None:
+        """
+        To close connections with Broker's API\n
+        """
+        pass
+
     @staticmethod
     @abstractmethod
     def list_paires() -> list:

@@ -29,48 +29,51 @@ class Binance(Broker):
         test_mode = configs.get(Map.test_mode)
         self.__api = BinanceAPI(api_pb, api_sk, test_mode)
 
-    def __get_api(self) -> BinanceAPI:
+    def _get_api(self) -> BinanceAPI:
         return self.__api
 
     def request(self, bnc_rq: BinanceRequest) -> None:
-        api = self.__get_api()
+        api = self._get_api()
         rq = bnc_rq.get_endpoint()
         prms = bnc_rq.generate_request()
         rsp = api.request_api(rq, prms)
         bnc_rq.handle_response(rsp)
 
     def get_account_snapshot(self, bkr_rq: BinanceRequest) -> None:
-        api = self.__get_api()
+        api = self._get_api()
         rq = BinanceAPI.RQ_ACCOUNT_SNAP
         prms = bkr_rq.generate_request()
         rsp = api.request_api(rq, prms)
         bkr_rq.handle_response(rsp)
 
     def get_market_price(self, bnc_rq: BinanceRequest) -> None:
-        api = self.__get_api()
+        api = self._get_api()
         rq = BinanceAPI.RQ_KLINES
         prms = bnc_rq.generate_request()
         rsp = api.request_api(rq, prms)
         bnc_rq.handle_response(rsp)
 
     def get_trade_fee(self, pair: Pair) -> Map:
-        api = self.__get_api()
+        api = self._get_api()
         fee = api.get_trade_fee(pair)
         return Map(fee)
 
     def execute(self, order: Order) -> None:
-        api = self.__get_api()
+        api = self._get_api()
         rq = order.get_api_request()
         rq_params = order.generate_order()
         rq_rsp = api.request_api(rq, rq_params)
         order.handle_response(rq_rsp)
 
     def cancel(self, order: Order) -> None:
-        api = self.__get_api()
+        api = self._get_api()
         params = order.generate_cancel_order()
         rq = BinanceAPI.RQ_CANCEL_ORDER
         rsp = api.request_api(rq, params)
         order.handle_response(rsp)
+
+    def close(self) -> None:
+        self._get_api().close_socket()
 
     def get_next_trade_time(self) -> int:
         return int(random() * 10)

@@ -53,29 +53,7 @@ class Controller:
         vw = self.__get_view()
         # """
         # params
-        if _stage == Config.STAGE_3:
-            bkrs = md.list_brokers()
-            stgs = md.list_strategies()
-            bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
-            stg = stgs[vw.menu("Choose a Strategy:", stgs)]
-            pair_codes = md.list_paires(bkr)
-            pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
-            # configs
-            bkr_modes = {"Test mode": True, "Real mode": False}
-            bkr_modes_ks = list(bkr_modes.keys())
-            configs = Map({
-                bkr: {
-                    Map.api_pb: vw.input(message=f"Enter the public key for {bkr}", secure=True),
-                    Map.api_sk: vw.input(message=f"Enter the secret key for {bkr}", secure=True),
-                    Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
-                },
-                stg: {
-                    Map.capital: vw.input(message="Enter initial capital to used.", type_func="float"),
-                    Map.maximum: None,
-                    Map.rate: vw.input(message="Enter rate of total capital usable.(domain: ]0, 1]).", type_func="float")
-                }
-            })
-        elif (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
+        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             # """
             bkr = 'Binance'
             stgs = md.list_strategies()
@@ -134,14 +112,34 @@ class Controller:
                             Map.maximum: None,
                             Map.capital: 1000,
                             Map.rate: 1,
-                            Map.period: 60 * 5,
-                            # Map.green: {Map.period: 60 * 5},
-                            # Map.red: {Map.period: 60 * 5}
+                            Map.period: 60  # 60 * 5,
                         }
                     }
                 })
             else:
                 raise Exception(f"Must implement menu for this Strategy '{stg}'.")
+        elif _stage == Config.STAGE_3:
+            bkrs = md.list_brokers()
+            stgs = md.list_strategies()
+            bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
+            stg = stgs[vw.menu("Choose a Strategy:", stgs)]
+            pair_codes = md.list_paires(bkr)
+            pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
+            # configs
+            bkr_modes = {"Test mode": True, "Real mode": False}
+            bkr_modes_ks = list(bkr_modes.keys())
+            configs = Map({
+                bkr: {
+                    Map.api_pb: vw.input(message=f"Enter the public key for {bkr}", secure=True),
+                    Map.api_sk: vw.input(message=f"Enter the secret key for {bkr}", secure=True),
+                    Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
+                },
+                stg: {
+                    Map.capital: vw.input(message="Enter initial capital to used.", type_func="float"),
+                    Map.maximum: None,
+                    Map.rate: vw.input(message="Enter rate of total capital usable.(domain: ]0, 1]).", type_func="float")
+                }
+            })
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
         print(configs.get_map())
@@ -174,6 +172,12 @@ class Controller:
     def start_bot(self):
         md = self.__get_model()
         vw = self.__get_view()
+        from model.API.brokers.Binance.Binance import Binance
+        Binance(Map({
+            Map.api_pb: 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5',
+            Map.api_sk: 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr',
+            Map.test_mode: False
+        }))
         bots = md.get_bots()
         bt_ids = bots.get_keys()
         bot_refs = [bots.get(bot_id).__str__() for bot_id in bt_ids]

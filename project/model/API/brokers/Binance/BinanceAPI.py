@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 from requests import get as rq_get, Response
 from requests import post as rq_post
@@ -390,6 +390,7 @@ class BinanceAPI:
     CONSTRAINT_SNAP_ACCOUT_MAX_LIMIT = 30
     CONSTRAINT_ALL_TRADES_MAX_LIMIT = 1000  # Default is 500
     # API Constants
+    _CONSTANT_DEFAULT_RECVWINDOW = 5000 + 1000
     _EXCHANGE_INFOS = None
     _TRADE_FEES = None
     """
@@ -397,7 +398,9 @@ class BinanceAPI:
     _TRADE_FEES[symbol{str}][Map.taker]:      {float}
     _TRADE_FEES[symbol{str}][Map.maker]:      {float}
     """
-    _SYMBOL_TO_PAIR = None  # 'BTCUSDT' => 'btc/usdt'
+    _SYMBOL_TO_PAIR = None
+    # Variables
+    _SOCKET = None
 
     def __init__(self, api_pb: str, api_sk: str, test_mode: bool):
         """
@@ -452,6 +455,197 @@ class BinanceAPI:
                 Map.limit: limits.get_map(),
                 Map.symbol: symbols_infos.get_map()
             })
+
+    def __get_endpoint(self, i: int) -> str:
+        endps = BinanceAPI.__get_endpoints()
+        test = self.__is_test_mode()
+        if test and (i not in range(len(endps[Map.test]))):
+            raise IndexError(f"There is no test endpoint with this index '{i}'")
+        elif (not test) and (i not in range(len(endps[Map.api]))):
+            raise IndexError(f"There is no production endpoint with this index '{i}'")
+        return endps[Map.test][i] if test else endps[Map.api][i]
+
+    def __get_api_public_key(self) -> str:
+        """
+        To get API's public key\n
+        :return: API's public key
+        """
+        return self.__api_public_key
+
+    def __is_test_mode(self) -> bool:
+        return self.__test_mode
+
+    def __get_api_secret_key(self) -> str:
+        """
+        To get API's secret key\n
+        :return: API's secret key
+        """
+        return self.__api_secret_key
+
+    def _set_socket(self, streams: List[str]) -> None:
+        from model.API.brokers.Binance.BinanceSocket import BinanceSocket
+        socket = BinanceSocket(streams, self)
+        socket.run_forever()
+        BinanceAPI._SOCKET = socket
+
+    def _get_socket(self, streams: List[str]) -> Any:
+        socket = BinanceAPI._SOCKET
+        if socket is None:
+            self._set_socket(streams)
+        else:
+            socket.add_streams(streams)
+        return BinanceAPI._SOCKET
+
+    def close_socket(self) -> None:
+        """
+        To close streams of Binance's websocket\n
+        """
+        socket = self._get_socket([])
+        socket.close()
+
+    def __generate_headers(self) -> dict:
+        """
+        To generate a headers for a request to the API\n
+        :return: header for a request to the API
+        """
+        return {"X-MBX-APIKEY": self.__get_api_public_key()}
+
+    def _generate_url(self, rq: str, i=0) -> str:
+        """
+        To generate a url with a test or production API and a endpoint\n
+        :param rq: a supported request
+        :param i: index of a test or production API
+        :return: url where to send the given request
+        """
+        endp = self.__get_endpoint(i)
+        rq_config = self.get_request_config(rq)
+        path = rq_config[Map.path]
+        return endp + path
+
+    def __generate_signature(self, prms: dict) -> str:
+        """
+        To generate a HMAC SHA256 signature with the data to send\n
+        :param prms: data to send to Binance's API
+        :return: a HMAC SHA256 signature generated with the data to send
+        """
+        qr_str = "&".join([f"{k}={prms[k]}" for k in prms])
+        return new_hmac(self.__get_api_secret_key().encode('utf-8'), qr_str.encode('utf-8'), hashlib_sha256).hexdigest()
+
+    def __sign(self, params: Map) -> None:
+        """
+        To sign the request with the private key and params\n
+        :param params: params of a request
+        """
+        # ds_map.put(recvWindow, Map.recvWindow)
+        stamp = _MF.get_timestamp(_MF.TIME_MILLISEC) - 1000
+        params.put(stamp, Map.timestamp)
+        sgt = self.__generate_signature(params.get_map())
+        params.put(sgt, Map.signature)
+        time_out = params.get(Map.recvWindow)
+        new_time_out = time_out + 1000 if time_out is not None else BinanceAPI._CONSTANT_DEFAULT_RECVWINDOW
+        params.put(new_time_out, Map.recvWindow)
+
+    def request_api(self, rq: str, params: Map) -> BrokerResponse:
+        """
+        To config and send a request to the API\n
+        :param rq: a supported request
+        :param params: params to send
+        :return: API's response
+        """
+        _stage = Config.get(Config.STAGE_MODE)
+        self._check_params(rq, params)
+        if _stage == Config.STAGE_1:
+            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+            return BinanceFakeAPI.steal_request(rq, params)
+        if _stage == Config.STAGE_2:
+            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+            if rq == self.RQ_KLINES:
+                rsp = self._send_market_historics_request(rq, params)
+                pair_merged = params.get(Map.symbol)
+                period_str = params.get(Map.interval)
+                period_milli = int(BinanceAPI.get_interval(period_str) * 1000)
+                BinanceFakeAPI.add_market_historic(pair_merged, period_milli, rsp.get_content())
+                BinanceFakeAPI.steal_request(rq, params)
+                return rsp
+            else:
+                return BinanceFakeAPI.steal_request(rq, params)
+        # rq_cfg = self.get_request_config(rq)
+        # self._check_params(rq, params)
+        """
+        if rq_cfg[Map.signed]:
+            self.__sign(params)
+        """
+        start_time = params.get(Map.startTime)
+        end_time = params.get(Map.endTime)
+        if (rq == BinanceAPI.RQ_KLINES) and (end_time is None) and (start_time is None):
+            rsp = self._send_market_historics_request(rq, params)
+        else:
+            rsp = self._send_request(rq, params)
+        return rsp
+
+    def _send_request(self, rq: str, params: Map) -> BrokerResponse:
+        """
+        To send a request to the API\n
+        :param rq: a supported request
+        :param params: params to send
+        :return: API's response
+        """
+        _stage = Config.get(Config.STAGE_MODE)
+        rq_cfg = BinanceAPI.get_request_config(rq)
+        if rq_cfg[Map.signed]:
+            self.__sign(params)
+        hdrs = self.__generate_headers()
+        url = self._generate_url(rq)
+        mtd = rq_cfg[Map.method]
+        if mtd == Map.GET:
+            rsp = rq_get(url, params.get_map(), headers=hdrs)
+        elif mtd == Map.POST:
+            rsp = rq_post(url, params.get_map(), headers=hdrs)
+        elif mtd == Map.DELETE:
+            ds = params.get_map()
+            url += '?' + '&'.join([f'{k}={v}' for k, v in ds.items()])
+            rsp = rq_delete(url, headers=hdrs)
+        else:
+            raise Exception(f"The request method {mtd} is not supported")
+        bkr_rsp = BrokerResponse(rsp)
+        # Backup Down
+        self._save_response(rq, params, rsp)
+        # Backup Up
+        # rsp_status = bkr_rsp.get_status_code()
+        # if rsp_status != 200:
+        #    raise Exception(f"(status code: {rsp_status}): {bkr_rsp.get_content()}")
+        return bkr_rsp
+
+    def _send_market_historics_request(self, rq: str, params: Map) -> BrokerResponse:
+        from model.API.brokers.Binance.BinanceSocket import BinanceSocket
+        symbol = params.get(Map.symbol)
+        period_str = params.get(Map.interval)
+        streams = [BinanceSocket.generate_stream(rq, symbol, period_str)]
+        stream = streams[0]
+        bnc_socket = self._get_socket(streams)
+        market_historic = bnc_socket.get_market_historic(stream)
+        rsp = Response()
+        if isinstance(market_historic, list):
+            limit = params.get(Map.limit)
+            if limit is not None:
+                market_historic = market_historic[0:limit]
+            rsp.status_code = 200
+            rsp.reason = 'OK'
+            rsp._content = _MF.json_encode(market_historic).encode()
+            rsp.url = bnc_socket.get_url()
+            rsp.request = params.get_map()
+            rsp.request = {
+                Map.method: Map.websocket,
+                'headers': bnc_socket.get_socket().header
+                # 'headers': bnc_socket.get_socket().sock.headers
+            }
+        else:
+            rsp.status_code = 0000
+            rsp.reason = 'BinanceSocket'
+            rsp._content = {'comment': "Can't get market historic from websocket."}
+        # Backup Down
+        self._save_response(rq, params, rsp)
+        return BrokerResponse(rsp)
 
     @staticmethod
     def _get_exchange_infos() -> Map:
@@ -616,32 +810,6 @@ class BinanceAPI:
     def __get_endpoints() -> dict:
         return BinanceAPI._ENDPOINTS
 
-    def __get_endpoint(self, i: int) -> str:
-        endps = BinanceAPI.__get_endpoints()
-        test = self.__is_test_mode()
-        if test and (i not in range(len(endps[Map.test]))):
-            raise IndexError(f"There is no test endpoint with this index '{i}'")
-        elif (not test) and (i not in range(len(endps[Map.api]))):
-            raise IndexError(f"There is no production endpoint with this index '{i}'")
-        return endps[Map.test][i] if test else endps[Map.api][i]
-
-    def __get_api_public_key(self) -> str:
-        """
-        To get API's public key\n
-        :return: API's public key
-        """
-        return self.__api_public_key
-
-    def __is_test_mode(self) -> bool:
-        return self.__test_mode
-
-    def __get_api_secret_key(self) -> str:
-        """
-        To get API's secret key\n
-        :return: API's secret key
-        """
-        return self.__api_secret_key
-
     @staticmethod
     def get_intervals() -> Map:
         return Map(BinanceAPI._INTERVALS_INT.get_map())
@@ -649,7 +817,7 @@ class BinanceAPI:
     @staticmethod
     def get_interval(period_str: str) -> int:
         """
-        To convert str Binance interval to minute\n
+        To convert Binance's string interval to second, i.e.: '1m' => 60, '1h' => 3600,...\n
         :param period_str: Binance interval
         :return: Interval in minute
         """
@@ -675,45 +843,6 @@ class BinanceAPI:
                 break
         return intr
 
-    def __generate_headers(self) -> dict:
-        """
-        To generate a headers for a request to the API\n
-        :return: header for a request to the API
-        """
-        return {"X-MBX-APIKEY": self.__get_api_public_key()}
-
-    def _generate_url(self, rq: str, i=0) -> str:
-        """
-        To generate a url with a test or production API and a endpoint\n
-        :param rq: a supported request
-        :param i: index of a test or production API
-        :return: url where to send the given request
-        """
-        endp = self.__get_endpoint(i)
-        rq_config = self.get_request_config(rq)
-        path = rq_config[Map.path]
-        return endp + path
-
-    def __generate_signature(self, prms: dict) -> str:
-        """
-        To generate a HMAC SHA256 signature with the data to send\n
-        :param prms: data to send to Binance's API
-        :return: a HMAC SHA256 signature generated with the data to send
-        """
-        qr_str = "&".join([f"{k}={prms[k]}" for k in prms])
-        return new_hmac(self.__get_api_secret_key().encode('utf-8'), qr_str.encode('utf-8'), hashlib_sha256).hexdigest()
-
-    def __sign(self, prms_map: Map) -> None:
-        """
-        To sign the request with the private key and params\n
-        :param prms_map: params of a request
-        """
-        # ds_map.put(recvWindow, Map.recvWindow)
-        stamp = _MF.get_timestamp(_MF.TIME_MILLISEC)
-        prms_map.put(stamp, Map.timestamp)
-        sgt = self.__generate_signature(prms_map.get_map())
-        prms_map.put(sgt, Map.signature)
-
     @staticmethod
     def _check_params(rq: str, prms_map: Map) -> bool:
         """
@@ -735,70 +864,6 @@ class BinanceAPI:
             if (k not in mdtr) and (k not in rq_prms):
                 raise Exception(f"This param '{k}' is not available for this request '{rq}'")
         return True
-
-    def request_api(self, rq: str, params: Map) -> BrokerResponse:
-        """
-        To config and send a request to the API\n
-        :param rq: a supported request
-        :param params: params to send
-        :return: API's response
-        """
-        _stage = Config.get(Config.STAGE_MODE)
-        if _stage == Config.STAGE_1:
-            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            return BinanceFakeAPI.steal_request(rq, params)
-        if _stage == Config.STAGE_2:
-            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            if rq == self.RQ_KLINES:
-                rq_cfg = self.get_request_config(rq)
-                self._check_params(rq, params)
-                if rq_cfg[Map.signed]:
-                    self.__sign(params)
-                rsp = self._send_request(rq, params)
-                pair_merged = params.get(Map.symbol)
-                period_milli = params.get(Map.interval)
-                BinanceFakeAPI.add_market_historic(pair_merged, period_milli, rsp.get_content())
-                BinanceFakeAPI.steal_request(rq, params)
-                return rsp
-            else:
-                return BinanceFakeAPI.steal_request(rq, params)
-        rq_cfg = self.get_request_config(rq)
-        self._check_params(rq, params)
-        if rq_cfg[Map.signed]:
-            self.__sign(params)
-        rsp = self._send_request(rq, params)
-        return rsp
-
-    def _send_request(self, rq: str, prms_map: Map) -> BrokerResponse:
-        """
-        To send a request to the API\n
-        :param rq: a supported request
-        :param prms_map: params to send
-        :return: API's response
-        """
-        _stage = Config.get(Config.STAGE_MODE)
-        rq_cfg = BinanceAPI.get_request_config(rq)
-        hdrs = self.__generate_headers()
-        url = self._generate_url(rq)
-        mtd = rq_cfg[Map.method]
-        if mtd == Map.GET:
-            rsp = rq_get(url, prms_map.get_map(), headers=hdrs)
-        elif mtd == Map.POST:
-            rsp = rq_post(url, prms_map.get_map(), headers=hdrs)
-        elif mtd == Map.DELETE:
-            ds = prms_map.get_map()
-            url += '?' + '&'.join([f'{k}={v}' for k, v in ds.items()])
-            rsp = rq_delete(url, headers=hdrs)
-        else:
-            raise Exception(f"The request method {mtd} is not supported")
-        bkr_rsp = BrokerResponse(rsp)
-        # Backup Down
-        self._save_response(rq, rsp)
-        # Backup Up
-        # rsp_status = bkr_rsp.get_status_code()
-        # if rsp_status != 200:
-        #    raise Exception(f"(status code: {rsp_status}): {bkr_rsp.get_content()}")
-        return bkr_rsp
 
     @staticmethod
     def fixe_price(pair: Pair, price: Price) -> Price:
@@ -912,21 +977,28 @@ class BinanceAPI:
         return decimal == 0
 
     @staticmethod
-    def _save_response(rq: str, rsp: Response) -> None:
+    def _save_response(rq: str, params: Map, rsp: Response) -> None:
         from model.tools.FileManager import FileManager
         _cls = BinanceAPI
         p = Config.get(Config.DIR_SAVE_API_RSP)
+        content_json = rsp.content.decode('utf-8')
+        content = _MF.json_decode(content_json)
+        if (rq == BinanceAPI.RQ_KLINES) and isinstance(content, list):
+            content_json = _MF.json_encode({'request': rq, 'length': len(content)}).encode()
+        request_method = rsp.request[Map.method] if isinstance(rsp.request, dict) else rsp.request.__dict__[Map.method]
+        request_header = _MF.json_encode(dict(rsp.request["headers"])) \
+            if isinstance(rsp.request, dict) else _MF.json_encode(dict(rsp.request.__dict__["headers"]))
         row = {
             Map.time: _MF.unix_to_date(_MF.get_timestamp()),
             Map.request: rq,
-            Map.method: rsp.request.__dict__[Map.method],
+            Map.method: request_method,
             "status_code": rsp.status_code,
             "reason": rsp.reason,
             "url": rsp.url,
-            "request_headers": _MF.json_encode(dict(rsp.request.__dict__["headers"])),
+            "request_headers": request_header,
             "response_headers": _MF.json_encode(dict(rsp.headers)),
-            "response_content": rsp.content,
-            "request_content": rsp.request.__dict__["body"]
+            "request_content": _MF.json_encode(params.get_map()),    # rsp.request.__dict__["body"],
+            "response_content": content_json
         }
         rows = [row]
         fields = list(rows[0].keys())

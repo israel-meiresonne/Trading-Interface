@@ -447,13 +447,15 @@ if __name__ == '__main__':
         Broker.print_market_historic(bkr, Pair(pair_str), periods, start_time, end_time)
     """
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    # """
-    log = Log()
-    bots = log.get_bots()
-    print(bots)
-    """
-    special = FileManager.get_files('content/storage/STAGE_2/Bot', extension=True, spacial=True)
-    print(special)
-    normal = FileManager.get_files('content/storage/STAGE_2/Bot', extension=True, spacial=False)
-    print(normal)
-    """
+    bkr = get_broker()
+    bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, Map({
+        Map.pair: Pair('acm/USDT'),
+        Map.period: 60 * 15,
+        Map.number: 5
+    }))
+    bkr.request(bkr_rq)
+    mkt_prc = bkr_rq.get_market_price()
+    mkt_hist = list(mkt_prc.get_market())
+    mkt_hist.reverse()
+    print(len(mkt_hist), mkt_hist)
+    bkr.close()
