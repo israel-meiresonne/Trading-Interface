@@ -429,7 +429,7 @@ class BinanceAPI:
 
     def _set_exchange_infos(self) -> None:
         """
-        To get exchange info from Broker's API\
+        To get exchange info from Broker's API\n
         """
         if BinanceAPI._EXCHANGE_INFOS is None:
             bkr_rsp = self.request_api(self.RQ_EXCHANGE_INFOS, Map())
@@ -455,6 +455,22 @@ class BinanceAPI:
                 Map.limit: limits.get_map(),
                 Map.symbol: symbols_infos.get_map()
             })
+
+    def _set_trade_fees(self) -> None:
+        if BinanceAPI._TRADE_FEES is not None:
+            raise Exception(f"Trade fees are already set.")
+        rsp = self.request_api(self.RQ_TRADE_FEE, Map())
+        fees_list = rsp.get_content()
+        fees = Map()
+        for row in fees_list:
+            symbol = row[Map.symbol].lower()
+            fee = {
+                Map.pair: symbol,
+                Map.taker: float(row[Map.takerCommission]),
+                Map.maker: float(row[Map.makerCommission])
+            }
+            fees.put(fee, symbol)
+        BinanceAPI._TRADE_FEES = fees
 
     def __get_endpoint(self, i: int) -> str:
         endps = BinanceAPI.__get_endpoints()
@@ -539,11 +555,11 @@ class BinanceAPI:
         # ds_map.put(recvWindow, Map.recvWindow)
         stamp = _MF.get_timestamp(_MF.TIME_MILLISEC) - 1000
         params.put(stamp, Map.timestamp)
-        sgt = self.__generate_signature(params.get_map())
-        params.put(sgt, Map.signature)
         time_out = params.get(Map.recvWindow)
         new_time_out = time_out + 1000 if time_out is not None else BinanceAPI._CONSTANT_DEFAULT_RECVWINDOW
         params.put(new_time_out, Map.recvWindow)
+        sgt = self.__generate_signature(params.get_map())
+        params.put(sgt, Map.signature)
 
     def request_api(self, rq: str, params: Map) -> BrokerResponse:
         """
@@ -554,10 +570,11 @@ class BinanceAPI:
         """
         _stage = Config.get(Config.STAGE_MODE)
         self._check_params(rq, params)
+        rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE]
         if _stage == Config.STAGE_1:
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             return BinanceFakeAPI.steal_request(rq, params)
-        if _stage == Config.STAGE_2:
+        if (_stage == Config.STAGE_2) and (rq not in rq_excluded):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             if rq == self.RQ_KLINES:
                 rsp = self._send_market_historics_request(rq, params)
@@ -709,26 +726,12 @@ class BinanceAPI:
     def get_exchange_info(*keys):
         ex_infos = BinanceAPI._get_exchange_infos()
         info = ex_infos.get(*keys)
+        """
         if info is None:
             keys_str = "', '".join(keys)
             raise IndexError(f"This key(s) ['{keys_str}'] don't exist in exchange's infos.")
+        """
         return info
-
-    def _set_trade_fees(self) -> None:
-        if BinanceAPI._TRADE_FEES is not None:
-            raise Exception(f"Trade fees are already set.")
-        rsp = self.request_api(self.RQ_TRADE_FEE, Map())
-        fees_list = rsp.get_content()
-        fees = Map()
-        for row in fees_list:
-            symbol = row[Map.symbol].lower()
-            fee = {
-                Map.pair: symbol,
-                Map.taker: float(row[Map.takerCommission]),
-                Map.maker: float(row[Map.makerCommission])
-            }
-            fees.put(fee, symbol)
-        BinanceAPI._TRADE_FEES = fees
 
     @staticmethod
     def _get_trade_fees() -> Map:
@@ -908,6 +911,8 @@ class BinanceAPI:
             qty_filter = Map(BinanceAPI.get_exchange_info(Map.symbol, pair.__str__(), Map.filters, Map.market_lot_size))
         else:
             qty_filter = Map(BinanceAPI.get_exchange_info(Map.symbol, pair.__str__(), Map.filters, Map.lot_size))
+        if len(qty_filter.get_map()) == 0:
+            return quantity
         qty_val = quantity.get_value()
         _min_qty = float(qty_filter.get(Map.minQty))
         if (_min_qty != 0) and (qty_val < _min_qty):
