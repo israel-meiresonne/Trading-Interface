@@ -193,7 +193,6 @@ class BinanceOrder(Order):
         return Map(_MF.clean(cancel_params.get_map()))
 
     def handle_response(self, rsp: BrokerResponse) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
         self._set_response(rsp)
         status_code = rsp.get_status_code()
         if status_code != 200:
