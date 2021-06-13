@@ -86,8 +86,16 @@ class BinanceFakeAPI(BinanceAPI):
         cls_vars.put(market, Map.market, pair_merged.upper(), int(period_milli))
 
     @staticmethod
-    def _get_market_historic(pair_merged: str, period_milli: int):
-        return BinanceFakeAPI._get_var(Map.market, pair_merged, period_milli)
+    def _get_market_historic(pair_merged: str, period_milli: int) -> list:
+        return BinanceFakeAPI._get_var(Map.market, pair_merged.upper(), period_milli)
+
+    @staticmethod
+    def _get_lower_market_historic(pair_merged: str) -> list:
+        market_historics = Map(BinanceFakeAPI._get_var(Map.market, pair_merged.upper()))
+        period_millis = market_historics.get_keys()
+        period_millis.sort()
+        market_historic = market_historics.get_map()[period_millis[0]]
+        return market_historic
 
     @staticmethod
     def get_index(pair_merged: str = None, period_milli: int = None) -> int:
@@ -106,8 +114,10 @@ class BinanceFakeAPI(BinanceAPI):
             initial_index = BinanceFakeAPI._CONST_INITIAL_INDEX
             index = (initial_index + trade_index)   # * nb_minute
         elif _stage == Config.STAGE_2:
-            market_historic = _cls._get_vars().get(pair_merged, period_milli)
-            index = -len(market_historic)
+            # market_historic = _cls._get_vars().get(pair_merged, period_milli)
+            # market_historic = _cls._get_market_historic(pair_merged, period_milli)
+            # index = -len(market_historic)
+            index = -1
         else:
             raise Exception(f"This stage '{_stage}' is not supported")
         return index
@@ -141,7 +151,7 @@ class BinanceFakeAPI(BinanceAPI):
         return time
 
     @staticmethod
-    def _get_actual_close(pair_merged: str, period_milli: int=None) -> str:
+    def _get_actual_close(pair_merged: str, period_milli: int = None) -> str:
         """
         To get current time following the index\n
         :param pair_merged: Merged pair's symbol, i.e.: 'DOGEUSDT'
@@ -156,7 +166,7 @@ class BinanceFakeAPI(BinanceAPI):
         """
         index = _cls.get_index(pair_merged, period_milli)
         market_hist = _cls._get_market_historic(pair_merged, _cls._CONST_MIN_PERIOD_MILLI) \
-            if _stage == Config.STAGE_1 else _cls._get_market_historic(pair_merged, period_milli)
+            if _stage == Config.STAGE_1 else _cls._get_lower_market_historic(pair_merged)
         actual_close = market_hist[index][4]
         return actual_close
 
