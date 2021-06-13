@@ -15,7 +15,7 @@ from model.tools.Price import Price
 class Stalker(Strategy):
     _CONST_MARKET_PRICE = "MARKET_PRICE"
     _CONST_STALK_INTERVAL = 60 * 60
-    _CONST_MIN_STALK_INTERVAL = 60 * 15
+    _CONST_MIN_STALK_INTERVAL = 5   # 60 * 15
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
     _CONST_MAX_LOSS_RATE = -0.05
@@ -258,7 +258,7 @@ class Stalker(Strategy):
         blacklist = self.get_blacklist()
         no_active_pairs = [pair for pair in allowed_pairs
                            if (pair.__str__() not in pair_strs) and (pair not in blacklist)]
-        # no_active_pairs = [no_active_pairs[i] for i in range(len(no_active_pairs)) if i < 5]    # ❌
+        # no_active_pairs = [no_active_pairs[i] for i in range(len(no_active_pairs)) if i < 100]  # ❌
         # no_active_pairs.append(Pair('SUSD/USDT'))                                               # ❌
         # no_active_pairs.append(Pair('TRXDOWN/USDT'))                                            # ❌
         # no_active_pairs = [Pair('DOGE/USDT')]                                                   # ❌
@@ -293,7 +293,7 @@ class Stalker(Strategy):
         _bkr_cls = bkr.__class__.__name__
         pairs = self._get_no_active_pairs(bkr)
         nb_pair = len(pairs)    # ❌
-        print(_cls._TO_REMOVE_STYLE_CYAN + f"Retrieve '{nb_pair}' no active pairs:")
+        print(_cls._TO_REMOVE_STYLE_PURPLE + f"Retrieve '{nb_pair}' no active pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
         perfs = Map()
         market_prices = Map()
         market_params = Map({
@@ -307,7 +307,7 @@ class Stalker(Strategy):
         # Get performance
         cpt = 1     # ❌
         for pair in pairs:
-            print(f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour.")
+            print(_cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour." + _cls._TO_REMOVE_STYLE_NORMAL)
             cpt += 1
             pair_str = pair.__str__()
             market_params.put(pair, Map.pair)
@@ -323,9 +323,8 @@ class Stalker(Strategy):
         for pair_str, perf in perfs_sorted.items():
             market_price = market_prices.get(pair_str)
             if Stalker._eligible(market_price):
-                print(f"Add new active Strategy: '{pair_str.upper()}'")
+                print(_cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
                 self._add_active_strategy(Pair(pair_str))
-                # if len(active_strategies.get_map()) >= max_strategy:
                 if self.active_strategies_is_full():
                     break
         # Set next stalk time
@@ -333,7 +332,7 @@ class Stalker(Strategy):
         self._set_next_stalk(unix_time)
         next_stalk = _MF.unix_to_date(self.get_next_stalk()) if Stalker._get_stage() != Config.STAGE_1 \
             else self.get_next_stalk()
-        print(f"Next stalk: '{next_stalk}'" + _cls._TO_REMOVE_STYLE_NORMAL)
+        print(_cls._TO_REMOVE_STYLE_CYAN + f"Next stalk: '{next_stalk}'" + _cls._TO_REMOVE_STYLE_NORMAL)
         # Backup
         self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
