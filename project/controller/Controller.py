@@ -54,6 +54,8 @@ class Controller:
         # """
         # params
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
+            api_pb = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
+            api_sk = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
             # """
             bkr = 'Binance'
             stgs = md.list_strategies()
@@ -63,8 +65,8 @@ class Controller:
             if stg == 'MinMax':
                 configs = Map({
                     bkr: {
-                        Map.api_pb: 'api_pb',
-                        Map.api_sk: 'api_sk',
+                        Map.api_pb: api_pb,
+                        Map.api_sk: api_sk,
                         Map.test_mode: False
                     },
                     stg: {
@@ -77,8 +79,8 @@ class Controller:
             elif stg == 'MinMaxFloor':
                 configs = Map({
                     bkr: {
-                        Map.api_pb: 'api_pb',
-                        Map.api_sk: 'api_sk',
+                        Map.api_pb: api_pb,
+                        Map.api_sk: api_sk,
                         Map.test_mode: False
                     },
                     stg: {
@@ -98,8 +100,8 @@ class Controller:
                 no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
                 configs = Map({
                     bkr: {
-                        Map.api_pb: 'api_pb',
-                        Map.api_sk: 'api_sk',
+                        Map.api_pb: api_pb,
+                        Map.api_sk: api_sk,
                         Map.test_mode: False
                     },
                     stg: {
