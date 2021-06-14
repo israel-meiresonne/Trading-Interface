@@ -12,12 +12,13 @@ from model.tools.Map import Map
 
 
 class BinanceSocket(BinanceAPI):
-    _VERBOSE = False
+    _VERBOSE = True
     _BASE_URL = 'wss://stream.binance.com:9443'
     _PATH_SINGLE_STEAM = '/ws/'
     _PATH_COMBINED_STEAM = '/stream?streams='
     _STREAM_FORMAT_KLINE = '$symbol@kline_$interval'
     _CONST_MARKET_RESET_INTERVAL = 60 * 10              # in second
+    _CONST_MAX_SIZE_SOCKET_LIST = 25
     _MARKET_HISTORIC = None
     """
     # Stream format: 'dogeusdt@kline_1h'
@@ -36,6 +37,7 @@ class BinanceSocket(BinanceAPI):
         self.__restart = True
         self.__active = False
         self.__socket = None
+        self.__sockets = None
         self.__thread = None
         self._set_streams(streams)
 
@@ -49,23 +51,23 @@ class BinanceSocket(BinanceAPI):
             if (stream not in market_hists.get_keys()) or (unix_time >= next_reset_time):
                 BinanceSocket.update_next_reset_time(stream)
                 symbol, period_str = BinanceSocket.split_stream(stream)
-                """
-                historic_setted = None
-                historic_reset = None
-                if stream not in market_hists.get_keys():
-                    print(f"{prelude}Set market historic for stream '{stream}'")
-                    historic_setted = True
-                elif unix_time >= next_reset_time:
-                    print(f"{prelude}Reset market historic for stream '{stream}'")
-                    historic_reset = True
-                """
+                # """
+                if BinanceSocket._VERBOSE:
+                    historic_setted = None
+                    historic_reset = None
+                    if stream not in market_hists.get_keys():
+                        print(f"{prelude}Set market historic for stream '{stream}'")
+                        historic_setted = True
+                    elif unix_time >= next_reset_time:
+                        print(f"{prelude}Reset market historic for stream '{stream}'")
+                        historic_reset = True
                 self._init_market_historic(stream, symbol, period_str)
-                """
-                if (historic_setted is not None) and historic_setted:
-                    print(f"{prelude}End Set market historic for stream '{stream}'")
-                elif (historic_reset is not None) and historic_reset:
-                    print(f"{prelude}End Reset market historic for stream '{stream}'")
-                """
+                if BinanceSocket._VERBOSE:
+                    if (historic_setted is not None) and historic_setted:
+                        print(f"{prelude}End Set market historic for stream '{stream}'")
+                    elif (historic_reset is not None) and historic_reset:
+                        print(f"{prelude}End Reset market historic for stream '{stream}'")
+                # """
 
     def _init_market_historic(self, stream: str, symbol: str, period_str: str) -> None:
         api = self.get_api()
@@ -223,7 +225,7 @@ class BinanceSocket(BinanceAPI):
                 The exception object raised
             """
             date = BinanceSocket.get_event_prefix() + thread_id
-            # print(f"{date}on_error: {error}")
+            print(f"{date}on_error: {error}") if BinanceSocket._VERBOSE else None
 
         def on_close(socket: WebSocketApp, status_code: int, close_msg: str) -> None:
             """
@@ -306,7 +308,7 @@ class BinanceSocket(BinanceAPI):
                 stream = BinanceSocket.generate_stream(rq, symbol, period_str)
                 thread_ref = f'tread_stream_{stream}_' + _MF.new_code(13)
                 thread_prelude = f"{prelude}|{thread_ref}| "
-                print(f"{thread_prelude}stream={stream}") if BinanceSocket._VERBOSE else None
+                # print(f"{thread_prelude}stream={stream}") if BinanceSocket._VERBOSE else None
                 market_hists = self.get_market_historics()
                 unix_time = _MF.get_timestamp()
                 next_reset_time = BinanceSocket.get_next_reset_time(stream)
@@ -393,10 +395,29 @@ class BinanceSocket(BinanceAPI):
                               get_mask_key=get_mask_key)
         self.__socket = socket
         self._set_active(False)
+        self._push_socket(socket)
 
     def get_socket(self) -> WebSocketApp:
         self._set_socket() if self.__socket is None else None
         return self.__socket
+
+    def _push_socket(self, socket: WebSocketApp) -> None:
+        self.get_sockets().append(socket)
+
+    def get_sockets(self) -> List[WebSocketApp]:
+        """
+        To get get all socket ever created\n
+        Returns
+        """
+        self.__sockets = [] if self.__sockets is None else self.__sockets
+        return self.__sockets
+
+    def _maintain_sockets(self) -> None:
+        sockets = self.get_sockets()
+        nb = len(sockets)
+        max_size = BinanceSocket._CONST_MAX_SIZE_SOCKET_LIST
+        if nb > max_size:
+            del sockets[max_size:nb]
 
     def _reset_thread(self) -> None:
         # del self.__thread
@@ -450,9 +471,9 @@ class BinanceSocket(BinanceAPI):
         prefix = BinanceSocket.get_event_prefix
         print(f"{prefix()}Start socket Manager") if BinanceSocket._VERBOSE else None
         while self._can_restart():
+            print(f"{prefix()}Managing socket...") if BinanceSocket._VERBOSE else None
             print(f"{prefix()}" + '\033[35m' + f"Number of alive thread: '{threading_active_count()}'" + '\033[0m')  \
                 if BinanceSocket._VERBOSE else None
-            print(f"{prefix()}Managing socket...") if BinanceSocket._VERBOSE else None
             self.get_socket().run_forever()
         print(f"{prefix()}End socket Manager.") if BinanceSocket._VERBOSE else None
 
@@ -462,15 +483,34 @@ class BinanceSocket(BinanceAPI):
         self._set_restart(can_restart=False)
         socket = self.get_socket()
         socket.close()
+        if self._is_active():
+            self._close_sockets()
+            self._set_active(False)
+        self._maintain_sockets()
+        """
         i = 1
         while self._is_active():
-            socket.close()
             print(f"{BinanceSocket.get_event_prefix()}Waiting for websocket to close n°'{i}'...") \
                 if BinanceSocket._VERBOSE else None
+            socket.close()
             i += 1
             time.sleep(1)
+        """
         self._reset_thread()
         self._reset_socket()
+
+    def _close_sockets(self) -> None:
+        sockets = self.get_sockets()
+        closed = False
+        i = 1
+        while not closed:
+            print(f"{BinanceSocket.get_event_prefix()}Waiting for websocket to close n°'{i}'...") \
+                if BinanceSocket._VERBOSE else None
+            a = [socket.close() for socket in sockets]
+            close_status = [1 for socket in sockets if socket.keep_running or (socket.sock is not None)]
+            closed = sum(close_status) == 0
+            i += 1
+            time.sleep(1) if not closed else None
 
     def _generate_close_message(self) -> str:
         streams = self.get_streams()
