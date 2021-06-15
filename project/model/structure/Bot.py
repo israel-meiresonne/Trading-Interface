@@ -1,4 +1,4 @@
-from time import sleep
+import time
 
 from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -7,7 +7,6 @@ from model.structure.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Paire import Pair
-from model.tools.Price import Price
 
 
 class Bot(_MF):
@@ -83,10 +82,10 @@ class Bot(_MF):
         nb_error = 0
         limit_error = 60
         stop_index = Bot.get_index_stop()
-        print("Bot started to trade...")
+        print(f"{_MF.prefix()}Bot started to trade...")
         while not end:
             Bot._set_trade_index(trade_index)
-            print(f"Trade n°{trade_index} — {_MF.unix_to_date(_MF.get_timestamp())}")
+            print(f"{_MF.prefix()}Trade n°{trade_index} — {_MF.unix_to_date(_MF.get_timestamp())}")
             # Trade
             try:
                 sleep_time = stg.trade(bkr)
@@ -94,21 +93,21 @@ class Bot(_MF):
             except Exception as error:
                 nb_error += 1
                 if _stage != Config.STAGE_1:
-                    self._save_error(error)
+                    self.save_error(error, Bot.__name__)
                 else:
                     raise error
                 if nb_error > limit_error:
                     raise error
             # Sleep
             if _stage != Config.STAGE_1:
-                Bot.save_bot(self)
+                # Bot.save_bot(self)
                 sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
                 unix_time = _MF.get_timestamp()
                 start_date = _MF.unix_to_date(unix_time)
                 end_date = _MF.unix_to_date(unix_time + sleep_time)
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-                print(f"Bot sleep for '{sleep_time_str}'seconds till '{start_date}'->'{end_date}'...")
-                sleep(sleep_time)
+                print(f"{_MF.prefix()}Bot sleep for '{sleep_time_str}'seconds till '{start_date}'->'{end_date}'...")
+                time.sleep(sleep_time)
             end = self._still_active()
             trade_index += 1
             # """
@@ -118,7 +117,7 @@ class Bot(_MF):
 
     @staticmethod
     def _still_active() -> bool:
-        print("still trading...")
+        print(f"{_MF.prefix()}still trading...")
         return False
 
     @staticmethod
@@ -134,14 +133,15 @@ class Bot(_MF):
         return Bot._TRADE_INDEX_STOP
 
     @staticmethod
-    def _save_error(error: Exception) -> None:
+    def save_error(error: Exception, from_class: str) -> None:
         from traceback import format_exc
         orange = "\033[93m"
         normal = "\033[0m"
-        print(orange + error.__str__() + normal)
+        print(f"{_MF.prefix()}{orange}Error fromm the {from_class} class: {error.__str__()} {normal}")
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
-            "class": error.__class__.__name__,
+            'from_class': from_class,
+            "error_type": error.__class__.__name__,
             "message": error.__str__(),
             "trace": format_exc()
         }]
@@ -159,7 +159,7 @@ class Bot(_MF):
         save_dir_path = path.replace('$stage', _stage).replace('$class', Bot.__name__)
         backup_path = save_dir_path + file_name
         FileManager.write(backup_path, bot, binary=True)
-        print('💾 Bot saved! ✅')
+        print(f"{_MF.prefix()}💾 Bot saved! ✅")
 
     def __str__(self) -> str:
         date = _MF.unix_to_date(int(self.get_settime() / 1000), _MF.FORMAT_D_H_M_S_FOR_FILE)
