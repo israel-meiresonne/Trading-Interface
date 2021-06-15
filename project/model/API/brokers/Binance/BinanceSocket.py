@@ -12,7 +12,7 @@ from model.tools.Map import Map
 
 
 class BinanceSocket(BinanceAPI):
-    _VERBOSE = True
+    _VERBOSE = False
     _BASE_URL = 'wss://stream.binance.com:9443'
     _PATH_SINGLE_STEAM = '/ws/'
     _PATH_COMBINED_STEAM = '/stream?streams='
@@ -350,7 +350,7 @@ class BinanceSocket(BinanceAPI):
                 else:
                     update_market_historic(_MF.json_decode(message)[Map.data])
 
-            Thread(target=root_stream).start()
+            Thread(target=root_stream, name=f'Thread_socket_on_message_handler_{_MF.new_code()}').start()
 
         def on_cont_message(socket: WebSocketApp, message: str, flag: int) -> None:
             """
@@ -456,7 +456,7 @@ class BinanceSocket(BinanceAPI):
         """
         self._init_market_historics()
         self._set_restart(can_restart=True)
-        th1 = Thread(target=self._manage_run)
+        th1 = Thread(target=self._manage_run, name=f'Thread_socket_manager_{_MF.new_code()[0:5]}')
         self._set_thread(th1)
         th1.start()
         # socket = self.get_socket()
