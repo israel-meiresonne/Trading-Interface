@@ -381,6 +381,7 @@ def resume_capital_files(prefix: str) -> None:
                     Map.close: row[Map.close],
                     Map.capital: initial_capital_price,
                     'actual_capital': actual_capital_price,
+                    Map.fee: str_to_price(row['fees']),
                     Map.left: left_price,
                     Map.right: right_price,
                     Map.rate: rate*100
@@ -391,10 +392,18 @@ def resume_capital_files(prefix: str) -> None:
     date = _MF.unix_to_date(_MF.get_timestamp())
     fields = list(sections_sorted[0].keys())
     sum_rate = sum([row[Map.rate] for row in sections_sorted])
+    sum_fee = Price.sum([row[Map.fee] for row in sections_sorted])
+    fee_row = {}
+    for field in fields:
+        if field == Map.fee:
+            fee_row[Map.fee] = sum_fee
+        else:
+            fee_row[field] = '—'
     rows = [
         {field: f'⬇️ {date} ⬇️' for field in fields},
         *sections_sorted,
-        {**{field: f'—' for field in fields if field != Map.rate}, Map.rate: f"{sum_rate}%"}
+        {**{field: f'—' for field in fields if field != Map.rate}, Map.rate: f"{sum_rate}%"},
+        fee_row
     ]
     print_path = folder_path + f'{prefix}_fb_global_capital_historic_👾.csv'
     FileManager.write_csv(print_path, fields, rows, overwrite=False)
@@ -419,7 +428,7 @@ def print_global_capital(prefix: str) -> None:
         date = _MF.unix_to_date(unix_time)
         next_date = _MF.unix_to_date(next_time)
         sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-        print(f"Next print '{sleep_time_str}': '{date}'->'{next_date}'")
+        print(f"Next print of '{prefix}': '{sleep_time_str}': '{date}'->'{next_date}'")
         sleep(sleep_time)
 
 
