@@ -40,7 +40,7 @@ class View(ViewInterface):
         :param secure: Set True to hide input in console else False to display input typed
         :return: the value typed
         """
-        message = message if message is not None else ""
+        message = message + "\n" if message is not None else ""
         if secure:
             v = getpass.getpass(message)
         else:
