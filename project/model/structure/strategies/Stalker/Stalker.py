@@ -1,3 +1,5 @@
+import time
+from threading import Thread, active_count as threading_active_count
 from typing import List
 
 from config.Config import Config
@@ -13,12 +15,11 @@ from model.tools.Price import Price
 
 
 class Stalker(Strategy):
-    _CONST_MARKET_PRICE = "MARKET_PRICE"
-    _CONST_STALK_INTERVAL = 60 * 60
-    _CONST_MIN_STALK_INTERVAL = 5   # 60 * 15
+    _CONST_MARKET_PERIOD = 60 * 60  # in second
+    _CONST_STALK_FREQUENCY = 60     # in second     # 60 * 60
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
-    _CONST_MAX_LOSS_RATE = -0.05
+    _CONST_MAX_LOSS_RATE = -0.03
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
     _TO_REMOVE_STYLE_BLACK = '\033[30m'
@@ -54,11 +55,14 @@ class Stalker(Strategy):
         self.__active_strategies = None
         self.__next_blacklist_clean = None
         self.__blacklist = None
+        self.__stalking = False
+        self.__stalk_thread = None
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
 
     def _set_next_stalk(self, unix_time: int) -> None:
+        """
         stg_params = self.get_strategy_params()
         period = stg_params.get(Map.period)
         min_stalk_interval = Stalker.get_minimum_stalk_interval()
@@ -75,7 +79,12 @@ class Stalker(Strategy):
                 next_stalk = unix_rounded + min_stalk_interval
             else:
                 unix_rounded = int(unix_time / period) * period
-                next_stalk = unix_rounded + period  # self.get_stalk_period()
+                next_stalk = unix_rounded + period
+        self.__next_stalk = next_stalk
+        """
+        stalk_frequency = Stalker.get_stalk_frequency()
+        round_time = _MF.round_time(unix_time, stalk_frequency)
+        next_stalk = round_time + stalk_frequency
         self.__next_stalk = next_stalk
 
     def get_next_stalk(self) -> int:
@@ -156,7 +165,7 @@ class Stalker(Strategy):
     def get_strategy_params(self) -> Map:
         return self.__strategy_params
 
-    def active_strategies_is_full(self) -> bool:
+    def max_active_strategies_reached(self) -> bool:
         """
         To check if collection of active Strategy is full\n
         :return: True if the max Strategy manageable is reached else False
@@ -264,23 +273,105 @@ class Stalker(Strategy):
         # no_active_pairs = [Pair('DOGE/USDT')]                                                   # ❌
         return no_active_pairs
 
-    def _can_stalk(self) -> bool:
+    def _set_stalking(self, is_stalking: bool) -> None:
+        self.__stalking = is_stalking
+
+    def is_stalking(self) -> bool:
+        """
+        To get if class is stalking market\n
+        Returns
+        -------
+        is_stalking: bool
+            True if class is stalking market else False
+        """
+        return self.__stalking
+
+    def _set_stalk_thread(self, stalk_thread: Thread) -> None:
+        self.__stalk_thread = stalk_thread
+
+    def _reset_stalk_thread(self) -> None:
+        self.__stalk_thread = None
+
+    def _get_stalk_thread(self) -> Thread:
+        """
+        To get Thread where class is stalking the market\n
+        Returns
+        -------
+        stalk_thread: Thread
+            Thread where class is stalking the market
+        """
+        return self.__stalk_thread
+
+    def _launch_stalking(self, bkr: Broker) -> None:
+        """
+        To launch market stalking in its own Thread\n
+        """
+        last_stalk_thread = self._get_stalk_thread()
+        if (last_stalk_thread is not None) and last_stalk_thread.is_alive():
+            raise Exception("Can start a stalk thread while an other is working.")
+        thread_name = f'Stalk_thread_{_MF.new_code()[0:5]}'
+        stalk_thread = Thread(target=self._manage_stalking, kwargs={Map.broker: bkr}, name=thread_name)
+        self._set_stalk_thread(stalk_thread)
+        self._set_stalking(is_stalking=True)
+        stalk_thread.start()
+
+    def _can_launch_stalking(self) -> bool:
         """
         To check if all conditions are met to stalk the market\n
         :return: True if all conditions are met else False
         """
-        active_strategies = self.get_active_strategies()
-        max_strategy = self.get_max_strategy()
-        max_reached = len(active_strategies.get_map()) >= max_strategy
+        # active_strategies = self.get_active_strategies()
+        # max_strategy = self.get_max_strategy()
+        # max_reached = len(active_strategies.get_map()) >= max_strategy
+        max_reached = self.max_active_strategies_reached()
+        """
         next_stalk = self.get_next_stalk()
-        # time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
         if Stalker._get_stage() == Config.STAGE_1:
             trade_index = Stalker._get_trade_index()
             time_to_stalk = (next_stalk is None) or (trade_index >= next_stalk)
         else:
             unix_time = _MF.get_timestamp()
             time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
-        return (not max_reached) and time_to_stalk
+        """
+        # return (not max_reached) and self.is_stalking
+        return not (max_reached or self.is_stalking())
+
+    def _keep_stalkig(self) -> bool:
+        """
+        To get if class ca continue to stalk market\n
+        Returns
+        -------
+        keep_stalkig: bool
+            True to continue to stalk else False
+        """
+        max_reached = self.max_active_strategies_reached()
+        return (not max_reached) and self.is_stalking()
+
+    NB_ERROR = 0
+    def _manage_stalking(self, broker: Broker) -> None:
+        print(f"{_MF.prefix()}Start Managing Stalking.")
+        try:
+            while self._keep_stalkig():
+                print(f"{_MF.prefix()}Managing Stalking...")
+                print(_MF.prefix() + '\033[35m' + f"Number of alive thread: '{threading_active_count()}'" + '\033[0m')
+                start_time = _MF.get_timestamp()
+                self._set_next_stalk(start_time)
+                self._stalk_market(broker)
+                next_stalk = self.get_next_stalk()
+                end_time = _MF.get_timestamp()
+                sleep_time = (next_stalk - end_time) if end_time < next_stalk else None
+                if sleep_time is not None:
+                    sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
+                    start_sleep = _MF.unix_to_date(end_time)
+                    end_sleep = _MF.unix_to_date(next_stalk)
+                    print(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
+                    time.sleep(sleep_time)
+            self._set_stalking(is_stalking=False)
+            print(f"{_MF.prefix()}End Managing Stalking.")
+        except Exception as e:
+            self._set_stalking(is_stalking=False)
+            from model.structure.Bot import Bot
+            Bot.save_error(e, Stalker.__name__)
 
     def _stalk_market(self, bkr: Broker) -> None:
         """
@@ -288,12 +379,12 @@ class Stalker(Strategy):
         :param bkr: Access to a Broker's  API
         """
         _cls = Stalker
-        print(_cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + "Star stalking:".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
+        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + "Star stalking:".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
         _stg_cls = Stalker.__name__
         _bkr_cls = bkr.__class__.__name__
         pairs = self._get_no_active_pairs(bkr)
         nb_pair = len(pairs)    # ❌
-        print(_cls._TO_REMOVE_STYLE_PURPLE + f"Retrieve '{nb_pair}' no active pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
+        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Retrieve '{nb_pair}' no active pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
         perfs = Map()
         market_prices = Map()
         market_params = Map({
@@ -307,7 +398,7 @@ class Stalker(Strategy):
         # Get performance
         cpt = 1     # ❌
         for pair in pairs:
-            print(_cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour." + _cls._TO_REMOVE_STYLE_NORMAL)
+            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour." + _cls._TO_REMOVE_STYLE_NORMAL)
             cpt += 1
             pair_str = pair.__str__()
             market_params.put(pair, Map.pair)
@@ -323,20 +414,23 @@ class Stalker(Strategy):
         for pair_str, perf in perfs_sorted.items():
             market_price = market_prices.get(pair_str)
             if Stalker._eligible(market_price):
-                print(_cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
+                print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
                 self._add_active_strategy(Pair(pair_str))
-                if self.active_strategies_is_full():
+                if self.max_active_strategies_reached():
                     break
+        """
         # Set next stalk time
         unix_time = _MF.get_timestamp()
         self._set_next_stalk(unix_time)
         next_stalk = _MF.unix_to_date(self.get_next_stalk()) if Stalker._get_stage() != Config.STAGE_1 \
             else self.get_next_stalk()
-        print(_cls._TO_REMOVE_STYLE_CYAN + f"Next stalk: '{next_stalk}'" + _cls._TO_REMOVE_STYLE_NORMAL)
+        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"Next stalk: '{next_stalk}'" + _cls._TO_REMOVE_STYLE_NORMAL)
+        """
         # Backup
-        self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
+        # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
     def _get_sleep_time(self) -> int:
+        """
         if Stalker._get_stage() == Config.STAGE_1:
             sleep_time = None
         else:
@@ -353,14 +447,20 @@ class Stalker(Strategy):
                        and ((next_stalk - unix_time) > min_stalk) else min_next_stalk_time
             else:
                 sleep_time = Stalker.get_bot_sleep_time()
-        return sleep_time
+        """
+        sleep_interval = self.get_bot_sleep_time()
+        unix_time = _MF.get_timestamp()
+        time_rounded = _MF.round_time(unix_time, sleep_interval)
+        new_sleep_time = (time_rounded + sleep_interval) - unix_time
+        return new_sleep_time if new_sleep_time > 0 else 0
 
     def trade(self, bkr: Broker) -> int:
-        self._stalk_market(bkr) if self._can_stalk() else None
-        self._manage_strategies(bkr)
+        # self._stalk_market(bkr) if self._can_stalk() else None
+        self._launch_stalking(bkr) if self._can_launch_stalking() else None
+        self._manage_trades(bkr)
         return self._get_sleep_time()
 
-    def _manage_strategies(self, bkr: Broker) -> None:
+    def _manage_trades(self, bkr: Broker) -> None:
         _cls = Stalker
         _normal = _cls._TO_REMOVE_STYLE_NORMAL
         _color_black = _cls._TO_REMOVE_STYLE_BLACK
@@ -375,9 +475,9 @@ class Stalker(Strategy):
         pairs_to_delete = []    # ❌
         pair_closes = Map()     # ❌
         rows = []               # ❌
-        print(_back_cyan + _color_black + f"Star manage strategies ({len(active_stgs_copy.get_map())}):".upper() + _normal)
+        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies ({len(active_stgs_copy.get_map())}):".upper() + _normal)
         for pair_str, active_stg in active_stgs_copy.get_map().items():
-            print(_color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
+            print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
             # Prepare active Strategy
             pair = active_stg.get_pair()
             has_position = active_stg._has_position()
@@ -404,21 +504,21 @@ class Stalker(Strategy):
             if stg_roi_bellow_limit:
                 self._delete_active_strategy(bkr, pair)
                 self._blacklist_pair(pair)
-                print(_color_purple + f"Pair '{pair_str.upper()}' is BLACKLISTED (max loss ({max_loss_rate*100}%): "
+                print(f"{_MF.prefix()}" + _color_purple + f"Pair '{pair_str.upper()}' is BLACKLISTED (max loss ({max_loss_rate*100}%): "
                                       f"{round(stg_roi*100, 2)}% <= {max_loss_rate*100}%)." + _normal)
             elif supertrend_rising and psar_rising:
                 active_stg.trade(bkr)
-                print(_color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
+                print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
             elif supertrend_rising and (not psar_rising):
                 if has_position:
                     active_stg.stop_trading(bkr)
-                    print(_color_yellow + f"Pair {pair_str.upper()} is SUSPENDED." + _normal)
+                    print(f"{_MF.prefix()}" + _color_yellow + f"Pair {pair_str.upper()} is SUSPENDED." + _normal)
                 else:
-                    print(_color_yellow + f"Pair {pair_str.upper()} is ALREADY SUSPENDED." + _normal)
+                    print(f"{_MF.prefix()}" + _color_yellow + f"Pair {pair_str.upper()} is ALREADY SUSPENDED." + _normal)
             elif not supertrend_rising:
                 self._delete_active_strategy(bkr, pair)
                 pairs_to_delete.append(pair_str)
-                print(_color_red + f"Pair {pair_str.upper()} is DELETED (Supertrend dropping)." + _normal)
+                print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED (Supertrend dropping)." + _normal)
             else:
                 raise Exception(f"Unknown state. ("
                                 f"stg_roi_bellow_limit: '{stg_roi_bellow_limit}'\n"
@@ -441,24 +541,6 @@ class Stalker(Strategy):
                 'psar': _MF.float_to_str(psars[-1])
             }
             rows.append(row)
-        """
-        if Stalker.CPT == 0:
-            # 1
-            pair1 = Pair('ALICE/USDT')
-            self._add_active_strategy(pair1)    # ❌
-            market_price = self._get_market_price(bkr, pair1)
-            closes = list(market_price.get_closes())
-            closes.reverse()
-            pair_closes.put(closes, pair1.__str__())    # ❌
-            # 2
-            pair2 = Pair('ANKR/USDT')
-            self._add_active_strategy(pair2)    # ❌
-            market_price = self._get_market_price(bkr, pair2)
-            closes = list(market_price.get_closes())
-            closes.reverse()
-            pair_closes.put(closes, pair2.__str__())    # ❌
-        Stalker.CPT += 1
-        """
         self._save_state(pair_closes, pairs_to_delete)
         Stalker._save_moves(rows) if len(rows) > 0 else None
 
@@ -480,11 +562,11 @@ class Stalker(Strategy):
         To get interval (in second) between each market stalk\n
         :return: interval (in second) between each market stalk
         """
-        return Stalker._CONST_STALK_INTERVAL
+        return Stalker._CONST_MARKET_PERIOD
 
     @staticmethod
-    def get_minimum_stalk_interval() -> int:
-        return Stalker._CONST_MIN_STALK_INTERVAL
+    def get_stalk_frequency() -> int:
+        return Stalker._CONST_STALK_FREQUENCY
 
     @staticmethod
     def get_max_loss() -> float:
@@ -637,19 +719,20 @@ class Stalker(Strategy):
         rights = []
         for pair_str, active_stg in active_stgs.get_map().items():
             closes = pair_to_closes.get(pair_str)
-            actual_capital = active_stg.get_actual_capital()
-            actual_left = actual_capital.get(Map.left)
-            left = Price(actual_left * closes[-1], right_symbol)
-            right = actual_capital.get(Map.right)
-            lefts.append(left)
-            rights.append(right)
+            if closes is not None:
+                actual_capital = active_stg.get_actual_capital()
+                actual_left = actual_capital.get(Map.left)
+                left = Price(actual_left * closes[-1], right_symbol)
+                right = actual_capital.get(Map.right)
+                lefts.append(left)
+                rights.append(right)
         initial_capital = self._get_capital()
         total_left = Price.sum(lefts) if len(lefts) > 0 else Price(0, right_symbol)
         total_right = Price.sum(rights) if len(rights) > 0 else Price(0, right_symbol)
         total_capital_available = self._get_total_capital()
         total_capital = total_capital_available + total_right + total_left
         capital_allocation_size = self._get_strategy_capital() \
-            if not self.active_strategies_is_full() else total_capital_available
+            if not self.max_active_strategies_reached() else total_capital_available
         roi = (total_capital / initial_capital - 1)
         next_clean = self.get_next_blacklist_clean()
         row = {
@@ -692,7 +775,7 @@ class Stalker(Strategy):
             }
             rows.append(row)
         fields = list(rows[0].keys())
-        separator = {field: '⬇️ ——— ⬇️' for field in fields}
+        separator = {fields[0]: date, **{field: '⬇️ ——— ⬇️' for field in fields if field != fields[0]}}
         rows.insert(0, separator)
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite)
@@ -702,7 +785,5 @@ class Stalker(Strategy):
         path = Config.get(Config.DIR_SAVE_GLOBAL_MOVES)
         path = path.replace('$class', Stalker.__name__)
         fields = list(rows[0].keys())
-        rows.insert(0, {field: f"⬇️ ——— ⬇️" for field in fields})
+        rows.insert(0, {fields[0]: rows[0][Map.date], **{field: '⬇️ ——— ⬇️' for field in fields if field != fields[0]}})
         FileManager.write_csv(path, fields, rows, overwrite=False)
-
-

@@ -106,7 +106,7 @@ class Controller:
                     },
                     stg: {
                         Map.maximum: None,
-                        Map.capital: 1000,  # 6100,
+                        Map.capital: 6100,
                         Map.rate: 1,
                         # Map.period: 60 * 60,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:", no_selected_stgs)],
@@ -114,7 +114,7 @@ class Controller:
                             Map.maximum: None,
                             Map.capital: 1000,
                             Map.rate: 1,
-                            Map.period: 60  # 60 * 5,
+                            Map.period: 60 * 5,
                         }
                     }
                 })
