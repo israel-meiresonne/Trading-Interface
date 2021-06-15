@@ -130,18 +130,35 @@ class Controller:
             # configs
             bkr_modes = {"Test mode": True, "Real mode": False}
             bkr_modes_ks = list(bkr_modes.keys())
-            configs = Map({
-                bkr: {
-                    Map.api_pb: vw.input(message=f"Enter the public key for {bkr}", secure=True),
-                    Map.api_sk: vw.input(message=f"Enter the secret key for {bkr}", secure=True),
-                    Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
-                },
-                stg: {
-                    Map.capital: vw.input(message="Enter initial capital to used.", type_func="float"),
+            configs = Map()
+            bkr_params = {
+                Map.api_pb: vw.input(message=f"Enter the public key for {bkr}:", secure=True),
+                Map.api_sk: vw.input(message=f"Enter the secret key for {bkr}:", secure=True),
+                Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
+            }
+            configs.put(bkr_params, bkr)
+            if stg == 'MinMax':
+                raise Exception(f"Strategy '{stg}' no available in for this stage '{_stage}'.")
+            elif stg == 'MinMaxFloor':
+                raise Exception(f"Strategy '{stg}' no available in for this stage '{_stage}'.")
+            elif stg == 'Stalker':
+                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
+                stg_params = {
                     Map.maximum: None,
-                    Map.rate: vw.input(message="Enter rate of total capital usable.(domain: ]0, 1]).", type_func="float")
+                    Map.capital: vw.input(message="Enter initial capital to use:", type_func="float"),
+                    Map.rate: 1,
+                    Map.strategy: no_selected_stgs[vw.menu(f"Choose the child Strategy for your main Strategy '{stg}':",
+                                                           no_selected_stgs)],
+                    Map.param: {
+                        Map.maximum: None,
+                        Map.capital: None,
+                        Map.rate: 1,
+                        Map.period: 60 * 5,
+                    }
                 }
-            })
+            else:
+                raise Exception(f"Must implement menu for this Strategy '{stg}'.")
+            configs.put(stg_params, stg)
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
         print(configs.get_map())
