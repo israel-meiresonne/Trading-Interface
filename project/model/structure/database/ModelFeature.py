@@ -306,3 +306,7 @@ class ModelFeature(ModelAccess):
         """
         last_unix = int(unix_time / interval) * interval
         return last_unix
+
+    @staticmethod
+    def prefix() -> str:
+        return f"{ModelFeature.unix_to_date(ModelFeature.get_timestamp())}| |"
