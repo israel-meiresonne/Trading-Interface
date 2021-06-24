@@ -70,6 +70,9 @@ class MarketPrice(ABC):
         :param mkt: market prices.
         NOTE: market prices must be ordered from the newest to the older
         """
+        mkt = [row.copy() for row in mkt]
+        mkt.reverse()
+        mkt = tuple(mkt)
         self.__market = mkt
         self.__period_time = prd_time
         self.__pair = pair
@@ -103,7 +106,7 @@ class MarketPrice(ABC):
         # self._save_market(self) if stage != Config.STAGE_1 else None
 
     def get_market(self) -> tuple:
-        return tuple(self.__market)
+        return self.__market
 
     def get_period_time(self) -> int:
         return self.__period_time

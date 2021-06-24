@@ -32,7 +32,6 @@ class BinanceMarketPrice(MarketPrice):
                     ]
         """
         prd = BinanceAPI.get_interval(prd_str)
-        mkt.reverse()
         super().__init__(mkt, prd, pair)
 
     def get_opens(self) -> tuple:
