@@ -391,6 +391,7 @@ class BinanceAPI:
     CONSTRAINT_ALL_TRADES_MAX_LIMIT = 1000  # Default is 500
     # API Constants
     _CONSTANT_DEFAULT_RECVWINDOW = 5000 + 1000
+    _CONSTANT_KLINES_DEFAULT_NB_PERIOD = 500
     _EXCHANGE_INFOS = None
     _TRADE_FEES = None
     """
@@ -500,24 +501,25 @@ class BinanceAPI:
 
     def _set_socket(self, streams: List[str]) -> None:
         from model.API.brokers.Binance.BinanceSocket import BinanceSocket
-        socket = BinanceSocket(streams, self)
-        socket.run_forever()
+        socket = BinanceSocket(streams, self, run_forever=True)
+        # socket.run_forever()
         BinanceAPI._SOCKET = socket
 
-    def _get_socket(self, streams: List[str]) -> Any:
+    def _get_socket(self, stream: str) -> Any:
         socket = BinanceAPI._SOCKET
         if socket is None:
-            self._set_socket(streams)
-        else:
-            socket.add_streams(streams)
+            self._set_socket([stream])
+        elif stream not in socket.get_streams():
+            socket.add_streams(stream)
+            # socket.run_forever() if not socket.is_active() else None
         return BinanceAPI._SOCKET
 
     def close_socket(self) -> None:
         """
         To close streams of Binance's websocket\n
         """
-        socket = self._get_socket([])
-        socket.close()
+        # socket = self._get_socket(None)
+        BinanceAPI._SOCKET.close()
 
     def __generate_headers(self) -> dict:
         """
@@ -586,8 +588,6 @@ class BinanceAPI:
                 return rsp
             else:
                 return BinanceFakeAPI.steal_request(rq, params)
-        # rq_cfg = self.get_request_config(rq)
-        # self._check_params(rq, params)
         """
         if rq_cfg[Map.signed]:
             self.__sign(params)
@@ -637,29 +637,31 @@ class BinanceAPI:
         from model.API.brokers.Binance.BinanceSocket import BinanceSocket
         symbol = params.get(Map.symbol)
         period_str = params.get(Map.interval)
-        streams = [BinanceSocket.generate_stream(rq, symbol, period_str)]
-        stream = streams[0]
-        bnc_socket = self._get_socket(streams)
+        stream = BinanceSocket.generate_stream(rq, symbol, period_str)
+        bnc_socket = self._get_socket(stream)
         market_historic = bnc_socket.get_market_historic(stream)
         rsp = Response()
+        rsp.request = {
+            Map.method: Map.websocket,
+            'headers': bnc_socket.get_socket().header
+        }
         if isinstance(market_historic, list):
             limit = params.get(Map.limit)
             if limit is not None:
-                market_historic = market_historic[0:limit]
+                new_market_historic = market_historic[-limit:len(market_historic)]
+            else:
+                limit = BinanceAPI._CONSTANT_KLINES_DEFAULT_NB_PERIOD
+                new_market_historic = market_historic[-limit:len(market_historic)]
             rsp.status_code = 200
             rsp.reason = 'OK'
-            rsp._content = _MF.json_encode(market_historic).encode()
+            rsp._content = _MF.json_encode(new_market_historic).encode()
             rsp.url = bnc_socket.get_url()
-            rsp.request = params.get_map()
-            rsp.request = {
-                Map.method: Map.websocket,
-                'headers': bnc_socket.get_socket().header
-                # 'headers': bnc_socket.get_socket().sock.headers
-            }
+            # rsp.request = params.get_map()
         else:
             rsp.status_code = 0000
-            rsp.reason = 'BinanceSocket'
-            rsp._content = {'comment': "Can't get market historic from websocket."}
+            rsp.reason = 'BinanceSocket fail'
+            rsp_content = {'comment': "Can't get market historic from websocket.", 'data_returned': market_historic}
+            rsp._content = _MF.json_encode(rsp_content)
         # Backup Down
         self._save_response(rq, params, rsp)
         return BrokerResponse(rsp)
@@ -989,7 +991,13 @@ class BinanceAPI:
         content_json = rsp.content.decode('utf-8')
         content = _MF.json_decode(content_json)
         if (rq == BinanceAPI.RQ_KLINES) and isinstance(content, list):
-            content_json = _MF.json_encode({'request': rq, 'length': len(content)}).encode()
+            new_content = {
+                'request': rq,
+                'length': len(content),
+                Map.symbol: params.get(Map.symbol),
+                'last_row': content[-1]
+            }
+            content_json = _MF.json_encode(new_content).encode()
         request_method = rsp.request[Map.method] if isinstance(rsp.request, dict) else rsp.request.__dict__[Map.method]
         request_header = _MF.json_encode(dict(rsp.request["headers"])) \
             if isinstance(rsp.request, dict) else _MF.json_encode(dict(rsp.request.__dict__["headers"]))

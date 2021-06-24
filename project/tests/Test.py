@@ -432,6 +432,49 @@ def print_global_capital(prefix: str) -> None:
         sleep(sleep_time)
 
 
+def play_with_websocket() -> None:
+    Config.update(Config.STAGE_MODE, Config.STAGE_2)
+    bkr = get_broker()
+    rq_params = Map({
+        Map.pair: Pair('BTC/USDT'),
+        Map.period: 60 * 15,
+        Map.number: 5
+    })
+    bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
+    bkr.request(bkr_rq)
+    mkt_prc = bkr_rq.get_market_price()
+    end = False
+    while not end:
+        entry = input("Enter your command:\n")
+        if entry == 'end':
+            end = True
+            print('Programme end...')
+        elif entry == 'send':
+            bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
+            bkr.request(bkr_rq)
+            mkt_prc = bkr_rq.get_market_price()
+            print('Request sent and Market retrieved!')
+        elif entry == 'show_market':
+            bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
+            bkr.request(bkr_rq)
+            mkt_prc = bkr_rq.get_market_price()
+            pair = mkt_prc.get_pair()
+            print(f"Market ({pair}): close='{mkt_prc.get_close()}'")
+            close_time = mkt_prc.get_time()
+            print(f"Market ({pair}): time='{close_time}'->'{_MF.unix_to_date(close_time)}'")
+        elif entry == 'exec':
+            exec_end = False
+            while not exec_end:
+                execution = input('Enter your code:\n')
+                print(execution)
+                try:
+                    exec(execution)
+                except Exception as e:
+                    print(f"Error: {e}")
+                exec_end = execution == 'end'
+    bkr.close()
+
+
 if __name__ == '__main__':
     """
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
@@ -455,16 +498,4 @@ if __name__ == '__main__':
         pair_str = pair_strs[i]
         Broker.print_market_historic(bkr, Pair(pair_str), periods, start_time, end_time)
     """
-    Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    bkr = get_broker()
-    bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, Map({
-        Map.pair: Pair('acm/USDT'),
-        Map.period: 60 * 15,
-        Map.number: 5
-    }))
-    bkr.request(bkr_rq)
-    mkt_prc = bkr_rq.get_market_price()
-    mkt_hist = list(mkt_prc.get_market())
-    mkt_hist.reverse()
-    print(len(mkt_hist), mkt_hist)
-    bkr.close()
+
