@@ -1,4 +1,5 @@
 import re as rgx
+import threading
 from abc import abstractmethod
 from datetime import datetime
 from json import dumps as json_encode
@@ -309,4 +310,28 @@ class ModelFeature(ModelAccess):
 
     @staticmethod
     def prefix() -> str:
-        return f"{ModelFeature.unix_to_date(ModelFeature.get_timestamp())}| |"
+        date = ModelFeature.unix_to_date(ModelFeature.get_timestamp())
+        thread_name = threading.current_thread().name
+        return f"{date}| |{thread_name}| |"
+
+    @staticmethod
+    def thread_infos() -> str:
+        import threading
+        threads = threading.enumerate()
+        thread_names = [thread.name for thread in threads]
+        nb = threading.active_count()
+        thread_infos = f"Threads ('{nb}'): '{thread_names}'"
+        return thread_infos
+
+    @staticmethod
+    def generate_thread_name(thread_base_name: str, code_size: int = None) -> str:
+        if (code_size is not None) and (code_size <= 0):
+            raise ValueError(f"Code size must be > 0 or None")
+        new_code = ModelFeature.new_code()
+        if code_size is None:
+            thread_code = new_code
+        elif code_size > len(new_code):
+            thread_code = ModelFeature.new_code(code_size)
+        else:
+            thread_code = new_code[0:code_size]
+        return f'Thread_{thread_base_name}_{thread_code}'
