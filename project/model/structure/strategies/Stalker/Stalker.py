@@ -20,6 +20,7 @@ class Stalker(Strategy):
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
     _CONST_MAX_LOSS_RATE = -0.03
+    _THREAD_BASE_MARKET_STALKING = 'market_stalking'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
     _TO_REMOVE_STYLE_BLACK = '\033[30m'
@@ -267,7 +268,7 @@ class Stalker(Strategy):
         blacklist = self.get_blacklist()
         no_active_pairs = [pair for pair in allowed_pairs
                            if (pair.__str__() not in pair_strs) and (pair not in blacklist)]
-        # no_active_pairs = [no_active_pairs[i] for i in range(len(no_active_pairs)) if i < 100]  # ❌
+        # no_active_pairs = [no_active_pairs[i] for i in range(len(no_active_pairs)) if i < 10]   # ❌
         # no_active_pairs.append(Pair('SUSD/USDT'))                                               # ❌
         # no_active_pairs.append(Pair('TRXDOWN/USDT'))                                            # ❌
         # no_active_pairs = [Pair('DOGE/USDT')]                                                   # ❌
@@ -309,7 +310,7 @@ class Stalker(Strategy):
         last_stalk_thread = self._get_stalk_thread()
         if (last_stalk_thread is not None) and last_stalk_thread.is_alive():
             raise Exception("Can start a stalk thread while an other is working.")
-        thread_name = f'Stalk_thread_{_MF.new_code()[0:5]}'
+        thread_name = _MF.generate_thread_name(Stalker._THREAD_BASE_MARKET_STALKING, 5)
         stalk_thread = Thread(target=self._manage_stalking, kwargs={Map.broker: bkr}, name=thread_name)
         self._set_stalk_thread(stalk_thread)
         self._set_stalking(is_stalking=True)
@@ -347,13 +348,12 @@ class Stalker(Strategy):
         max_reached = self.max_active_strategies_reached()
         return (not max_reached) and self.is_stalking()
 
-    NB_ERROR = 0
     def _manage_stalking(self, broker: Broker) -> None:
         print(f"{_MF.prefix()}Start Managing Stalking.")
         try:
             while self._keep_stalkig():
                 print(f"{_MF.prefix()}Managing Stalking...")
-                print(_MF.prefix() + '\033[35m' + f"Number of alive thread: '{threading_active_count()}'" + '\033[0m')
+                print(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
                 start_time = _MF.get_timestamp()
                 self._set_next_stalk(start_time)
                 self._stalk_market(broker)
@@ -451,7 +451,8 @@ class Stalker(Strategy):
         sleep_interval = self.get_bot_sleep_time()
         unix_time = _MF.get_timestamp()
         time_rounded = _MF.round_time(unix_time, sleep_interval)
-        new_sleep_time = (time_rounded + sleep_interval) - unix_time
+        next_rounded_time = time_rounded + sleep_interval
+        new_sleep_time = next_rounded_time - unix_time
         return new_sleep_time if new_sleep_time > 0 else 0
 
     def trade(self, bkr: Broker) -> int:
@@ -619,7 +620,14 @@ class Stalker(Strategy):
                 concat_fiat = '|'.join(fiats)
                 fiat_rgx = f'({concat_fiat})/\w+$'
                 # Get pairs
-                no_match = ['^\w+(up|down|bear|bull)\/\w+$', '^(bear|bull)/\w+$', '^\w*inch\w*/\w+$',fiat_rgx, stablecoin_rgx]
+                no_match = [
+                    r'^\w+(up|down|bear|bull)\/\w+$',
+                    r'^(bear|bull)/\w+$',
+                    r'^\w*inch\w*/\w+$',
+                    fiat_rgx,
+                    stablecoin_rgx,
+                    r'BCHSV/\w+$'
+                ]
                 match = ['^.+\/usdt']
                 pair_strs = bkr.get_pairs(match=match, no_match=no_match)
                 # Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
