@@ -135,9 +135,9 @@ class Bot(_MF):
     @staticmethod
     def save_error(error: Exception, from_class: str) -> None:
         from traceback import format_exc
-        orange = "\033[93m"
+        red = "\033[31m"
         normal = "\033[0m"
-        print(f"{_MF.prefix()}{orange}Error fromm the {from_class} class: {error.__str__()} {normal}")
+        print(f"{_MF.prefix()}{red}Error fromm the {from_class} class: {error.__str__()} {normal}")
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             'from_class': from_class,
