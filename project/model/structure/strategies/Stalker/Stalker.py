@@ -19,7 +19,7 @@ class Stalker(Strategy):
     _CONST_STALK_FREQUENCY = 60     # in second     # 60 * 60
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
-    _CONST_MAX_LOSS_RATE = -0.03
+    _CONST_MAX_LOSS_RATE = -0.01
     _THREAD_BASE_MARKET_STALKING = 'market_stalking'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
