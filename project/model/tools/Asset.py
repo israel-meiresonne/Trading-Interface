@@ -1,4 +1,7 @@
-class Asset:
+from model.tools.MyJson import MyJson
+
+
+class Asset(MyJson):
     def __init__(self, sbl: str):
         self.__symbol = sbl.lower()
         self.__name = None
@@ -8,6 +11,13 @@ class Asset:
 
     def get_name(self) -> str:
         return self.__name
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Asset('@json')
+        exec(MyJson.get_executable())
+        return instance
 
     def __eq__(self, other):
         return self.get_symbol() == other.get_symbol() and\
