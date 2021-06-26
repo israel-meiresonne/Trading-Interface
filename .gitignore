@@ -2,5 +2,5 @@
 analyse/*
 .idea
 *.pyc
-project/content/
+project/content/v0.01
 project/env/
