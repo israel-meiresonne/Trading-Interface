@@ -1,14 +1,49 @@
+from abc import ABC, abstractmethod
+
+from config.Config import Config
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 
 
-class MyJson:
+class MyJson(ABC):
+    _TOKEN_CLASS_NAME = '@class_name'
+    _REGEX_REPLACE_ATTRIBUTE = f'^.+{_TOKEN_CLASS_NAME}'
+    _EXECUTABLE_json_instantiate = None
     _IMPORTS = None
-    _TOKEN_CLASS_NAME = '$class_name'
+
+    def json_encode(self) -> str:
+        """
+        To convert a custom class object to a JSON string\n
+        Returns
+        -------
+        serialized: str
+            Custom class object's JSON string
+        """
+        _class_token = MyJson.get_class_name_token()
+        class_name = self.__class__.__name__
+        class_regex = MyJson._REGEX_REPLACE_ATTRIBUTE.replace(_class_token, class_name)
+        attrs = self.__dict__
+        json_dict = {_class_token: class_name}
+        imports = MyJson.get_imports()
+        serializables = imports.get_keys()
+        for attr, value in attrs.items():
+            new_attr = _MF.regex_replace(class_regex, '', attr)
+            if value.__class__.__name__ in serializables:
+                value_serialized = _MF.json_decode(value.json_encode())
+            else:
+                value_serialized = value
+            json_dict[new_attr] = value_serialized
+        json_str = _MF.json_encode(json_dict)
+        return json_str
+
+    @staticmethod
+    def get_class_name_token() -> str:
+        return MyJson._TOKEN_CLASS_NAME
 
     @staticmethod
     def _set_imports() -> None:
-        token = MyJson._TOKEN_CLASS_NAME
+        token = MyJson.get_class_name_token()
         # Import tools
         tools_dir = 'model/tools/'
         tools_format = f'from model.tools.{token} import {token}'
@@ -46,7 +81,7 @@ class MyJson:
         Parameters
         ----------
         class_name: str
-            NName of the class  to  import
+            Name of the class  to  import
 
         Returns
         -------
@@ -57,3 +92,72 @@ class MyJson:
         if import_str is None:
             raise ValueError(f"Import instruction for this class '{class_name}' don't exist")
         return import_str
+
+    @staticmethod
+    def get_executable() -> str:
+        if MyJson._EXECUTABLE_json_instantiate is None:
+            path = Config.get(Config.FILE_EXECUTABLE_MYJSON)
+            MyJson._EXECUTABLE_json_instantiate = FileManager.read(path)
+        return MyJson._EXECUTABLE_json_instantiate
+
+    @staticmethod
+    def json_decode(json_str: str) -> object:
+        """
+        To decode JSON string of custom class object\n
+        Parameters
+        ----------
+        json_str: str
+            Json string to decode
+
+        Returns
+        -------
+        custom_object: object
+            Custom class object
+        """
+        _class_token = MyJson.get_class_name_token()
+        object_dic = _MF.json_decode(json_str)
+        if not isinstance(object_dic, dict):
+            raise ValueError(f"Type of JSON object must be dict, instead '{type(object_dic)}'")
+        json_obj = MyJson._generate_instance(object_dic)
+        return json_obj
+
+    @staticmethod
+    def _generate_instance(object_dic: dict) -> object:
+        """
+        To instantiate new given class with given attributes\n
+        Parameters
+        ----------
+        class_name: str
+            Name of the class to instantiate
+        object_dic: dic
+            Attributes for new instance
+        Returns
+        -------
+        instance: object
+            New instance of given class
+        """
+        _class_token = MyJson.get_class_name_token()
+        if _class_token not in object_dic:
+            raise KeyError(f"Miss key '{_class_token}' in JSON object")
+        class_name = object_dic[_class_token]
+        import_exec = MyJson.get_import(class_name)
+        exec(import_exec)
+        instnace = eval(f"{class_name}.json_instantiate({object_dic})")
+        return instnace
+
+    @staticmethod
+    @abstractmethod
+    def json_instantiate(object_dic: dict) -> object:
+        """
+        To instantiate class with given attributes\n
+        Parameters
+        ----------
+        object_dic: dict
+            Attributes to instantiate class
+
+        Returns
+        -------
+        instance: object
+            Class instance
+        """
+        pass

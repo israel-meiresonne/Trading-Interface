@@ -12,6 +12,7 @@ DIR_BINANCE_EXCHANGE_INFOS = "tests/datas/API/brokers/Binance/BinanceFakeAPI/res
 DIR_BINANCE_TRADE_FEE = "tests/datas/API/brokers/Binance/BinanceFakeAPI/trade_fee.json"
 DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03.26 00.52.00.csv'
 FILE_NAME_BOT_BACKUP = '$bot_ref_bot_backup.data'
+FILE_EXECUTABLE_MYJSON = 'content/executable/model/tools/MyJson/json_instantiate.py'
 # Directories
 DIR_BROKERS = "model/API/brokers"
 DIR_STRATEGIES = "model/structure/strategies"
