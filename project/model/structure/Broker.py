@@ -7,7 +7,7 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Order import Order
 from config.Config import Config
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class Broker(_MF):

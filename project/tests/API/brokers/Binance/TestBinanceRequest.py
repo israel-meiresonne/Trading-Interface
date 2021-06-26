@@ -4,7 +4,7 @@ from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.database.ModelFeature import ModelFeature
 from model.tools.Map import Map
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class TestBinanceRequest(unittest.TestCase, BinanceRequest):

@@ -4,7 +4,7 @@ from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
 from model.tools.Map import Map
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 from model.tools.Price import Price
 from model.tools.Request import Request
 

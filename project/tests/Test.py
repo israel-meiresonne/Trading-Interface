@@ -25,7 +25,7 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 from model.tools.Price import Price
 _PRINT_SUCCESS = '🖨 File printed ✅'
 

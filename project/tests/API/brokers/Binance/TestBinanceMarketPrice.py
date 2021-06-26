@@ -1,7 +1,7 @@
 import unittest
 
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class TestBinanceMarketPrice(unittest.TestCase, BinanceMarketPrice):

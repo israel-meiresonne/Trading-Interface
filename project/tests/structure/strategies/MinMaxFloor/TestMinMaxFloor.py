@@ -2,7 +2,7 @@ import unittest
 
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
 from model.tools.Map import Map
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class TestMinMaxFloor(unittest.TestCase, MinMaxFloor):

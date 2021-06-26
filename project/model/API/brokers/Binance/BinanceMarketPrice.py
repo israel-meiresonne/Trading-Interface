@@ -1,7 +1,7 @@
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.MarketPrice import MarketPrice
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class BinanceMarketPrice(MarketPrice):

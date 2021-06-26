@@ -6,7 +6,7 @@ from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class Bot(_MF):

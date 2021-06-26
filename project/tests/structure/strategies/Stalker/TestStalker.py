@@ -6,7 +6,7 @@ from model.structure.Broker import Broker
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
 from model.structure.strategies.Stalker.Stalker import Stalker
 from model.tools.Map import Map
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 

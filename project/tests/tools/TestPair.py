@@ -1,6 +1,6 @@
 import unittest
 from model.tools.Asset import Asset
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class TestPair(unittest.TestCase, Pair):

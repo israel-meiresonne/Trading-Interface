@@ -12,7 +12,7 @@ from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Order import Order
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class BinanceFakeAPI(BinanceAPI):

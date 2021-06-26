@@ -6,7 +6,7 @@ from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.tools.Asset import Asset
 from model.tools.Map import Map
 from model.tools.Order import Order
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 

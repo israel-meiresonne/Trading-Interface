@@ -5,7 +5,7 @@ from model.structure.strategies.MinMax.MinMax import MinMax
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 

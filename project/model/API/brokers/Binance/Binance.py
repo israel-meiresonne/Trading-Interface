@@ -7,7 +7,7 @@ from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
 from model.tools.Map import Map
 from model.tools.Order import Order
-from model.tools.Paire import Pair
+from model.tools.Pair import Pair
 
 
 class Binance(Broker):
