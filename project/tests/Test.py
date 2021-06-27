@@ -448,7 +448,7 @@ def play_with_websocket() -> None:
         entry = input("Enter your command:\n")
         if entry == 'end':
             end = True
-            print('Programme end...')
+            print('Programme ending...')
         elif entry == 'send':
             bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
             bkr.request(bkr_rq)
@@ -498,4 +498,5 @@ if __name__ == '__main__':
         pair_str = pair_strs[i]
         Broker.print_market_historic(bkr, Pair(pair_str), periods, start_time, end_time)
     """
+    play_with_websocket()
 

@@ -24,10 +24,12 @@ class BinanceSocket(BinanceAPI):
     _CONST_MAX_RETRY_ADD_NEW_STREAM = 60
     _CONST_MARKET_NETWORK_MAX_RETRY = 60 * 60
     _CONST_MAX_WAIT_START_SOCKET = 60
+    _CONST_MAX_INTERVAL_TWO_SERVER_RESPONSE = 60
     _CONST_ADD_STREAM_TICKET_TOKEN = '_stream_ticket_'
     _CONST_ADD_STREAM_TICKET_REGEX = f'^.+{_CONST_ADD_STREAM_TICKET_TOKEN}.+$'
     _THREAD_BASE_SOCKET_ON_MESSAGE_HANDLER = 'socket_on_message_handler'
     _THREAD_BASE_SOCKET_MANAGER = 'socket_manager'
+    _THREAD_BASE_SOCKET_RUNNING = 'socket_running'
     # Variables
     _MARKET_HISTORIC = None
     """
@@ -48,6 +50,7 @@ class BinanceSocket(BinanceAPI):
         self.__restart = True
         self.__active = False
         self.__socket = None
+        self.__socket_last_response = None
         self.__sockets = None
         self.__thread = None
         self._set_streams(streams)
@@ -230,12 +233,10 @@ class BinanceSocket(BinanceAPI):
         """
         return self.__restart
 
-    # """
     def _set_active(self, is_started: bool) -> None:
         if not isinstance(is_started, bool):
             raise ValueError(f"New value must be boolean, instead '{is_started}'(type='{type(is_started)}')")
         self.__active = is_started
-    # """
 
     def is_active(self) -> bool:
         """
@@ -247,12 +248,6 @@ class BinanceSocket(BinanceAPI):
         """
         socket = self.get_socket()
         return self.__active and socket.keep_running and (socket.sock is not None)
-
-    """
-    def _reset_socket(self) -> None:
-        # del self.__socket
-        self.__socket = None
-    """
 
     def _set_socket(self) -> None:
         print(f"{_MF.prefix()}Creating new socket...")
@@ -306,6 +301,7 @@ class BinanceSocket(BinanceAPI):
             print(f"{_MF.prefix()}on_close: connection closed.") if BinanceSocket._DEBUG else None
             self._set_active(False)
             # self._reset_socket()
+            self._reset_socket_last_response()
 
         def on_data(socket: WebSocketApp, message: str, data_type: str, flag: int) -> None:
             """
@@ -325,7 +321,7 @@ class BinanceSocket(BinanceAPI):
             """
             # date = _MF.prefix() + thread_id
             # print(f"{_MF.prefix()}on_data: '{message}'") if _cls._VERBOSE else None
-            pass
+            self._set_socket_last_response()
 
         def on_message(socket: WebSocketApp, message: str) -> None:
             """
@@ -489,18 +485,38 @@ class BinanceSocket(BinanceAPI):
         if nb > max_size:
             del sockets[max_size:nb]
 
-    """
-    def _reset_thread(self) -> None:
-        # del self.__thread
-        self.__thread = None
-    """
+    def _reset_socket_last_response(self) -> None:
+        self.__socket_last_response = None
 
-    def _generate_thread(self) -> threading.Thread:
-        print(f"{_MF.prefix()}Generating new Thread to manage socket...")
+    def _set_socket_last_response(self) -> None:
+        """
+        To sate the time of the last message received from the socket
+        """
+        unix_time = _MF.get_timestamp()
+        self.__socket_last_response = unix_time
+
+    def get_socket_last_response(self) -> int:
+        return self.__socket_last_response
+
+    def socket_last_response_timeout(self) -> bool:
+        """"
+        To check if the socket server keep sending message\n
+        Returns
+        ———————
+        keep_responding: bool
+            True if server keep responding else False
+        """
+        unix_time = _MF.get_timestamp()
+        max_interval = BinanceSocket._CONST_MAX_INTERVAL_TWO_SERVER_RESPONSE
+        last_response = self.get_socket_last_response()
+        return (last_response is not None) and (unix_time > (last_response + max_interval))
+
+    def _generate_thread_socket_manager(self) -> threading.Thread:
+        print(f"{_MF.prefix()}Generating new Thread to manage socket...") if BinanceSocket._DEBUG else None
         thread_name_socket_manager = _MF.generate_thread_name(BinanceSocket._THREAD_BASE_SOCKET_MANAGER, 5)
         new_thread = threading.Thread(target=self._manage_run, name=thread_name_socket_manager)
         self._set_thread(new_thread)
-        print(f"{_MF.prefix()}New Thread to manage socket generated!")
+        print(f"{_MF.prefix()}New Thread to manage socket generated!") if BinanceSocket._DEBUG else None
         return new_thread
 
     def _set_thread(self, thread: threading.Thread) -> None:
@@ -539,7 +555,7 @@ class BinanceSocket(BinanceAPI):
         # thread_name_socket_manager = _MF.generate_thread_name(BinanceSocket._THREAD_BASE_SOCKET_MANAGER, 5)
         # th1 = threading.Thread(target=self._manage_run, name=thread_name_socket_manager)
         # self._set_thread(th1)
-        th1 = self._generate_thread()
+        th1 = self._generate_thread_socket_manager()
         self._set_socket()
         th1.start()
         i = 1
@@ -551,7 +567,7 @@ class BinanceSocket(BinanceAPI):
                 print(f"{_MF.prefix()}" + '\033[33m' + f"Max retry to start socket reached '{i}'" + '\033[0m')
                 self.close()
                 self._set_restart(can_restart=True)
-                th1 = self._generate_thread()
+                th1 = self._generate_thread_socket_manager()
                 self._set_socket()
                 th1.start()
             else:
@@ -560,35 +576,61 @@ class BinanceSocket(BinanceAPI):
     def _manage_run(self) -> None:
         prefix = _MF.prefix
         print(f"{prefix()}Start socket Manager") if BinanceSocket._DEBUG else None
+
+        def generate_thread_socket_running() -> threading.Thread:
+            print(f"{_MF.prefix()}Generating new Thread to run socket...") if BinanceSocket._DEBUG else None
+            socket_thread_base = BinanceSocket._THREAD_BASE_SOCKET_RUNNING
+            new_socket_thread = threading.Thread(target=self.get_socket().run_forever,
+                                             name=_MF.generate_thread_name(socket_thread_base, 5))
+            print(f"{_MF.prefix()}New Thread to run socket generated!") if BinanceSocket._DEBUG else None
+            return new_socket_thread
+
+        socket_thread = generate_thread_socket_running()
+
+        def reset_socket() -> threading.Thread:
+            self.close()
+            self._set_restart(can_restart=True)
+            self._set_socket()
+            return generate_thread_socket_running()
         while self._can_restart():
             try:
                 print(f"{prefix()}Managing socket...") if BinanceSocket._DEBUG else None
                 print(f"{prefix()}" + '\033[35m' + _MF.thread_infos() + '\033[0m') if BinanceSocket._DEBUG else None
-                self.get_socket().run_forever()
+                socket_thread.start() if not socket_thread.is_alive() else None
+                last_response = self.get_socket_last_response()
+                response_date = _MF.unix_to_date(last_response) if last_response is not None else last_response
+                print(f"{_MF.prefix()}Socket's last response: '{response_date}'") if BinanceSocket._DEBUG else None
+                if self.socket_last_response_timeout():
+                    print(f"{_MF.prefix()}"+'\033[33m' + '\033[4m' + "Socket response timeout reached!" + '\033[0m') \
+                        if BinanceSocket._DEBUG else None
+                    socket_thread = reset_socket()
             except Exception as socket_error:
                 from model.structure.Bot import Bot
                 Bot.save_error(socket_error, BinanceSocket.__name__)
-                print(f"{prefix()}" + '\033[33m' + "Socket Manager crashed... Try restart new one..." + '\033[0m') if BinanceSocket._DEBUG else None
-                self.close()
-                self._set_socket()
-                time.sleep(1)
+                print(f"{prefix()}" + '\033[33m' + "Socket Manager crashed... Try restart new one..." + '\033[0m') \
+                    if BinanceSocket._DEBUG else None
+                socket_thread = reset_socket()
+            time.sleep(1)
         print(f"{prefix()}End socket Manager.") if BinanceSocket._DEBUG else None
 
     def close(self) -> None:
+        print(f"{_MF.prefix()}Ask to close socket...") if BinanceSocket._DEBUG else None
         self._set_restart(can_restart=False)
+        self._reset_socket_last_response()
         socket = self.get_socket()
         socket.close()
         self._close_sockets()   # if self.is_active() else None
         self._set_active(False)
         self._maintain_sockets()
+        print(f"{_MF.prefix()}All socket closed") if BinanceSocket._DEBUG else None
 
     def _close_sockets(self) -> None:
         sockets = self.get_sockets()
         closed = False
-        i = 1
+        i = 0
         while not closed:
             print(f"{_MF.prefix()}Waiting for websocket to close n°'{i}'...") \
-                if BinanceSocket._DEBUG else None
+                if (i != 0) and BinanceSocket._DEBUG else None
             a = [socket.close() for socket in sockets]
             close_status = [1 for socket in sockets if socket.keep_running or (socket.sock is not None)]
             closed = sum(close_status) == 0
@@ -603,12 +645,6 @@ class BinanceSocket(BinanceAPI):
             "id": 312
         }
         return _MF.json_encode(close_message)   # .encode('utf8')
-
-    """
-    @staticmethod
-    def print_prefix() -> str:
-        return f"{_MF.unix_to_date(_MF.get_timestamp())}| |"
-    """
 
     @staticmethod
     def get_base_url() -> str:
