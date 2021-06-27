@@ -55,11 +55,23 @@ class MyJson(ABC):
         stg_dir = 'model/structure/strategies/'
         stg_format = f'from model.structure.strategies.{token}.{token} import {token}'
         stg_imports = MyJson._generate_imports(token, stg_dir, stg_format, contain_file=False)
+        # Import brokers
+        bkr_folder_dir = 'model/API/brokers/'
+        bkr_classes = FileManager.get_dirs(bkr_folder_dir)
+        bkr_imports = {}
+        for bkr_class in bkr_classes:
+            bkr_dir = f'{bkr_folder_dir}{bkr_class}/'
+            bkr_format = f'from model.API.brokers.{bkr_class}.{token} import {token}'
+            bkr_imports = {
+                **bkr_imports,
+                **MyJson._generate_imports(token, bkr_dir, bkr_format, contain_file=True)
+            }
         from model.tools.Map import Map
         MyJson._IMPORTS = Map({
             **tool_imports,
             **struct_imports,
             **stg_imports,
+            **bkr_imports
         })
 
     @staticmethod
