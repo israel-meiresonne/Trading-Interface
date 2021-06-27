@@ -302,6 +302,11 @@ class TestMap(unittest.TestCase, Map):
         result2.sort(True)
         self.assertDictEqual(exp2, result2.get_map())
 
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.mp2
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

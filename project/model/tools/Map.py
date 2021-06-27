@@ -1,4 +1,7 @@
-class Map:
+from model.tools.MyJson import MyJson
+
+
+class Map(MyJson):
     # keys
     msg = "msg"
     cs = "cs"
@@ -212,6 +215,13 @@ class Map:
         """
         my_map = self.get_map()
         self._set_map(dict(sorted(my_map.items(), key=lambda row: row[0], reverse=reverse)))
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Map({'@json': '@json'})
+        exec(MyJson.get_executable())
+        return instance
 
     def __str__(self) -> str:
         return self.get_map().__str__()
