@@ -13,7 +13,6 @@ from scipy.signal import find_peaks
 from scipy.stats import linregress
 
 from model.structure.database.ModelAccess import ModelAccess
-from model.tools.Map import Map
 
 
 class ModelFeature(ModelAccess):
@@ -183,7 +182,7 @@ class ModelFeature(ModelAccess):
         return seq
 
     @staticmethod
-    def get_slope(y: list, x: list = None) -> Map:
+    def get_slope(y: list, x: list = None) -> 'Map':
         """
         To get slope of the linear regression\n
         :param y: Y axis values
@@ -195,6 +194,7 @@ class ModelFeature(ModelAccess):
                  Map[Map.pvalue]
                  Map[Map.stderr]
         """
+        from model.tools.Map import Map
         if (x is not None) and (len(y) != len(x)):
             raise ValueError(f"The have as much Y values than X values ({len(y)} != {len(x)})")
         x = [v for v in range(len(y))] if x is None else x
@@ -215,6 +215,7 @@ class ModelFeature(ModelAccess):
         :param nb_prd: number of period to use for each slope
         :return: slopes of a given list
         """
+        from model.tools.Map import Map
         if nb_prd <= 1:
             raise ValueError(f"The number of period must be at less 2 instead '{nb_prd}'")
         idx = nb_prd
