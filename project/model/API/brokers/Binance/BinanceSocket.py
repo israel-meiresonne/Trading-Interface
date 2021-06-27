@@ -21,10 +21,10 @@ class BinanceSocket(BinanceAPI):
     # Constants
     _CONST_MARKET_RESET_INTERVAL = 60 * 10              # in second
     _CONST_MAX_SIZE_SOCKET_LIST = 25
-    _CONST_MAX_RETRY_ADD_NEW_STREAM = 60
+    _CONST_MAX_RETRY_ADD_NEW_STREAM = 10
     _CONST_MARKET_NETWORK_MAX_RETRY = 60 * 60
     _CONST_MAX_WAIT_START_SOCKET = 60
-    _CONST_MAX_INTERVAL_TWO_SERVER_RESPONSE = 60
+    _CONST_MAX_INTERVAL_TWO_SOCKET_RESPONSE = 30
     _CONST_ADD_STREAM_TICKET_TOKEN = '_stream_ticket_'
     _CONST_ADD_STREAM_TICKET_REGEX = f'^.+{_CONST_ADD_STREAM_TICKET_TOKEN}.+$'
     _THREAD_BASE_SOCKET_ON_MESSAGE_HANDLER = 'socket_on_message_handler'
@@ -47,6 +47,7 @@ class BinanceSocket(BinanceAPI):
         self.__api = api
         self.__url = None
         self.__streams = None
+        self.__new_streams = None
         self.__restart = True
         self.__active = False
         self.__socket = None
@@ -57,7 +58,9 @@ class BinanceSocket(BinanceAPI):
         self._run_forever() if run_forever else None
 
     def _init_market_historics(self) -> None:
-        # prelude = _MF.prefix() if thread_prelude is None else thread_prelude
+        """
+        To retrieve market historic if there's new stream or if it's time to reset market historic of existing streams\n
+        """
         streams = self.get_streams()
         market_hists = self._get_market_historics()
         unix_time = _MF.get_timestamp()
@@ -171,52 +174,69 @@ class BinanceSocket(BinanceAPI):
         Parameters
         ----------
         new_stream: str
-            Streams to add
-
+            Stream to add
         Returns
         -------
         stream_added: bool
             True if new stream is added else  False
         """
-        # stream_added = False
-        streams = self.get_streams()
+        stream_added = False
+        # streams = self.get_streams()
+        """
         if new_stream in streams:
             raise ValueError(f"This stream '{new_stream}' already exist")
         else:
+        """
+        if new_stream not in self.get_streams():
             stream_added = self._manage_add_stream(new_stream)
         return stream_added
 
     def _manage_add_stream(self, new_stream: str) -> bool:
         _cls = BinanceSocket
         stream_added = False
-        stream_queue_ticket = _cls._join_add_stream_queue(new_stream)
-        ticket_prefix = f"{stream_queue_ticket}| "
-        print(_MF.prefix() + ticket_prefix + f"Get ticket to add new stream '{new_stream}'")
+        self._push_new_stream(new_stream)
+        print(_MF.prefix() + f"Pushed new stream '{new_stream}' in new stream list")
         try:
             i = 1
-            while not _cls._my_turn_to_add_stream(stream_queue_ticket):
-                print(_MF.prefix() + ticket_prefix + f"Waiting to add new stream '{new_stream}'")
-                i += 1
-                time.sleep(1)
+            while (new_stream not in self.get_socket_url_streams()) or (not self.is_active()):
+                print(_MF.prefix() + f"Waiting for new stream '{new_stream}' to be add in socket's url n°'{i}'...")
                 if i > _cls._CONST_MAX_RETRY_ADD_NEW_STREAM:
-                    raise Exception(f"Max retry to add new stream '{new_stream}', ticket='{stream_queue_ticket}'")
-            self._execute_add_streams(new_stream)
-            _cls._quit_add_stream_queue(stream_queue_ticket)
-            print(_MF.prefix() + ticket_prefix + f"Added new stream '{new_stream}'")
+                    raise Exception(f"Max retry to add new stream '{new_stream}' in socket's url")
+                else:
+                    time.sleep(1)
+                i += 1
+            print(_MF.prefix() + f"New stream '{new_stream}' added in socket's url")
             stream_added = True
         except Exception as error:
             from model.structure.Bot import Bot
             Bot.save_error(error, BinanceSocket.__name__)
-            _cls._quit_add_stream_queue(stream_queue_ticket)
         return stream_added
 
-    def _execute_add_streams(self, new_stream: str) -> None:
-        self.close()
-        self.get_streams().append(new_stream)
-        # streams = [*olds_streams, *to_add_streams]
-        # streams
-        # self._set_streams(streams)
-        self._run_forever()
+    def _reset_new_streams(self) -> None:
+        self.__new_streams = None
+
+    def get_new_streams(self) -> list:
+        """
+        To get list of new stream to add in running socket\n
+        Returns
+        -------
+        new_streams: list
+            List of new stream to add in running socket
+        """
+        if self.__new_streams is None:
+            self.__new_streams = []
+        return self.__new_streams
+
+    def _push_new_stream(self, new_stream: str) -> None:
+        """
+        To push new stream in new streams list\n
+        Parameters
+        ----------
+        new_stream: str
+            Stream to add
+        """
+        new_streams = self.get_new_streams()
+        new_streams.append(new_stream) if new_stream not in new_streams else None
 
     def _set_restart(self, can_restart: bool) -> None:
         if not isinstance(can_restart, bool):
@@ -256,7 +276,6 @@ class BinanceSocket(BinanceAPI):
         header = None
         cookie = None
         subprotocols = None
-        # thread_id = f"thread_{_MF.new_code()[0:5]}|"
 
         def on_open(socket: WebSocketApp) -> None:
             """
@@ -453,8 +472,7 @@ class BinanceSocket(BinanceAPI):
             # print(f"{date}get_mask_key")
             pass
 
-        # enableTrace(True)
-        socket = WebSocketApp(url, header=header, cookie=cookie, subprotocols=subprotocols, on_open=on_open,
+        socket = WebSocketApp(url=url, header=header, cookie=cookie, subprotocols=subprotocols, on_open=on_open,
                               on_message=on_message, on_error=on_error, on_close=on_close,
                               on_cont_message=on_cont_message, on_data=on_data, on_ping=on_ping, on_pong=on_pong,
                               get_mask_key=get_mask_key)
@@ -485,6 +503,22 @@ class BinanceSocket(BinanceAPI):
         if nb > max_size:
             del sockets[max_size:nb]
 
+    def get_socket_url_streams(self) -> list:
+        """
+        To get list of streams in socket's url\n
+        Returns
+        -------
+        streams: list
+            List of streams in socket's url
+        """
+        socket = self.get_socket()
+        url = socket.url
+        base_url = BinanceSocket.get_base_url()
+        single_path = BinanceSocket.get_single_steam_path()
+        combined_path = BinanceSocket.get_combined_steam_path()
+        streams = url.replace(base_url, '').replace(single_path, '').replace(combined_path, '').split('/')
+        return streams
+
     def _reset_socket_last_response(self) -> None:
         self.__socket_last_response = None
 
@@ -507,7 +541,7 @@ class BinanceSocket(BinanceAPI):
             True if server keep responding else False
         """
         unix_time = _MF.get_timestamp()
-        max_interval = BinanceSocket._CONST_MAX_INTERVAL_TWO_SERVER_RESPONSE
+        max_interval = BinanceSocket._CONST_MAX_INTERVAL_TWO_SOCKET_RESPONSE
         last_response = self.get_socket_last_response()
         return (last_response is not None) and (unix_time > (last_response + max_interval))
 
@@ -552,9 +586,6 @@ class BinanceSocket(BinanceAPI):
         """
         self._init_market_historics()
         self._set_restart(can_restart=True)
-        # thread_name_socket_manager = _MF.generate_thread_name(BinanceSocket._THREAD_BASE_SOCKET_MANAGER, 5)
-        # th1 = threading.Thread(target=self._manage_run, name=thread_name_socket_manager)
-        # self._set_thread(th1)
         th1 = self._generate_thread_socket_manager()
         self._set_socket()
         th1.start()
@@ -576,6 +607,7 @@ class BinanceSocket(BinanceAPI):
     def _manage_run(self) -> None:
         prefix = _MF.prefix
         print(f"{prefix()}Start socket Manager") if BinanceSocket._DEBUG else None
+        running_socket_thread_name = None
 
         def generate_thread_socket_running() -> threading.Thread:
             print(f"{_MF.prefix()}Generating new Thread to run socket...") if BinanceSocket._DEBUG else None
@@ -585,18 +617,36 @@ class BinanceSocket(BinanceAPI):
             print(f"{_MF.prefix()}New Thread to run socket generated!") if BinanceSocket._DEBUG else None
             return new_socket_thread
 
-        socket_thread = generate_thread_socket_running()
-
         def reset_socket() -> threading.Thread:
             self.close()
             self._set_restart(can_restart=True)
             self._set_socket()
             return generate_thread_socket_running()
+
+        def add_new_streams() -> None:
+            old_socket_streams = self.get_streams()
+            new_streams = list(self.get_new_streams())
+            self._reset_new_streams()
+            missing_streams = [stream for stream in new_streams if stream not in old_socket_streams]
+            new_socket_streams = [*old_socket_streams, *missing_streams]
+            self._set_streams(new_socket_streams)
+            self._init_market_historics()
+
+        socket_thread = generate_thread_socket_running()
         while self._can_restart():
             try:
                 print(f"{prefix()}Managing socket...") if BinanceSocket._DEBUG else None
                 print(f"{prefix()}" + '\033[35m' + _MF.thread_infos() + '\033[0m') if BinanceSocket._DEBUG else None
-                socket_thread.start() if not socket_thread.is_alive() else None
+                if (not socket_thread.is_alive()) and (socket_thread.getName() != running_socket_thread_name):
+                    # Is a new socket
+                    print(f"{prefix()}Start socket runner thread") if BinanceSocket._DEBUG else None
+                    socket_thread.start()
+                    running_socket_thread_name = socket_thread.getName()
+                elif not socket_thread.is_alive():
+                    # Socket is dead
+                    print(f"{prefix()}" + '\033[33m' + "Socket runner thread is dead... Generating a new one..." + '\033[0m') \
+                        if BinanceSocket._DEBUG else None
+                    socket_thread = reset_socket()
                 last_response = self.get_socket_last_response()
                 response_date = _MF.unix_to_date(last_response) if last_response is not None else last_response
                 print(f"{_MF.prefix()}Socket's last response: '{response_date}'") if BinanceSocket._DEBUG else None
@@ -604,6 +654,14 @@ class BinanceSocket(BinanceAPI):
                     print(f"{_MF.prefix()}"+'\033[33m' + '\033[4m' + "Socket response timeout reached!" + '\033[0m') \
                         if BinanceSocket._DEBUG else None
                     socket_thread = reset_socket()
+                nb_new_stream = len(self.get_new_streams())
+                if nb_new_stream > 0:
+                    print(f"{_MF.prefix()}Adding '{nb_new_stream}' new streams...") if BinanceSocket._DEBUG else None
+                    nb_stream = len(self.get_streams())
+                    add_new_streams()
+                    socket_thread = reset_socket()
+                    nb_added_stream = len(self.get_streams()) - nb_stream
+                    print(f"{_MF.prefix()}New streams added ('{nb_added_stream}')!") if BinanceSocket._DEBUG else None
             except Exception as socket_error:
                 from model.structure.Bot import Bot
                 Bot.save_error(socket_error, BinanceSocket.__name__)
@@ -705,80 +763,6 @@ class BinanceSocket(BinanceAPI):
         next_reset = BinanceSocket.generate_next_reset_time()
         reset_book = BinanceSocket.get_market_reset_book()
         reset_book.put(next_reset, stream)
-
-    @staticmethod
-    def _get_add_stream_queue() -> list:
-        if BinanceSocket._ADD_STREAM_QUEUE is None:
-            BinanceSocket._ADD_STREAM_QUEUE = []
-        return BinanceSocket._ADD_STREAM_QUEUE
-
-    @staticmethod
-    def _join_add_stream_queue(stream: str) -> str:
-        """
-        To join the queue to add new stream\n
-        Parameters
-        ----------
-        stream: str
-            Stream to add
-        Returns
-        -------
-        ticket: str
-            Stream ticket to wait your turn
-        """
-        ticket_token = BinanceSocket._CONST_ADD_STREAM_TICKET_TOKEN
-        stream_queue_ticket = stream + ticket_token + _MF.new_code()[0:10]
-        BinanceSocket._get_add_stream_queue().append(stream_queue_ticket)
-        return stream_queue_ticket
-
-    @staticmethod
-    def _my_turn_to_add_stream(stream_queue_ticket: str) -> bool:
-        """
-        Check if stream ticket can add its stream to list of stream\n
-        Parameters
-        ----------
-        stream_queue_ticket: str
-            Stream ticket to check
-        Returns
-        -------
-        is_my_turn: bool
-            True if it's your turn else False
-        """
-        BinanceSocket._check_add_stream_queue(stream_queue_ticket)
-        add_stream_queue = BinanceSocket._get_add_stream_queue()
-        return stream_queue_ticket == add_stream_queue[0]
-
-    @staticmethod
-    def _quit_add_stream_queue(stream_queue_ticket: str) -> bool:
-        """
-        Remove ticket from add stream queue\n
-        Parameters
-        ----------
-        stream_queue_ticket: str
-            The stream ticket to remove form add stream queue
-
-        Returns
-        -------
-        removed: str
-            True if stream ticket removed with success else False
-        """
-        BinanceSocket._check_add_stream_queue(stream_queue_ticket)
-        if not BinanceSocket._my_turn_to_add_stream(stream_queue_ticket):
-            raise ValueError(f"It's not your turn '{stream_queue_ticket}'")
-        add_stream_queue = BinanceSocket._get_add_stream_queue()
-        add_stream_queue.pop(0)
-        return stream_queue_ticket not in add_stream_queue
-
-    @staticmethod
-    def _check_add_stream_queue(stream_queue_ticket: str) -> None:
-        add_stream_queue = BinanceSocket._get_add_stream_queue()
-        if len(add_stream_queue) == 0:
-            raise Exception(f"The add_stream_queue list is empty (stream_ticket='{stream_queue_ticket}')")
-        ticket_regex = BinanceSocket._CONST_ADD_STREAM_TICKET_REGEX
-        if not _MF.regex_match(ticket_regex, stream_queue_ticket):
-            raise Exception(f"Stream queue ticket '{stream_queue_ticket}' must match ticket format '{ticket_regex}'")
-        if stream_queue_ticket not in add_stream_queue:
-            ValueError(f"Stream queue ticket '{stream_queue_ticket}' "
-                       f"don't exist in add_stream_queue list '{add_stream_queue}'")
 
     @staticmethod
     def generate_stream(rq: str, symbol: str, period_str: str) -> str:
