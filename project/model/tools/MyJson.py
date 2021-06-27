@@ -1,15 +1,14 @@
 from abc import ABC, abstractmethod
 
-from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
-from model.tools.Map import Map
 
 
 class MyJson(ABC):
     _TOKEN_CLASS_NAME = '@class_name'
     _REGEX_REPLACE_ATTRIBUTE = f'^.+{_TOKEN_CLASS_NAME}'
     _EXECUTABLE_json_instantiate = None
+    _EXECUTABLE_test_json_encode_decode = None
     _IMPORTS = None
 
     def json_encode(self) -> str:
@@ -56,6 +55,7 @@ class MyJson(ABC):
         stg_dir = 'model/structure/strategies/'
         stg_format = f'from model.structure.strategies.{token}.{token} import {token}'
         stg_imports = MyJson._generate_imports(token, stg_dir, stg_format, contain_file=False)
+        from model.tools.Map import Map
         MyJson._IMPORTS = Map({
             **tool_imports,
             **struct_imports,
@@ -69,7 +69,7 @@ class MyJson(ABC):
         return tool_imports
 
     @staticmethod
-    def get_imports() -> Map:
+    def get_imports() -> 'Map':
         if MyJson._IMPORTS is None:
             MyJson._set_imports()
         return MyJson._IMPORTS
@@ -96,9 +96,18 @@ class MyJson(ABC):
     @staticmethod
     def get_executable() -> str:
         if MyJson._EXECUTABLE_json_instantiate is None:
-            path = Config.get(Config.FILE_EXECUTABLE_MYJSON)
+            from config.Config import Config
+            path = Config.get(Config.FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE)
             MyJson._EXECUTABLE_json_instantiate = FileManager.read(path)
         return MyJson._EXECUTABLE_json_instantiate
+
+    @staticmethod
+    def get_executable_test_json_encode_decode() -> str:
+        if MyJson._EXECUTABLE_test_json_encode_decode is None:
+            from config.Config import Config
+            path = Config.get(Config.FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE)
+            MyJson._EXECUTABLE_test_json_encode_decode = FileManager.read(path)
+        return MyJson._EXECUTABLE_test_json_encode_decode
 
     @staticmethod
     def json_decode(json_str: str) -> object:
@@ -161,3 +170,8 @@ class MyJson(ABC):
             Class instance
         """
         pass
+
+    def __eq__(self, other) -> bool:
+        self_dict = self.__dict__
+        other_dict = other.__dict__
+        return (type(self) == type(other)) and (self_dict == other_dict)
