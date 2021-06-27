@@ -18,16 +18,6 @@ class Price(MyJson):
     def get_asset(self) -> Asset:
         return self.__asset
 
-    def _setter(self, attr: str, value) -> None:
-        exec(f"self.{attr} = {value}")
-
-    @staticmethod
-    def json_instantiate(object_dic: dict) -> object:
-        _class_token = MyJson.get_class_name_token()
-        instance = Price(0, '@json')
-        exec(MyJson.get_executable())
-        return instance
-
     @staticmethod
     def sum(prices: List['Price']) -> 'Price':
         """
@@ -42,6 +32,13 @@ class Price(MyJson):
                 price = prices[i]
                 price_sum += price
         return price_sum
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Price(0, '@json')
+        exec(MyJson.get_executable())
+        return instance
 
     def __add__(self, other) -> 'Price':
         if not isinstance(other, Price):
