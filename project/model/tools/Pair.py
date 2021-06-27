@@ -1,7 +1,8 @@
 from model.tools.Asset import Asset
+from model.tools.MyJson import MyJson
 
 
-class Pair:
+class Pair(MyJson):
     _SEPARATOR = "/"
 
     def __init__(self, *agrs):
@@ -29,10 +30,6 @@ class Pair:
         self.__left = Asset(lsbl)
         self.__right = Asset(rsbl)
 
-    @staticmethod
-    def _get_separator() -> str:
-        return Pair._SEPARATOR
-
     def get_left(self) -> Asset:
         return self.__left
 
@@ -41,6 +38,17 @@ class Pair:
 
     def get_merged_symbols(self) -> str:
         return self.get_left().get_symbol() + self.get_right().get_symbol()
+
+    @staticmethod
+    def _get_separator() -> str:
+        return Pair._SEPARATOR
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Pair('@json/@json')
+        exec(MyJson.get_executable())
+        return instance
 
     def __eq__(self, other):
         return self.get_left() == other.get_left() and \

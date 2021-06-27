@@ -26,6 +26,11 @@ class TestPair(unittest.TestCase, Pair):
         exp = (self.lsbl + self.rsbl).lower()
         self.assertEqual(exp, self.pr.get_merged_symbols())
 
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.pr
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
+
     def test__str__(self):
         exp = (self.lsbl + self._get_separator() + self.rsbl).lower()
         self.assertEqual(exp, self.pr.__str__())
