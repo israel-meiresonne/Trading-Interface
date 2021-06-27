@@ -4,7 +4,7 @@ from model.tools.Asset import Asset
 from model.tools.MyJson import MyJson
 
 
-class TestAsset(unittest.TestCase):
+class TestAsset(unittest.TestCase, Asset):
     def setUp(self) -> None:
         self.sbl1 = "USDT"
         self.sbl2 = "BTC"
@@ -16,12 +16,10 @@ class TestAsset(unittest.TestCase):
         self.assertEqual(exp_sbl, self.a1.get_symbol())
         self.assertEqual(exp_name, self.a1.get_name())
 
-    def test_json_instantiate(self) -> None:
+    def test_json_encode_decode(self) -> None:
         original_obj = self.a1
-        json_str = original_obj.json_encode()
-        decoded_obj = MyJson.json_decode(json_str)
-        self.assertEqual(original_obj, decoded_obj)
-        self.assertNotEqual(id(original_obj), id(decoded_obj))
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
 
     def test__eq__(self):
         # Equal
