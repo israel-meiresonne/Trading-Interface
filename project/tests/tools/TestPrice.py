@@ -1,5 +1,6 @@
 import unittest
 
+from model.tools.MyJson import MyJson
 from model.tools.Price import Price
 
 
@@ -24,6 +25,13 @@ class TestPrice(unittest.TestCase, Price):
         self.assertEqual(exp1, result1)
         # No Price to sum
         self.assertIsNone(Price.sum([]))
+
+    def test_json_instantiate(self) -> None:
+        original_obj = self.price1
+        json_str = original_obj.json_encode()
+        decoded_obj = MyJson.json_decode(json_str)
+        self.assertEqual(original_obj, decoded_obj)
+        self.assertNotEqual(id(original_obj), id(decoded_obj))
 
     def test__add__(self) -> None:
         exp1 = Price(self.price1.get_value() + self.price2.get_value(), self.symbol1)

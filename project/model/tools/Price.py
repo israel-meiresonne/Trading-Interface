@@ -1,9 +1,10 @@
 from typing import List
 
 from model.tools.Asset import Asset
+from model.tools.MyJson import MyJson
 
 
-class Price:
+class Price(MyJson):
     def __init__(self, value: [int, float], symbol: str):
         self.__value = round(float(value), 8)
         self.__asset = Asset(symbol)
@@ -16,6 +17,16 @@ class Price:
 
     def get_asset(self) -> Asset:
         return self.__asset
+
+    def _setter(self, attr: str, value) -> None:
+        exec(f"self.{attr} = {value}")
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Price(0, '@json')
+        exec(MyJson.get_executable())
+        return instance
 
     @staticmethod
     def sum(prices: List['Price']) -> 'Price':
