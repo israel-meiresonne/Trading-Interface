@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from collections import Iterable
+from typing import Any
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
@@ -21,20 +23,40 @@ class MyJson(ABC):
         """
         _class_token = MyJson.get_class_name_token()
         class_name = self.__class__.__name__
-        class_regex = MyJson._REGEX_REPLACE_ATTRIBUTE.replace(_class_token, class_name)
+        # class_regex = MyJson._REGEX_REPLACE_ATTRIBUTE.replace(_class_token, class_name)
         attrs = self.__dict__
         json_dict = {_class_token: class_name}
-        imports = MyJson.get_imports()
-        serializables = imports.get_keys()
         for attr, value in attrs.items():
-            new_attr = _MF.regex_replace(class_regex, '', attr)
-            if value.__class__.__name__ in serializables:
-                value_serialized = _MF.json_decode(value.json_encode())
-            else:
-                value_serialized = value
-            json_dict[new_attr] = value_serialized
+            value_serialized = MyJson.__root_encoding(value)
+            json_dict[attr] = value_serialized
         json_str = _MF.json_encode(json_dict)
         return json_str
+
+    @staticmethod
+    def __root_encoding(value: Any) -> Any:
+        serializables = MyJson.get_imports().get_keys()
+        if value.__class__.__name__ in serializables:
+            value_serialized = _MF.json_decode(value.json_encode())
+        elif isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray)):
+            value_serialized = MyJson.__encode_iterable(value)
+        else:
+            value_serialized = value
+        return value_serialized
+
+    @staticmethod
+    def __encode_iterable(iterable_value: Iterable) -> Iterable:
+        iter_type = type(iterable_value)
+        if iter_type == dict:
+            value_encoded = {}
+            for key, value in iterable_value.items():
+                value_encoded[key] = MyJson.__root_encoding(value)
+        elif (iter_type == list) or (iter_type == tuple):
+            value_encoded = []
+            for value in iterable_value:
+                value_encoded = MyJson.__root_encoding(value)
+        else:
+            raise ValueError(f"This iterable type '{iter_type}' is not supported")
+        return value_encoded
 
     @staticmethod
     def get_class_name_token() -> str:
@@ -143,13 +165,37 @@ class MyJson(ABC):
         return json_obj
 
     @staticmethod
+    def _root_decoding(value: Any) -> Any:
+        _class_token = MyJson.get_class_name_token()
+        if isinstance(value, dict) and (_class_token in value):
+            decoded_value = MyJson._generate_instance(value)
+        elif isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray)):
+            decoded_value = MyJson.__decode_iterable(value)
+        else:
+            decoded_value = value
+        return decoded_value
+
+    @staticmethod
+    def __decode_iterable(iterable_value: Iterable) -> Iterable:
+        iter_type = type(iterable_value)
+        if iter_type == dict:
+            value_decoded = {}
+            for key, value in iterable_value.items():
+                value_decoded[key] = MyJson._root_decoding(value)
+        elif iter_type == list:
+            value_decoded = []
+            for value in iterable_value:
+                value_decoded = MyJson.__root_encoding(value)
+        else:
+            raise ValueError(f"This iterable type '{iter_type}' is not supported")
+        return value_decoded
+
+    @staticmethod
     def _generate_instance(object_dic: dict) -> object:
         """
         To instantiate new given class with given attributes\n
         Parameters
         ----------
-        class_name: str
-            Name of the class to instantiate
         object_dic: dic
             Attributes for new instance
         Returns
