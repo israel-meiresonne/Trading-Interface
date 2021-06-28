@@ -52,7 +52,7 @@ class MarketPrice(ABC):
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
     _NB_PRD_SLOPES_AVG = 7
-    _SUPERTREND_NB_PERIOD = 7
+    _SUPERTREND_NB_PERIOD = 10  # 7
     _SUPERTREND_COEF = 3
     _NB_PRD_SLOW_TSI = 25
     _NB_PRD_FAST_TSI = 13
