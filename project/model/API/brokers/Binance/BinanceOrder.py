@@ -3,12 +3,13 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class BinanceOrder(Order):
+class BinanceOrder(Order, MyJson):
     CONV_STATUS = Map({
         BinanceAPI.STATUS_ORDER_NEW: Order.STATUS_SUBMITTED,
         BinanceAPI.STATUS_ORDER_PARTIALLY: Order.STATUS_PROCESSING,
@@ -294,55 +295,6 @@ class BinanceOrder(Order):
             raise ValueError(f"This Order move '{side}' is not supported.")
         return converter.get(side)
 
-    '''
-    @staticmethod
-    def resume_subexecution(fills: list) -> Map:
-        """
-        To extract datas from sub-execution\n
-                    [
-                        {
-                          "price": "4000.00000000",
-                          "qty": "1.00000000",
-                          "commission": "4.00000000",
-                          "commissionAsset": "USDT"
-                        }
-                    ]\n
-        :param fills: list of Binance's sub-executions
-        :return: extracted datas\n
-                 datas[Map.price]: {float}   | average execution price
-                 datas[Map.fee]:   {Price}   | total fees
-        """
-        if len(fills) == 0:
-            raise ValueError(f"The list of sub-executions can't be empty.")
-        qty_total = 0
-        fees = 0
-        new_fills = []
-        for row in fills:
-            price = float(row[Map.price])
-            qty = float(row[Map.qty])
-            qty_total += qty
-            fee = float(row[Map.commission])
-            fees += fee
-            new_row = {
-                Map.price: price,
-                Map.qty: qty,
-                Map.commission: fee
-            }
-            new_fills.append(new_row)
-        price_rates = [(row[Map.qty]/qty_total)*row[Map.price] for row in new_fills]
-        price_sum = sum(price_rates)
-        # nb_decimal = len(str(new_fills[0][Map.price]).split('.')[-1])  # - 1
-        nb_decimal = _MF.get_nb_decimal(new_fills[0][Map.price])
-        price_exec = round(price_sum, nb_decimal)
-        symbol = fills[0][Map.commissionAsset]
-        fees_obj = Price(fees, symbol)
-        datas = Map({
-            Map.price: price_exec,
-            Map.fee: fees_obj
-        })
-        return datas
-    '''
-
     @staticmethod
     def _structure_trades(rsp_trades: list, pair: Pair, exec_time: int, order_bkr_id: str, move: str) -> Map:
         trades = Map()
@@ -377,3 +329,14 @@ class BinanceOrder(Order):
             }
             trades.put(trade, trade_id)
         return trades
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = BinanceOrder(Order.TYPE_MARKET, Map({
+            Map.pair: Pair('@json/@json'),
+            Map.move: Order.MOVE_BUY,
+            Map.amount: Price(0, '@json')
+        }))
+        exec(MyJson.get_executable())
+        return instance
