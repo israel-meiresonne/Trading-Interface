@@ -106,6 +106,12 @@ class TestBinanceRequest(unittest.TestCase, BinanceRequest):
     def test_handle_response(self):
         raise Exception("Must implement this test")
 
+    def test_json_encode_decode(self) -> None:
+        bnc_rq = BinanceRequest(BinanceRequest.RQ_ACCOUNT_SNAP, self.snap_prms)
+        original_obj = bnc_rq
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
+
 
 if __name__ == '__main__':
     unittest.main

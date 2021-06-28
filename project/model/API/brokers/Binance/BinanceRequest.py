@@ -4,12 +4,13 @@ from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.structure.database.ModelFeature import ModelFeature as ModelFeat
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class BinanceRequest(BrokerRequest):
+class BinanceRequest(BrokerRequest, MyJson):
     CONV_ACCOUNT = Map({
         BrokerRequest.ACCOUNT_MAIN: BinanceAPI.ACCOUNT_TYPE_SPOT,
         BrokerRequest.ACCOUNT_MARGIN: BinanceAPI.ACCOUNT_TYPE_MARGIN,
@@ -255,3 +256,16 @@ class BinanceRequest(BrokerRequest):
     def generate_request(self) -> Map:
         request = self._get_request()
         return Map(ModelFeat.clean(request.get_map()))
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = BinanceRequest(BrokerRequest.RQ_MARKET_PRICE, Map({
+            Map.pair: Pair('@json/@json'),
+            Map.period: 1,
+            Map.begin_time: 0,
+            Map.end_time: 2,
+            Map.number: 1,
+        }))
+        exec(MyJson.get_executable())
+        return instance
