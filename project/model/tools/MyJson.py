@@ -49,7 +49,8 @@ class MyJson(ABC):
         if iter_type == dict:
             value_encoded = {}
             for key, value in iterable_value.items():
-                value_encoded[key] = MyJson.__root_encoding(value)
+                json_key = f"{key}@{key.__class__.__name__}"
+                value_encoded[json_key] = MyJson.__root_encoding(value)
         elif (iter_type == list) or (iter_type == tuple):
             value_encoded = []
             for value in iterable_value:
@@ -180,7 +181,9 @@ class MyJson(ABC):
         iter_type = type(iterable_value)
         if iter_type == dict:
             value_decoded = {}
-            for key, value in iterable_value.items():
+            for json_key, value in iterable_value.items():
+                str_key, key_type = json_key.split('@')
+                key = eval(f"{key_type}(str_key)")
                 value_decoded[key] = MyJson._root_decoding(value)
         elif iter_type == list:
             value_decoded = []
