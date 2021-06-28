@@ -9,7 +9,7 @@ from model.tools.Map import Map
 from model.tools.Pair import Pair
 
 
-class Bot(_MF):
+class Bot:
     PREFIX_ID = 'bot_'
     _TRADE_INDEX = 0    # 112800   # 0
     _TRADE_INDEX_STOP = None
@@ -60,10 +60,10 @@ class Bot(_MF):
     def get_settime(self) -> int:
         return self.__settime
 
-    def _get_broker(self) -> Broker:
+    def get_broker(self) -> Broker:
         return self.__broker
 
-    def _get_strategy(self) -> Strategy:
+    def get_strategy(self) -> Strategy:
         return self.__strategy
 
     def get_pair(self) -> Pair:
@@ -74,8 +74,8 @@ class Bot(_MF):
         To start trade\n
         """
         _stage = Config.get(Config.STAGE_MODE)
-        bkr = self._get_broker()
-        stg = self._get_strategy()
+        bkr = self.get_broker()
+        stg = self.get_strategy()
         end = False
         trade_index = Bot.get_trade_index()
         sleep_time = None
@@ -164,8 +164,8 @@ class Bot(_MF):
     def __str__(self) -> str:
         date = _MF.unix_to_date(int(self.get_settime() / 1000), _MF.FORMAT_D_H_M_S_FOR_FILE)
         bot_id = self.get_id()
-        bkr_cls = self._get_broker().__class__.__name__
-        stg_cls = self._get_strategy().__class__.__name__
+        bkr_cls = self.get_broker().__class__.__name__
+        stg_cls = self.get_strategy().__class__.__name__
         return f"{date}|{bot_id}|{bkr_cls}|{stg_cls}"
 
     def __repr__(self) -> str:
