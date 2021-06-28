@@ -234,13 +234,10 @@ class TestStalker(unittest.TestCase, Stalker):
         stg._get_total_capital()
         stg._get_strategy_capital()
 
-    """
-    def test_stalk_market(self) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
-        Config.update(Config.STAGE_MODE, Config.STAGE_3)
-        self.stg._stalk_market(self.bkr)
-        Config.update(Config.STAGE_MODE, _stage)
-    """
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.stg
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
 
 
 if __name__ == '__main__':

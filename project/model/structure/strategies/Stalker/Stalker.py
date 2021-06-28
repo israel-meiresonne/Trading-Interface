@@ -10,11 +10,12 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class Stalker(Strategy):
+class Stalker(Strategy, MyJson):
     _CONST_MARKET_PERIOD = 60 * 60  # in second
     _CONST_STALK_FREQUENCY = 60     # in second     # 60 * 60
     _CONST_ALLOWED_PAIRS = None
@@ -712,6 +713,25 @@ class Stalker(Strategy):
                 rate = sell_close / buy_close - 1
                 rates.append(rate)
         return rates
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Stalker(Map({
+            Map.pair: Pair('@json/@json'),
+            Map.maximum: None,
+            Map.capital: 0,
+            Map.rate: 1,
+            Map.strategy: '@json',
+            Map.param: {
+                Map.maximum: None,
+                Map.capital: 0,
+                Map.rate: 1,
+                Map.period: 1,
+            }
+        }))
+        exec(MyJson.get_executable())
+        return instance
 
     # ——————————————— SAVE DOWN ———————————————
 
