@@ -169,6 +169,18 @@ class TestOrders(unittest.TestCase, Orders):
         result = id(odrs.get_last_execution())
         self.assertEqual(exp, result)
 
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.odrs_obj
+        original_obj.add_order(self.odr0)
+        original_obj.add_order(self.odr1)
+        original_obj.add_order(self.odr2)
+        self.odr0._set_status(self.STATUS_COMPLETED)
+        self.odr1._set_status(self.STATUS_FAILED)
+        self.odr2._set_status(self.STATUS_CANCELED)
+        original_obj.has_position()
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
+
 
 if __name__ == '__main__':
     unittest.main

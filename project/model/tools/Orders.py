@@ -4,12 +4,13 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class Orders(Order):
+class Orders(Order, MyJson):
     SAVE_ACTION_GENERATE = "GENERATE_REQUEST"
     SAVE_ACTION_HANDLE = "HANDLE_REQUEST"
     SAVE_ACTION_UPDATE = "UPDATE_COMPLETED"
@@ -404,6 +405,13 @@ class Orders(Order):
         fields = list(rows[0].keys())
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite)
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Orders()
+        exec(MyJson.get_executable())
+        return instance
 
     # Don't use classes bellow
     def _set_market(self) -> None:
