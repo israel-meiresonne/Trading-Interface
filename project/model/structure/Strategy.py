@@ -14,7 +14,7 @@ from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class Strategy(_MF):
+class Strategy:
     _CONST_BOT_SLEEP_TIME = 60
     _PERFORMANCE_INIT_CAPITAL = 100
     _TOP_ASSET = None
