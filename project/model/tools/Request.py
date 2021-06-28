@@ -4,9 +4,25 @@ from model.tools.RequestResponse import RequestResponse
 class Request:
     def __init__(self):
         self.__response = None
+        self.__method = None
+        self.__response = None
+        self.__method = None
+        self.__url = None
+        self.__headers = None
+        self.__body = None
+        self.__hooks = None
+        self.__body_position = None
 
-    def _set_response(self, rsp: RequestResponse) -> None:
-        self.__response = rsp
+    def _set_response(self, response: RequestResponse) -> None:
+        request = response.get_request()
+        self.__response = response
+        self.__method = request.get('method')
+        self.__url = response.get_url()
+        # self.__headers = dict(request['headers'])
+        self.__headers = request.get('headers')
+        self.__body = request.get('body')
+        self.__hooks = request.get('hooks')
+        self.__body_position = request.get('_body_position')
 
     def _get_response(self) -> RequestResponse:
         if self.__response is None:
