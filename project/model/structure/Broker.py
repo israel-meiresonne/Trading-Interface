@@ -10,30 +10,13 @@ from config.Config import Config
 from model.tools.Pair import Pair
 
 
-class Broker(_MF):
+class Broker:
     @abstractmethod
     def request(self, bkr_rq: BrokerRequest) -> None:
         """
         To submit a request to Broker's API\n
         :param bkr_rq: holds params for the request
         NOTE: The response is stored in the BrokerRequest
-        """
-        pass
-
-    @abstractmethod
-    def get_account_snapshot(self, bkr_rq: BrokerRequest) -> None:
-        """
-        To get a snapshot\n
-        :param bkr_rq: holds params for the request
-        :return: the result is stored the given BrokerRequest
-        """
-        pass
-
-    @abstractmethod
-    def get_market_price(self, bkr_rq: BrokerRequest) -> None:
-        """
-        To get the MarketPrice\n
-        :param bkr_rq: holds parameters required
         """
         pass
 

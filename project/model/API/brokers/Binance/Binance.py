@@ -5,12 +5,14 @@ from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 
 
-class Binance(Broker):
+class Binance(Broker, MyJson):
     def __init__(self, configs: Map):
         """
         Constructor\n
@@ -21,7 +23,7 @@ class Binance(Broker):
         """
         super().__init__()
         ks = [Map.public, Map.secret, Map.test_mode]
-        rtn = self.keys_exist(ks, configs.get_map())
+        rtn = _MF.keys_exist(ks, configs.get_map())
         if rtn is not None:
             raise IndexError(f"Property '{rtn}' is required")
         self.__api_public_key = configs.get(Map.public)
@@ -58,20 +60,6 @@ class Binance(Broker):
         rq = bnc_rq.get_endpoint()
         params = bnc_rq.generate_request()
         rsp = BinanceAPI.request_api(*bases_params, rq, params)
-        bnc_rq.handle_response(rsp)
-
-    def get_account_snapshot(self, bkr_rq: BinanceRequest) -> None:
-        bases_params = self.get_base_params()
-        rq = BinanceAPI.RQ_ACCOUNT_SNAP
-        prms = bkr_rq.generate_request()
-        rsp = BinanceAPI.request_api(*bases_params, rq, prms)
-        bkr_rq.handle_response(rsp)
-
-    def get_market_price(self, bnc_rq: BinanceRequest) -> None:
-        bases_params = self.get_base_params()
-        rq = BinanceAPI.RQ_KLINES
-        prms = bnc_rq.generate_request()
-        rsp = BinanceAPI.request_api(*bases_params, rq, prms)
         bnc_rq.handle_response(rsp)
 
     def get_trade_fee(self, pair: Pair) -> Map:
@@ -118,3 +106,14 @@ class Binance(Broker):
             'UNFI/USDT'
         ]
         return prs
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Binance(Map({
+            Map.public: '@json',
+            Map.secret: '@json',
+            Map.test_mode: None
+        }))
+        exec(MyJson.get_executable())
+        return instance
