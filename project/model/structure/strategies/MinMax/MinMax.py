@@ -8,12 +8,13 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class MinMax(Strategy):
+class MinMax(Strategy, MyJson):
     _CONF_MAKET_PRICE = "config_market_price"
     _CONF_MAX_DR = "CONF_MAX_DR"
     _EXEC_BUY = "EXEC_BUY"
@@ -818,3 +819,16 @@ class MinMax(Strategy):
                 perf_rate = (closes[end_period - 1] / closes[entry_period] - 1) if entry_period is not None else None
                 perf_rates.append(perf_rate) if perf_rate is not None else None
         return perf_rates
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = MinMax(Map({
+            Map.pair: Pair('@json/@json'),
+            Map.maximum: None,
+            Map.capital: 1,
+            Map.rate: 1,
+            Map.period: 0
+        }))
+        exec(MyJson.get_executable())
+        return instance

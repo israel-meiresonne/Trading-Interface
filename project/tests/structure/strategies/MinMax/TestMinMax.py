@@ -6,7 +6,6 @@ from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.strategies.MinMax.MinMax import MinMax
-from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
@@ -28,7 +27,8 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             Map.pair: self.pr,
             Map.maximum: None,
             Map.capital: self.max_cap,
-            Map.rate: self.rate1
+            Map.rate: self.rate1,
+            Map.period: 60
         })
         self.stg = MinMax(self.stg_params)
         self.configs = Map({
@@ -42,8 +42,8 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         })
         # Broker
         self.bkr = Binance(Map({
-            Map.api_pb: "api_pb",
-            Map.api_sk: "api_sk",
+            Map.public: "api_pb",
+            Map.secret: "api_sk",
             Map.test_mode: True
         }))
         # Orders
@@ -95,7 +95,8 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
             Map.pair: self.pr,
             Map.maximum: None,
             Map.capital: prc,
-            Map.rate: 0.9
+            Map.rate: 0.9,
+            Map.period: 60
         }))
         self.mkt = BinanceMarketPrice(list(self.mkt_list), '1m', self.pr)
         self.odr2 = BinanceOrder(Order.TYPE_MARKET, Map({
@@ -321,6 +322,17 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         result1 = round(perfs.get(Map.roi), 4)
         self.assertEqual(exp1, result1)
         Config.update(Config.DIR_MARKET_HISTORICS, _old_path)
+
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.stg1
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
+        print()
+        print(original_obj.__dict__)
+        print()
+        print(vars()['json_str'])
+        print()
+        print(vars()['decoded_obj'].__dict__)
 
 
 if __name__ == '__main__':
