@@ -38,3 +38,5 @@ DIR_SAVE_TOP_ASSET = f'content/v0.01/backups/top_asset/{START_DATE}_top_asset.cs
 CONST_STABLECOINS = ['busd', 'dai', 'husd', 'pax', 'susd', 'tusd', 'usdc', 'usdn', 'usdt', 'ust', 'usdsb', 'usds']
 CONST_FIATS = ['aud', 'brl', 'eur', 'gbp', 'ghs', 'hkd', 'kes', 'kzt', 'ngn', 'nok', 'pen', 'rub', 'try', 'uah', 'ugx',
                'usd']
+API_KEY_BINANCE_PUBLIC = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
+API_KEY_BINANCE_SECRET = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'

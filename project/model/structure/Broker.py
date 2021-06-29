@@ -81,8 +81,9 @@ class Broker(_MF):
         """
         pass
 
+    @staticmethod
     @abstractmethod
-    def close(self) -> None:
+    def close() -> None:
         """
         To close connections with Broker's API\n
         """

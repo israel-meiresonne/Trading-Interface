@@ -324,8 +324,8 @@ def print_performance(rows: list, path: str) -> None:
 
 
 def get_broker() -> Broker:
-    bnc = Binance(Map({Map.api_pb: "mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5",
-                       Map.api_sk: "xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr",
+    bnc = Binance(Map({Map.api_pb: "—",
+                       Map.api_sk: "—",
                        Map.test_mode: False
                        }))
     return bnc
