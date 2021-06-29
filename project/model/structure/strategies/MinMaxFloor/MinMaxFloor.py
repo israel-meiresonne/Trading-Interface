@@ -5,25 +5,24 @@ from model.structure.strategies.MinMax.MinMax import MinMax
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class MinMaxFloor(Strategy):
+class MinMaxFloor(Strategy, MyJson):
     _CONST_MARKET_PRICE = "MARKET_PRICE"
 
     def __init__(self, params: Map):
         """
         Constructor\n
         :param params: params
-               params[*]:                       {Strategy.__init__()}   # Same structure
-               params[Map.period]:              {int}   # Period interval in second
-               params[Map.green][Map.period]:   {int}   # Period interval in second
-               params[Map.red][Map.period]:     {int}   # Period interval in second
+               params[*]:           {Strategy.__init__()}   # Same structure
+               params[Map.period]:  {int}                   # Period interval in second
+               params[Map.green]:   {dict}                  # Params for MinMax
+               params[Map.red]:     {dict}                  # Params for Floor
         """
         super().__init__(params)
-        # self.__green_strategy = Strategy.generate_strategy(MinMax.__name__, Map(params.get(Map.green)))
-        # self.__red_strategy = Strategy.generate_strategy(Floor.__name__, Map(params.get(Map.red)))
         self.__green_strategy = MinMax(Map(params.get(Map.green)))
         self.__red_strategy = Floor(Map(params.get(Map.red)))
         self.__best_period = params.get(Map.period)
@@ -186,3 +185,30 @@ class MinMaxFloor(Strategy):
         red_rates = Floor.performance_get_rates(market_price)
         rates = [*red_rates, *green_rates]
         return rates
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = MinMaxFloor(Map({
+            Map.pair: Pair('@json/@json'),
+            Map.maximum: None,
+            Map.capital: 1,
+            Map.rate: 1,
+            Map.period: 0,
+            Map.green: {
+                Map.pair: Pair('@json/@json'),
+                Map.maximum: None,
+                Map.capital: 1,
+                Map.rate: 1,
+                Map.period: 0
+            },
+            Map.red: {
+                Map.pair: Pair('@json/@json'),
+                Map.maximum: None,
+                Map.capital: 1,
+                Map.rate: 1,
+                Map.period: 0
+            }
+        }))
+        exec(MyJson.get_executable())
+        return instance

@@ -23,6 +23,12 @@ class MinMax(Strategy, MyJson):
     _EXEC_CANCEL_SECURE = "EXEC_CANCEL_SECURE"
 
     def __init__(self, params: Map):
+        """
+        Constructor\n
+        :param params: params
+               params[*]:           {Strategy.__init__()}   # Same structure
+               params[Map.period]:  {int}                   # Period interval in second
+        """
         super().__init__(params)
         self.__configs = None
         self.__secure_order = None
