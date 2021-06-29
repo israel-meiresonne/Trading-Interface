@@ -164,6 +164,7 @@ class Controller:
         print(configs.get_map())
         # """
         # create Bot
+        configs.put(stg, Map.pair, pair_code)
         md.create_bot(bkr, stg, pair_code, configs)
         vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
         """

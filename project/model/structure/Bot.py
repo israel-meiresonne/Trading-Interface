@@ -6,51 +6,37 @@ from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 
 
-class Bot:
+class Bot(MyJson):
     PREFIX_ID = 'bot_'
-    _TRADE_INDEX = 0    # 112800   # 0
+    _TRADE_INDEX = 0
     _TRADE_INDEX_STOP = None
 
-    def __init__(self, bkr: str, stg: str, pair_str: str, configs: Map):
+    def __init__(self, bkr: str, stg: str, configs: Map):
         """
         To create a new Bot\n
         :param bkr: name of a supported Broker
         :param stg: name of a supported Strategy
-        :param pair_str: code of the pair to Trade, i.e.: "BTC/USDT"
         :param configs: holds additional configs for the Bot
-                    configs[{Bot}]      => {dict} Bot configs
                     configs[{Broker}]   => {dict} Broker configs
                     configs[{Strategy}] => {dict} Strategy's configs
         """
         super().__init__()
         self.__id = Bot.PREFIX_ID + _MF.new_code()
         self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
-        self.__pair = Pair(pair_str)
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
+        self.__strategy = None
         self._set_strategy(stg, configs)
+        self.__pair = self.__strategy.get_pair()
         Bot.save_bot(self)
 
     def _set_strategy(self, stg_class: str, params: Map) -> None:
-        """
         # Put Pair
-        pr = self.get_pair()
-        configs.put(pr, stg, Map.pair)
-        # Put Maximum
-        max_value = configs.get(stg, Map.maximum)
-        max_obj = Price(max_value, pr.get_right().get_symbol()) if max_value is not None else None
-        configs.put(max_obj, stg, Map.maximum)
-        # Put Capital
-        capital_value = configs.get(stg, Map.capital)
-        capital_obj = Price(capital_value, pr.get_right().get_symbol())
-        configs.put(capital_obj, stg, Map.capital)
-        self.__strategy = Strategy.retrieve(stg, Map(configs.get(stg)))
-        """
-        # Put Pair
-        pr = self.get_pair()
-        params.put(pr, stg_class, Map.pair)
+        pair_str = params.get(stg_class, Map.pair)
+        params.put(Pair(pair_str), stg_class, Map.pair)
         exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
         self.__strategy = eval(f"{stg_class}.generate_strategy(stg_class, Map(params.get(stg_class)))")
 
@@ -160,6 +146,28 @@ class Bot:
         backup_path = save_dir_path + file_name
         FileManager.write(backup_path, bot, binary=True)
         print(f"{_MF.prefix()}💾 Bot saved! ✅")
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        bkr = 'Binance'
+        stg = 'MinMax'
+        instance = Bot(bkr, stg, Map({
+            bkr: {
+                Map.public: '@json',
+                Map.secret: '@json',
+                Map.test_mode: True
+            },
+            stg: {
+                Map.pair: '@json/@json',
+                Map.maximum: None,
+                Map.capital: 1,
+                Map.rate: 1,
+                Map.period: 0
+            }
+        }))
+        exec(MyJson.get_executable())
+        return instance
 
     def __str__(self) -> str:
         date = _MF.unix_to_date(int(self.get_settime() / 1000), _MF.FORMAT_D_H_M_S_FOR_FILE)

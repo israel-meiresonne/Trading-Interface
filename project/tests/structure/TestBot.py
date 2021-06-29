@@ -1,26 +1,39 @@
 import unittest
+
+from config.Config import Config
 from model.structure.Bot import Bot
+from model.tools.Map import Map
+from model.tools.Pair import Pair
 
 
 class TestBot(unittest.TestCase, Bot):
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
         self.bkr = "Binance"
         self.stg = "MinMax"
-        self.prsbl = "BTC/USDT"
+        self.pair_str = "BTC/USDT"
+        self.pair = Pair(self.pair_str)
+        self.bkr_params = {
+            Map.public: 'public_key',
+            Map.secret: 'secret_key',
+            Map.test_mode: True
+        }
+        self.stg_params = {
+            Map.pair: self.pair_str,
+            Map.maximum: 1000000,
+            Map.capital: 15000,
+            Map.rate: 0.9,
+            Map.period: 60
+        }
+        self.bot1 = Bot(self.bkr, self.stg, Map({
+            self.bkr: self.bkr_params,
+            self.stg: self.stg_params
+        }))
 
-    """
-    def test_id_format_is_correct(self):
-        bt_id = self._generate_id(self.bkr, self.stg, self.prsbl)
-        exp_id = self.bkr.lower() + Bot.SEPARATOR + self.stg.lower() + Bot.SEPARATOR + self.prsbl.lower()
-        self.assertEqual(bt_id, exp_id)
-    """
-
-    """
-    def test_bot_properties_has_correct_type(self):
-        self.assertEqual(self.bt.get_broker().__class__.__name__, Broker.retrieve(self.bkr, {}).__class__.__name__)
-        self.assertEqual(self.bt.get_strategy().__class__.__name__, Strategy.generate_strategy(self.stg).__class__.__name__)
-        self.assertEqual(self.bt._get_pair().__class__.__name__, Pair.__name__)
-    """
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.bot1
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
 
 
 if __name__ == '__main__':

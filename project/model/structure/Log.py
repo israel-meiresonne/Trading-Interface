@@ -6,13 +6,13 @@ from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.Pair import Pair
 
 
 class Log(ModelInterface, _MF):
     PREFIX_ID = 'log_'
 
     def __init__(self):
-        # super(Log, self).__init__(Log.PREFIX_ID)
         super().__init__(Log.PREFIX_ID)
         self.__bots = None
 
@@ -53,12 +53,12 @@ class Log(ModelInterface, _MF):
             raise Exception(f"There's no Bot with this id '{bot_id}'")
         return bots.get(bot_id)
 
-    def create_bot(self, bkr: str, stg: str, prcd: str, configs: Map):
+    def create_bot(self, broker: str, strategy: str, pair_str: str, configs: Map):
         configs = Map() if configs is None else configs
         ks = configs.get_keys()
-        configs.put(Map(), bkr) if bkr not in ks else None
-        configs.put(Map(), stg) if stg not in ks else None
-        bot = Bot(bkr, stg, prcd, configs)
+        configs.put(Map(), broker) if broker not in ks else None
+        configs.put(Map(), strategy) if strategy not in ks else None
+        bot = Bot(broker, strategy, configs)
         self._add_bot(bot)
 
     def start_bot(self, bot_id):
