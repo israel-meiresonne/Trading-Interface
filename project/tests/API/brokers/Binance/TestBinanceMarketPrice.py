@@ -35,6 +35,12 @@ class TestBinanceMarketPrice(unittest.TestCase, BinanceMarketPrice):
         result_2 = self.mkt.get_time(2)
         self.assertEqual(exp_2, result_2)
 
+    def test_json_encode_decode(self) -> None:
+        original_obj = self.mkt
+        original_obj.get_closes()
+        test_exec = self.get_executable_test_json_encode_decode()
+        exec(test_exec)
+
 
 if __name__ == '__main__':
     unittest.main

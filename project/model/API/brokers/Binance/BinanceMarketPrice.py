@@ -1,10 +1,11 @@
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 
 
-class BinanceMarketPrice(MarketPrice):
+class BinanceMarketPrice(MarketPrice, MyJson):
     def __init__(self, mkt: list, prd_str: str, pair: Pair):
         """
         Constructor\n
@@ -103,3 +104,10 @@ class BinanceMarketPrice(MarketPrice):
         mkt = self.get_market()
         coll = [line[idx] for line in mkt]
         return coll
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = BinanceMarketPrice([], '1m', Pair('@json/@json'))
+        exec(MyJson.get_executable())
+        return instance
