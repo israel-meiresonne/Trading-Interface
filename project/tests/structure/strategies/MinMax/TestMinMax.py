@@ -327,12 +327,6 @@ class TestMinMax(unittest.TestCase, MinMax, Order):
         original_obj = self.stg1
         test_exec = self.get_executable_test_json_encode_decode()
         exec(test_exec)
-        print()
-        print(original_obj.__dict__)
-        print()
-        print(vars()['json_str'])
-        print()
-        print(vars()['decoded_obj'].__dict__)
 
 
 if __name__ == '__main__':

@@ -8,12 +8,13 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class Floor(Strategy):
+class Floor(Strategy, MyJson):
     # Constants
     _CONF_MAKET_PRICE = "config_market_price"
     _CONF_MAX_DR = "CONF_MAX_DR"
@@ -643,3 +644,16 @@ class Floor(Strategy):
                 idx = i - 1
                 break
         return idx
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Floor(Map({
+            Map.pair: Pair('@json/@json'),
+            Map.maximum: None,
+            Map.capital: 1,
+            Map.rate: 1,
+            Map.period: 0
+        }))
+        exec(MyJson.get_executable())
+        return instance
