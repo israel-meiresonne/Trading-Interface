@@ -17,8 +17,8 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
             Map.endTime: 1612197722624,
             Map.limit: 10
         })
-        self.bapi_test = BinanceAPI("api_pb", "api_sk", True)
-        self.bapi_prod = BinanceAPI("api_pb", "api_sk", False)
+        self.bapi_test = None # BinanceAPI("api_pb", "api_sk", True)
+        self.bapi_prod = None # BinanceAPI("api_pb", "api_sk", False)
 
     def test_if_return_correct_config__get_request_config(self):
         exp = BinanceAPI._RQ_CONF[self.rq]

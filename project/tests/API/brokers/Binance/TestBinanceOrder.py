@@ -12,7 +12,6 @@ from model.tools.Price import Price
 class TestBinanceOrder(unittest.TestCase, BinanceOrder):
     def setUp(self) -> None:
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
-        BinanceAPI("api_pb", "api_sk", True)
         self.lsbl = "BTC"
         self.rsbl = "USDT"
         # MARKET

@@ -14,7 +14,6 @@ class TestOrder(unittest.TestCase, Order):
     def setUp(self) -> None:
         _initial_stage = Config.get(Config.STAGE_MODE)
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
-        BinanceAPI("api_pb", "api_sk", True)
         self.lsbl = "BTC"
         self.rsbl = "USDT"
         self.pr = Pair(self.lsbl, self.rsbl)
