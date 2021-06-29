@@ -52,9 +52,10 @@ class MyJson(ABC):
                 json_key = f"{key}@{key.__class__.__name__}"
                 value_encoded[json_key] = MyJson.__root_encoding(value)
         elif (iter_type == list) or (iter_type == tuple):
-            value_encoded = []
+            list_type = iter_type.__name__
+            value_encoded = [list_type]
             for value in iterable_value:
-                value_encoded = MyJson.__root_encoding(value)
+                value_encoded.append(MyJson.__root_encoding(value))
         else:
             raise ValueError(f"This iterable type '{iter_type}' is not supported")
         return value_encoded
@@ -186,9 +187,12 @@ class MyJson(ABC):
                 key = eval(f"{key_type}(str_key)")
                 value_decoded[key] = MyJson._root_decoding(value)
         elif iter_type == list:
+            list_type = iterable_value[0]
+            del iterable_value[0]
             value_decoded = []
             for value in iterable_value:
-                value_decoded = MyJson.__root_encoding(value)
+                value_decoded.append(MyJson._root_decoding(value))
+            value_decoded = eval(f"{list_type}(value_decoded)")
         else:
             raise ValueError(f"This iterable type '{iter_type}' is not supported")
         return value_decoded
