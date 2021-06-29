@@ -15,65 +15,87 @@ class Binance(Broker):
         """
         Constructor\n
         :param configs: holds config params
-                     cfgs[Map.api_pb]       => {str}
-                     cfgs[Map.api_sk]       => {str}
+                     cfgs[Map.public]       => {str}
+                     cfgs[Map.secret]       => {str}
                      cfgs[Map.test_mode]    => {bool}
         """
         super().__init__()
-        ks = [Map.api_pb, Map.api_sk, Map.test_mode]
+        ks = [Map.public, Map.secret, Map.test_mode]
         rtn = self.keys_exist(ks, configs.get_map())
         if rtn is not None:
             raise IndexError(f"Property '{rtn}' is required")
-        api_pb = configs.get(Map.api_pb)
-        api_sk = configs.get(Map.api_sk)
-        test_mode = configs.get(Map.test_mode)
-        self.__api = BinanceAPI(api_pb, api_sk, test_mode)
+        self.__api_public_key = configs.get(Map.public)
+        self.__api_secret_key = configs.get(Map.secret)
+        self.__test_mode = configs.get(Map.test_mode)
 
-    def _get_api(self) -> BinanceAPI:
-        return self.__api
+    def get_api_public_key(self) -> str:
+        return self.__api_public_key
+
+    def get_api_secret_key(self) -> str:
+        return self.__api_secret_key
+
+    def get_api_keys(self) -> Map:
+        return BinanceAPI.format_api_keys(self.get_api_public_key(), self.get_api_secret_key())
+
+    def test_mode(self) -> bool:
+        """
+        To check if environment is in test mode\n
+        Returns
+        -------
+        test_mode: bool
+            True if environment is in test mode else False for real mode
+        """
+        return self.__test_mode
+
+    def get_base_params(self) -> list:
+        test_mode = self.test_mode()
+        public_key = self.get_api_public_key()
+        secret_key = self.get_api_secret_key()
+        return [test_mode, public_key, secret_key]
 
     def request(self, bnc_rq: BinanceRequest) -> None:
-        api = self._get_api()
+        bases_params = self.get_base_params()
         rq = bnc_rq.get_endpoint()
-        prms = bnc_rq.generate_request()
-        rsp = api.request_api(rq, prms)
+        params = bnc_rq.generate_request()
+        rsp = BinanceAPI.request_api(*bases_params, rq, params)
         bnc_rq.handle_response(rsp)
 
     def get_account_snapshot(self, bkr_rq: BinanceRequest) -> None:
-        api = self._get_api()
+        bases_params = self.get_base_params()
         rq = BinanceAPI.RQ_ACCOUNT_SNAP
         prms = bkr_rq.generate_request()
-        rsp = api.request_api(rq, prms)
+        rsp = BinanceAPI.request_api(*bases_params, rq, prms)
         bkr_rq.handle_response(rsp)
 
     def get_market_price(self, bnc_rq: BinanceRequest) -> None:
-        api = self._get_api()
+        bases_params = self.get_base_params()
         rq = BinanceAPI.RQ_KLINES
         prms = bnc_rq.generate_request()
-        rsp = api.request_api(rq, prms)
+        rsp = BinanceAPI.request_api(*bases_params, rq, prms)
         bnc_rq.handle_response(rsp)
 
     def get_trade_fee(self, pair: Pair) -> Map:
-        api = self._get_api()
-        fee = api.get_trade_fee(pair)
+        fee = BinanceAPI.get_trade_fee(pair)
         return Map(fee)
 
     def execute(self, order: Order) -> None:
-        api = self._get_api()
+        bases_params = self.get_base_params()
         rq = order.get_api_request()
         rq_params = order.generate_order()
-        rq_rsp = api.request_api(rq, rq_params)
+        rq_rsp = BinanceAPI.request_api(*bases_params, rq, rq_params)
         order.handle_response(rq_rsp)
 
     def cancel(self, order: Order) -> None:
-        api = self._get_api()
+        bases_params = self.get_base_params()
         params = order.generate_cancel_order()
         rq = BinanceAPI.RQ_CANCEL_ORDER
-        rsp = api.request_api(rq, params)
+        rsp = BinanceAPI.request_api(*bases_params, rq, params)
         order.handle_response(rsp)
 
-    def close(self) -> None:
-        self._get_api().close_socket()
+    @staticmethod
+    def close() -> None:
+        # self._get_api().close_socket()
+        BinanceAPI.close_socket()
 
     def get_next_trade_time(self) -> int:
         return int(random() * 10)

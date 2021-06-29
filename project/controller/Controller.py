@@ -54,8 +54,8 @@ class Controller:
         # """
         # params
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            api_pb = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
-            api_sk = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
+            api_pb = Config.get(Config.API_KEY_BINANCE_PUBLIC)
+            api_sk = Config.get(Config.API_KEY_BINANCE_SECRET)
             # """
             bkr = 'Binance'
             stgs = md.list_strategies()
@@ -65,8 +65,8 @@ class Controller:
             if stg == 'MinMax':
                 configs = Map({
                     bkr: {
-                        Map.api_pb: api_pb,
-                        Map.api_sk: api_sk,
+                        Map.public: api_pb,
+                        Map.secret: api_sk,
                         Map.test_mode: False
                     },
                     stg: {
@@ -79,8 +79,8 @@ class Controller:
             elif stg == 'MinMaxFloor':
                 configs = Map({
                     bkr: {
-                        Map.api_pb: api_pb,
-                        Map.api_sk: api_sk,
+                        Map.public: api_pb,
+                        Map.secret: api_sk,
                         Map.test_mode: False
                     },
                     stg: {
@@ -100,8 +100,8 @@ class Controller:
                 no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
                 configs = Map({
                     bkr: {
-                        Map.api_pb: api_pb,
-                        Map.api_sk: api_sk,
+                        Map.public: api_pb,
+                        Map.secret: api_sk,
                         Map.test_mode: False
                     },
                     stg: {
@@ -132,8 +132,8 @@ class Controller:
             bkr_modes_ks = list(bkr_modes.keys())
             configs = Map()
             bkr_params = {
-                Map.api_pb: vw.input(message=f"Enter the public key for {bkr}:", secure=True),
-                Map.api_sk: vw.input(message=f"Enter the secret key for {bkr}:", secure=True),
+                Map.public: vw.input(message=f"Enter the public key for {bkr}:", secure=True),
+                Map.secret: vw.input(message=f"Enter the secret key for {bkr}:", secure=True),
                 Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
             }
             configs.put(bkr_params, bkr)
@@ -191,12 +191,6 @@ class Controller:
     def start_bot(self):
         md = self.__get_model()
         vw = self.__get_view()
-        from model.API.brokers.Binance.Binance import Binance
-        Binance(Map({
-            Map.api_pb: 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5',
-            Map.api_sk: 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr',
-            Map.test_mode: False
-        }))
         bots = md.get_bots()
         bt_ids = bots.get_keys()
         bot_refs = [bots.get(bot_id).__str__() for bot_id in bt_ids]

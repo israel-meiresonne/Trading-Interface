@@ -28,9 +28,11 @@ class Map(MyJson):
     strategy = "strategy"
     param = "param"
     broker = "broker"
+    public = "public"
+    secret = "secret"
     # Binance
-    api_pb = "api_pb"
-    api_sk = "api_sk"
+    # api_pb = "api_pb" => public
+    # api_sk = "api_sk" => secret
     test_mode = "test_mode"
     # BinanceAPI
     signed = "signed"

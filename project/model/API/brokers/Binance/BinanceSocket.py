@@ -2,7 +2,7 @@ import time
 import threading
 from typing import List
 
-from websocket import WebSocketApp, enableTrace
+from websocket import WebSocketApp
 
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
@@ -43,8 +43,7 @@ class BinanceSocket(BinanceAPI):
     """
     _ADD_STREAM_QUEUE = None
 
-    def __init__(self, streams: List[str], api: BinanceAPI, run_forever: bool = False):
-        self.__api = api
+    def __init__(self, streams: List[str], run_forever: bool = False):
         self.__url = None
         self.__streams = None
         self.__new_streams = None
@@ -88,18 +87,19 @@ class BinanceSocket(BinanceAPI):
                 # """
 
     def _init_market_historic(self, stream: str, symbol: str, period_str: str) -> None:
-        api = self.get_api()
+        api_keys = BinanceAPI.get_default_api_keys()
+        test_mode = False
         rq = BinanceAPI.RQ_KLINES
         market_hists = self._get_market_historics()
         end = False
         i = 1
         while not end:
             try:
-                bkr_rsp = api._send_request(rq, Map({
-                Map.symbol: symbol.upper(),
-                Map.interval: period_str,
-                Map.limit: BinanceAPI.CONSTRAINT_KLINES_MAX_PERIOD
-            }))
+                bkr_rsp = BinanceAPI._send_request(test_mode, api_keys, rq, Map({
+                    Map.symbol: symbol.upper(),
+                    Map.interval: period_str,
+                    Map.limit: BinanceAPI.CONSTRAINT_KLINES_MAX_PERIOD
+                }))
                 end = bkr_rsp.get_status_code() is not None
             except Exception as error:
                 print(_MF.prefix() + f"Network error when getting market historic n°'{i}'")
@@ -111,7 +111,8 @@ class BinanceSocket(BinanceAPI):
         content_market = bkr_rsp.get_content()
         market_hists.put(content_market, stream)
 
-    def _get_market_historics(self) -> Map:
+    @staticmethod
+    def _get_market_historics() -> Map:
         if BinanceSocket._MARKET_HISTORIC is None:
             BinanceSocket._MARKET_HISTORIC = Map()
         return BinanceSocket._MARKET_HISTORIC
@@ -134,9 +135,6 @@ class BinanceSocket(BinanceAPI):
                 raise Exception(f"Exceed maximum retry '{max_retry}' to get market historic for stream '{stream}'.")
         """
         return market_hist_copy
-
-    def get_api(self) -> BinanceAPI:
-        return self.__api
 
     def get_url(self) -> str:
         """
@@ -806,9 +804,7 @@ if __name__ == '__main__':
         # BinanceSocket.generate_stream(rq, 'ACMUSDT', '1m')#,
         BinanceSocket.generate_stream(rq, 'BTCUSDT', '1m')
     ]
-    pk_k = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
-    sk_k = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
-    bnc_socket = BinanceSocket(streams, BinanceAPI(api_pb=pk_k, api_sk=sk_k, test_mode=False))
+    bnc_socket = BinanceSocket(streams, test_mode=False))
     bnc_socket._run_forever()
     th1 = bnc_socket.get_thread()
     end = False
