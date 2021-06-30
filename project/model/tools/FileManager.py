@@ -12,8 +12,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 
 class FileManager(ABC):
     _PROJECT_DIR = None
-    _REGEX_FILE_END_PATH = r'[\w\.-]+$'
-
+    _REGEX_FILE_DIR = r'^.+\/'
     @abstractmethod
     def __init__(self):
         pass
@@ -27,10 +26,6 @@ class FileManager(ABC):
         if FileManager._PROJECT_DIR is None:
             FileManager._PROJECT_DIR = os_path.abspath(__file__).replace('model/tools/FileManager.py', '')
         return FileManager._PROJECT_DIR
-
-    @staticmethod
-    def get_regex_file_end_path() -> str:
-        return FileManager._REGEX_FILE_END_PATH
 
     @staticmethod
     def read(path: str, binary: bool = False) -> Any:
@@ -64,9 +59,8 @@ class FileManager(ABC):
         bin_mode = 'b' if binary else ''
         write_mode = 'w' if overwrite else 'a'
         if make_dir:
-            regex = FileManager.get_regex_file_end_path()  # '[\w\.-]+$'
-            directory = _MF.regex_replace(regex, '', path)
-            FileManager.make_directory(directory)
+            file_dir = FileManager.extract_dir_from_file(path)
+            FileManager.make_directory(file_dir)
         with open(full_path, write_mode + bin_mode) as file:
             if binary:
                 record = Pickler(file)
@@ -119,9 +113,8 @@ class FileManager(ABC):
         extrasaction = 'ignore' if ignore_extra else 'raise'
         mode = 'w' if overwrite else 'a'
         if make_dir:
-            regex = FileManager.get_regex_file_end_path()
-            directory = _MF.regex_replace(regex, '', path)
-            FileManager.make_directory(directory)
+            file_dir = FileManager.extract_dir_from_file(path)
+            FileManager.make_directory(file_dir)
         with open(full_path, mode=mode, newline='') as f:
             writer = DictWriter(f, fieldnames=fields, extrasaction=extrasaction)
             f_size = os_path.getsize(full_path)
@@ -149,6 +142,7 @@ class FileManager(ABC):
         if not spacial:
             regex_special = r'^\..+'
             files = [file for file in files if not _MF.regex_match(regex_special, file)]
+        files.sort()
         return files
 
     @staticmethod
@@ -171,6 +165,7 @@ class FileManager(ABC):
                     ndrs.append(f)
         else:
             ndrs = drs
+        ndrs.sort()
         return ndrs
 
     @staticmethod
@@ -181,6 +176,13 @@ class FileManager(ABC):
         """
         path = FileManager.get_project_directory() + path
         os_remove(path)
+
+    @staticmethod
+    def extract_dir_from_file(file_path: str) -> str:
+        regex = FileManager._REGEX_FILE_DIR
+        file_name = _MF.regex_replace(regex, '', file_path)
+        file_dir = file_path.replace(file_name, '')
+        return file_dir
 
     @staticmethod
     def make_directory(path: str) -> None:
