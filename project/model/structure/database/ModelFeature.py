@@ -298,7 +298,7 @@ class ModelFeature(ModelAccess):
         return str(val).replace(".", ",") if val is not None else val
 
     @staticmethod
-    def round_time(unix_time: int, interval: int) -> int:
+    def round_time(unix_time: float, interval: float) -> float:
         """
         To round the unix time to the last multiple of interval\n
         i.e: 2021-05-15 16:56:14 (interval=60*20) => 2021-05-15 16:40:00
