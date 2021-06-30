@@ -324,7 +324,6 @@ class Orders(Order, MyJson):
             raise ValueError("The collection of Order can't be empty")
         ks = odrs.get_keys()
         pr = odrs.get(ks[0]).get_pair()
-        pr_str = pr.__str__
         r_asset = pr.get_right()
         l_asset = pr.get_left()
         r_symbol = r_asset.get_symbol()
@@ -332,41 +331,9 @@ class Orders(Order, MyJson):
         lspot = Price(0, l_symbol)
         rspot = Price(0, r_symbol)
         fees = Price(0, r_symbol)
-        """
         for _, odr in odrs.get_map().items():
-            if pr_str != odr.get_pair().__str__:
-                raise Exception(f"All Order must have the same pair of asset: {pr_str}!={odr.get_pair().__str__}")
-            if odr.get_status() == Order.STATUS_COMPLETED:
-                move = odr.get_move()
-                exct = odr.get_execution_price()
-                if move == Order.MOVE_BUY:
-                    if odr.get_quantity() is not None:
-                        qty = odr.get_quantity()
-                        lspot += qty.get_value()
-                        rspot -= exct.get_value() * qty.get_value()
-                    elif odr.get_amount() is not None:
-                        amnt = odr.get_amount()
-                        lspot += amnt.get_value() / exct.get_value()
-                        rspot -= amnt.get_value()
-                    else:
-                        raise Exception("Unknown Order state")
-                elif move == Order.MOVE_SELL:
-                    if odr.get_quantity() is not None:
-                        qty = odr.get_quantity()
-                        lspot -= qty.get_value()
-                        rspot += exct.get_value() * qty.get_value()
-                    elif odr.get_amount():
-                        amnt = odr.get_amount()
-                        lspot -= amnt.get_value() / exct.get_value()
-                        rspot += amnt.get_value()
-                    else:
-                        raise Exception("Unknown Order state")
-                else:
-                    raise Exception("Unknown Order move")
-        """
-        for _, odr in odrs.get_map().items():
-            if pr_str != odr.get_pair().__str__:
-                raise Exception(f"All Order must have the same pair of asset: {pr_str}!={odr.get_pair().__str__}")
+            if pr != odr.get_pair():
+                raise Exception(f"All Order must have the same pair of asset: {pr}!={odr.get_pair()}")
             if odr.get_status() == Order.STATUS_COMPLETED:
                 move = odr.get_move()
                 exec_qty = odr.get_executed_quantity()
