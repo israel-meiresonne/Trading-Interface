@@ -42,8 +42,12 @@ class BinanceSocket(BinanceAPI):
     _MARKET_RESET_BOOK[binance_stream{str}]:    {int} # Next time to reset market historic for the stream
     """
     _ADD_STREAM_QUEUE = None
+    _NB_INSTANCE = None
 
     def __init__(self, streams: List[str], run_forever: bool = False):
+        if BinanceSocket._NB_INSTANCE is not None:
+            raise Exception("Can't instantiate more than 1 BinanceSocket")
+        BinanceSocket._NB_INSTANCE = 1
         self.__url = None
         self.__streams = None
         self.__new_streams = None
