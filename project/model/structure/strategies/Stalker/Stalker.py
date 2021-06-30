@@ -17,10 +17,11 @@ from model.tools.Price import Price
 
 class Stalker(Strategy, MyJson):
     _CONST_MARKET_PERIOD = 60 * 60  # in second
-    _CONST_STALK_FREQUENCY = 60     # in second     # 60 * 60
+    _CONST_STALK_FREQUENCY = 60     # in second
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
     _CONST_MAX_LOSS_RATE = -0.01
+    _CONST_FLOOR_COEF = 0.05
     _THREAD_BASE_MARKET_STALKING = 'market_stalking'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
@@ -58,6 +59,7 @@ class Stalker(Strategy, MyJson):
         self.__next_blacklist_clean = None
         self.__blacklist = None
         self.__stalk_thread = None
+        self.__active_rois = None
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
@@ -222,6 +224,7 @@ class Stalker(Strategy, MyJson):
         self._add_transaction(final_capital)
         # Delete active Strategy
         del active_stgs.get_map()[pair_str]
+        self._delete_active_roi(pair)
 
     def _set_next_blacklist_clean(self) -> None:
         """
@@ -434,6 +437,33 @@ class Stalker(Strategy, MyJson):
         new_sleep_time = next_rounded_time - unix_time
         return new_sleep_time if new_sleep_time > 0 else 0
 
+    def get_active_rois(self) -> Map:
+        if self.__active_rois is None:
+            self.__active_rois = Map()
+        return self.__active_rois
+
+    def get_active_roi(self, pair: Pair) -> float:
+        return self.get_active_rois().get(pair.__str__())
+
+    def _update_active_roi(self, pair: Pair, roi: float) -> None:
+        self.get_active_rois().put(roi, pair.__str__())
+
+    def _delete_active_roi(self, pair: Pair) -> None:
+        active_rois = self.get_active_rois()
+        pair_str = pair.__str__()
+        if pair_str not in active_rois.get_keys():
+            raise KeyError(f"There's not active roi for this pair '{pair}'")
+        del active_rois.get_map()[pair_str]
+
+    def _bellow_floor(self, strategy: Strategy, market_price: MarketPrice) -> bool:
+        pair = strategy.get_pair()
+        roi = strategy.get_roi(market_price)
+        last_roi = self.get_active_roi(pair)
+        floor_coef = Stalker.get_floor_coef()
+        last_floor = _MF.round_time(last_roi, floor_coef) if last_roi is not None else None
+        bellow_floor = (last_roi is not None) and (last_roi > floor_coef) and (roi < last_floor)
+        return bellow_floor
+
     def trade(self, bkr: Broker) -> int:
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._manage_trades(bkr)
@@ -476,10 +506,47 @@ class Stalker(Strategy, MyJson):
             psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
             psar_rising = psar_trend == MarketPrice.PSAR_RISING
             # Prepare capital
+            bellow_floor = self._bellow_floor(active_stg, market_price)
             stg_roi = active_stg.get_roi(market_price)
             max_loss_rate = Stalker.get_max_loss()
             stg_roi_bellow_limit = stg_roi <= max_loss_rate
+            last_roi = self.get_active_roi(pair)
+            floor_coef = Stalker.get_floor_coef()
+            last_floor = _MF.round_time(last_roi, floor_coef) if last_roi is not None else None
+            row = {
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.pair: pair,
+                Map.roi: f"{_MF.float_to_str(round(stg_roi * 100, 2))}%",
+                'max_loss': f"{_MF.float_to_str(round(max_loss_rate * 100, 2))}%",
+                'roi_bellow_limit': stg_roi_bellow_limit,
+                'has_position': has_position,
+                'floor_coef': f"{_MF.float_to_str(round(floor_coef * 100, 2))}%",
+                'last_roi': f"{_MF.float_to_str(round(last_roi * 100, 2))}%" if last_roi is not None else '—',
+                'last_floor': f"{_MF.float_to_str(round(last_floor * 100, 2))}%" if last_roi is not None else '—',
+                'supertrend_trend': supertrend_trend,
+                'supertrend_rising': supertrend_rising,
+                'psar_trend': psar_trend,
+                'psar_rising': psar_rising,
+                Map.close: _MF.float_to_str(closes[-1]),
+                Map.super_trend: _MF.float_to_str(supertrends[-1]),
+                'psar': _MF.float_to_str(psars[-1])
+            }
+            rows.append(row)
             # Trade
+            if bellow_floor:
+                self._delete_active_strategy(bkr, pair)
+                self._blacklist_pair(pair)
+                print(f"{_MF.prefix()}" + _color_yellow + f"Pair '{pair_str.upper()}' is BELLOW its last FLOOR "
+                                                          f"(floor coef ('{floor_coef*100}%'): "
+                                                          f"roi='{round(stg_roi*100, 2)}%' <= '{last_floor*100}%')."
+                                                          f"" + _normal)
+                continue
+            else:
+                self._update_active_roi(pair, stg_roi)
+                last_roi_str = f"{_MF.float_to_str(round(last_roi * 100, 2))}%" if last_roi is not None else '—'
+                print(f"{_MF.prefix()}" + _color_green + f"Pair '{pair_str.upper()}' UPDATED its active roi from "
+                                                         f"{last_roi_str}->{round(stg_roi*100, 2)}%"
+                                                         f"" + _normal)
             if stg_roi_bellow_limit:
                 self._delete_active_strategy(bkr, pair)
                 self._blacklist_pair(pair)
@@ -504,22 +571,6 @@ class Stalker(Strategy, MyJson):
                                 f"has_position: '{has_position}'\n"
                                 f"supertrend_rising: '{supertrend_rising}'\n"
                                 f"psar_rising: '{psar_rising}')")
-            row = {
-                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
-                Map.pair: pair,
-                Map.roi: f"{_MF.float_to_str(round(stg_roi * 100, 2))}%",
-                'max_loss': f"{_MF.float_to_str(round(max_loss_rate * 100, 2))}%",
-                'roi_bellow_limit': stg_roi_bellow_limit,
-                'has_position': has_position,
-                'supertrend_trend': supertrend_trend,
-                'supertrend_rising': supertrend_rising,
-                'psar_trend': psar_trend,
-                'psar_rising': psar_rising,
-                Map.close: _MF.float_to_str(closes[-1]),
-                Map.super_trend: _MF.float_to_str(supertrends[-1]),
-                'psar': _MF.float_to_str(psars[-1])
-            }
-            rows.append(row)
         self._save_state(pair_closes, pairs_to_delete)
         Stalker._save_moves(rows) if len(rows) > 0 else None
 
@@ -550,6 +601,10 @@ class Stalker(Strategy, MyJson):
     @staticmethod
     def get_max_loss() -> float:
         return Stalker._CONST_MAX_LOSS_RATE
+
+    @staticmethod
+    def get_floor_coef() -> float:
+        return Stalker._CONST_FLOOR_COEF
 
     @staticmethod
     def _get_market_price(bkr: Broker, pair: Pair) -> MarketPrice:

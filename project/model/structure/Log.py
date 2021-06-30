@@ -7,7 +7,6 @@ from model.structure.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
-from model.tools.Pair import Pair
 
 
 class Log(ModelInterface, _MF):
