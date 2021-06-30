@@ -31,7 +31,7 @@ class Bot(MyJson):
         self.__strategy = None
         self._set_strategy(stg, configs)
         self.__pair = self.__strategy.get_pair()
-        Bot.save_bot(self)
+        self.__last_backup = None
 
     def _set_strategy(self, stg_class: str, params: Map) -> None:
         # Put Pair
@@ -55,6 +55,19 @@ class Bot(MyJson):
     def get_pair(self) -> Pair:
         return self.__pair
 
+    def _set_last_backup(self, last_backup: int) -> None:
+        self.__last_backup = last_backup
+
+    def get_last_backup(self) -> int:
+        """
+        To get the last time Bot have been backup\n
+        Returns
+        -------
+        last_backup: int
+            The last time Bot have been backup
+        """
+        return self.__last_backup
+
     def start(self) -> None:
         """
         To start trade\n
@@ -69,9 +82,10 @@ class Bot(MyJson):
         limit_error = 60
         stop_index = Bot.get_index_stop()
         print(f"{_MF.prefix()}Bot started to trade...")
+        bot_id = self.get_id()
         while not end:
             Bot._set_trade_index(trade_index)
-            print(f"{_MF.prefix()}Trade n°{trade_index} — {_MF.unix_to_date(_MF.get_timestamp())}")
+            print(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
             # Trade
             try:
                 sleep_time = stg.trade(bkr)
@@ -86,13 +100,13 @@ class Bot(MyJson):
                     raise error
             # Sleep
             if _stage != Config.STAGE_1:
-                # Bot.save_bot(self)
+                self.backup()
                 sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
                 unix_time = _MF.get_timestamp()
                 start_date = _MF.unix_to_date(unix_time)
                 end_date = _MF.unix_to_date(unix_time + sleep_time)
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-                print(f"{_MF.prefix()}Bot sleep for '{sleep_time_str}'seconds till '{start_date}'->'{end_date}'...")
+                print(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
             end = self._still_active()
             trade_index += 1
@@ -136,15 +150,16 @@ class Bot(MyJson):
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite)
 
-    @staticmethod
-    def save_bot(bot: 'Bot') -> None:
+    def backup(self) -> None:
         _stage = Config.get(Config.STAGE_MODE)
         _start_date = Config.get(Config.START_DATE)
         path = Config.get(Config.DIR_DATABASE)
-        file_name = f"{_start_date}|" + Config.get(Config.FILE_NAME_BOT_BACKUP).replace('$bot_ref', bot.__str__())
+        file_name = f"{_start_date}|" + Config.get(Config.FILE_NAME_BOT_BACKUP).replace('$bot_ref', self.__str__())
         save_dir_path = path.replace('$stage', _stage).replace('$class', Bot.__name__)
-        backup_path = save_dir_path + file_name
-        FileManager.write(backup_path, bot, binary=True)
+        backup_path = f"{save_dir_path}{self.get_id()}/{file_name}"
+        self._set_last_backup(_MF.get_timestamp())
+        json_str = self.json_encode()
+        FileManager.write(backup_path, json_str, binary=False, overwrite=True, make_dir=True)
         print(f"{_MF.prefix()}💾 Bot saved! ✅")
 
     @staticmethod

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from model.structure.Bot import Bot
 from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
@@ -9,7 +10,7 @@ class ModelInterface(ABC):
         self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
 
     @abstractmethod
-    def create_bot(self, bkr: str, stg: str, prcd: str, configs: dict) -> None:
+    def create_bot(self, bkr: str, stg: str, prcd: str, configs: dict) -> Bot:
         """
         To create a new Bot\n
         :param bkr: name of a supported Broker
@@ -19,6 +20,7 @@ class ModelInterface(ABC):
                         configs[{Bot}]      => Bot's configs
                         configs[{Broker}]   => Broker's configs
                         configs[{Strategy}] => Strategy's configs
+        :return: The Bot just created
         """
         pass
 

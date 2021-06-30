@@ -2,6 +2,7 @@ from config.Config import Config
 from model.structure.Log import Log
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from view.ViewInterface import ViewInterface
 from view.structure.View import View
 
 
@@ -33,9 +34,7 @@ class Controller:
         end = False
         ms = View.get_menus()
         cs = ms[m_home][View.MENUS_KEY_TXT]
-        stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
-        stage = stage_modes[vw.menu("Choose the stage mode:", stage_modes)]
-        Config.update(Config.STAGE_MODE, stage)
+        Controller._set_stage(vw)
         FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}])
         FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}])
         while not end:
@@ -46,6 +45,12 @@ class Controller:
     @staticmethod
     def quit():
         return True
+
+    @staticmethod
+    def _set_stage(view: ViewInterface) -> None:
+        stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
+        stage = stage_modes[view.menu("Choose the stage mode:", stage_modes)]
+        Config.update(Config.STAGE_MODE, stage)
 
     def new_bot(self):
         _stage = Config.get(Config.STAGE_MODE)
@@ -164,9 +169,9 @@ class Controller:
         print(configs.get_map())
         # """
         # create Bot
-        configs.put(stg, Map.pair, pair_code)
-        md.create_bot(bkr, stg, pair_code, configs)
-        vw.output(View.FILE_MESSAGE, "✅ new Bot created!")
+        configs.put(pair_code, stg, Map.pair)
+        bot = md.create_bot(bkr, stg, pair_code, configs)
+        vw.output(View.FILE_MESSAGE, f"✅ new Bot created (Bot's id: '{bot.get_id()}')")
         """
         if (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
             # Select period

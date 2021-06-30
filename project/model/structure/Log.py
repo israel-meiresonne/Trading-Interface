@@ -6,6 +6,7 @@ from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 
 
@@ -19,16 +20,26 @@ class Log(ModelInterface, _MF):
     def get_log_id(self):
         return self.log_id
 
-    def __set_bots(self):
+    def _set_bots(self):
         self.__bots = Map()
         _stage = Config.get(Config.STAGE_MODE)
         path = Config.get(Config.DIR_DATABASE)
-        bot_dir = path.replace('$stage', _stage).replace('$class', Bot.__name__)
-        bot_files = FileManager.get_files(bot_dir)
-        for bot_file in bot_files:
-            bot_file_path = bot_dir + bot_file
-            bot = FileManager.read(bot_file_path, binary=True)
-            self._add_bot(bot)
+        bot_id_dir = path.replace('$stage', _stage).replace('$class', Bot.__name__)
+        bot_id_folders = FileManager.get_dirs(bot_id_dir)
+        for bot_id_folder in bot_id_folders:
+            bot_backup_dir = f"{bot_id_dir}{bot_id_folder}/"
+            bot_backup_files = FileManager.get_files(bot_backup_dir)
+            for bot_backup_file in bot_backup_files:
+                bot_file_path = bot_backup_dir + bot_backup_file
+                json_str = FileManager.read(bot_file_path, binary=False)
+                bot = MyJson.json_decode(json_str)
+                bot_id = bot.get_id()
+                if (self.__bots is not None) and (bot_id in self.get_bots().get_keys()):
+                    bot_in = self.get_bot(bot_id)
+                    new_is_newest = bot.get_last_backup() > bot_in.get_last_backup()
+                    self._add_bot(bot) if new_is_newest else None
+                else:
+                    self._add_bot(bot)
 
     def _add_bot(self, bot: Bot) -> None:
         self.get_bots().put(bot, bot.get_id())
@@ -39,7 +50,7 @@ class Log(ModelInterface, _MF):
          @:return\n
             dict: set of Bot
         """
-        self.__set_bots() if (self.__bots is None) else None
+        self._set_bots() if self.__bots is None else None
         return self.__bots
 
     def get_bot(self, bot_id: str) -> Bot:
@@ -53,13 +64,15 @@ class Log(ModelInterface, _MF):
             raise Exception(f"There's no Bot with this id '{bot_id}'")
         return bots.get(bot_id)
 
-    def create_bot(self, broker: str, strategy: str, pair_str: str, configs: Map):
+    def create_bot(self, broker: str, strategy: str, pair_str: str, configs: Map) -> Bot:
         configs = Map() if configs is None else configs
         ks = configs.get_keys()
         configs.put(Map(), broker) if broker not in ks else None
         configs.put(Map(), strategy) if strategy not in ks else None
         bot = Bot(broker, strategy, configs)
         self._add_bot(bot)
+        bot.backup()
+        return bot
 
     def start_bot(self, bot_id):
         bot = self.get_bot(bot_id)
