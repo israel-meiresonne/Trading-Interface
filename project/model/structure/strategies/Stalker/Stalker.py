@@ -57,7 +57,6 @@ class Stalker(Strategy, MyJson):
         self.__active_strategies = None
         self.__next_blacklist_clean = None
         self.__blacklist = None
-        self.__stalking = False
         self.__stalk_thread = None
 
     def get_max_strategy(self) -> int:
@@ -275,9 +274,6 @@ class Stalker(Strategy, MyJson):
         # no_active_pairs = [Pair('DOGE/USDT')]                                                   # ❌
         return no_active_pairs
 
-    def _set_stalking(self, is_stalking: bool) -> None:
-        self.__stalking = is_stalking
-
     def is_stalking(self) -> bool:
         """
         To get if class is stalking market\n
@@ -286,15 +282,13 @@ class Stalker(Strategy, MyJson):
         is_stalking: bool
             True if class is stalking market else False
         """
-        return self.__stalking
+        stalk_thread = self.get_stalk_thread()
+        return (stalk_thread is not None) and stalk_thread.is_alive()
 
     def _set_stalk_thread(self, stalk_thread: Thread) -> None:
         self.__stalk_thread = stalk_thread
 
-    def _reset_stalk_thread(self) -> None:
-        self.__stalk_thread = None
-
-    def _get_stalk_thread(self) -> Thread:
+    def get_stalk_thread(self) -> Thread:
         """
         To get Thread where class is stalking the market\n
         Returns
@@ -308,13 +302,12 @@ class Stalker(Strategy, MyJson):
         """
         To launch market stalking in its own Thread\n
         """
-        last_stalk_thread = self._get_stalk_thread()
+        last_stalk_thread = self.get_stalk_thread()
         if (last_stalk_thread is not None) and last_stalk_thread.is_alive():
             raise Exception("Can start a stalk thread while an other is working.")
         thread_name = _MF.generate_thread_name(Stalker._THREAD_BASE_MARKET_STALKING, 5)
         stalk_thread = Thread(target=self._manage_stalking, kwargs={Map.broker: bkr}, name=thread_name)
         self._set_stalk_thread(stalk_thread)
-        self._set_stalking(is_stalking=True)
         stalk_thread.start()
 
     def _can_launch_stalking(self) -> bool:
@@ -322,20 +315,7 @@ class Stalker(Strategy, MyJson):
         To check if all conditions are met to stalk the market\n
         :return: True if all conditions are met else False
         """
-        # active_strategies = self.get_active_strategies()
-        # max_strategy = self.get_max_strategy()
-        # max_reached = len(active_strategies.get_map()) >= max_strategy
         max_reached = self.max_active_strategies_reached()
-        """
-        next_stalk = self.get_next_stalk()
-        if Stalker._get_stage() == Config.STAGE_1:
-            trade_index = Stalker._get_trade_index()
-            time_to_stalk = (next_stalk is None) or (trade_index >= next_stalk)
-        else:
-            unix_time = _MF.get_timestamp()
-            time_to_stalk = (next_stalk is None) or (unix_time >= next_stalk)
-        """
-        # return (not max_reached) and self.is_stalking
         return not (max_reached or self.is_stalking())
 
     def _keep_stalkig(self) -> bool:
@@ -367,10 +347,8 @@ class Stalker(Strategy, MyJson):
                     end_sleep = _MF.unix_to_date(next_stalk)
                     print(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
                     time.sleep(sleep_time)
-            self._set_stalking(is_stalking=False)
             print(f"{_MF.prefix()}End Managing Stalking.")
         except Exception as e:
-            self._set_stalking(is_stalking=False)
             from model.structure.Bot import Bot
             Bot.save_error(e, Stalker.__name__)
 
@@ -457,7 +435,6 @@ class Stalker(Strategy, MyJson):
         return new_sleep_time if new_sleep_time > 0 else 0
 
     def trade(self, bkr: Broker) -> int:
-        # self._stalk_market(bkr) if self._can_stalk() else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._manage_trades(bkr)
         return self._get_sleep_time()
