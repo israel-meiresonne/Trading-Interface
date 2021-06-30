@@ -27,7 +27,10 @@ class MyJson(ABC):
         attrs = self.__dict__
         json_dict = {_class_token: class_name}
         for attr, value in attrs.items():
-            value_serialized = MyJson.__root_encoding(value)
+            if value.__class__.__name__ == 'Thread':
+                value_serialized = None
+            else:
+                value_serialized = MyJson.__root_encoding(value)
             json_dict[attr] = value_serialized
         json_str = _MF.json_encode(json_dict)
         return json_str
