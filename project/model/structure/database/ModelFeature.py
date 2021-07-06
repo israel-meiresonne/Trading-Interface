@@ -9,6 +9,7 @@ from time import time as time_time
 from typing import Union, Any
 
 import numpy as np
+from pytz import timezone
 from scipy.signal import find_peaks
 from scipy.stats import linregress
 
@@ -21,6 +22,7 @@ class ModelFeature(ModelAccess):
     FORMAT_D_H_M_S_MS = '%Y-%m-%d %H:%M:%S.%f'
     FORMAT_D_H_M_S = '%Y-%m-%d %H:%M:%S'
     FORMAT_D_H_M_S_FOR_FILE = '%Y-%m-%d_%H.%M.%S'
+    TIME_ZONE_UTC = 'UTC'
 
     @abstractmethod
     def __init__(self):
@@ -46,8 +48,9 @@ class ModelFeature(ModelAccess):
         return datetime.fromisoformat(date).timestamp()
 
     @staticmethod
-    def unix_to_date(time: int, form: str = FORMAT_D_H_M_S) -> str:
-        return datetime.fromtimestamp(time).strftime(form)
+    def unix_to_date(time: int, form: str = FORMAT_D_H_M_S, timezone_str: str = TIME_ZONE_UTC) -> str:
+        # return datetime.fromtimestamp(time).strftime(form)
+        return datetime.fromtimestamp(time, timezone(timezone_str)).strftime(form)
 
     # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
     @staticmethod
