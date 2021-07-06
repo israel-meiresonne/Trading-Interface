@@ -4,9 +4,9 @@ analyse/*
 .run
 *.pyc
 project/content/v0.01
-# project/content/storage
-project/content/storage/STAGE_1
-project/content/storage/STAGE_2
-project/content/storage/STAGE_3/bot_927r146f1e0xqu1g3205
-project/content/storage/STAGE_3/Bot_binary
+project/content/storage
+# project/content/storage/STAGE_1
+# project/content/storage/STAGE_2
+# project/content/storage/STAGE_3/bot_927r146f1e0xqu1g3205
+# project/content/storage/STAGE_3/Bot_binary
 project/env/
