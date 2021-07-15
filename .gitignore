@@ -1,6 +1,8 @@
 .DS_Store
 analyse/*
 __pycache__*/
+.idea/
+.run/
 *.pyc
 project/content/v0.01
 project/content/storage
