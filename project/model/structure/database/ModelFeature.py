@@ -339,3 +339,19 @@ class ModelFeature(ModelAccess):
         else:
             thread_code = new_code[0:code_size]
         return f'Thread_{thread_base_name}_{thread_code}'
+
+    @staticmethod
+    def remove_duplicates(values: list) -> list:
+        """
+        To remove duplicate values from list\n
+        Parameters
+        ----------
+        values: list
+            List of values
+
+        Returns
+        -------
+        cleaned: list
+            New list without any duplicate
+        """
+        return list(dict.fromkeys(values))
