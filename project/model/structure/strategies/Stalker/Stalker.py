@@ -16,8 +16,9 @@ from model.tools.Price import Price
 
 
 class Stalker(Strategy, MyJson):
-    _CONST_MARKET_PERIOD = 60 * 60  # in second
-    _CONST_STALK_FREQUENCY = 60     # in second
+    _CONST_MARKET_PERIOD = 60 * 60      # in second
+    _CONST_STALK_FREQUENCY = 60         # in second
+    _CONST_STALKER_BOT_SLEEP_TIME = 10  # in second
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
     _CONST_MAX_LOSS_RATE = -0.01
@@ -366,21 +367,26 @@ class Stalker(Strategy, MyJson):
         _bkr_cls = bkr.__class__.__name__
         pairs = self._get_no_active_pairs(bkr)
         nb_pair = len(pairs)    # ❌
-        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Retrieve '{nb_pair}' no active pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
+        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Stalk of '{nb_pair}' unused pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
         perfs = Map()
         market_prices = Map()
+        stalk_period = self.get_stalk_period()
         market_params = Map({
             Map.pair: None,
             # Map.period: 60 * 60,
-            Map.period: self.get_stalk_period(),
+            Map.period: stalk_period,
             Map.begin_time: None,
             Map.end_time: None,
             Map.number: 1000
         })
         # Get performance
+        streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: stalk_period})) for pair in pairs]
+        bkr.add_streams(streams)
         cpt = 1     # ❌
         for pair in pairs:
-            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour." + _cls._TO_REMOVE_STYLE_NORMAL)
+            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN
+                  + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour."
+                  + _cls._TO_REMOVE_STYLE_NORMAL)
             cpt += 1
             pair_str = pair.__str__()
             market_params.put(pair, Map.pair)
@@ -400,36 +406,10 @@ class Stalker(Strategy, MyJson):
                 self._add_active_strategy(Pair(pair_str))
                 if self.max_active_strategies_reached():
                     break
-        """
-        # Set next stalk time
-        unix_time = _MF.get_timestamp()
-        self._set_next_stalk(unix_time)
-        next_stalk = _MF.unix_to_date(self.get_next_stalk()) if Stalker._get_stage() != Config.STAGE_1 \
-            else self.get_next_stalk()
-        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"Next stalk: '{next_stalk}'" + _cls._TO_REMOVE_STYLE_NORMAL)
-        """
         # Backup
         # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
     def _get_sleep_time(self) -> int:
-        """
-        if Stalker._get_stage() == Config.STAGE_1:
-            sleep_time = None
-        else:
-            active_stgs = self.get_active_strategies()
-            if len(active_stgs.get_map()) == 0:
-                next_stalk = self.get_next_stalk()
-                unix_time = _MF.get_timestamp()
-                min_stalk = Stalker.get_minimum_stalk_interval()
-                min_stalk_next_time = int(unix_time / min_stalk) * min_stalk + min_stalk
-                min_next_stalk_time = min_stalk_next_time - unix_time
-                sleep_time = next_stalk - unix_time \
-                    if (next_stalk is not None) \
-                       and (next_stalk > unix_time) \
-                       and ((next_stalk - unix_time) > min_stalk) else min_next_stalk_time
-            else:
-                sleep_time = Stalker.get_bot_sleep_time()
-        """
         sleep_interval = self.get_bot_sleep_time()
         unix_time = _MF.get_timestamp()
         time_rounded = _MF.round_time(unix_time, sleep_interval)
@@ -484,7 +464,9 @@ class Stalker(Strategy, MyJson):
         pairs_to_delete = []    # ❌
         pair_closes = Map()     # ❌
         rows = []               # ❌
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies ({len(active_stgs_copy.get_map())}):".upper() + _normal)
+        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
+                                                              f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
+        self._manage_trades_add_streams(bkr, active_stgs_copy)
         for pair_str, active_stg in active_stgs_copy.get_map().items():
             print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
             # Prepare active Strategy
@@ -574,6 +556,16 @@ class Stalker(Strategy, MyJson):
         self._save_state(pair_closes, pairs_to_delete)
         Stalker._save_moves(rows) if len(rows) > 0 else None
 
+    def _manage_trades_add_streams(self, bkr: Broker, active_stgs_copy: Map) -> None:
+        pair_strs = active_stgs_copy.get_keys()
+        pairs = [active_stgs_copy.get(pair_str).get_pair() for pair_str in pair_strs]
+        stalk_period = Stalker.get_stalk_period()
+        stalker_streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: stalk_period})) for pair in pairs]
+        bkr.add_streams(stalker_streams)
+        child_period = self.get_strategy_params().get(Map.period)
+        stalker_streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: child_period})) for pair in pairs]
+        bkr.add_streams(stalker_streams)
+
     def stop_trading(self, bkr: Broker) -> None:
         pass
 
@@ -642,7 +634,6 @@ class Stalker(Strategy, MyJson):
                 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
                 pair_strs = [BinanceAPI.symbol_to_pair(_MF.regex_replace('%.+$', '', pair_folder))
                              for pair_folder in pair_folders]
-                # Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
             else:
                 # Stablecoin regex
                 stablecoins = Config.get(Config.CONST_STABLECOINS)
@@ -651,7 +642,7 @@ class Stalker(Strategy, MyJson):
                 # Fiat regex
                 fiats = Config.get(Config.CONST_FIATS)
                 concat_fiat = '|'.join(fiats)
-                fiat_rgx = f'({concat_fiat})/\w+$'
+                fiat_rgx = rf'({concat_fiat})/\w+$'
                 # Get pairs
                 no_match = [
                     r'^\w+(up|down|bear|bull)\/\w+$',
@@ -661,9 +652,8 @@ class Stalker(Strategy, MyJson):
                     stablecoin_rgx,
                     r'BCHSV/\w+$'
                 ]
-                match = ['^.+\/usdt']
+                match = [r'^.+\/usdt']
                 pair_strs = bkr.get_pairs(match=match, no_match=no_match)
-                # Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
             Stalker._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
         return Stalker._CONST_ALLOWED_PAIRS
 
@@ -685,16 +675,11 @@ class Stalker(Strategy, MyJson):
         trend = MarketPrice.get_super_trend_trend(closes, super_trends, -1)
         prev_trend = MarketPrice.get_super_trend_trend(closes, super_trends, -2)
         eligible = (trend == MarketPrice.SUPERTREND_RISING) and (prev_trend == MarketPrice.SUPERTREND_DROPPING)
-        """
-        if trend == MarketPrice.SUPERTREND_RISING:
-            super_trend_switchs = MarketPrice.get_super_trend_switchers(closes, super_trends)
-            index_to_switch_index = super_trend_switchs.get_keys()
-            last_red_close_index = index_to_switch_index[-1] - 1
-            last_red_close = closes[last_red_close_index]
-            super_trend = super_trends[-1]
-            eligible = super_trend <= last_red_close
-        """
         return eligible
+
+    @staticmethod
+    def get_bot_sleep_time() -> int:
+        return Stalker._CONST_STALKER_BOT_SLEEP_TIME
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'Stalker':
