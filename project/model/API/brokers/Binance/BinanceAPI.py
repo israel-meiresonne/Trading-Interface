@@ -597,13 +597,42 @@ class BinanceAPI(ABC):
         BinanceAPI._SOCKET = socket
 
     @staticmethod
-    def _get_socket(stream: str) -> Any:
+    def _get_socket(new_streams: List[str]) -> Any:
         socket = BinanceAPI._SOCKET
         if socket is None:
-            BinanceAPI._set_socket([stream])
-        elif stream not in socket.get_streams():
-            socket.add_streams(stream)
+            BinanceAPI._set_socket(new_streams)
+        else:
+            socket.add_streams(new_streams)
         return BinanceAPI._SOCKET
+
+    @staticmethod
+    def add_streams(new_streams: List[str]) -> None:
+        BinanceAPI._get_socket(new_streams)
+
+    @staticmethod
+    def generate_stream(rq: str, symbol: str, period_str: str) -> str:
+        """
+        To generate Binance stream\n
+        Parameters
+        ----------
+        rq: str
+            The request
+        symbol: str
+            Binance's symbol, i.e.: 'DOGEUSDT', 'BTCEUR', etc...
+        period_str: str
+            Period interval in string, i.e.: '1m', '1M', '3d', etc...
+        Returns
+        -------
+        stream: str
+            Binance stream
+        """
+        if rq != BinanceAPI.RQ_KLINES:
+            raise ValueError(f"Can't generate stream for this request '{rq}'.")
+        from model.API.brokers.Binance.BinanceSocket import BinanceSocket
+        stream_format = BinanceSocket.get_stream_format_kline()
+        symbol = symbol.lower()
+        stream = stream_format.replace(f'${Map.symbol}', symbol).replace(f'${Map.interval}', period_str)
+        return stream
 
     @staticmethod
     def close_socket() -> None:
@@ -779,12 +808,11 @@ class BinanceAPI(ABC):
 
     @staticmethod
     def _send_market_historics_request(test_mode: bool, rq: str, params: Map) -> BrokerResponse:
-        from model.API.brokers.Binance.BinanceSocket import BinanceSocket
         BinanceAPI._set_test_mode(test_mode)
         symbol = params.get(Map.symbol)
         period_str = params.get(Map.interval)
-        stream = BinanceSocket.generate_stream(rq, symbol, period_str)
-        bnc_socket = BinanceSocket._get_socket(stream)
+        stream = BinanceAPI.generate_stream(rq, symbol, period_str)
+        bnc_socket = BinanceAPI._get_socket([stream])
         market_historic = bnc_socket.get_market_historic(stream)
         rsp = Response()
         rsp.request = {
@@ -894,6 +922,8 @@ class BinanceAPI(ABC):
         :param prd: the period time (in second) to convert
         :return: period interval supported by the API
         """
+        if not isinstance(prd, int):
+            raise ValueError(f"The period to convert must be type int, instead '{prd}({type(prd)})'")
         intrs = BinanceAPI.get_intervals()
         ks = intrs.get_keys()
         nb = len(ks)

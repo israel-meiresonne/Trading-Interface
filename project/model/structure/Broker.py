@@ -64,6 +64,34 @@ class Broker:
         """
         pass
 
+    @abstractmethod
+    def add_streams(self, new_streams: List[str]) -> None:
+        """
+        To add new steams in Broker's socket\n
+        Parameters
+        ----------
+        new_streams: List[str]
+            List of new stream
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def generate_stream(params: Map) -> str:
+        """
+        To generate a Broker stream\n
+        Parameters
+        ----------
+        params: Map
+            Param to adjust following Broker's needs
+
+        Returns
+        -------
+        stream: str
+            Broker stream
+        """
+        pass
+
     @staticmethod
     @abstractmethod
     def close() -> None:

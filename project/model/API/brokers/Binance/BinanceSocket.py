@@ -19,7 +19,7 @@ class BinanceSocket(BinanceAPI):
     _PATH_COMBINED_STEAM = '/stream?streams='
     _STREAM_FORMAT_KLINE = '$symbol@kline_$interval'
     # Constants
-    _CONST_MARKET_RESET_INTERVAL = 60 * 10              # in second
+    _CONST_MARKET_RESET_INTERVAL = 60 * 10  # in second
     _CONST_MAX_SIZE_SOCKET_LIST = 25
     _CONST_MAX_RETRY_ADD_NEW_STREAM = 10
     _CONST_MARKET_NETWORK_MAX_RETRY = 60 * 60
@@ -109,9 +109,13 @@ class BinanceSocket(BinanceAPI):
                 print(_MF.prefix() + f"Network error when getting market historic n°'{i}'")
                 from model.structure.Bot import Bot
                 Bot.save_error(error, BinanceSocket.__name__)
-                end = i > BinanceSocket._CONST_MARKET_NETWORK_MAX_RETRY
-                i += 1
-                time.sleep(1)
+                current_thread = threading.current_thread()
+                if BinanceSocket._THREAD_BASE_SOCKET_ON_MESSAGE_HANDLER in current_thread.name:
+                    end = True
+                else:
+                    end = i > BinanceSocket._CONST_MARKET_NETWORK_MAX_RETRY
+                    i += 1
+                    time.sleep(1)
         content_market = bkr_rsp.get_content()
         market_hists.put(content_market, stream)
 
@@ -125,19 +129,6 @@ class BinanceSocket(BinanceAPI):
         market_hists = self._get_market_historics()
         market_hist = market_hists.get(stream)
         market_hist_copy = [row.copy() for row in market_hist]
-        """
-        if market_hist is None:
-            max_retry = BinanceSocket._CONST_MAX_RETRY_GET_MARKET
-            i = 0
-            while (i < max_retry) and (market_hist is None):
-                time_time(1) if i != 0 else None
-                # print(f"{_MF.prefix()}get_market_historic's retry n°'{i+1}'.")
-                market_hist = market_hists.get(stream)
-                i += 1
-                # time_time(1)
-            if market_hist is None:
-                raise Exception(f"Exceed maximum retry '{max_retry}' to get market historic for stream '{stream}'.")
-        """
         return market_hist_copy
 
     def get_url(self) -> str:
@@ -170,12 +161,12 @@ class BinanceSocket(BinanceAPI):
     def get_streams(self) -> List[str]:
         return self.__streams
 
-    def add_streams(self, new_stream: str) -> bool:
+    def add_streams(self, to_add_streams: List[str]) -> bool:
         """
         To add new streams\n
         Parameters
         ----------
-        new_stream: str
+        to_add_streams: List[str]
             Stream to add
         Returns
         -------
@@ -183,31 +174,33 @@ class BinanceSocket(BinanceAPI):
             True if new stream is added else  False
         """
         stream_added = False
-        # streams = self.get_streams()
-        """
-        if new_stream in streams:
-            raise ValueError(f"This stream '{new_stream}' already exist")
-        else:
-        """
-        if new_stream not in self.get_streams():
-            stream_added = self._manage_add_stream(new_stream)
+        old_streams = self.get_streams()
+        new_streams = [stream for stream in to_add_streams if stream not in old_streams]
+        if len(new_streams) > 0:
+            new_streams_cleaned = _MF.remove_duplicates(new_streams)
+            stream_added = self._manage_add_stream(new_streams_cleaned)
         return stream_added
 
-    def _manage_add_stream(self, new_stream: str) -> bool:
+    def _manage_add_stream(self, new_streams: List[str]) -> bool:
         _cls = BinanceSocket
         stream_added = False
-        self._push_new_stream(new_stream)
-        print(_MF.prefix() + f"Pushed new stream '{new_stream}' in new stream list")
+        nb_pushed = len([self._push_new_stream(new_stream) for new_stream in new_streams])
+        print(_MF.prefix() + f"Pushed '{nb_pushed}' new stream in new stream list")
         try:
-            i = 1
-            while (new_stream not in self.get_socket_url_streams()) or (not self.is_active()):
-                print(_MF.prefix() + f"Waiting for new stream '{new_stream}' to be add in socket's url n°'{i}'...")
-                if i > _cls._CONST_MAX_RETRY_ADD_NEW_STREAM:
-                    raise Exception(f"Max retry to add new stream '{new_stream}' in socket's url")
-                else:
-                    time.sleep(1)
-                i += 1
-            print(_MF.prefix() + f"New stream '{new_stream}' added in socket's url")
+            nb_added = 1
+            for new_stream in new_streams:
+                i = 1
+                add_msg_str = f"{new_stream}({nb_added}/{nb_pushed})"
+                while (new_stream not in self._get_market_historics().get_keys()) or (not self.is_active()):
+                    print(_MF.prefix() + f"Waiting for new stream '{add_msg_str}' to be add "
+                                         f"in market historic n°'{i}'...")
+                    if i > _cls._CONST_MAX_RETRY_ADD_NEW_STREAM:
+                        raise Exception(f"Max retry to add new stream '{add_msg_str}' in market historic")
+                    else:
+                        time.sleep(1)
+                    i += 1
+                print(_MF.prefix() + f"New stream '{add_msg_str}' added in market historic")
+                nb_added += 1
             stream_added = True
         except Exception as error:
             from model.structure.Bot import Bot
@@ -630,7 +623,8 @@ class BinanceSocket(BinanceAPI):
             new_streams = list(self.get_new_streams())
             self._reset_new_streams()
             missing_streams = [stream for stream in new_streams if stream not in old_socket_streams]
-            new_socket_streams = [*old_socket_streams, *missing_streams]
+            missing_streams_cleaned = _MF.remove_duplicates(missing_streams)
+            new_socket_streams = [*old_socket_streams, *missing_streams_cleaned]
             self._set_streams(new_socket_streams)
             self._init_market_historics()
 
@@ -646,7 +640,8 @@ class BinanceSocket(BinanceAPI):
                     running_socket_thread_name = socket_thread.getName()
                 elif not socket_thread.is_alive():
                     # Socket is dead
-                    print(f"{prefix()}" + '\033[33m' + "Socket runner thread is dead... Generating a new one..." + '\033[0m') \
+                    print(f"{prefix()}" + '\033[33m' + "Socket runner thread is dead... Generating a new one..."
+                          + '\033[0m') \
                         if BinanceSocket._DEBUG else None
                     socket_thread = reset_socket()
                 last_response = self.get_socket_last_response()
@@ -663,7 +658,7 @@ class BinanceSocket(BinanceAPI):
                     add_new_streams()
                     socket_thread = reset_socket()
                     nb_added_stream = len(self.get_streams()) - nb_stream
-                    print(f"{_MF.prefix()}New streams added ('{nb_added_stream}')!") if BinanceSocket._DEBUG else None
+                    print(f"{_MF.prefix()}New streams added: '{nb_added_stream}'!") if BinanceSocket._DEBUG else None
             except Exception as socket_error:
                 from model.structure.Bot import Bot
                 Bot.save_error(socket_error, BinanceSocket.__name__)
@@ -765,31 +760,6 @@ class BinanceSocket(BinanceAPI):
         next_reset = BinanceSocket.generate_next_reset_time()
         reset_book = BinanceSocket.get_market_reset_book()
         reset_book.put(next_reset, stream)
-
-    @staticmethod
-    def generate_stream(rq: str, symbol: str, period_str: str) -> str:
-        """
-        To generate Binance stream\n
-        Parameters
-        ----------
-        rq: str
-            The request
-        symbol: str
-            Binance's symbol, i.e.: 'DOGEUSDT', 'BTCEUR', etc...
-        period_str: str
-            Period interval in string, i.e.: '1m', '1M', '3d', etc...
-        Returns
-        -------
-        stream: str
-            Binance stream
-        """
-        if rq != BinanceAPI.RQ_KLINES:
-            raise ValueError(f"Can't generate stream for this request '{rq}'.")
-        stream_format = BinanceSocket.get_stream_format_kline()
-        symbol = symbol.lower()
-        # interval = rq_params.get(Map.interval)
-        stream = stream_format.replace(f'${Map.symbol}', symbol).replace(f'${Map.interval}', period_str)
-        return stream
 
 
 if __name__ == '__main__':

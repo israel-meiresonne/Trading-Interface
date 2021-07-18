@@ -2,7 +2,6 @@ from random import random
 from typing import List
 
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
-from model.API.brokers.Binance.BinanceOrder import BinanceOrder
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -79,6 +78,32 @@ class Binance(Broker, MyJson):
         rq = BinanceAPI.RQ_CANCEL_ORDER
         rsp = BinanceAPI.request_api(*bases_params, rq, params)
         order.handle_response(rsp)
+
+    def add_streams(self, new_streams: List[str]) -> None:
+        BinanceAPI.add_streams(new_streams) if len(new_streams) > 0 else None
+
+    @staticmethod
+    def generate_stream(params: Map) -> str:
+        """
+        To generate a Broker stream\n
+        Parameters
+        ----------
+        params: Map
+            Param to adjust following Broker's needs
+            params[Map.pair]:   {Pair}
+            params[Map.period]: {int}   # in second
+
+        Returns
+        -------
+        stream: str
+            Broker stream
+        """
+        rq = BinanceAPI.RQ_KLINES
+        symbol = params.get(Map.pair).get_merged_symbols()
+        period = params.get(Map.period)
+        period_str = BinanceAPI.convert_interval(period)
+        stream = BinanceAPI.generate_stream(rq, symbol, period_str)
+        return stream
 
     @staticmethod
     def close() -> None:

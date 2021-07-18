@@ -324,8 +324,8 @@ def print_performance(rows: list, path: str) -> None:
 
 
 def get_broker() -> Broker:
-    bnc = Binance(Map({Map.api_pb: "—",
-                       Map.api_sk: "—",
+    bnc = Binance(Map({Map.public: "—",
+                       Map.secret: "—",
                        Map.test_mode: False
                        }))
     return bnc
@@ -475,28 +475,22 @@ def play_with_websocket() -> None:
     bkr.close()
 
 
+def get_streams(pair_strs) -> List[str]:
+    # pair_strs = ['BTC/USDT', 'DOGE/USDT', 'EGLD/USDT', 'ETH/USDT', 'BNB/USDT', 'SNX/USDT', 'BTC/USDT', 'DOGE/USDT']
+    # ['btcusdt@kline_1m', 'dogeusdt@kline_3m', 'egldusdt@kline_3m', 'ethusdt@kline_5m', 'bnbusdt@kline_5m',
+    # 'snxusdt@kline_15m', 'btcusdt@kline_15m', 'dogeusdt@kline_15m']
+    streams = []
+    i = 1
+    for pair_str in pair_strs:
+        stream = Binance.generate_stream(Map({
+            Map.pair: Pair(pair_str),
+            Map.period: 60 * i
+        }))
+        streams.append(stream)
+        i += 1
+    return streams
+
+
 if __name__ == '__main__':
-    """
-    Config.update(Config.STAGE_MODE, Config.STAGE_3)
-    path = 'content/v0.01/print/available_pair.csv'
-    csv = FileManager.get_csv(path)
-    pair_strs = [row[Map.pair] for row in csv]
-    bkr = get_broker()
-
-    # pair = Pair('DOGE/USDT')
-    periods = [3, 5, 15, 30, 60]
-    periods = [period * 60 for period in periods]
-    # start_time = 1609455600     # 2021-01-01 00:00:00
-    # end_time = 1622883988       # 2021-06-04 22:58:34
-    start_time = 1605855600     # 2020-11-20 08:00:00
-    end_time = 1622930915       # 2021-06-05 23:08:35
-    # start_time = 1619895513
-    # end_time = 1622721357
-    # start_time = 1622714157   # 2h
-    # end_time = 1622721357
-    for i in range(4):
-        pair_str = pair_strs[i]
-        Broker.print_market_historic(bkr, Pair(pair_str), periods, start_time, end_time)
-    """
+    Config.update(Config.STAGE_MODE, Config.STAGE_2)
     play_with_websocket()
-
