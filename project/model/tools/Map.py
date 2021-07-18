@@ -30,6 +30,9 @@ class Map(MyJson):
     broker = "broker"
     public = "public"
     secret = "secret"
+    drop = "drop"
+    neutral = "neutral"
+    rise = "rise"
     # Binance
     # api_pb = "api_pb" => public
     # api_sk = "api_sk" => secret

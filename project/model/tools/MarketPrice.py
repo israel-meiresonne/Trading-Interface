@@ -62,6 +62,13 @@ class MarketPrice(ABC):
     _PSAR_MAX_STEP = 0.2
     PSAR_RISING = "PSAR_RISING"
     PSAR_DROPPING = "PSAR_DROPPING"
+    MARKET_TREND_RISING = "MARKET_TREND_RISING"
+    MARKET_TREND_NEUTRAL = "MARKET_TREND_NEUTRAL"
+    MARKET_TREND_DROPPING = "MARKET_TREND_DROPPING"
+    _MARKET_TREND_RATE = Map({
+        MARKET_TREND_RISING: 0.55,
+        MARKET_TREND_DROPPING: 0.45
+    })
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -117,7 +124,6 @@ class MarketPrice(ABC):
     def __get_collections(self) -> Map:
         return self.__collections
 
-    # def _set_collection(self, k: str, e: Union[list, tuple]) -> None:
     def _set_collection(self, k: str, e: tuple) -> None:
         """
         To set a new collection in collections\n
@@ -757,6 +763,125 @@ class MarketPrice(ABC):
         peak_idx = MarketPrice.get_peak(vs, 0, nb_prd - 1) if (buy_prd >= nb_prd) \
             else MarketPrice.get_peak(vs, 0, buy_prd)
         return peak_idx
+
+    @staticmethod
+    def analyse_market_trend(bkr: 'Broker', end_time: int = None, nb_period: int = None) -> Map:
+        """
+        To analyse market's trend\n
+        Parameters
+        ----------
+        bkr: Broker
+            Access to a Broker's API
+        end_time: int
+            Most recent unix time for an interval
+        nb_period: int
+            Number of older periods to take from end_time
+
+        Returns
+        -------
+        analyse: Map
+            Rate of number of Pair in each market trend
+            Map[MarketPrice.MARKET_TREND_*]:    {float} # Rate [0,1]
+        """
+        if (end_time is not None) and ((not isinstance(end_time, int)) or (end_time < 1)):
+            raise ValueError(f"End Time must be type int and >= 1, instead '{end_time}({type(end_time)})'")
+        if (nb_period is not None) and ((not isinstance(nb_period, int)) or (nb_period < 1)):
+            raise ValueError(f"Number of period to use must be type int and >= 1, "
+                             f"instead '{nb_period}({type(nb_period)})'")
+        from model.tools.BrokerRequest import BrokerRequest
+        stablecoins = Config.get(Config.CONST_STABLECOINS)
+        concat_stable = '|'.join(stablecoins)
+        stablecoin_rgx = f'({concat_stable})/\w+$'
+        # Fiat regex
+        fiats = Config.get(Config.CONST_FIATS)
+        concat_fiat = '|'.join(fiats)
+        fiat_rgx = rf'({concat_fiat})/\w+$'
+        # Get pairs
+        no_match = [
+            r'^\w+(up|down|bear|bull)\/\w+$',
+            r'^(bear|bull)/\w+$',
+            r'^\w*inch\w*/\w+$',
+            fiat_rgx,
+            stablecoin_rgx,
+            r'BCHSV/\w+$'
+        ]
+        match = [r'^.+\/usdt']
+        # Add streams
+        pair_strs = bkr.get_pairs(match=match, no_match=no_match)
+        # pair_strs = [pair_strs[i] for i in range(len(pair_strs)) if i < 10]
+        pairs = [Pair(pair_str) for pair_str in pair_strs]
+        period = 60 * 60
+        streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
+        bkr.add_streams(streams)
+        # Get market prices
+        _bkr_cls = bkr.__class__.__name__
+        market_params = Map({
+            Map.pair: None,
+            Map.period: period,
+            Map.begin_time: None,
+            Map.end_time: end_time,
+            Map.number: nb_period if nb_period is not None else 50
+        })
+        analyse = Map({
+            Map.drop: 0,
+            Map.neutral: 0,
+            Map.rise: 0
+        })
+        for pair in pairs:
+            market_params.put(pair, Map.pair)
+            market_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, market_params)
+            bkr.request(market_rq)
+            market_price = market_rq.get_market_price()
+            closes = list(market_price.get_closes())
+            closes.reverse()
+            super_trends = list(market_price.get_super_trend())
+            super_trends.reverse()
+            trend = MarketPrice.get_super_trend_trend(closes, super_trends, -1)
+            if trend == MarketPrice.SUPERTREND_RISING:
+                cpt = analyse.get(Map.rise) + 1
+                analyse.put(cpt, Map.rise)
+            elif trend == MarketPrice.SUPERTREND_DROPPING:
+                cpt = analyse.get(Map.drop) + 1
+                analyse.put(cpt, Map.drop)
+            else:
+                raise Exception(f"Unsupported trend '{trend}' for super_trend")
+        drop = analyse.get(Map.drop)
+        neutral = analyse.get(Map.neutral)
+        rise = analyse.get(Map.rise)
+        total = rise + drop + neutral
+        analyse.put(drop / total, MarketPrice.MARKET_TREND_DROPPING)
+        analyse.put(neutral / total, MarketPrice.MARKET_TREND_NEUTRAL)
+        analyse.put(rise / total, MarketPrice.MARKET_TREND_RISING)
+        return analyse
+
+    @staticmethod
+    def get_market_trend(bkr: 'Broker', end_time: int = None, nb_period: int = 50) -> str:
+        """
+        To get market's trend\n
+        Parameters
+        ----------
+        bkr: Broker
+            Access to a Broker's API
+        end_time: int
+            Most recent unix time for an interval
+        nb_period: int
+            Number of older periods to take from end_time
+
+        Returns
+        -------
+        trend: str
+            market's trend, format: MarketPrice.MARKET_TREND_*
+        """
+        market_rates = MarketPrice._MARKET_TREND_RATE
+        analyse = MarketPrice.analyse_market_trend(bkr, end_time, nb_period)
+        rising_rate = analyse.get(MarketPrice.MARKET_TREND_RISING)
+        if rising_rate >= market_rates.get(MarketPrice.MARKET_TREND_RISING):
+            trend = MarketPrice.MARKET_TREND_RISING
+        elif rising_rate >= market_rates.get(MarketPrice.MARKET_TREND_DROPPING):
+            trend = MarketPrice.MARKET_TREND_NEUTRAL
+        else:
+            trend = MarketPrice.MARKET_TREND_DROPPING
+        return trend
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
