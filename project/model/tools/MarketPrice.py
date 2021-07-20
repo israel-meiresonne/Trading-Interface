@@ -855,7 +855,7 @@ class MarketPrice(ABC):
         return analyse
 
     @staticmethod
-    def get_market_trend(bkr: 'Broker', end_time: int = None, nb_period: int = 50) -> str:
+    def get_market_trend(bkr: 'Broker', end_time: int = None, nb_period: int = 50, analyse: Map = None) -> str:
         """
         To get market's trend\n
         Parameters
@@ -866,14 +866,15 @@ class MarketPrice(ABC):
             Most recent unix time for an interval
         nb_period: int
             Number of older periods to take from end_time
-
+        analyse: Map
+            Analyse from MarketPrice.analyse_market_trend()
         Returns
         -------
         trend: str
             market's trend, format: MarketPrice.MARKET_TREND_*
         """
         market_rates = MarketPrice._MARKET_TREND_RATE
-        analyse = MarketPrice.analyse_market_trend(bkr, end_time, nb_period)
+        analyse = MarketPrice.analyse_market_trend(bkr, end_time, nb_period) if analyse is None else analyse
         rising_rate = analyse.get(MarketPrice.MARKET_TREND_RISING)
         if rising_rate >= market_rates.get(MarketPrice.MARKET_TREND_RISING):
             trend = MarketPrice.MARKET_TREND_RISING
