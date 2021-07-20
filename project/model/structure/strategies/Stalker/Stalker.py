@@ -23,6 +23,7 @@ class Stalker(Strategy, MyJson):
     _CONST_MAX_STRATEGY = 20
     _CONST_MAX_LOSS_RATE = -0.01
     _CONST_FLOOR_COEF = 0.05
+    _CONST_MIN_FLOOR_COEF = 0.01
     _THREAD_BASE_MARKET_STALKING = 'market_stalking'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
@@ -435,14 +436,47 @@ class Stalker(Strategy, MyJson):
             raise KeyError(f"There's not active roi for this pair '{pair}'")
         del active_rois.get_map()[pair_str]
 
-    def _bellow_floor(self, strategy: Strategy, market_price: MarketPrice) -> bool:
+    def _bellow_floor(self, strategy: Strategy, market_price: MarketPrice, market_trend: str) -> bool:
         pair = strategy.get_pair()
         roi = strategy.get_roi(market_price)
         last_roi = self.get_active_roi(pair)
-        floor_coef = Stalker.get_floor_coef()
-        last_floor = _MF.round_time(last_roi, floor_coef) if last_roi is not None else None
-        bellow_floor = (last_roi is not None) and (last_roi > floor_coef) and (roi < last_floor)
+        last_floor = Stalker._floor(last_roi, market_trend)
+        bellow_floor = (last_floor is not None) and (roi < last_floor)
         return bellow_floor
+
+    @staticmethod
+    def _floor(roi: float, market_trend: str) -> float:
+        """
+        To get floor of the given roi\n
+        NOTE:
+                if roi is None:                             => floor = None\n
+                if (rising and roi < floor_coef):           => floor = None\n
+                if (rising and roi >= floor_coef):          => floor = float\n
+                if (dropping and roi < 0.01):               => floor = None\n
+                if (dropping and roi in [0.01, floor_coef[):=> floor = float\n
+        Parameters
+        ----------
+        roi: float
+            Roi to use
+        market_trend: str
+            Market's trend
+        Returns
+        -------
+        floor: float
+            Floor of the given roi
+        """
+        if not isinstance(market_trend, str):
+            raise ValueError(f"Market's trend must be type str, instead '{market_trend}({type(market_trend)})'")
+        floor_coef = Stalker.get_floor_coef()
+        if (market_trend == MarketPrice.MARKET_TREND_RISING) or ((roi is not None) and (roi >= floor_coef)):
+            floor = _MF.round_time(roi, floor_coef) if roi is not None else None
+        elif (market_trend == MarketPrice.MARKET_TREND_NEUTRAL) or (market_trend == MarketPrice.MARKET_TREND_DROPPING):
+            min_floor_coef = Stalker.get_min_floor_coef()
+            floor = _MF.round_time(roi, min_floor_coef) if roi is not None else None
+        else:
+            raise Exception(f"This market trend '{market_trend}' is Unknown")
+        floor = None if floor == 0 else floor
+        return floor
 
     def trade(self, bkr: Broker) -> int:
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
@@ -467,6 +501,10 @@ class Stalker(Strategy, MyJson):
         print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
                                                               f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
         self._manage_trades_add_streams(bkr, active_stgs_copy)
+        print(f"{_MF.prefix()}" + _color_cyan + f"Start analyse of market..." + _normal)
+        market_analyse = MarketPrice.analyse_market_trend(bkr)
+        market_trend = MarketPrice.get_market_trend(bkr, analyse=market_analyse)
+        print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
         for pair_str, active_stg in active_stgs_copy.get_map().items():
             print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
             # Prepare active Strategy
@@ -488,30 +526,31 @@ class Stalker(Strategy, MyJson):
             psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
             psar_rising = psar_trend == MarketPrice.PSAR_RISING
             # Prepare capital
-            bellow_floor = self._bellow_floor(active_stg, market_price)
+            bellow_floor = self._bellow_floor(active_stg, market_price, market_trend)
             stg_roi = active_stg.get_roi(market_price)
             max_loss_rate = Stalker.get_max_loss()
             stg_roi_bellow_limit = stg_roi <= max_loss_rate
             last_roi = self.get_active_roi(pair)
             floor_coef = Stalker.get_floor_coef()
-            last_floor = _MF.round_time(last_roi, floor_coef) if last_roi is not None else None
+            last_floor = Stalker._floor(last_roi, market_trend)
             row = {
                 Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                'market_trend': market_trend,
                 Map.pair: pair,
-                Map.roi: f"{_MF.float_to_str(round(stg_roi * 100, 2))}%",
-                'max_loss': f"{_MF.float_to_str(round(max_loss_rate * 100, 2))}%",
+                Map.roi: f"{round(stg_roi * 100, 2)}%",
+                'max_loss': f"{round(max_loss_rate * 100, 2)}%",
                 'roi_bellow_limit': stg_roi_bellow_limit,
                 'has_position': has_position,
-                'floor_coef': f"{_MF.float_to_str(round(floor_coef * 100, 2))}%",
-                'last_roi': f"{_MF.float_to_str(round(last_roi * 100, 2))}%" if last_roi is not None else '—',
-                'last_floor': f"{_MF.float_to_str(round(last_floor * 100, 2))}%" if last_roi is not None else '—',
+                'floor_coef': f"{round(floor_coef * 100, 2)}%",
+                'last_roi': f"{round(last_roi * 100, 2)}%" if last_roi is not None else '—',
+                'last_floor': f"{round(last_floor * 100, 2)}%" if last_floor is not None else '—',
                 'supertrend_trend': supertrend_trend,
                 'supertrend_rising': supertrend_rising,
                 'psar_trend': psar_trend,
                 'psar_rising': psar_rising,
-                Map.close: _MF.float_to_str(closes[-1]),
-                Map.super_trend: _MF.float_to_str(supertrends[-1]),
-                'psar': _MF.float_to_str(psars[-1])
+                Map.close: closes[-1],
+                Map.super_trend: supertrends[-1],
+                'psar': psars[-1]
             }
             rows.append(row)
             # Trade
@@ -525,9 +564,9 @@ class Stalker(Strategy, MyJson):
                 continue
             else:
                 self._update_active_roi(pair, stg_roi)
-                last_roi_str = f"{_MF.float_to_str(round(last_roi * 100, 2))}%" if last_roi is not None else '—'
+                last_roi_str = f"{round(last_roi * 100, 2)}%" if last_roi is not None else '—'
                 print(f"{_MF.prefix()}" + _color_green + f"Pair '{pair_str.upper()}' UPDATED its active roi from "
-                                                         f"{last_roi_str}->{round(stg_roi*100, 2)}%"
+                                                         f"'{last_roi_str}'->'{round(stg_roi*100, 2)}%'"
                                                          f"" + _normal)
             if stg_roi_bellow_limit:
                 self._delete_active_strategy(bkr, pair)
@@ -553,7 +592,7 @@ class Stalker(Strategy, MyJson):
                                 f"has_position: '{has_position}'\n"
                                 f"supertrend_rising: '{supertrend_rising}'\n"
                                 f"psar_rising: '{psar_rising}')")
-        self._save_state(pair_closes, pairs_to_delete)
+        self._save_state(pair_closes, pairs_to_delete, market_trend, market_analyse)
         Stalker._save_moves(rows) if len(rows) > 0 else None
 
     def _manage_trades_add_streams(self, bkr: Broker, active_stgs_copy: Map) -> None:
@@ -597,6 +636,10 @@ class Stalker(Strategy, MyJson):
     @staticmethod
     def get_floor_coef() -> float:
         return Stalker._CONST_FLOOR_COEF
+
+    @staticmethod
+    def get_min_floor_coef() -> float:
+        return Stalker._CONST_MIN_FLOOR_COEF
 
     @staticmethod
     def _get_market_price(bkr: Broker, pair: Pair) -> MarketPrice:
@@ -752,7 +795,8 @@ class Stalker(Strategy, MyJson):
 
     # ——————————————— SAVE DOWN ———————————————
 
-    def _save_state(self, pair_to_closes: Map, to_delete_pairs: List[str]) -> None:
+    def _save_state(self, pair_to_closes: Map, to_delete_pairs: List[str], market_trend: str, market_analyse: Map) \
+            -> None:
         path = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
         pair = self.get_pair()
         right_symbol = pair.get_right().get_symbol()
@@ -785,6 +829,12 @@ class Stalker(Strategy, MyJson):
             Map.pair: pair,
             Map.strategy: self.get_strategy_class(),
             'next_stalk': next_stalk_date if next_stalk_date is not None else '—',
+            'market_trend': market_trend,
+            'total_pair': market_analyse.get(Map.rise) + market_analyse.get(Map.drop),
+            'nb_rising': market_analyse.get(Map.rise),
+            'nb_dropping': market_analyse.get(Map.drop),
+            'rising': f"{round(market_analyse.get(MarketPrice.MARKET_TREND_RISING) * 100, 2)}%",
+            'dropping': f"{round(market_analyse.get(MarketPrice.MARKET_TREND_DROPPING) * 100, 2)}%",
             'initial_capital': initial_capital,
             'total_capital': total_capital,
             'total_capital_available': total_capital_available,

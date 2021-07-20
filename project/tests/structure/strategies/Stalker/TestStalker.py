@@ -3,9 +3,11 @@ import unittest
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.structure.Broker import Broker
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
 from model.structure.strategies.Stalker.Stalker import Stalker
 from model.tools.Map import Map
+from model.tools.MarketPrice import MarketPrice
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
@@ -38,8 +40,8 @@ class TestStalker(unittest.TestCase, Stalker):
             }
         })
         self.stg = Stalker(self.stg_param1)
-        self.bkr = Broker.retrieve(Binance.__name__, Map({Map.api_pb: "api_pb",
-                                                          Map.api_sk: "api_sk",
+        self.bkr = Broker.retrieve(Binance.__name__, Map({Map.public: "—",
+                                                          Map.secret: "—",
                                                           Map.test_mode: False
                                                           }))
 
@@ -211,6 +213,55 @@ class TestStalker(unittest.TestCase, Stalker):
         # Pair already exist (same pair only)
         with self.assertRaises(ValueError):
             stg._blacklist_pair(pair3)
+
+    def test_floor(self) -> None:
+        floor_coef = Stalker.get_floor_coef()
+        min_floor_coef = Stalker.get_min_floor_coef()
+        # Market is rising + roi is None
+        roi1 = None
+        market_trend1 = MarketPrice.MARKET_TREND_RISING
+        result1 = Stalker._floor(roi1, market_trend1)
+        self.assertIsNone(result1)
+        # Market is rising + roi < floor_coef
+        roi2_1 = 0.02
+        roi2_2 = -0.02
+        roi2_3 = -0.0499
+        roi2_4 = 0
+        market_trend2 = MarketPrice.MARKET_TREND_RISING
+        result2_1 = Stalker._floor(roi2_1, market_trend2)
+        result2_2 = Stalker._floor(roi2_2, market_trend2)
+        result2_3 = Stalker._floor(roi2_3, market_trend2)
+        result2_4 = Stalker._floor(roi2_4, market_trend2)
+        self.assertIsNone(result2_1)
+        self.assertIsNone(result2_2)
+        self.assertIsNone(result2_3)
+        self.assertIsNone(result2_4)
+        # rising and roi >= floor_coef
+        roi3 = floor_coef + 0.13
+        market_trend3 = MarketPrice.MARKET_TREND_RISING
+        exp3 = _MF.round_time(roi3, floor_coef)
+        result3 = Stalker._floor(roi3, market_trend3)
+        self.assertEqual(exp3, result3)
+        # dropping and roi < 0.01
+        roi4_1 = 0.002
+        roi4_2 = -0.002
+        roi4_3 = 0.0099
+        roi4_4 = 0
+        market_trend4 = MarketPrice.MARKET_TREND_DROPPING
+        result4_1 = Stalker._floor(roi4_1, market_trend4)
+        result4_2 = Stalker._floor(roi4_2, market_trend4)
+        result4_3 = Stalker._floor(roi4_3, market_trend4)
+        result4_4 = Stalker._floor(roi4_4, market_trend4)
+        self.assertIsNone(result4_1)
+        self.assertIsNone(result4_2)
+        self.assertIsNone(result4_3)
+        self.assertIsNone(result4_4)
+        # dropping and roi in [0.01, floor_coef[
+        roi5 = floor_coef - 0.028
+        market_trend5 = MarketPrice.MARKET_TREND_DROPPING
+        exp5 = _MF.round_time(roi5, min_floor_coef)
+        result5 = Stalker._floor(roi5, market_trend5)
+        self.assertEqual(exp5, result5)
 
     def test_generate_strategy(self) -> None:
         pair = Pair('?/USDT')
