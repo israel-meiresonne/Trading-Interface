@@ -62,6 +62,7 @@ class Stalker(Strategy, MyJson):
         self.__blacklist = None
         self.__stalk_thread = None
         self.__active_rois = None
+        self.__market_analyse = None
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
@@ -343,6 +344,7 @@ class Stalker(Strategy, MyJson):
                 start_time = _MF.get_timestamp()
                 self._set_next_stalk(start_time)
                 self._stalk_market(broker)
+                self._set_market_analyse(broker)
                 next_stalk = self.get_next_stalk()
                 end_time = _MF.get_timestamp()
                 sleep_time = (next_stalk - end_time) if end_time < next_stalk else None
@@ -410,6 +412,19 @@ class Stalker(Strategy, MyJson):
         # Backup
         # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
+    def _set_market_analyse(self, bkr: Broker) -> None:
+        _color_cyan = Stalker._TO_REMOVE_STYLE_CYAN
+        _normal = Stalker._TO_REMOVE_STYLE_NORMAL
+        _color_green = Stalker._TO_REMOVE_STYLE_GREEN
+        print(f"{_MF.prefix()}" + _color_cyan + f"Start analyse of market..." + _normal)
+        market_analyse = MarketPrice.analyse_market_trend(bkr)
+        print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
+        self.__market_analyse = market_analyse
+        print(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
+
+    def get_market_analyse(self) ->  Map:
+        return self.__market_analyse
+
     def _get_sleep_time(self) -> int:
         sleep_interval = self.get_bot_sleep_time()
         unix_time = _MF.get_timestamp()
@@ -468,14 +483,14 @@ class Stalker(Strategy, MyJson):
         if not isinstance(market_trend, str):
             raise ValueError(f"Market's trend must be type str, instead '{market_trend}({type(market_trend)})'")
         floor_coef = Stalker.get_floor_coef()
-        if (market_trend == MarketPrice.MARKET_TREND_RISING) or ((roi is not None) and (roi >= floor_coef)):
-            floor = _MF.round_time(roi, floor_coef) if roi is not None else None
-        elif (market_trend == MarketPrice.MARKET_TREND_NEUTRAL) or (market_trend == MarketPrice.MARKET_TREND_DROPPING):
-            min_floor_coef = Stalker.get_min_floor_coef()
-            floor = _MF.round_time(roi, min_floor_coef) if roi is not None else None
+        min_floor_coef = Stalker.get_min_floor_coef()
+        if (roi is not None) and (roi >= min_floor_coef):
+            if roi >= floor_coef:
+                floor = _MF.round_time(roi, floor_coef)
+            else:
+                floor = _MF.round_time(roi, min_floor_coef)
         else:
-            raise Exception(f"This market trend '{market_trend}' is Unknown")
-        floor = None if floor == 0 else floor
+            floor = None
         return floor
 
     def trade(self, bkr: Broker) -> int:
@@ -501,10 +516,9 @@ class Stalker(Strategy, MyJson):
         print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
                                                               f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
         self._manage_trades_add_streams(bkr, active_stgs_copy)
-        print(f"{_MF.prefix()}" + _color_cyan + f"Start analyse of market..." + _normal)
-        market_analyse = MarketPrice.analyse_market_trend(bkr)
-        market_trend = MarketPrice.get_market_trend(bkr, analyse=market_analyse)
-        print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
+        market_analyse = self.get_market_analyse()
+        market_trend = MarketPrice.get_market_trend(bkr, analyse=market_analyse) if market_analyse is not None else '—'
+        market_analyse = Map() if market_analyse is None else market_analyse
         for pair_str, active_stg in active_stgs_copy.get_map().items():
             print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
             # Prepare active Strategy
@@ -824,17 +838,20 @@ class Stalker(Strategy, MyJson):
             if not self.max_active_strategies_reached() else total_capital_available
         roi = (total_capital / initial_capital - 1)
         next_clean = self.get_next_blacklist_clean()
+        analyse_empty = len(market_analyse.get_map()) == 0
+        rise = f"{round(market_analyse.get(MarketPrice.MARKET_TREND_RISING)*100, 2)}%" if not analyse_empty else '—'
+        drop = f"{round(market_analyse.get(MarketPrice.MARKET_TREND_DROPPING) * 100, 2)}%" if not analyse_empty else '—'
         row = {
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.pair: pair,
             Map.strategy: self.get_strategy_class(),
             'next_stalk': next_stalk_date if next_stalk_date is not None else '—',
             'market_trend': market_trend,
-            'total_pair': market_analyse.get(Map.rise) + market_analyse.get(Map.drop),
+            'total_pair': market_analyse.get(Map.rise) + market_analyse.get(Map.drop) if not analyse_empty else '—',
             'nb_rising': market_analyse.get(Map.rise),
             'nb_dropping': market_analyse.get(Map.drop),
-            'rising': f"{round(market_analyse.get(MarketPrice.MARKET_TREND_RISING) * 100, 2)}%",
-            'dropping': f"{round(market_analyse.get(MarketPrice.MARKET_TREND_DROPPING) * 100, 2)}%",
+            'rising': rise,
+            'dropping': drop,
             'initial_capital': initial_capital,
             'total_capital': total_capital,
             'total_capital_available': total_capital_available,

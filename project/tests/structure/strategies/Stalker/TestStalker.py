@@ -223,19 +223,17 @@ class TestStalker(unittest.TestCase, Stalker):
         result1 = Stalker._floor(roi1, market_trend1)
         self.assertIsNone(result1)
         # Market is rising + roi < floor_coef
-        roi2_1 = 0.02
-        roi2_2 = -0.02
-        roi2_3 = -0.0499
-        roi2_4 = 0
+        roi2_1 = 0.025
+        roi2_2 = -0.025
+        roi2_3 = 0
         market_trend2 = MarketPrice.MARKET_TREND_RISING
+        exp2_1 = _MF.round_time(roi2_1, min_floor_coef)
         result2_1 = Stalker._floor(roi2_1, market_trend2)
         result2_2 = Stalker._floor(roi2_2, market_trend2)
         result2_3 = Stalker._floor(roi2_3, market_trend2)
-        result2_4 = Stalker._floor(roi2_4, market_trend2)
-        self.assertIsNone(result2_1)
+        self.assertEqual(exp2_1, result2_1)
         self.assertIsNone(result2_2)
         self.assertIsNone(result2_3)
-        self.assertIsNone(result2_4)
         # rising and roi >= floor_coef
         roi3 = floor_coef + 0.13
         market_trend3 = MarketPrice.MARKET_TREND_RISING
