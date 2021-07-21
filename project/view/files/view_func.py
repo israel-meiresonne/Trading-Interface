@@ -2,11 +2,11 @@ from model.tools.Map import Map
 
 
 def menu(mp: Map):
-    msg = mp.get(Map.msg)
-    cs = mp.get(Map.cs)
-    print(msg)
-    for i in range(len(cs)):
-        o = "{}. {}".format(i, cs[i])
+    msg = mp.get(Map.message)
+    choices = mp.get(Map.response)
+    message(msg)
+    for i in range(len(choices)):
+        o = "{}. {}".format(i, choices[i])
         print(o)
 
 

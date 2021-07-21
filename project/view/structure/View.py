@@ -56,22 +56,32 @@ class View(ViewInterface):
                     v = input()
         return v
 
-    def menu(self, msg: str, cs: list) -> int:
+    def menu(self, msg: str, choices: list) -> int:
         """
         To display a list as menu choices
-        :param cs: list of choices
+        :param choices: list of choices
         :param msg: message to display
         :return: the menu choice selected
         """
-        dv_mp = Map({Map.msg: msg, Map.cs: cs})
+        dv_mp = Map({Map.message: msg, Map.response: choices})
         self.output("menu", dv_mp)
-        s = False
-        while not s:
-            v = self.input(type_func="int")
-            s = (0 <= v < len(cs))
-            self.output(View.FILE_ERROR, "Option '{}' don't exit in menu".format(v)) \
-                if not s else None
-        return v
+        success = False
+        while not success:
+            entry = self.input()
+            if View.check_int(entry):
+                entry = int(entry)
+                success = (0 <= entry < len(choices))
+            else:
+                success = entry in choices
+            self.output(View.FILE_ERROR, "Option '{}' don't exit in menu".format(entry)) if not success else None
+        index = entry if isinstance(entry, int) else choices.index(entry)
+        return index
+
+    @staticmethod
+    def check_int(s: str) -> bool:
+        if s[0] in ('-', '+'):
+            return s[1:].isdigit()
+        return s.isdigit()
 
     def output(self, f: str, vd=None) -> None:
         print(self.__generate_file(f, vd))

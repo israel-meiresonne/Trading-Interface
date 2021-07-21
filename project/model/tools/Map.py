@@ -3,8 +3,7 @@ from model.tools.MyJson import MyJson
 
 class Map(MyJson):
     # keys
-    msg = "msg"
-    cs = "cs"
+    message = "message"
     index = "index"
     id = "id"
     date = "date"
