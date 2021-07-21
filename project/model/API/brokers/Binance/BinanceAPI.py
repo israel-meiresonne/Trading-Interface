@@ -1069,7 +1069,7 @@ class BinanceAPI(ABC):
                 'request': rq,
                 'length': len(content),
                 Map.symbol: params.get(Map.symbol),
-                'last_row': content[-1]
+                'last_row_close': content[-1][4]
             }
             content_json = _MF.json_encode(new_content).encode()
         request_method = rsp.request[Map.method] if isinstance(rsp.request, dict) else rsp.request.__dict__[Map.method]
@@ -1085,10 +1085,10 @@ class BinanceAPI(ABC):
             "url": rsp.url,
             "request_headers": request_header,
             "response_headers": _MF.json_encode(dict(rsp.headers)),
-            "request_content": _MF.json_encode(params.get_map()),    # rsp.request.__dict__["body"],
+            "request_content": _MF.json_encode(params.get_map()),
             "response_content": content_json
         }
         rows = [row]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)

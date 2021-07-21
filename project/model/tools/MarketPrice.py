@@ -900,4 +900,4 @@ class MarketPrice(ABC):
         }]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)

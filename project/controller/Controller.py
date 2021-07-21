@@ -35,8 +35,8 @@ class Controller:
         ms = View.get_menus()
         cs = ms[m_home][View.MENUS_KEY_TXT]
         Controller._set_stage(vw)
-        FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}])
-        FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}])
+        FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}], make_dir=True)
+        FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}], make_dir=True)
         while not end:
             i = vw.menu("Choose an execution", cs)
             fc = ms[m_home][View.MENUS_KEY_FUNC][i]

@@ -853,7 +853,7 @@ class Stalker(Strategy, MyJson):
         rows = [row]
         fields = list(row.keys())
         overwrite = False
-        FileManager.write_csv(path, fields, rows, overwrite)
+        FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
     def _save_market_stalk(self, perfs: Map, market_prices: Map) -> None:
         path = Config.get(Config.DIR_SAVE_MARKET_STALK)
@@ -873,7 +873,7 @@ class Stalker(Strategy, MyJson):
         separator = {fields[0]: date, **{field: '⬇️ ——— ⬇️' for field in fields if field != fields[0]}}
         rows.insert(0, separator)
         overwrite = False
-        FileManager.write_csv(path, fields, rows, overwrite)
+        FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
     @staticmethod
     def _save_moves(rows: List[dict]) -> None:
@@ -881,4 +881,4 @@ class Stalker(Strategy, MyJson):
         path = path.replace('$class', Stalker.__name__)
         fields = list(rows[0].keys())
         rows.insert(0, {fields[0]: rows[0][Map.date], **{field: '⬇️ ——— ⬇️' for field in fields if field != fields[0]}})
-        FileManager.write_csv(path, fields, rows, overwrite=False)
+        FileManager.write_csv(path, fields, rows, overwrite=False, make_dir=True)

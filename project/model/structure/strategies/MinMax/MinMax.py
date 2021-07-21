@@ -639,16 +639,6 @@ class MinMax(Strategy, MyJson):
         :param executions: market price
         :param executions: where to place generated Order
         """
-        """
-        old_scr_odr = self._get_secure_order()
-        # bkr.cancel(old_scr_odr) if old_scr_odr.get_status() != Order.STATUS_COMPLETED else None
-        secure_odr_status = old_scr_odr.get_status()
-        bkr.cancel(old_scr_odr) \
-            if (secure_odr_status == Order.STATUS_SUBMITTED) \
-               or (secure_odr_status == Order.STATUS_PROCESSING) else None
-        scr_odr = self._new_secure_order(bkr, mkt_prc)
-        odrs.put(scr_odr, len(odrs.get_map()))
-        """
         # Cancel Secure Order
         executions.put(self._EXEC_CANCEL_SECURE, len(executions.get_map()))
         # Place Secure order
@@ -659,7 +649,6 @@ class MinMax(Strategy, MyJson):
     @staticmethod
     def save_move(pair: Pair, **params):
         p = Config.get(Config.DIR_SAVE_MOVES)
-        # pair = self.get_pair()
         p = p.replace('$pair', pair.__str__().replace('/', '_').upper())
         params_map = Map(params)
         mkt_prc = params_map.get('mkt_prc')
@@ -718,7 +707,7 @@ class MinMax(Strategy, MyJson):
                 params_map.put(_MF.float_to_str(v), k)
         rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
 
     def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
@@ -752,7 +741,7 @@ class MinMax(Strategy, MyJson):
         }]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
 
     @staticmethod
     def _save_period_ranking(ranking: Map) -> None:
@@ -782,7 +771,7 @@ class MinMax(Strategy, MyJson):
             rows.append(row)
         path = Config.get(Config.DIR_SAVE_PERIOD_RANKING)
         fields = list(rows[0].keys())
-        FileManager.write_csv(path, fields, rows, overwrite=False)
+        FileManager.write_csv(path, fields, rows, overwrite=False, make_dir=True)
 
     # ——————————————— STATIC METHOD DOWN ———————————————
 

@@ -463,66 +463,6 @@ class Floor(Strategy, MyJson):
     def _save_move(pair: Pair, **params):
         from model.structure.strategies.MinMax.MinMax import MinMax
         MinMax.save_move(pair, **params)
-        '''
-        p = Config.get(Config.DIR_SAVE_MOVES)
-        # pair = self.get_pair()
-        p = p.replace('$pair', pair.__str__().replace('/', '_').upper())
-        params_map = Map(params)
-        market_price = params_map.get('market_price')
-        closes = market_price.get_closes()
-        closes_str = [str(v) for v in closes]
-        market_json = _MF.json_encode(closes_str)
-        params_map.put(market_json, 'market_json')
-        params_map.put(_MF.unix_to_date(market_price.get_time()), Map.time)
-        params_map.put(market_price.get_rsis()[0], Map.rsi)
-        params_map.put(market_price.get_rsis(), 'rsis')
-        params_map.put(market_price.get_tsis(), 'tsis')
-        params_map.put(market_price.get_close(), Map.close)
-        params_map.put(market_price.get_super_trend(), 'super_trends')
-        params_map.put(market_price.get_super_trend()[0], 'super_trend')
-        params_map.put(Floor.__name__, "class")
-        params_map.put(_MF.unix_to_date(_MF.get_timestamp()), Map.date)
-        params_map.put(pair, Map.pair)
-        # """
-        fields = [
-            "class",
-            Map.pair,
-            Map.date,
-            Map.time,
-            'close',
-            'move',
-            'secure_odr_prc',
-            'stop_base_prc',
-            'super_trend',
-            # Buy
-            'MinMax->',
-            'close_trend_ok',
-            'is_above_switch',
-            '_last_red_close',
-            '<-MinMax',
-            'Floor->',
-            'rsi_ok',
-            'rsi_downstairs_ok',
-            'up_min_floor_once',
-            'last_floor',
-            'rsi',
-            'prev_rsi',
-            'rsi_entry_trigger',
-            '_min_out_floor',
-            '<-Floor',
-            # Lists
-            'rsis',
-            'super_trends',
-            '_floors'
-        ]
-        # """
-        for k, v in params_map.get_map().items():
-            if isinstance(v, float):
-                params_map.put(_MF.float_to_str(v), k)
-        rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
-        overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
-        '''
 
     def _save_capital(self, close: float, time: int) -> None:
         p = Config.get(Config.DIR_SAVE_CAPITAL)
@@ -557,13 +497,12 @@ class Floor(Strategy, MyJson):
         }]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
 
     @staticmethod
     def _save_period_ranking(ranking: Map) -> None:
         def float_to_str(number: float) -> str:
             return str(number).replace(".", ",")
-
         rows = []
         base = {
             Map.pair: ranking.get(Map.pair),

@@ -201,7 +201,7 @@ class BinanceFakeAPI(BinanceAPI):
         rows = [row]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(path, fields, rows, overwrite)
+        FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
     @staticmethod
     def steal_request(rq: str, params: Map) -> BrokerResponse:
@@ -288,7 +288,7 @@ class BinanceFakeAPI(BinanceAPI):
         fields = list(rows[0].keys())
         p = _cls._FILE_SAVE_ORDERS
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
         exec_time = None
         exec_qty = 0
         exec_amount = 0

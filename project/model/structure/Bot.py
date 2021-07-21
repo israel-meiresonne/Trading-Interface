@@ -148,7 +148,7 @@ class Bot(MyJson):
         fields = list(rows[0].keys())
         path = Config.get(Config.DIR_SAVE_BOT_ERRORS)
         overwrite = False
-        FileManager.write_csv(path, fields, rows, overwrite)
+        FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
     def backup(self) -> None:
         _stage = Config.get(Config.STAGE_MODE)

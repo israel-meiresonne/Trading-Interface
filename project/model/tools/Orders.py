@@ -371,7 +371,7 @@ class Orders(Order, MyJson):
         rows = [d]
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite)
+        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
