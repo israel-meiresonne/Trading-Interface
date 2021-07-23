@@ -93,11 +93,13 @@ class Bot(MyJson):
             except Exception as error:
                 nb_error += 1
                 if _stage != Config.STAGE_1:
-                    self.save_error(error, Bot.__name__)
+                    self.save_error(error, Bot.__name__, nb_error)
                 else:
                     raise error
+                """
                 if nb_error > limit_error:
                     raise error
+                """
             # Sleep
             if _stage != Config.STAGE_1:
                 self.backup()
@@ -110,10 +112,10 @@ class Bot(MyJson):
                 time.sleep(sleep_time)
             end = self._still_active()
             trade_index += 1
-            # """
+            """
             if (stop_index is not None) and (trade_index > stop_index):
                 raise Exception(f"End code!🙂")
-            # """
+            """
 
     @staticmethod
     def _still_active() -> bool:
@@ -133,13 +135,15 @@ class Bot(MyJson):
         return Bot._TRADE_INDEX_STOP
 
     @staticmethod
-    def save_error(error: Exception, from_class: str) -> None:
+    def save_error(error: Exception, from_class: str, nb_error: int = None) -> None:
         from traceback import format_exc
         red = "\033[31m"
         normal = "\033[0m"
-        print(f"{_MF.prefix()}{red}Error fromm the {from_class} class: {error.__str__()} {normal}")
+        print(f"{_MF.prefix()}{red}Error fromm the '{from_class}' class (nb_error='{nb_error}'): "
+              f"{error.__str__()} {normal}")
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+            'nb_error': nb_error,
             'from_class': from_class,
             "error_type": error.__class__.__name__,
             "message": error.__str__(),
