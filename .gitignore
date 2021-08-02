@@ -5,9 +5,9 @@ __pycache__*/
 .run/
 *.pyc
 project/content/v0.01
-# project/content/storage
-project/content/storage/STAGE_2/Bot_binary
-project/content/storage/STAGE_1
-project/content/storage/STAGE_3
+project/content/storage
+# project/content/storage/STAGE_2/Bot_binary
+# project/content/storage/STAGE_1
+# project/content/storage/STAGE_3
 project/venv/
 project/env/
