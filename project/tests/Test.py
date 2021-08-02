@@ -179,7 +179,7 @@ def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int, begin_time: in
                   Map.number: nb_prd
                   })
     rq = BinanceRequest(BrokerRequest.RQ_MARKET_PRICE, rq_prm)
-    bnc.get_market_price(rq)
+    bnc.request(rq)
     mkt = rq.get_market_price()
     return mkt
 
@@ -200,6 +200,9 @@ def print_market(mkt: MarketPrice) -> None:
     degs = [v for v in degs if v is not None]
     spr_extrems = _MF.get_super_extremums(list(degs))
     super_rsis = mkt.get_super_trend_rsis()
+    macds = mkt.get_macd().get(Map.macd)
+    signals = mkt.get_macd().get(Map.signal)
+    histograms = mkt.get_macd().get(Map.histogram)
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -207,16 +210,9 @@ def print_market(mkt: MarketPrice) -> None:
             Map.high: mkt.get_highs()[i],
             Map.low: mkt.get_lows()[i],
             Map.close: closes[i],
-            Map.rsi: mkt.get_rsis()[i],
-            'super_rsis': super_rsis[i],
-            'psar': mkt.get_psar()[i],
-            Map.super_trend: mkt.get_super_trend()[i],
-            Map.tsi: mkt.get_tsis(use_nan=True)[i],
-            Map.tsi + "_ema": mkt.get_tsis_emas()[i],
-            # 'super_tsis': super_tsis[i],
-            'slopes': mkt.get_slopes(14)[i],
-            'slope_deg': mkt.get_slopes_degree()[i],
-            'extremuns': degs[i] if i in spr_extrems else None
+            Map.macd: macds[i],
+            Map.signal: signals[i],
+            Map.histogram: histograms[i]
         }
         rows.append(row)
     rows.reverse()
@@ -493,11 +489,5 @@ def get_streams(pair_strs) -> List[str]:
 
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    # play_with_websocket()
     bkr = get_broker()
-    end_time = 1624125600
-    anayse = MarketPrice.analyse_market_trend(bkr, end_time=end_time)
-    print(anayse.json_encode())
-    trend = MarketPrice.get_market_trend(bkr, end_time=end_time)
-    print(trend)
-    bkr.close()
+    print_historic(bkr, Pair('BTC/USDT'), prd=60*5)
