@@ -102,7 +102,11 @@ class Bot(MyJson):
                 """
             # Sleep
             if _stage != Config.STAGE_1:
-                self.backup()
+                try:
+                    self.backup()
+                except Exception as error:
+                    nb_error += 1
+                    self.save_error(error, Bot.__name__, nb_error)
                 sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
                 unix_time = _MF.get_timestamp()
                 start_date = _MF.unix_to_date(unix_time)
