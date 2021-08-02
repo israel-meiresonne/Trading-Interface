@@ -16,7 +16,8 @@ from model.tools.Price import Price
 
 
 class Stalker(Strategy, MyJson):
-    _CONST_MARKET_PERIOD = 60 * 60      # in second
+    # _CONST_MARKET_PERIOD = 60 * 60      # in second
+    _CONST_MARKET_PERIOD = 60 * 15  # in second
     _CONST_STALK_FREQUENCY = 60         # in second
     _CONST_STALKER_BOT_SLEEP_TIME = 10  # in second
     _CONST_ALLOWED_PAIRS = None
