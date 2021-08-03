@@ -1063,7 +1063,7 @@ class BinanceAPI(ABC):
         _cls = BinanceAPI
         p = Config.get(Config.DIR_SAVE_API_RSP)
         content_json = rsp.content.decode('utf-8')
-        content = _MF.json_decode(content_json)
+        content = _MF.json_decode(content_json) if isinstance(content_json, str) else None
         if (rq == BinanceAPI.RQ_KLINES) and isinstance(content, list):
             new_content = {
                 'request': rq,
