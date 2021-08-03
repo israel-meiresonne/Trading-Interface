@@ -480,6 +480,7 @@ class MinMax(Strategy, MyJson):
         # Check Psar
         psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
         psar_rising = psar_trend == MarketPrice.PSAR_RISING
+        """
         # Check MACD
         macd_map = mkt_prc.get_macd()
         macd = macd_map.get(Map.macd)[0]
@@ -487,8 +488,10 @@ class MinMax(Strategy, MyJson):
         histogram = macd_map.get(Map.histogram)[0]
         macd_positives = (macd > 0 and signal > 0 and histogram > 0)
         macd_ok = macd_positives and (macd > signal)
+        """
         # Evaluate Buy
-        if super_trend_rising and psar_rising and macd_ok:
+        # if super_trend_rising and psar_rising and macd_ok:
+        if super_trend_rising and psar_rising:
             self._buy(executions)
         self.save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_BUY)
         """
