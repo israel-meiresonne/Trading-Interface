@@ -1,4 +1,5 @@
 from abc import ABC
+from time import sleep
 from typing import List, Any
 
 from requests import get as rq_get, Response
@@ -13,10 +14,12 @@ from model.tools.Map import Map
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.Pair import Pair
 from model.tools.Price import Price
+from model.tools.RateLimit import RateLimit
+from model.tools.WaitingRoom import WaitingRoom
 
 
 class BinanceAPI(ABC):
-    _TEST_MODE = None
+    _DEBUG = True
     # Const
     ORDER_TEST_PATH = "/api/v3/order/test"
     ORDER_REAL_PATH = "/api/v3/order"
@@ -39,6 +42,7 @@ class BinanceAPI(ABC):
     RQ_ORDER_TAKE_PROFIT = "RQ_ORDER_TAKE_PROFIT"
     RQ_ORDER_TAKE_PROFIT_LIMIT = "RQ_ORDER_TAKE_PROFIT_LIMIT"
     RQ_ORDER_LIMIT_MAKER = "RQ_ORDER_LIMIT_MAKER"
+    _NOT_VIP_REQUESTS = [RQ_KLINES]
     # Configs
     __PATH_ORDER = None
     _RQ_CONF = {
@@ -46,6 +50,7 @@ class BinanceAPI(ABC):
             Map.signed: False,
             Map.method: Map.GET,
             Map.path: "/sapi/v1/system/status",
+            Map.weight: 0,
             Map.mandatory: [],
             Map.params: []
         },
@@ -53,6 +58,7 @@ class BinanceAPI(ABC):
             Map.signed: False,
             Map.method: Map.GET,
             Map.path: "/api/v3/exchangeInfo",
+            Map.weight: 10,
             Map.mandatory: [],
             Map.params: []
         },
@@ -60,6 +66,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.GET,
             Map.path: "/sapi/v1/accountSnapshot",
+            Map.weight: 1,
             Map.mandatory: [
                 Map.type
             ],
@@ -74,6 +81,7 @@ class BinanceAPI(ABC):
             Map.signed: False,
             Map.method: Map.GET,
             Map.path: "/api/v3/klines",
+            Map.weight: 1,
             Map.mandatory: [
                 Map.symbol,
                 Map.interval
@@ -88,6 +96,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.GET,
             Map.path: "/sapi/v1/asset/tradeFee",
+            Map.weight: 1,
             Map.mandatory: [
                 # Map.timestamp | automatically added in BinanceAPI._sign()
             ],
@@ -100,6 +109,7 @@ class BinanceAPI(ABC):
             Map.signed: False,
             Map.method: Map.GET,
             Map.path: "/api/v3/ticker/24hr",
+            Map.weight: 40,     # real limit is 1 per symbol, this is the max weight
             Map.mandatory: [],
             Map.params: [Map.symbol]
         },
@@ -107,6 +117,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.GET,
             Map.path: "/api/v3/allOrders",
+            Map.weight: 10,
             Map.mandatory: [
                 Map.symbol
                 # Map.timestamp | automatically added in BinanceAPI._sign()
@@ -123,6 +134,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.GET,
             Map.path: "/api/v3/myTrades",
+            Map.weight: 10,
             Map.mandatory: [
                 Map.symbol
                 # Map.timestamp | automatically added in BinanceAPI._sign()
@@ -139,6 +151,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.DELETE,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.orderId
@@ -153,6 +166,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -174,6 +188,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -195,6 +210,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -216,6 +232,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -237,6 +254,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -258,6 +276,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -279,6 +298,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -300,6 +320,7 @@ class BinanceAPI(ABC):
             Map.signed: True,
             Map.method: Map.POST,
             Map.path: __PATH_ORDER,
+            Map.weight: 2,
             Map.mandatory: [
                 Map.symbol,
                 Map.side,
@@ -398,6 +419,12 @@ class BinanceAPI(ABC):
     _CONSTANT_KLINES_DEFAULT_NB_PERIOD = 500
     _EXCHANGE_INFOS = None
     _TRADE_FEES = None
+    _LIMIT_INTERVAL_TO_SECOND = Map({
+        'SECOND': 1,
+        'MINUTE': 60,
+        'HOUR': 60 * 60,
+        'DAY': 60 * 60 * 24
+    })
     """
     _TRADE_FEES[symbol{str}][Map.symbol]:     {str}   # Symbol Format: 'bnbusdt' (= bnb/usdt)
     _TRADE_FEES[symbol{str}][Map.taker]:      {float}
@@ -405,7 +432,15 @@ class BinanceAPI(ABC):
     """
     _SYMBOL_TO_PAIR = None
     # Variables
+    _ORDER_RQ_REGEX = r'^RQ_ORDER.*$'
+    _TEST_MODE = None
     _SOCKET = None
+    _WAITINGROOM = None
+    _WAITINGROOM_SLEEP_TIME = 1
+    _RATELIMIT_REQUEST =  None
+    _RATELIMIT_ORDER_INSTANT =  None
+    _RATELIMIT_ORDER_DAILY =  None
+    _RATELIMIT_MAX_LIMIT = 0.9
 
     @staticmethod
     def _set_path_in_request_order_config() -> None:
@@ -759,8 +794,170 @@ class BinanceAPI(ABC):
         if (rq == BinanceAPI.RQ_KLINES) and (end_time is None) and (start_time is None):
             rsp = BinanceAPI._send_market_historics_request(test_mode, rq, params)
         else:
-            rsp = BinanceAPI._send_request(test_mode, api_keys, rq, params)
+            rsp = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
         return rsp
+
+    @staticmethod
+    def get_waitingroom() -> WaitingRoom:
+        if BinanceAPI._WAITINGROOM is None:
+            name = f"{BinanceAPI.__name__}_Send_Request"
+            BinanceAPI._WAITINGROOM = WaitingRoom(name)
+        return BinanceAPI._WAITINGROOM
+
+    @staticmethod
+    def get_max_limit_rate() -> float:
+        return BinanceAPI._RATELIMIT_MAX_LIMIT
+
+    @staticmethod
+    def limit_interval_to_second(limit_interval: str) -> int:
+        time_second = BinanceAPI._LIMIT_INTERVAL_TO_SECOND.get(limit_interval)
+        if time_second is None:
+            raise ValueError(f"Unknown limit interval '{limit_interval}'")
+        return time_second
+
+    @staticmethod
+    def get_ratelimit_request() -> RateLimit:
+        if BinanceAPI._RATELIMIT_REQUEST is None:
+            rq_limit = BinanceAPI.get_exchange_info(Map.limit, Map.weight)
+            unit_interval = BinanceAPI.limit_interval_to_second(rq_limit[Map.interval])
+            limit = int(rq_limit[Map.limit] * BinanceAPI.get_max_limit_rate())
+            interval = unit_interval * rq_limit[Map.intervalNum]
+            BinanceAPI._RATELIMIT_REQUEST = RateLimit(limit, interval)
+        return BinanceAPI._RATELIMIT_REQUEST
+
+    @staticmethod
+    def get_ratelimit_order_instant() -> RateLimit:
+        if BinanceAPI._RATELIMIT_ORDER_INSTANT is None:
+            order_sec_limit = BinanceAPI.get_exchange_info(Map.limit, Map.second)
+            unit_interval = BinanceAPI.limit_interval_to_second(order_sec_limit[Map.interval])
+            limit = int(order_sec_limit[Map.limit] * BinanceAPI.get_max_limit_rate())
+            interval = unit_interval * order_sec_limit[Map.intervalNum]
+            BinanceAPI._RATELIMIT_ORDER_INSTANT = RateLimit(limit, interval)
+        return BinanceAPI._RATELIMIT_ORDER_INSTANT
+
+    @staticmethod
+    def get_ratelimit_order_daily() -> RateLimit:
+        if BinanceAPI._RATELIMIT_ORDER_DAILY is None:
+            rq_day_limit = BinanceAPI.get_exchange_info(Map.limit, Map.day)
+            unit_interval = BinanceAPI.limit_interval_to_second(rq_day_limit[Map.interval])
+            limit = int(rq_day_limit[Map.limit] * BinanceAPI.get_max_limit_rate())
+            interval = unit_interval * rq_day_limit[Map.intervalNum]
+            BinanceAPI._RATELIMIT_ORDER_DAILY = RateLimit(limit, interval)
+        return BinanceAPI._RATELIMIT_ORDER_DAILY
+
+    @staticmethod
+    def can_send_request(rq: str) -> bool:
+        _cls = BinanceAPI
+        can_send = True
+        weight = _cls._get_request_configs()[rq][Map.weight]
+        rq_ratelimit = _cls.get_ratelimit_request()
+        order_instant_ratelimit = _cls.get_ratelimit_order_instant()
+        order_daily_ratelimit = _cls.get_ratelimit_order_daily()
+        if weight > rq_ratelimit.get_remaining_weight():
+            can_send = False
+        if can_send and (_MF.regex_match(_cls._ORDER_RQ_REGEX, rq) or (rq == _cls.RQ_CANCEL_ORDER)):
+            if weight > order_instant_ratelimit.get_remaining_weight():
+                can_send = False
+            if can_send and weight > order_daily_ratelimit.get_remaining_weight():
+                limit = order_daily_ratelimit.get_limit()
+                raise Exception(f"BinanceAPI's daily limit '{limit}' for Order request is reached")
+        return can_send
+
+    @staticmethod
+    def get_limits_sleep_time(rq: str) -> int:
+        _cls = BinanceAPI
+        rq_ratelimit = _cls.get_ratelimit_request()
+        order_instant_ratelimit = _cls.get_ratelimit_order_instant()
+        sleep_time = rq_ratelimit.get_remaining_time()
+        if _MF.regex_match(_cls._ORDER_RQ_REGEX, rq) or (rq == _cls.RQ_CANCEL_ORDER):
+            order_sleep_time = order_instant_ratelimit.get_remaining_time()
+            sleep_time = sleep_time if sleep_time >= order_sleep_time else order_sleep_time
+        return sleep_time
+
+    @staticmethod
+    def _add_weight(rq: str) -> None:
+        _cls = BinanceAPI
+        weight = _cls._get_request_configs()[rq][Map.weight]
+        rq_ratelimit = _cls.get_ratelimit_request()
+        order_instant_ratelimit = _cls.get_ratelimit_order_instant()
+        order_daily_ratelimit = _cls.get_ratelimit_order_daily()
+        rq_ratelimit.add_weight(weight)
+        if _MF.regex_match(_cls._ORDER_RQ_REGEX, rq) or (rq == _cls.RQ_CANCEL_ORDER):
+            order_instant_ratelimit.add_weight(weight)
+            order_daily_ratelimit.add_weight(weight)
+
+    @staticmethod
+    def _update_limits(rq: str, response: BrokerResponse) -> None:
+        _cls = BinanceAPI
+        rq_ratelimit = _cls.get_ratelimit_request()
+        order_instant_ratelimit = _cls.get_ratelimit_order_instant()
+        order_daily_ratelimit = _cls.get_ratelimit_order_daily()
+        header = response.get_headers()
+        # Update request
+        key_rq_header = 'x-mbx-used-weight-1m'
+        rq_header_weight = int(header[key_rq_header]) if key_rq_header in header else header['X-SAPI-USED-IP-WEIGHT-1M']
+        rq_ratelimit_weight = rq_ratelimit.get_weight()
+        if (rq_ratelimit_weight is not None) and (rq_ratelimit_weight != rq_header_weight):
+            rq_ratelimit.update_weight(rq_header_weight)
+        # Update order
+        if _MF.regex_match(_cls._ORDER_RQ_REGEX, rq) or (rq == _cls.RQ_CANCEL_ORDER):
+            # Instant order
+            header_instant_weight = int(header['x-mbx-order-count-10s'])
+            order_instant_weight  = order_instant_ratelimit.get_weight()
+            if (order_instant_weight is not None) and (order_instant_weight != header_instant_weight):
+                order_instant_ratelimit.update_weight(header_instant_weight)
+            # Daily order
+            header_daily_weight = int(header['x-mbx-order-count-1d'])
+            order_daily_weight = order_daily_ratelimit.get_weight()
+            if (order_daily_weight is not None) and (order_daily_weight != header_daily_weight):
+                order_daily_ratelimit.update_weight(header_daily_weight)
+
+    @staticmethod
+    def _waitingroom(test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
+        _cls = BinanceAPI
+        is_vip = rq not in _cls._NOT_VIP_REQUESTS
+        if is_vip:
+            response = _cls._send_request(test_mode, api_keys, rq, params)
+        else:
+            def time_to_str(time: int) -> str:
+                return f"{int(time / 60)}min.{time % 60}sec."
+            def room_size(waitingroom: WaitingRoom) -> int:
+                return len(waitingroom.get_tickets())
+            waitingroom = _cls.get_waitingroom()
+            ticket = waitingroom.join_room()
+            join_unix_time = _MF.get_timestamp()
+            print(f"{_MF.prefix()}Join room"
+                  f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
+                if _cls._DEBUG else None
+            try:
+                room_sleep_time = _cls._WAITINGROOM_SLEEP_TIME
+                while not waitingroom.my_turn(ticket):
+                    sleep(room_sleep_time)
+                while not _cls.can_send_request(rq):
+                    limits_sleep_time = _cls.get_limits_sleep_time(rq)
+                    if isinstance(limits_sleep_time, int):
+                        unix_time = _MF.get_timestamp()
+                        unix_date = _MF.unix_to_date(unix_time)
+                        wakeup_date = _MF.unix_to_date(unix_time + limits_sleep_time)
+                        limits_sleep_time_str = time_to_str(limits_sleep_time)
+                        print(f"{_MF.prefix()}\033[33mCan't send request, sleep for '{limits_sleep_time_str}'"
+                              f" from '{unix_date}'->'{wakeup_date}'"
+                              f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
+                            if _cls._DEBUG else None
+                    sleep(limits_sleep_time) if isinstance(limits_sleep_time, int) else None
+                response = _cls._send_request(test_mode, api_keys, rq, params)
+            except Exception as error:
+                waitingroom.quit_room(ticket)
+                wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
+                print(f"{_MF.prefix()}\033[31mQuit room in '{wait_time_str}'"
+                      f" (size='{room_size(waitingroom)}', ticket='{ticket}'" + '\033[0m') if _cls._DEBUG else None
+                raise error
+            waitingroom.treat_ticket(ticket)
+            wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
+            print(f"{_MF.prefix()}\033[32mTicket treated in '{wait_time_str}'"
+                  f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
+                if _cls._DEBUG else None
+        return response
 
     @staticmethod
     def _send_request(test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
@@ -783,27 +980,36 @@ class BinanceAPI(ABC):
         broker_response: BrokerResponse
             Binance's API response
         """
-        BinanceAPI._set_test_mode(test_mode)
+        _cls = BinanceAPI
+        _cls._set_test_mode(test_mode)
         _stage = Config.get(Config.STAGE_MODE)
-        rq_cfg = BinanceAPI.get_request_config(rq)
+        rq_cfg = _cls.get_request_config(rq)
         if rq_cfg[Map.signed]:
-            BinanceAPI._sign(api_keys, params)
-        hdrs = BinanceAPI._generate_headers(api_keys)
-        url = BinanceAPI._generate_url(rq)
-        mtd = rq_cfg[Map.method]
-        if mtd == Map.GET:
-            rsp = rq_get(url, params.get_map(), headers=hdrs)
-        elif mtd == Map.POST:
-            rsp = rq_post(url, params.get_map(), headers=hdrs)
-        elif mtd == Map.DELETE:
+            _cls._sign(api_keys, params)
+        headers = _cls._generate_headers(api_keys)
+        url = _cls._generate_url(rq)
+        method = rq_cfg[Map.method]
+        if method == Map.GET:
+            rsp = rq_get(url, params.get_map(), headers=headers)
+        elif method == Map.POST:
+            rsp = rq_post(url, params.get_map(), headers=headers)
+        elif method == Map.DELETE:
             ds = params.get_map()
             url += '?' + '&'.join([f'{k}={v}' for k, v in ds.items()])
-            rsp = rq_delete(url, headers=hdrs)
+            rsp = rq_delete(url, headers=headers)
         else:
-            raise Exception(f"The request method {mtd} is not supported")
+            raise Exception(f"The request method {method} is not supported")
         bkr_rsp = BrokerResponse(rsp)
+        # Manage weight
+        try:
+            if rq != _cls.RQ_EXCHANGE_INFOS:
+                _cls._add_weight(rq)
+                _cls._update_limits(rq, bkr_rsp)
+        except Exception as error:
+            _cls._save_response(rq, params, rsp)
+            raise error
         # Backup Down
-        BinanceAPI._save_response(rq, params, rsp)
+        _cls._save_response(rq, params, rsp)
         return bkr_rsp
 
     @staticmethod
@@ -835,8 +1041,6 @@ class BinanceAPI(ABC):
             rsp.reason = 'BinanceSocket fail'
             rsp_content = {'comment': "Can't get market historic from websocket.", 'data_returned': market_historic}
             rsp._content = _MF.json_encode(rsp_content)
-        # Backup Down
-        BinanceAPI._save_response(rq, params, rsp)
         return BrokerResponse(rsp)
 
     @staticmethod
@@ -1064,7 +1268,7 @@ class BinanceAPI(ABC):
         p = Config.get(Config.DIR_SAVE_API_RSP)
         content_json = rsp.content.decode('utf-8')
         content = _MF.json_decode(content_json) if isinstance(content_json, str) else None
-        if (rq == BinanceAPI.RQ_KLINES) and isinstance(content, list):
+        if (rq == _cls.RQ_KLINES) and isinstance(content, list):
             new_content = {
                 'request': rq,
                 'length': len(content),
@@ -1075,13 +1279,20 @@ class BinanceAPI(ABC):
         request_method = rsp.request[Map.method] if isinstance(rsp.request, dict) else rsp.request.__dict__[Map.method]
         request_header = _MF.json_encode(dict(rsp.request["headers"])) \
             if isinstance(rsp.request, dict) else _MF.json_encode(dict(rsp.request.__dict__["headers"]))
+        exchange_is_set = isinstance(_cls._EXCHANGE_INFOS, Map)
+        request_weight = _cls.get_ratelimit_request().get_weight() if exchange_is_set else '—'
+        order_instant_weight = _cls.get_ratelimit_order_instant().get_weight() if exchange_is_set else '—'
+        order_daily_weight = _cls.get_ratelimit_order_daily().get_weight() if exchange_is_set else '—'
         row = {
             Map.time: _MF.unix_to_date(_MF.get_timestamp()),
-            'elapsed': _MF.float_to_str(rsp.elapsed.total_seconds()) if rsp.elapsed is not None else '—',
             Map.request: rq,
             Map.method: request_method,
             "status_code": rsp.status_code,
             "reason": rsp.reason,
+            'elapsed': _MF.float_to_str(rsp.elapsed.total_seconds()) if rsp.elapsed is not None else '—',
+            'request_weight': request_weight,
+            'order_instant_weight': order_instant_weight,
+            'order_daily_weight': order_daily_weight,
             "url": rsp.url,
             "request_headers": request_header,
             "response_headers": _MF.json_encode(dict(rsp.headers)),

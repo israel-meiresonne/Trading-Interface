@@ -493,11 +493,4 @@ def get_streams(pair_strs) -> List[str]:
 
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    # play_with_websocket()
-    bkr = get_broker()
-    end_time = 1624125600
-    anayse = MarketPrice.analyse_market_trend(bkr, end_time=end_time)
-    print(anayse.json_encode())
-    trend = MarketPrice.get_market_trend(bkr, end_time=end_time)
-    print(trend)
-    bkr.close()
+    play_with_websocket()

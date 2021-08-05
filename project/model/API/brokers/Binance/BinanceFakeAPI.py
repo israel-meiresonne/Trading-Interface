@@ -211,7 +211,7 @@ class BinanceFakeAPI(BinanceAPI):
             _cls._load_market_historics()
         if rq == _cls.RQ_KLINES:
             rsp_d = _cls._get_market_price(params) if _stage == Config.STAGE_1 else None
-        elif rgx.match('^RQ_ORDER.*$', rq) or (rq == _cls.RQ_CANCEL_ORDER):
+        elif rgx.match(BinanceAPI._ORDER_RQ_REGEX, rq) or (rq == _cls.RQ_CANCEL_ORDER):
             rsp_d = _cls._execute_order(rq, params)
         elif rq == _cls.RQ_EXCHANGE_INFOS:
             rsp_d = _cls._retreive_exchange_infos()

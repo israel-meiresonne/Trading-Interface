@@ -92,6 +92,7 @@ class Map(MyJson):
     takerCommission = "takerCommission"
     makerCommission = "makerCommission"
     fromId = "fromId"
+    intervalNum = 'intervalNum'
     # BinanceOrder
     move = "move"
     pair = "pair"

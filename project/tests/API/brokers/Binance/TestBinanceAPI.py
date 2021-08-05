@@ -74,7 +74,7 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
         rq_cfg_map = BinanceAPI.get_request_config(self.rq_with_required)
         del rq_cfg_map[Map.method]
         with self.assertRaises(Exception):
-            self.bapi_test._send_request(self.rq_with_required, self.prms_with_required)
+            self.bapi_test._waitingroom(self.rq_with_required, self.prms_with_required)
 
     def test_get_interval(self):
         # value returned
