@@ -895,7 +895,7 @@ class BinanceAPI(ABC):
         header = response.get_headers()
         # Update request
         key_rq_header = 'x-mbx-used-weight-1m'
-        rq_header_weight = int(header[key_rq_header]) if key_rq_header in header else header['X-SAPI-USED-IP-WEIGHT-1M']
+        rq_header_weight = int(header[key_rq_header] if key_rq_header in header else header['X-SAPI-USED-IP-WEIGHT-1M'])
         rq_ratelimit_weight = rq_ratelimit.get_weight()
         if (rq_ratelimit_weight is not None) and (rq_ratelimit_weight != rq_header_weight):
             rq_ratelimit.update_weight(rq_header_weight)
