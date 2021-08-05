@@ -47,9 +47,6 @@ class RateLimit:
         weight = self.get_weight()
         limit = self.get_limit()
         remaining = limit - weight if weight is not None else limit
-        if remaining < 0:
-            raise Exception(f"The remaining weight must be >= 0, "
-                            f"instead remaining='{remaining}' (limit='{limit}', weight='{weight}')")
         return remaining
 
     def _set_next_reset(self) -> None:
@@ -61,6 +58,21 @@ class RateLimit:
         if (next_reset is not None) and (unix_time > next_reset):
             self.__next_reset = None
         return self.__next_reset
+
+    def get_remaining_time(self) -> int:
+        """
+        To get the remaining time till the next reset\n
+        Returns
+        -------
+        wait_time: int
+            The remaining time till the next reset
+        """
+        next_reset = self.get_next_reset()
+        wait_time = None
+        if next_reset is not None:
+            unix_time = _MF.get_timestamp()
+            wait_time = next_reset - unix_time
+        return wait_time
 
     def add_weight(self, weight: int) -> int:
         """

@@ -74,6 +74,20 @@ class TestRateLimit(unittest.TestCase, RateLimit):
         result2 = rate_limit.get_remaining_weight()
         self.assertEqual(exp2, result2)
 
+    def test_get_remaining_time(self) -> None:
+        rate_limit = self.rate_limit1
+        weight = 10
+        # Before Add
+        self.assertIsNone(rate_limit.get_remaining_time())
+        # After add
+        rate_limit.add_weight(weight)
+        exp1 = self.interval1
+        result1 = rate_limit.get_remaining_time()
+        self.assertEqual(exp1, result1)
+        # After reset
+        self.wait_reset(rate_limit)
+        self.assertIsNone(rate_limit.get_remaining_time())
+
 
 if __name__ == '__main__':
     unittest.main()
