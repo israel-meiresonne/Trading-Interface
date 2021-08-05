@@ -22,7 +22,7 @@ class WaitingRoom:
         self._get_room().append(ticket)
 
     def _generate_ticket(self) -> str:
-        return f"{self.get_name()}_Ticket_{_MF.new_code()}"
+        return f"Ticket_{self.get_name()}_{_MF.new_code()}"
 
     def join_room(self) -> str:
         """
