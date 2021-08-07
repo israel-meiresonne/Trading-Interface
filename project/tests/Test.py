@@ -1,4 +1,5 @@
 from datetime import datetime
+from operator import itemgetter
 from time import sleep
 from typing import List
 
@@ -491,6 +492,90 @@ def get_streams(pair_strs) -> List[str]:
     return streams
 
 
+def analyse_final_roi(file_name: str) -> None:
+    """
+    group[Map.pair]:    {List[row{dict}]}
+    """
+    start_time = _MF.get_timestamp()
+    def delta_date(newest: str, older: str) -> int:
+        return int(_MF.date_to_unix(newest) - _MF.date_to_unix(older))
+
+    def get_fees(exp: float) -> float:
+        return (1+consts[2])**(exp) - 1
+
+    def str_rate_to_float(str_rate: str) -> float:
+        return eval(str_rate.replace('%', '/100'))
+    path_base = f'content/v0.01/analyse/'
+    src_path = f'{path_base}source/{file_name}'
+    print(_MF.prefix(), 'Start getting csv')
+    csv = FileManager.get_csv(src_path)
+    groups = {}
+    print(_MF.prefix(), 'Start Grouping')
+    for row in csv:
+        pair = row[Map.pair]
+        groups[pair] = [] if pair not in groups else groups[pair]
+        groups[pair].append(row)
+    print(_MF.prefix(), 'Start sorting')
+    for pair, rows in groups.items():
+        groups[pair] = sorted(groups[pair], key=itemgetter('date'))
+    print(_MF.prefix(), 'Start analyse')
+    new_keys = [
+        'New Pair?',
+        'Last Pair?',
+        'Entry'
+    ]
+    consts = [
+        '—',        # 0
+        '⬇️ ——— ⬇️',# 1
+        0.0010,    # 2
+        60 * 5     # 3
+    ]
+    print_rows = []
+    for pair, rows in groups.items():
+        if not _MF.regex_match('^.+/.+$', pair):
+            continue
+        i = 0
+        first_row = rows[0]
+        last_row = rows[-1]
+        for row in rows:
+            if row[Map.date] == '2021-08-05 14:54:50':
+                print('ok')
+            prev_row = rows[i-1] if i > 0 else None
+            row['New Pair?'] = new_pair = row[Map.date] == first_row[Map.date]
+            row['Last Pair?'] = last_pair = row[Map.date] == last_row[Map.date]
+            key_out = 'Out'
+            row['Entry'] = entry = 1 if new_pair or (row['last_roi'] == consts[0]) or (prev_row[key_out] == 1) else 0
+            roi_bellow_floor = ((row['last_floor'] != consts[0])
+                                and (str_rate_to_float(row[Map.roi]) <= str_rate_to_float(row['last_floor'])))
+            row[key_out] = out = 1 if (not (row['supertrend_rising'] == 'True')) \
+                                    or str_rate_to_float(row[Map.roi]) <= str_rate_to_float(row['max_loss']) \
+                                    or roi_bellow_floor \
+                                    or last_pair else 0
+            row['Fee'] = get_fees(entry + out)
+            row['Final roi'] = final_roi = str_rate_to_float(row[Map.roi]) if out == 1 else consts[0]
+            prev_last_final_roi = prev_row['Last Final roi'] if prev_row is not None else consts[0]
+            row['Last Final roi'] = last_final_roi = final_roi if final_roi != consts[0] else prev_last_final_roi
+            key_new_last_entry = 'New Last Entry'
+            prev_new_last_entry = prev_row[key_new_last_entry] if isinstance(prev_row, dict) else None
+            time_ok = (delta_date(row[Map.date], prev_new_last_entry)) >= consts[3] if prev_new_last_entry is not None else False
+            row[key_new_last_entry] = row[Map.date] if (prev_new_last_entry is None) or new_pair or ((entry == 1) and time_ok) else prev_new_last_entry
+            row['New Holds time'] = new_holds_time = delta_date(row[Map.date], row[key_new_last_entry])
+            row['New Final roi'] = new_final_roi = last_final_roi if ((new_holds_time >= consts[3]) and (out == 1)) \
+                                                                     or last_pair \
+                                                                     or roi_bellow_floor else consts[0]
+            row['New Out'] = new_out = 1 if new_final_roi != consts[0] else 0
+            row['New Fee'] = get_fees(2) if new_out == 1 else consts[0]
+            print_rows.append(row)
+            i += 1
+    print(_MF.prefix(), 'Start printing')
+    fields = list(print_rows[0].keys())
+    depot_path = f"{path_base}depot/{file_name.replace('.csv', '_final-roi.csv')}"
+    FileManager.write_csv(depot_path, fields, print_rows)
+    exec_time = _MF.get_timestamp() - start_time
+    exec_time_str = f"{int(exec_time / 60)}min.{exec_time % 60}sec."
+    print(_MF.prefix(), f"End printing: exec_time='{exec_time_str}'")
+
+
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    play_with_websocket()
+    analyse_final_roi('2021-08-06_05.39.07_fb_Stalker_moves.csv')
