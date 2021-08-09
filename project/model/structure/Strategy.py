@@ -115,9 +115,9 @@ class Strategy:
 
     def get_actual_capital_merged(self, market_price: MarketPrice) -> Price:
         """
-        To get sum of left ad right  capital in right asset\n
+        To get sum of left and right capital in right asset\n
         :param market_price: Most recent market prices
-        :return: sum of left ad right  capital in right asset
+        :return: sum of left ad right capital in right asset
         """
         pair = self.get_pair()
         if pair != market_price.get_pair():
@@ -142,6 +142,20 @@ class Strategy:
         actual_capital = self.get_actual_capital_merged(market_price)
         roi = actual_capital / initial_capital - 1
         return roi
+
+    def get_fee(self) -> Price:
+        """
+        To get total fees charged in right asset\n
+        Returns
+        -------
+        fees: Price
+            Total fees charged in right asset
+        """
+        orders = self._get_orders()
+        orders.get_size()
+        fee = orders.get_sum().get(Map.fee) \
+            if orders.get_size() > 0 else Price(0, self.get_pair().get_right().get_symbol())
+        return fee
 
     def get_max_capital(self) -> Price:
         return self.__max_capital
