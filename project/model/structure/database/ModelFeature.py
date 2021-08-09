@@ -285,7 +285,7 @@ class ModelFeature(ModelAccess):
         return rgx.match(regex, string) is not None
 
     @staticmethod
-    def  regex_replace(regex: str, substitu: str, string: str) -> str:
+    def regex_replace(regex: str, substitu: str, string: str) -> str:
         """
         To remplace the regex patern in the given string with a new one\n
         :param regex: The regex
@@ -355,3 +355,7 @@ class ModelFeature(ModelAccess):
             New list without any duplicate
         """
         return list(dict.fromkeys(values))
+
+    @staticmethod
+    def rate_to_str(rate: float) -> str:
+        return f"{round(rate * 100, 2)}%"
