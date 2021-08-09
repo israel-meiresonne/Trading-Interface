@@ -214,7 +214,12 @@ class Strategy:
 
     @staticmethod
     def get_bot_sleep_time() -> int:
-        return Strategy._CONST_BOT_SLEEP_TIME
+        sleep_time = Strategy._CONST_BOT_SLEEP_TIME
+        unix_time = _MF.get_timestamp()
+        round_time = _MF.round_time(unix_time, sleep_time)
+        wakeup_time = round_time + sleep_time
+        new_sleep_time = int(wakeup_time - unix_time)
+        return new_sleep_time
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'Strategy':

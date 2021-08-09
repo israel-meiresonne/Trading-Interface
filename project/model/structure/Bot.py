@@ -114,6 +114,7 @@ class Bot(MyJson):
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
                 print(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
+                sleep_time = None
             end = self._still_active()
             trade_index += 1
             """
