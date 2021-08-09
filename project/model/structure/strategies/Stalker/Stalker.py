@@ -64,6 +64,7 @@ class Stalker(Strategy, MyJson):
         self.__stalk_thread = None
         self.__active_rois = None
         self.__market_analyse = None
+        self.__fees = None
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
@@ -125,6 +126,45 @@ class Stalker(Strategy, MyJson):
         unix_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
         transact_list = transacts.get(unix_time)
         transacts.put([amount], unix_time) if transact_list is None else transact_list.append(amount)
+
+    def get_fees(self) -> Map:
+        """
+        To get all fees charged on closed strategies\n
+        Returns
+        -------
+        fees: Map
+            All fees charged on closed strategies
+        """
+        if self.__fees is None:
+            self.__fees = Map()
+        return self.__fees
+
+    def get_fee(self) -> Price:
+        fees = self.get_fees()
+        fees_list = [Price.sum(fee_list) for add_time, fee_list in fees.get_map().items()]
+        sum_closed_fee = Price.sum(fees_list)
+        stgs = self.get_active_strategies()
+        stg_fees = [stg.get_fee() for pair_str, stg in stgs.get_map().items()]
+        sum_active_stg = Price.sum(stg_fees)
+        if (sum_closed_fee is not None) and (sum_active_stg is not None):
+            fee = sum_closed_fee + sum_active_stg
+        elif sum_closed_fee is not None:
+            fee = sum_closed_fee
+        elif sum_active_stg is not None:
+            fee = sum_active_stg
+        else:
+            fee = Price(0, self.get_pair().get_right().get_symbol())
+        return fee
+
+    def _add_fee(self, fee: Price) -> None:
+        if fee.get_asset() != self.get_pair().get_right():
+            right_asset = self.get_pair().get_right()
+            raise ValueError(f"Fee must be in Stalker's '{right_asset}' right asset, instead '{fee}'")
+        fees = self.get_fees()
+        unix_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
+        fee_list = fees.get(unix_time)
+        fees.put([fee], unix_time) if fee_list is None else fee_list.append(fee)
+
 
     def _get_total_capital(self) -> Price:
         """
@@ -226,6 +266,9 @@ class Stalker(Strategy, MyJson):
         actual_capital = stg.get_actual_capital()
         final_capital = actual_capital.get(Map.right)
         self._add_transaction(final_capital)
+        # Add new fee
+        fee = stg.get_fee()
+        self._add_fee(fee)
         # Delete active Strategy
         del active_stgs.get_map()[pair_str]
         self._delete_active_roi(pair)
@@ -548,17 +591,28 @@ class Stalker(Strategy, MyJson):
             last_roi = self.get_active_roi(pair)
             floor_coef = Stalker.get_floor_coef()
             last_floor = Stalker._floor(last_roi, market_trend)
+            # Fee
+            fee = active_stg.get_fee()
+            initial_capital = active_stg._get_capital()
+            actual_capital = active_stg.get_actual_capital_merged(market_price)
+            fee_initial_capital_rate = fee / initial_capital
+            fee_actual_capital = fee / actual_capital
             row = {
                 Map.date: _MF.unix_to_date(_MF.get_timestamp()),
-                'market_trend': market_trend,
                 Map.pair: pair,
                 Map.roi: f"{round(stg_roi * 100, 2)}%",
+                'fee': fee,
+                'initial_capital': initial_capital,
+                'actual_capital': actual_capital,
+                'fee_initial_capital_rate': _MF.rate_to_str(fee_initial_capital_rate),
+                'fee_actual_capital': _MF.rate_to_str(fee_actual_capital),
                 'max_loss': f"{round(max_loss_rate * 100, 2)}%",
                 'roi_bellow_limit': stg_roi_bellow_limit,
                 'has_position': has_position,
                 'floor_coef': f"{round(floor_coef * 100, 2)}%",
                 'last_roi': f"{round(last_roi * 100, 2)}%" if last_roi is not None else '—',
                 'last_floor': f"{round(last_floor * 100, 2)}%" if last_floor is not None else '—',
+                'market_trend': market_trend,
                 'supertrend_trend': supertrend_trend,
                 'supertrend_rising': supertrend_rising,
                 'psar_trend': psar_trend,
@@ -723,7 +777,6 @@ class Stalker(Strategy, MyJson):
         :param market_price: Market price historic
         :return: True if pair is interesting else False
         """
-        # eligible = False
         # Extract closes
         closes = list(market_price.get_closes())
         closes.reverse()
@@ -812,6 +865,9 @@ class Stalker(Strategy, MyJson):
 
     def _save_state(self, pair_to_closes: Map, to_delete_pairs: List[str], market_trend: str, market_analyse: Map) \
             -> None:
+        def rate_to_str(rate: float) -> str:
+            return f"{round(rate * 100, 2)}%"
+
         path = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
         pair = self.get_pair()
         right_symbol = pair.get_right().get_symbol()
@@ -842,6 +898,11 @@ class Stalker(Strategy, MyJson):
         analyse_empty = len(market_analyse.get_map()) == 0
         rise = f"{round(market_analyse.get(MarketPrice.MARKET_TREND_RISING)*100, 2)}%" if not analyse_empty else '—'
         drop = f"{round(market_analyse.get(MarketPrice.MARKET_TREND_DROPPING) * 100, 2)}%" if not analyse_empty else '—'
+        # Fees
+        total_fee = self.get_fee()
+        fee_init_capital_rate = total_fee / initial_capital
+        fee_total_capital_rate = total_fee / total_capital
+        # Print
         row = {
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.pair: pair,
@@ -855,6 +916,9 @@ class Stalker(Strategy, MyJson):
             'dropping': drop,
             'initial_capital': initial_capital,
             'total_capital': total_capital,
+            'total_fee': total_fee,
+            'fee_init_capital_rate': rate_to_str(fee_init_capital_rate),
+            'fee_total_capital_rate': rate_to_str(fee_total_capital_rate),
             'total_capital_available': total_capital_available,
             'capital_allocation_size': capital_allocation_size,
             'allocated_capital': total_right + total_left,
