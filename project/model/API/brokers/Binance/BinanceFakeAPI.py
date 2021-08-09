@@ -12,13 +12,15 @@ from model.tools.Asset import Asset
 from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 
 
 class BinanceFakeAPI(BinanceAPI):
-    _FILE_SAVE_ORDERS = Config.get(Config.DIR_SAVE_ORDER_RQ)
+    _FILE_SAVE_ORDER_REQUESTS = Config.get(Config.DIR_SAVE_ORDER_RQ)
     _FILE_LOGS = Config.get(Config.DIR_SAVE_FAKE_API_RQ)
+    _FILE_LOAD_ORDERS = Config.get(Config.FILE_BINANCE_FAKE_API_ORDERS)
     _DIR_MARKET_HISTORICS = Config.get(Config.DIR_MARKET_HISTORICS)
     _CONST_INITIAL_INDEX = 60 * BinanceAPI.CONSTRAINT_KLINES_MAX_PERIOD     # 60 000, to initialize index's position
     _CONST_MIN_PERIOD_MILLI = 60 * 1000 # Period interval of the min period available all in millisecond
@@ -36,6 +38,10 @@ class BinanceFakeAPI(BinanceAPI):
     @staticmethod
     def _get_dir_market_historics() -> str:
         return BinanceFakeAPI._DIR_MARKET_HISTORICS
+
+    @staticmethod
+    def _get_file_load_orders() -> str:
+        return BinanceFakeAPI._FILE_LOAD_ORDERS.replace('$stage', BinanceFakeAPI._get_stage())
 
     @staticmethod
     def _load_market_historics() -> None:
@@ -91,8 +97,18 @@ class BinanceFakeAPI(BinanceAPI):
 
     @staticmethod
     def _get_lower_market_historic(pair_merged: str) -> list:
-        market_historics = Map(BinanceFakeAPI._get_var(Map.market, pair_merged.upper()))
+        _cls = BinanceFakeAPI
+        market_historics = Map(_cls._get_var(Map.market, pair_merged.upper()))
         period_millis = market_historics.get_keys()
+        if len(period_millis) == 0:
+            period_str = _cls.INTERVAL_1MIN
+            rsp = BinanceAPI._send_market_historics_request(False, _cls.RQ_KLINES, Map({
+                Map.symbol: pair_merged.upper(),
+                Map.interval: period_str,
+                Map.limit: _cls.CONSTRAINT_KLINES_MAX_PERIOD
+            }))
+            period_milli = int(BinanceAPI.get_interval(period_str) * 1000)
+            _cls.add_market_historic(pair_merged, period_milli, rsp.get_content())
         period_millis.sort()
         market_historic = market_historics.get_map()[period_millis[0]]
         return market_historic
@@ -167,9 +183,25 @@ class BinanceFakeAPI(BinanceAPI):
             All orders submitted
             orders[Pair.__str__()]: {List[dict]}
         """
-        if BinanceFakeAPI._ORDERS is None:
-            BinanceFakeAPI._ORDERS = Map()
-        return BinanceFakeAPI._ORDERS
+        _cls = BinanceFakeAPI
+        if _cls._ORDERS is None:
+            orders = Map()
+            file_path = _cls._get_file_load_orders()    # BinanceFakeAPI._FILE_LOAD_ORDERS
+            folder_path = _MF.regex_replace(r'[0-9\-]+_.+\.json$', '', file_path)
+            files = FileManager.get_files(folder_path)
+            file_name = files[-1] if len(files) > 0 else None
+            if file_name is not None:
+                backup_file_path = folder_path + file_name
+                backup = FileManager.read(backup_file_path)
+                orders = MyJson.json_decode(backup)
+            _cls._ORDERS = orders
+        return _cls._ORDERS
+
+    @staticmethod
+    def _save_orders() -> None:
+        file_path = BinanceFakeAPI._get_file_load_orders()
+        content = BinanceFakeAPI._get_orders().json_encode()
+        FileManager.write(file_path, content, make_dir=True)
 
     @staticmethod
     def _get_order(pair: Pair, order_id: int = None, client_order_id: str = None) -> dict:
@@ -360,6 +392,7 @@ class BinanceFakeAPI(BinanceAPI):
                         _cls._execute_order(order)
                 else:
                     raise Exception(f"This order type '{order_type}' is not supported")
+        _cls._save_orders()
 
     @staticmethod
     def _save_log(rq: str, params: Map) -> None:
@@ -476,7 +509,7 @@ class BinanceFakeAPI(BinanceAPI):
             Map.newOrderRespType: params.get(Map.newOrderRespType)
         }]
         fields = list(rows[0].keys())
-        p = _cls._FILE_SAVE_ORDERS
+        p = _cls._FILE_SAVE_ORDER_REQUESTS
         overwrite = False
         FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
         rsp_d = _cls._add_order(rq, params)

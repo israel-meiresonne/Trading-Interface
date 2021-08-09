@@ -14,6 +14,7 @@ DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03
 FILE_NAME_BOT_BACKUP = '$bot_ref_bot_backup.json'
 FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE = 'content/executable/model/tools/MyJson/json_instantiate.py'
 FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE = 'content/executable/model/tools/MyJson/test_json_encode_decode.py'
+FILE_BINANCE_FAKE_API_ORDERS = f'content/storage/$stage/BinanceFakeAPI/orders/{START_DATE}_orders.json'
 # Directories
 DIR_BROKERS = "model/API/brokers"
 DIR_STRATEGIES = "model/structure/strategies"
