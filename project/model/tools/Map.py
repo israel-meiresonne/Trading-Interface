@@ -66,7 +66,9 @@ class Map(MyJson):
     icebergQty = "icebergQty"
     newOrderRespType = "newOrderRespType"
     orderId = "orderId"
+    tradeId = "tradeId"
     origClientOrderId = "origClientOrderId"
+    clientOrderId = "clientOrderId"
     timezone = "timezone"
     serverTime = "serverTime"
     weight = "weight"
@@ -93,6 +95,11 @@ class Map(MyJson):
     makerCommission = "makerCommission"
     fromId = "fromId"
     intervalNum = 'intervalNum'
+    orderListId = "orderListId"
+    quoteQty = "quoteQty"
+    isBuyer = "isBuyer"
+    isMaker = "isMaker"
+    isBestMatch = "isBestMatch"
     # BinanceOrder
     move = "move"
     pair = "pair"

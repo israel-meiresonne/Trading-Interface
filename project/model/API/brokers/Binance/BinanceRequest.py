@@ -139,7 +139,7 @@ class BinanceRequest(BrokerRequest, MyJson):
         return stats
 
     def _set_orders(self, prms: Map) -> None:
-        ks = [Map.symbol]
+        ks = [Map.pair]
         rtn = ModelFeat.keys_exist(ks, prms.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to get all Order datas.")
@@ -157,7 +157,7 @@ class BinanceRequest(BrokerRequest, MyJson):
             raise ValueError(f"The max time to wait for a request response is '{BinanceAPI.CONSTRAINT_RECVWINDOW}',"
                             f" instead '{recvwindow}'.")
         request = Map({
-            Map.symbol: prms.get(Map.symbol).upper(),
+            Map.symbol: prms.get(Map.pair).get_merged_symbols().upper(),
             Map.orderId: odr_id,
             Map.startTime: starttime,
             Map.endTime: endtime,
@@ -244,10 +244,10 @@ class BinanceRequest(BrokerRequest, MyJson):
                     Map.trade: trade_id,
                     Map.price: Price(row[Map.price], right_symbol),
                     Map.quantity: Price(row[Map.qty], pair.get_left().get_symbol()),
-                    Map.amount: Price(row['quoteQty'], right_symbol),
+                    Map.amount: Price(row[Map.quoteQty], right_symbol),
                     Map.fee: Price(row[Map.commission], row[Map.commissionAsset]),
-                    Map.buy: row['isBuyer'],
-                    Map.maker: row['isMaker']
+                    Map.buy: row[Map.isBuyer],
+                    Map.maker: row[Map.isMaker]
                 }
                 result.put(struc, odr_bkr_id, trade_id)
             self._set_result(result)

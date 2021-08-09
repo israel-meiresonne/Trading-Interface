@@ -26,6 +26,7 @@ from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 _PRINT_SUCCESS = '🖨 File printed ✅'
@@ -180,7 +181,7 @@ def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int, begin_time: in
                   Map.number: nb_prd
                   })
     rq = BinanceRequest(BrokerRequest.RQ_MARKET_PRICE, rq_prm)
-    bnc.get_market_price(rq)
+    bnc.request(rq)
     mkt = rq.get_market_price()
     return mkt
 
@@ -576,6 +577,51 @@ def analyse_final_roi(file_name: str) -> None:
     print(_MF.prefix(), f"End printing: exec_time='{exec_time_str}'")
 
 
+def execute_orders() -> None:
+    bkr = get_broker()
+    pair = Pair('BTC/USDT')
+    mkt = get_historic(bkr, pair, 60 * 5, 1000)
+    bkr.close()
+    close = mkt.get_close()
+    bkr_odr1 = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, Map({
+        Map.pair: pair,
+        Map.move: Order.MOVE_BUY,
+        Map.amount: Price(10, pair.get_right().get_symbol())
+    }))
+    bkr_odr2 = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, Map({
+        Map.pair: pair,
+        Map.move: Order.MOVE_SELL,
+        Map.quantity: Price(100 / close, pair.get_left().get_symbol())
+    }))
+    bkr_odr3 = Order.generate_broker_order(Binance.__name__, Order.TYPE_STOP_LIMIT, Map({
+        Map.pair: pair,
+        Map.move: Order.MOVE_BUY,
+        Map.stop: Price(close, pair.get_right().get_symbol()),
+        Map.limit: Price(close, pair.get_right().get_symbol()),
+        Map.quantity: Price(1000 / close, pair.get_left().get_symbol())
+    }))
+    bkr_odr4 = Order.generate_broker_order(Binance.__name__, Order.TYPE_STOP_LIMIT, Map({
+        Map.pair: pair,
+        Map.move: Order.MOVE_SELL,
+        Map.stop: Price(close, pair.get_right().get_symbol()),
+        Map.limit: Price(close, pair.get_right().get_symbol()),
+        Map.quantity: Price(10000 / close, pair.get_left().get_symbol())
+    }))
+    bkr.execute(bkr_odr1)
+    bkr.execute(bkr_odr2)
+    bkr.execute(bkr_odr3)
+    bkr.execute(bkr_odr4)
+    bkr_rq_orders = BinanceRequest(BrokerRequest.RQ_ORDERS, Map({
+        Map.pair: pair
+    }))
+    bkr_rq_trades = BinanceRequest(BrokerRequest.RQ_TRADES, Map({
+        Map.pair: pair
+    }))
+    bkr.request(bkr_rq_orders)
+    bkr.request(bkr_rq_trades)
+    print('End')
+
+
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    analyse_final_roi('2021-08-06_05.39.07_fb_Stalker_moves.csv')
+    execute_orders()

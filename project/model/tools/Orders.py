@@ -122,11 +122,14 @@ class Orders(Order, MyJson):
         :param market: market's prices        | Used in stage 1 & 2
         """
         self._reset()
+        """
         _stage = Config.get(Config.STAGE_MODE)
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             self._update_stage_1_2(market)
         elif _stage == Config.STAGE_3:
             self._update_stage_3(bkr)
+        """
+        self._update_stage_3(bkr)
 
     def _update_stage_1_2(self, market: MarketPrice):
         close_val = market.get_close()
@@ -187,14 +190,6 @@ class Orders(Order, MyJson):
         odrs = self._get_orders()
         starttime = Orders._update_stage_3_get_starttime(odrs)
         starttime = starttime - (60 * 10) if starttime is not None else starttime
-        """
-        starttime = None
-        for idx, odr in odrs.get_map().items():
-            status = odr.get_status()
-            if (status == Order.STATUS_SUBMITTED) or (status == Order.STATUS_PROCESSING):
-                starttime = odr.get_settime()
-                break
-        """
         if starttime is not None:
             first_odr = self.get_order(idx=0)
             pair = first_odr.get_pair()
@@ -237,8 +232,7 @@ class Orders(Order, MyJson):
     def _update_stage_3_get_order_datas(bkr: Broker, pair: Pair, starttime: int) -> Map:
         _bkr_cls = bkr.__class__.__name__
         rq_params = Map({
-            # Map.symbol: first_odr.get_pair().get_merged_symbols(),
-            Map.symbol: pair.get_merged_symbols(),
+            Map.pair: pair,
             Map.id: None,
             Map.begin_time: starttime,
             Map.end_time: None,
@@ -268,46 +262,15 @@ class Orders(Order, MyJson):
 
     @staticmethod
     def _update_algo_order_stage_3(odr: Order, odr_datas: Map, trade_datas: Map) -> None:
-        """
-        r_symbol = odr.get_pair().get_right().get_symbol()
-        l_symbol = odr.get_pair().get_left().get_symbol()
-        """
         # Get api Order
-        """
-        # odr_bkr_id = odr.get_broker_id()
-        # odr_datas = odrs_datas.get(odr_bkr_id)
-        """
         # Get api Order's properties
         new_status = odr_datas.get(Map.status)
-        """
-        exec_time = odr_datas.get(Map.time) \
-            if (new_status == Order.STATUS_PROCESSING) or (new_status == Order.STATUS_COMPLETED) else None
-        # Exec Price
-        exec_price = odr_datas.get(Map.price)
-        exec_price_obj = Price(exec_price, r_symbol) if exec_price is not None else None
-        # Exec Quantity
-        exec_qty = odr_datas.get(Map.qty)
-        exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty is not None else None
-        # Exec Amount
-        exec_amount = odr_datas.get(Map.amount)
-        exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount is not None else None
-        """
         # Update
         odr._set_status(new_status)
         if (new_status == Order.STATUS_PROCESSING) or (new_status == Order.STATUS_COMPLETED):
             odr_bkr_id = odr.get_broker_id()
             odr_trades = Map(trade_datas.get(odr_bkr_id))
-            # odr_trades = Map(trade_datas.get_map()[odr_bkr_id])
             odr._set_trades(odr_trades)
-        """
-        odr._set_execution_time(exec_time) if exec_time is not None else None
-        odr._set_execution_price(exec_price_obj) if (odr.get_execution_price() is None) \
-                                                    and (exec_price_obj is not None) else None
-        odr._set_executed_quantity(exec_qty_obj) if (odr.get_executed_quantity() is None) \
-                                                    and (exec_price_obj is not None) else None
-        odr._set_executed_amount(exec_amount_obj) if (odr.get_executed_amount() is None) \
-                                                     and (exec_amount_obj is not None) else None
-        """
 
     @staticmethod
     def _sum_orders(odrs: Map) -> Map:

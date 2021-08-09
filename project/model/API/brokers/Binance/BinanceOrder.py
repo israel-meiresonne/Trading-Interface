@@ -103,27 +103,6 @@ class BinanceOrder(Order, MyJson):
         :param params: where to extract params for a stop Order
         :return: params required for a stop Order
         """
-        """
-        # check params
-        ks = [Map.pair, Map.move, Map.stop, Map.quantity]
-        rtn = ModelFeature.keys_exist(ks, params.get_map())
-        if rtn is not None:
-            raise ValueError(f"This param '{rtn}' is required to make a stop Order")
-        # check logic
-        pr = params.get(Map.pair)
-        pr_l_sbl = pr.get_left().get_symbol()
-        pr_r_sbl = pr.get_right().get_symbol()
-        stop = params.get(Map.stop)
-        stop_sbl = stop.get_asset().get_symbol()
-        if stop_sbl != pr_r_sbl:
-            raise ValueError(f"Stop price asset '{stop_sbl}' must the same "
-                             f"that the right asset of the pair '{pr}'")
-        qty = params.get(Map.quantity)
-        qty_sbl = qty.get_asset().get_symbol()
-        if qty_sbl != pr_l_sbl:
-            raise ValueError(f"Quantity asset '{qty_sbl}' must the same "
-                             f"that the left asset of the pair '{pr}'")
-        """
         # Extract
         mkt_params = Map({
             Map.symbol: self.get_pair().get_merged_symbols(),
@@ -214,57 +193,16 @@ class BinanceOrder(Order, MyJson):
         status = self.convert_status(content.get(Map.status))
         exec_time = content.get(Map.transactTime) \
             if (status == Order.STATUS_PROCESSING) or (status == Order.STATUS_COMPLETED) else None
-        """
-        exec_qty = float(content.get(Map.executedQty))
-        exec_qty_obj = Price(exec_qty, l_symbol) if exec_qty > 0 else None
-        exec_amount = float(content.get(Map.cummulativeQuoteQty))
-        exec_amount_obj = Price(exec_amount, r_symbol) if exec_amount > 0 else None
-        """
         odr_bkr_id = content.get(Map.orderId)
         # Extract trade
         rsp_trades = content.get(Map.fills)
         move = self.get_move()
         trades = self._structure_trades(rsp_trades, pair, exec_time, odr_bkr_id, move) \
             if (rsp_trades is not None) and (len(rsp_trades) > 0) else None
-        '''
-        # Stages
-        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            pass
-            # exec_price_val = content.get(Map.price)
-            # fee_obj = Price(Order.FAKE_FEE, r_symbol) if exec_price_val is not None else None
-        elif _stage == Config.STAGE_3:
-            # Execution price
-            """
-            fills = content.get(Map.fills)
-            # subexec = fills if fills is not None else None
-            fills_ok = (fills is not None) and (len(fills) > 0)
-            self._set_trades(fills) if fills_ok else None
-            subexec_datas = self.resume_subexecution(fills) if fills_ok else None
-            exec_price_val = subexec_datas.get(Map.price) if subexec_datas is not None else None
-            fee_obj = subexec_datas.get(Map.fee) if subexec_datas is not None else None
-            """
-            rsp_trades = content.get(Map.fills)
-            move = self.get_move()
-            trades = self._structure_trades(rsp_trades, pair, exec_time, odr_bkr_id, move)
-        else:
-            raise Exception(f"Unknown stage '{_stage}'.")
-        '''
-        """
-        if exec_price_val is not None:
-           exec_price_obj = Price(exec_price_val, r_symbol)
-        exec_price_obj = Price(exec_price_val, r_symbol) if exec_price_val is not None else None
-        """
         # Update
         self._set_status(status)
         self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
         self._set_trades(trades) if trades is not None else None
-        """
-        self._set_execution_time(exec_time) if (self.get_execution_time() is None) and (exec_time is not None) else None
-        self._set_execution_price(exec_price_obj) if self.get_execution_price() is None else None
-        self._set_executed_quantity(exec_qty_obj) if self.get_executed_quantity() is None else None
-        self._set_executed_amount(exec_amount_obj) if self.get_executed_amount() is None else None
-        self._set_fee(fee_obj) if fee_obj is not None else None
-        """
 
     @staticmethod
     def _get_status_converter() -> Map:

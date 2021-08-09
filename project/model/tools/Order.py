@@ -159,7 +159,7 @@ class Order(ABC, Request):
         To check logic of params\n
         """
         move = params.get(Map.move)
-        if (move == Order.MOVE_BUY) and (move == Order.MOVE_BUY):
+        if (move != Order.MOVE_BUY) and (move != Order.MOVE_SELL):
             raise ValueError(f"This Order move '{move}' is not supported.")
         pr = params.get(Map.pair)
         pr_l_sbl = pr.get_left().get_symbol()
@@ -250,19 +250,14 @@ class Order(ABC, Request):
         self.__execution_time = int(time)
 
     def get_execution_time(self) -> int:
-        # if self.__execution_time is None:
-        #     raise Exception("The execution time must be set before.")
         return self.__execution_time
 
     def _set_execution_price(self, prc: Price) -> None:
-        # _stage = Config.get(Config.STAGE_MODE)
         if self.__execution_price is not None:
             raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{prc}').")
         self.__execution_price = prc
 
     def get_execution_price(self) -> Price:
-        # if self.__execution_price is None:
-        #     raise Exception("The execution price must be set before.")
         return self.__execution_price
 
     def _set_executed_quantity(self, quantity: Price) -> None:
@@ -272,8 +267,6 @@ class Order(ABC, Request):
         self.__executed_quantity = quantity
 
     def get_executed_quantity(self) -> Price:
-        # if self.__executed_quantity is None:
-        #     raise Exception("The executed quantity must be set before.")
         return self.__executed_quantity
 
     def _set_executed_amount(self, amount: Price) -> None:
@@ -283,8 +276,6 @@ class Order(ABC, Request):
         self.__executed_amount = amount
 
     def get_executed_amount(self) -> Price:
-        # if self.__executed_amount is None:
-        #     raise Exception("The executed amount must be set before.")
         return self.__executed_amount
 
     def _set_fee(self, fee: Price) -> None:
@@ -363,7 +354,7 @@ class Order(ABC, Request):
         To prepare a market order request\n
         :param params: params to make a market Order
                         params[Map.pair]    => {Pair}
-                        params[Map.move]    => {str}
+                        params[Map.move]    => {str}    # format: Order.MOVE_{BUY|SELL}
                         params[Map.quantity]=> {Price|None}
                         params[Map.amount]  => {Price|None}
         :Note : Map.quantity or Map.amount must be set

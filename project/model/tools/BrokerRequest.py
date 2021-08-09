@@ -127,7 +127,7 @@ class BrokerRequest(ABC, Request):
         """
         To prepare request to get datas about submitted Orders\n
         :param prms: params required
-                     prms[Map.symbol]:      {str}
+                     prms[Map.pair]:        {Pair}
                      prms[Map.id]:          {str|None}    # an Order's id
                      prms[Map.begin_time]:  {int|None}
                      prms[Map.end_time]:    {int|None}
