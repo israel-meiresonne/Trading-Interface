@@ -573,8 +573,16 @@ class BinanceAPI(ABC):
     def get_trade_fee(pair: Pair) -> dict:
         """
         To get trade fees of the given Pair from Binance's API\n
-        :param pair: the pair to get the trade fees
-        :return: trade fees of the given Pair
+        Parameters
+        ----------
+        pair: Pair
+            Pair to get the trade fees for
+        Returns
+        -------
+        trade_fees: dict
+            Trade fees of the given Pair
+            trade_fees[Map.taker]: {float}
+            trade_fees[Map.maker]: {float}
         """
         fees = BinanceAPI.get_trade_fees()
         if fees is None:
