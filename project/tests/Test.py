@@ -192,16 +192,20 @@ def print_historic(bkr, pair: Pair, prd: int = 60, nb_prd: int = 1000) -> None:
     print_market(mkt)
 
 
-def print_market(mkt: MarketPrice) -> None:
+def print_market(mkt: MarketPrice) -> str:
     pair = mkt.get_pair()
     closes = mkt.get_closes()
     rows = []
-    # times = [int(t / 1000) for t in mkt.get_times()]
     times = [t for t in mkt.get_times()]
     degs = mkt.get_slopes_degree(14)
     degs = [v for v in degs if v is not None]
     spr_extrems = _MF.get_super_extremums(list(degs))
     super_rsis = mkt.get_super_trend_rsis()
+    macds = mkt.get_macd().get(Map.macd)
+    signals = mkt.get_macd().get(Map.signal)
+    histograms = mkt.get_macd().get(Map.histogram)
+    panda_ta_supertrends = mkt.get_super_trend()
+    manual_supertrends = wrap_supertrend(mkt)
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -209,26 +213,22 @@ def print_market(mkt: MarketPrice) -> None:
             Map.high: mkt.get_highs()[i],
             Map.low: mkt.get_lows()[i],
             Map.close: closes[i],
-            Map.rsi: mkt.get_rsis()[i],
-            'super_rsis': super_rsis[i],
-            'psar': mkt.get_psar()[i],
-            Map.super_trend: mkt.get_super_trend()[i],
-            Map.tsi: mkt.get_tsis(use_nan=True)[i],
-            Map.tsi + "_ema": mkt.get_tsis_emas()[i],
-            # 'super_tsis': super_tsis[i],
-            'slopes': mkt.get_slopes(14)[i],
-            'slope_deg': mkt.get_slopes_degree()[i],
-            'extremuns': degs[i] if i in spr_extrems else None
+            Map.macd: macds[i],
+            Map.signal: signals[i],
+            Map.histogram: histograms[i],
+            'panda_ta_supertrends': panda_ta_supertrends[i],
+            'manual_supertrends': manual_supertrends[i]
         }
         rows.append(row)
     rows.reverse()
     date_format = _MF.FORMAT_D_H_M_S.replace(':', '.')
     file = f"{pair.__str__().upper().replace('/','_')}-{_MF.unix_to_date(_MF.get_timestamp(), date_format)}"
-    p = f"content/v0.01/print/{file}.csv"
+    path = f"content/v0.01/print/{file}.csv"
     fields = list(rows[0].keys())
     overwrite = True
-    FileManager.write_csv(p, fields, rows, overwrite)
+    FileManager.write_csv(path, fields, rows, overwrite)
     print(_PRINT_SUCCESS)
+    return path
 
 
 def performance_get_rates(market_price: MarketPrice) -> list:
@@ -581,6 +581,187 @@ def execute_orders() -> None:
     bkr = get_broker()
     pair = Pair('BTC/USDT')
     mkt = get_historic(bkr, pair, 60 * 5, 1000)
+def filter_with_macd() -> None:
+    bkr = get_broker()
+    pair = Pair('DOGE/USDT')
+    mkt = get_historic(bkr, pair, period=60 * 15, nb_prd=1000)
+    bkr.close()
+    times = list(mkt.get_times())
+    times.reverse()
+    closes = list(mkt.get_closes())
+    closes.reverse()
+    superstrends = list(mkt.get_super_trend())
+    # MACD
+    macd_map = mkt.get_macd(signal=5)
+    macds = list(macd_map.get(Map.macd))
+    macds.reverse()
+    signals = list(macd_map.get(Map.signal))
+    signals.reverse()
+    histograms = list(macd_map.get(Map.histogram))
+    histograms.reverse()
+    # Switcher
+    switchers = MarketPrice.get_super_trend_switchers(closes, superstrends)
+    risings = []
+    idxs = switchers.get_keys()
+    i = 0
+    rows = []
+    macd_rows = []
+
+    def roi(new: float, old: float) -> float:
+        return round((new / old - 1) * 100, 2)
+
+    def roi_str(new: float, old: float) -> str:
+        return f"{roi(new, old)}%"
+
+    def macd_ok(index: int, macds: list, signals: list, histograms: list) -> bool:
+        macd = macds[index]
+        signal = signals[index]
+        histogram = histograms[index]
+        positives = (macd > 0) and (signal > 0) and (histogram > 0)
+        macds_ok = positives and (macd > signal) and (signal > histogram)
+        return macds_ok
+
+    for idx in idxs:
+        if idx != idxs[-1]:
+            trend = switchers.get(idx)
+            if trend == MarketPrice.SUPERTREND_RISING:
+                next_idx = idxs[i + 1]
+                rising = closes[idx:next_idx]
+                risings.append(rising)
+                first = rising[0]
+                rising_max = max(rising)
+                rising_min = min(rising)
+                rising_avg = sum(rising) / len(rising)
+                row = {
+                    'index': idx,
+                    'UTC': _MF.unix_to_date(times[idx]),
+                    'first': first,
+                    'last': rising[-1],
+                    'avg': rising_avg,
+                    'avg_roi': roi_str(rising_avg, first),
+                    'max': rising_max,
+                    'max_roi': roi_str(rising_max, first),
+                    'min': rising_min,
+                    'min_roi': roi_str(rising_min, first)
+                }
+                rows.append(row)
+                if macd_ok(idx, macds, signals, histograms):
+                    macd_rows.append(row)
+        i += 1
+    print(_MF.json_encode(rows))
+    print(_MF.json_encode(macd_rows))
+
+
+def wrap_supertrend(mkt: MarketPrice) -> list:
+    # Closes
+    closes = list(mkt.get_closes())
+    closes.reverse()
+    pd_closes = pd.Series(np.array(closes))
+    # Lows
+    lows = list(mkt.get_lows())
+    lows.reverse()
+    pd_lows = pd.Series(np.array(lows))
+    # Highs
+    highs = list(mkt.get_highs())
+    highs.reverse()
+    pd_highs = pd.Series(np.array(highs))
+    # supertrend_series, st_up, st_down = get_supertrend(pd_highs, pd_lows, pd_closes)
+    supertrend_series = get_supertrend(pd_highs, pd_lows, pd_closes)
+    supertrends = supertrend_series.iloc[:, 0].to_list()
+    supertrends.insert(0, np.nan)
+    supertrends.reverse()
+    return supertrends
+
+
+def get_supertrend(high, low, close, lookback=10, multiplier=3):
+    # ATR
+
+    tr1 = pd.DataFrame(high - low)
+    tr2 = pd.DataFrame(abs(high - close.shift(1)))
+    tr3 = pd.DataFrame(abs(low - close.shift(1)))
+    frames = [tr1, tr2, tr3]
+    tr = pd.concat(frames, axis=1, join='inner').max(axis=1)
+    atr = tr.ewm(lookback).mean()
+
+    # H/L AVG AND BASIC UPPER & LOWER BAND
+
+    hl_avg = (high + low) / 2
+    upper_band = (hl_avg + multiplier * atr).dropna()
+    lower_band = (hl_avg - multiplier * atr).dropna()
+
+    # FINAL UPPER BAND
+    final_bands = pd.DataFrame(columns=['upper', 'lower'])
+    final_bands.iloc[:, 0] = [x for x in upper_band - upper_band]
+    final_bands.iloc[:, 1] = final_bands.iloc[:, 0]
+    for i in range(len(final_bands)):
+        if i == 0:
+            final_bands.iloc[i, 0] = 0
+        else:
+            if (upper_band[i] < final_bands.iloc[i - 1, 0]) | (close[i - 1] > final_bands.iloc[i - 1, 0]):
+                final_bands.iloc[i, 0] = upper_band[i]
+            else:
+                final_bands.iloc[i, 0] = final_bands.iloc[i - 1, 0]
+
+    # FINAL LOWER BAND
+
+    for i in range(len(final_bands)):
+        if i == 0:
+            final_bands.iloc[i, 1] = 0
+        else:
+            if (lower_band[i] > final_bands.iloc[i - 1, 1]) | (close[i - 1] < final_bands.iloc[i - 1, 1]):
+                final_bands.iloc[i, 1] = lower_band[i]
+            else:
+                final_bands.iloc[i, 1] = final_bands.iloc[i - 1, 1]
+
+    # SUPERTREND
+
+    supertrend = pd.DataFrame(columns=[f'supertrend_{lookback}'])
+    supertrend.iloc[:, 0] = [x for x in final_bands['upper'] - final_bands['upper']]
+
+    for i in range(len(supertrend)):
+        if i == 0:
+            supertrend.iloc[i, 0] = 0
+        elif supertrend.iloc[i - 1, 0] == final_bands.iloc[i - 1, 0] and close[i] < final_bands.iloc[i, 0]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 0]
+        elif supertrend.iloc[i - 1, 0] == final_bands.iloc[i - 1, 0] and close[i] > final_bands.iloc[i, 0]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 1]
+        elif supertrend.iloc[i - 1, 0] == final_bands.iloc[i - 1, 1] and close[i] > final_bands.iloc[i, 1]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 1]
+        elif supertrend.iloc[i - 1, 0] == final_bands.iloc[i - 1, 1] and close[i] < final_bands.iloc[i, 1]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 0]
+
+    supertrend = supertrend.set_index(upper_band.index)
+    supertrend = supertrend.dropna()[1:]
+
+    # ST UPTREND/DOWNTREND
+
+    upt = []
+    dt = []
+    close = close.iloc[len(close) - len(supertrend):]
+    """
+    for i in range(len(supertrend)):
+        if close[i] > supertrend.iloc[i, 0]:
+            upt.append(supertrend.iloc[i, 0])
+            dt.append(np.nan)
+        elif close[i] < supertrend.iloc[i, 0]:
+            upt.append(np.nan)
+            dt.append(supertrend.iloc[i, 0])
+        else:
+            upt.append(np.nan)
+            dt.append(np.nan)
+
+    st, upt, dt = pd.Series(supertrend.iloc[:, 0]), pd.Series(upt), pd.Series(dt)
+    upt.index, dt.index = supertrend.index, supertrend.index
+
+    return st, upt, dt
+    """
+    return supertrend
+
+
+if __name__ == '__main__':
+    Config.update(Config.STAGE_MODE, Config.STAGE_2)
+    bkr = get_broker()
+    print_historic(bkr, Pair('BTC/USDT'), 60 * 15)
     bkr.close()
     close = mkt.get_close()
     bkr_odr1 = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, Map({
