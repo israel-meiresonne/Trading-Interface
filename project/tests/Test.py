@@ -206,6 +206,10 @@ def print_market(mkt: MarketPrice) -> str:
     histograms = mkt.get_macd().get(Map.histogram)
     panda_ta_supertrends = mkt.get_super_trend()
     manual_supertrends = wrap_supertrend(mkt)
+    kelc = mkt.get_keltnerchannel()
+    kelc_middles = kelc.get(Map.middle)
+    kelc_highs = kelc.get(Map.high)
+    kelc_lows = kelc.get(Map.low)
     for i in range(len(closes)):
         row = {
             Map.time: times[i],
@@ -216,8 +220,11 @@ def print_market(mkt: MarketPrice) -> str:
             Map.macd: macds[i],
             Map.signal: signals[i],
             Map.histogram: histograms[i],
-            'panda_ta_supertrends': panda_ta_supertrends[i],
-            'manual_supertrends': manual_supertrends[i]
+            # 'panda_ta_supertrends': panda_ta_supertrends[i],
+            # 'manual_supertrends': manual_supertrends[i],
+            'kelc_middles': kelc_middles[i],
+            'kelc_highs': kelc_highs[i],
+            'kelc_lows': kelc_lows[i]
         }
         rows.append(row)
     rows.reverse()
@@ -581,6 +588,8 @@ def execute_orders() -> None:
     bkr = get_broker()
     pair = Pair('BTC/USDT')
     mkt = get_historic(bkr, pair, 60 * 5, 1000)
+
+
 def filter_with_macd() -> None:
     bkr = get_broker()
     pair = Pair('DOGE/USDT')
@@ -761,48 +770,5 @@ def get_supertrend(high, low, close, lookback=10, multiplier=3):
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
     bkr = get_broker()
-    print_historic(bkr, Pair('BTC/USDT'), 60 * 15)
+    print_historic(bkr, Pair('BTC/USDT'), prd=60*15)
     bkr.close()
-    close = mkt.get_close()
-    bkr_odr1 = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, Map({
-        Map.pair: pair,
-        Map.move: Order.MOVE_BUY,
-        Map.amount: Price(10, pair.get_right().get_symbol())
-    }))
-    bkr_odr2 = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, Map({
-        Map.pair: pair,
-        Map.move: Order.MOVE_SELL,
-        Map.quantity: Price(100 / close, pair.get_left().get_symbol())
-    }))
-    bkr_odr3 = Order.generate_broker_order(Binance.__name__, Order.TYPE_STOP_LIMIT, Map({
-        Map.pair: pair,
-        Map.move: Order.MOVE_BUY,
-        Map.stop: Price(close, pair.get_right().get_symbol()),
-        Map.limit: Price(close, pair.get_right().get_symbol()),
-        Map.quantity: Price(1000 / close, pair.get_left().get_symbol())
-    }))
-    bkr_odr4 = Order.generate_broker_order(Binance.__name__, Order.TYPE_STOP_LIMIT, Map({
-        Map.pair: pair,
-        Map.move: Order.MOVE_SELL,
-        Map.stop: Price(close, pair.get_right().get_symbol()),
-        Map.limit: Price(close, pair.get_right().get_symbol()),
-        Map.quantity: Price(10000 / close, pair.get_left().get_symbol())
-    }))
-    bkr.execute(bkr_odr1)
-    bkr.execute(bkr_odr2)
-    bkr.execute(bkr_odr3)
-    bkr.execute(bkr_odr4)
-    bkr_rq_orders = BinanceRequest(BrokerRequest.RQ_ORDERS, Map({
-        Map.pair: pair
-    }))
-    bkr_rq_trades = BinanceRequest(BrokerRequest.RQ_TRADES, Map({
-        Map.pair: pair
-    }))
-    bkr.request(bkr_rq_orders)
-    bkr.request(bkr_rq_trades)
-    print('End')
-
-
-if __name__ == '__main__':
-    Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    execute_orders()

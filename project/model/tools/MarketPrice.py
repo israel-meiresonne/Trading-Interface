@@ -4,6 +4,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 from pandas_ta import supertrend as _supertrend
+from ta.volatility import KeltnerChannel
 from ta.momentum import RSIIndicator
 from ta.momentum import TSIIndicator
 from ta.trend import PSARIndicator, MACD
@@ -52,6 +53,9 @@ class MarketPrice(ABC):
     COLLECTION_MACD = "COLLECTION_MACD"
     COLLECTION_MACD_SIGNAL = "COLLECTION_MACD_SIGNAL"
     COLLECTION_MACD_HISTOGRAM = "COLLECTION_MACD_HISTOGRAM"
+    COLLECTION_KELTNERC_MIDDLE = "COLLECTION_KELTNERC_MIDDLE"
+    COLLECTION_KELTNERC_HIGH = "COLLECTION_KELTNERC_HIGH"
+    COLLECTION_KELTNERC_LOW = "COLLECTION_KELTNERC_LOW"
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
     _NB_PRD_SLOPES_AVG = 7
@@ -75,6 +79,7 @@ class MarketPrice(ABC):
     _MACD_SLOW = 26
     _MACD_FAST = 12
     _MACD_SIGNAL = 9
+    _KELTNERC_WINDOW = 20
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -115,7 +120,10 @@ class MarketPrice(ABC):
             self.COLLECTION_PSAR: None,
             self.COLLECTION_MACD: None,
             self.COLLECTION_MACD_SIGNAL: None,
-            self.COLLECTION_MACD_HISTOGRAM: None
+            self.COLLECTION_MACD_HISTOGRAM: None,
+            self.COLLECTION_KELTNERC_MIDDLE: None,
+            self.COLLECTION_KELTNERC_HIGH: None,
+            self.COLLECTION_KELTNERC_LOW: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -568,6 +576,37 @@ class MarketPrice(ABC):
         })
         return macd_map
 
+    def get_keltnerchannel(self, window: int = _KELTNERC_WINDOW) -> Map:
+        k = self.COLLECTION_KELTNERC_MIDDLE
+        kelc_middles = self._get_collection(k)
+        if kelc_middles is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            highs = list(self.get_highs())
+            highs.reverse()
+            lows = list(self.get_lows())
+            lows.reverse()
+            kelc = MarketPrice.keltnerchannel(highs, lows, closes, window)
+            # Middle
+            kelc_middles = kelc.get(Map.middle)
+            kelc_middles.reverse()
+            # High
+            kelc_highs = kelc.get(Map.high)
+            kelc_highs.reverse()
+            # Low
+            kelc_lows = kelc.get(Map.low)
+            kelc_lows.reverse()
+            # Set  collections
+            self._set_collection(k, kelc_middles)
+            self._set_collection(MarketPrice.COLLECTION_KELTNERC_HIGH, kelc_highs)
+            self._set_collection(MarketPrice.COLLECTION_KELTNERC_LOW, kelc_lows)
+        kelc_map = Map({
+            Map.middle: kelc_middles,
+            Map.high: self._get_collection(MarketPrice.COLLECTION_KELTNERC_HIGH),
+            Map.low: self._get_collection(MarketPrice.COLLECTION_KELTNERC_LOW)
+        })
+        return kelc_map
+
     def _set_ms(self) -> None:
         """
         To generate the market's variation speed for its most recent period\n
@@ -943,6 +982,42 @@ class MarketPrice(ABC):
             Map.histogram: macd_obj.macd_diff().to_list()
         })
         return macd_map
+
+    @staticmethod
+    def keltnerchannel(highs: list, lows: list, closes: list, window: int) -> Map:
+        """
+        To generate Keltner Channels indicator\n
+        Parameters
+        ----------
+        highs: list
+            Market's hight prices
+        lows: list
+            Market's low prices
+        closes: list
+            Market's close prices
+        window: int
+            The number of period to use
+        Returns
+        -------
+        indicator: Map
+            Keltner Channels indicator
+            indicator[Map.high]:    {list}  # Keltner Channel's High Band
+            indicator[Map.low]:    {list}  # Keltner Channel's low Band
+            indicator[Map.middle]:    {list}  # Keltner Channel's middle Band
+        """
+        pd_closes = pd.Series(np.array(closes))
+        pd_highs = pd.Series(np.array(highs))
+        pd_lows = pd.Series(np.array(lows))
+        kel_obj = KeltnerChannel(pd_highs,pd_lows,pd_closes, window, original_version=True)
+        hband = kel_obj.keltner_channel_hband().to_list()
+        lband = kel_obj.keltner_channel_lband().to_list()
+        mband = kel_obj.keltner_channel_mband().to_list()
+        kel_map = Map({
+            Map.high:  hband,
+            Map.low: lband,
+            Map.middle: mband
+        })
+        return kel_map
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
