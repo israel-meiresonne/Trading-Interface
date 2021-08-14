@@ -480,7 +480,17 @@ class MinMax(Strategy, MyJson):
         # Check Psar
         psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
         psar_rising = psar_trend == MarketPrice.PSAR_RISING
+        """
+        # Check MACD
+        macd_map = mkt_prc.get_macd()
+        macd = macd_map.get(Map.macd)[0]
+        signal = macd_map.get(Map.signal)[0]
+        histogram = macd_map.get(Map.histogram)[0]
+        macd_positives = (macd > 0 and signal > 0 and histogram > 0)
+        macd_ok = macd_positives and (macd > signal)
+        """
         # Evaluate Buy
+        # if super_trend_rising and psar_rising and macd_ok:
         if super_trend_rising and psar_rising:
             self._buy(executions)
         self.save_move(pair=self.get_pair(), **vars(), move=Order.MOVE_BUY)
@@ -488,11 +498,16 @@ class MinMax(Strategy, MyJson):
         fields = [
             'super_trend_rising',
             'psar_rising',
+            'macd_ok',
+            'macd_positives',
             'super_trend_dropping',
             'psar_dropping',
             'supertrend_trend',
             'psar_trend',
             'psar'
+            'macd',
+            'signal',
+            'histogram'
         ]
         """
         return executions
@@ -681,11 +696,16 @@ class MinMax(Strategy, MyJson):
             'MinMax ➡️',
             'super_trend_rising',
             'psar_rising',
+            'macd_ok',
+            'macd_positives',
             'super_trend_dropping',
             'psar_dropping',
             'supertrend_trend',
             'psar_trend',
             'psar',
+            'macd',
+            'signal',
+            'histogram',
             '⬅️ MinMax',
             'Floor ➡️',
             'rsi_ok',
@@ -696,11 +716,11 @@ class MinMax(Strategy, MyJson):
             'prev_rsi',
             'rsi_entry_trigger',
             '_min_out_floor',
-            '⬅️ Floor',
+            '⬅️ Floor'  # ,
             # Lists
-            'rsis',
-            'super_trends',
-            '_floors'
+            # 'rsis',
+            # 'super_trends',
+            # '_floors'
         ]
         for k, v in params_map.get_map().items():
             if isinstance(v, float):

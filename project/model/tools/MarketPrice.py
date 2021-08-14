@@ -6,7 +6,7 @@ import pandas as pd
 from pandas_ta import supertrend as _supertrend
 from ta.momentum import RSIIndicator
 from ta.momentum import TSIIndicator
-from ta.trend import PSARIndicator
+from ta.trend import PSARIndicator, MACD
 from ta.utils import _ema
 from scipy.signal import find_peaks
 
@@ -49,6 +49,9 @@ class MarketPrice(ABC):
     COLLECTION_TRUE_RANGE_AVG = "COLLECTION_TRUE_RANGE_AVG"
     COLLECTION_TRUE_RANGE = "COLLECTION_TRUE_RANGE"
     COLLECTION_PSAR = "COLLECTION_PSAR"
+    COLLECTION_MACD = "COLLECTION_MACD"
+    COLLECTION_MACD_SIGNAL = "COLLECTION_MACD_SIGNAL"
+    COLLECTION_MACD_HISTOGRAM = "COLLECTION_MACD_HISTOGRAM"
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
     _NB_PRD_SLOPES_AVG = 7
@@ -69,6 +72,9 @@ class MarketPrice(ABC):
         MARKET_TREND_RISING: 0.55,
         MARKET_TREND_DROPPING: 0.45
     })
+    _MACD_SLOW = 26
+    _MACD_FAST = 12
+    _MACD_SIGNAL = 9
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -106,7 +112,10 @@ class MarketPrice(ABC):
             self.COLLECTION_SUPER_TREND_DOWNS: None,
             self.COLLECTION_TRUE_RANGE_AVG: None,
             self.COLLECTION_TRUE_RANGE: None,
-            self.COLLECTION_PSAR: None
+            self.COLLECTION_PSAR: None,
+            self.COLLECTION_MACD: None,
+            self.COLLECTION_MACD_SIGNAL: None,
+            self.COLLECTION_MACD_HISTOGRAM: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -271,16 +280,6 @@ class MarketPrice(ABC):
             exts = tuple(exts)
             self._set_collection(self.COLLECTION_EXTREMS, exts)
         return exts
-
-    """
-    def get_super_extremums(self) -> tuple:
-        closes = self.get_closes()
-        mins = list(self.get_minimums())
-        # min_vals = [closes[prd] for prd in mins]
-        maxs = list(self.get_maximums())
-        # max_vals = [closes[prd] for prd in maxs]
-        return tuple(_MF.get_super_extremums(mins, maxs))
-    """
 
     def get_rsis(self, nb_prd: int = _NB_PRD_RSIS) -> tuple:
         """
@@ -538,6 +537,36 @@ class MarketPrice(ABC):
             psars = tuple(psars)
             self._set_collection(k, psars)
         return psars
+
+    def get_macd(self, slow: int = _MACD_SLOW, fast: int = _MACD_FAST, signal: int = _MACD_SIGNAL) -> Map:
+        k = self.COLLECTION_MACD
+        macds = self._get_collection(k)
+        if macds is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            macd_map = MarketPrice.macd(closes, slow, fast, signal)
+            # Treat MACDs
+            macds = macd_map.get(Map.macd)
+            macds.reverse()
+            macds = tuple(macds)
+            # Treat Signals
+            signals = macd_map.get(Map.signal)
+            signals.reverse()
+            signals = tuple(signals)
+            # Treat Histograms
+            histograms = macd_map.get(Map.histogram)
+            histograms.reverse()
+            histograms = tuple(histograms)
+            # Set  collections
+            self._set_collection(k, macds)
+            self._set_collection(MarketPrice.COLLECTION_MACD_SIGNAL, signals)
+            self._set_collection(MarketPrice.COLLECTION_MACD_HISTOGRAM, histograms)
+        macd_map = Map({
+            Map.macd: macds,
+            Map.signal: self._get_collection(MarketPrice.COLLECTION_MACD_SIGNAL),
+            Map.histogram: self._get_collection(MarketPrice.COLLECTION_MACD_HISTOGRAM)
+        })
+        return macd_map
 
     def _set_ms(self) -> None:
         """
@@ -883,6 +912,37 @@ class MarketPrice(ABC):
         else:
             trend = MarketPrice.MARKET_TREND_DROPPING
         return trend
+
+    @staticmethod
+    def macd(closes: list, slow: int, fast: int, signal: int) -> Map:
+        """
+        To generate the Moving Average Convergence Divergence (MACD)\n
+        Parameters
+        ----------
+        closes: list
+            Market's close prices.
+        slow: int
+            Number period long term
+        fast: int
+            Number period short term
+        signal
+            Number period to signal
+        Returns
+        -------
+        macd:  Map
+            MACD's macd, signal line and Histogram
+            macd[Map.macd]:         {List}
+            macd[Map.signal]:       {List}
+            macd[Map.histogram]:    {List}
+        """
+        pd_closes = pd.Series(np.array(closes))
+        macd_obj = MACD(pd_closes, slow, fast, signal)
+        macd_map = Map({
+            Map.macd: macd_obj.macd().to_list(),
+            Map.signal: macd_obj.macd_signal().to_list(),
+            Map.histogram: macd_obj.macd_diff().to_list()
+        })
+        return macd_map
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
