@@ -11,14 +11,14 @@ class Controller:
         self.model = Log()
         self.view = View()
 
-    def __get_model(self):
+    def _get_model(self):
         """
         To get Controller's access to the model\n
         :return: Controller's access to the model
         """
         return self.model
 
-    def __get_view(self):
+    def _get_view(self):
         """
         To get Controller's access to the view\n
         :return: Controller's access to the view
@@ -29,33 +29,58 @@ class Controller:
         """
         To start the application\n
         """
-        vw = self.__get_view()
-        m_home = "home"
-        end = False
-        ms = View.get_menus()
-        cs = ms[m_home][View.MENUS_KEY_TXT]
-        Controller._set_stage(vw)
+        view = self._get_view()
+        home_key = View.MENUS_KEY_HOME
+        menu = View.get_menus()
+        options = menu[home_key][View.MENUS_KEY_OPTION]
+        self._set_session()
+        self._set_stage()
         FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}], make_dir=True)
         FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}], make_dir=True)
+        end = False
         while not end:
-            i = vw.menu("Choose an execution", cs)
-            fc = ms[m_home][View.MENUS_KEY_FUNC][i]
+            i = view.menu("Choose an execution", options)
+            fc = menu[home_key][View.MENUS_KEY_FUNC][i]
             end = eval("self." + fc + "()")
 
     @staticmethod
-    def quit():
+    def quit() -> bool:
         return True
 
-    @staticmethod
-    def _set_stage(view: ViewInterface) -> None:
+    def _set_session(self) -> None:
+        view = self._get_view()
+        session_dir = Config.get(Config.DIR_SESSIONS)
+        session_ids = FileManager.get_dirs(session_dir, make_dir=True)
+        if len(session_ids) == 0:
+            view.output(View.FILE_ERROR, "There's no session to load!")
+            return None
+        menu_1 = {'No': False, 'Yes': True}
+        options = list(menu_1.keys())
+        load_session = menu_1[options[view.menu("Do you want to load a session?", options)]]
+        if not isinstance(load_session, bool):
+            raise Exception(f"Wrong type: load_session='{load_session}({type(load_session)})'")
+        if load_session:
+            end_word = View.WORD_END
+            load_options = [end_word, *session_ids]
+            end = False
+            message = f"Select a session ID (or '{end_word}' to end the loading process):"
+            while not end:
+                entry = load_options[view.menu(message, load_options)]
+                # entry = view.input(f"Enter a session ID or '{end_word}' to end the loading process:")
+                session_id = entry if entry in session_ids else None
+                end = (session_id is not None) or (entry == end_word)
+            Config.update(Config.SESSION_ID, session_id) if session_id is not None else None
+
+    def _set_stage(self) -> None:
+        view = self._get_view()
         stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
         stage = stage_modes[view.menu("Choose the stage mode:", stage_modes)]
         Config.update(Config.STAGE_MODE, stage)
 
     def new_bot(self):
         _stage = Config.get(Config.STAGE_MODE)
-        md = self.__get_model()
-        vw = self.__get_view()
+        md = self._get_model()
+        vw = self._get_view()
         # """
         # params
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
@@ -195,8 +220,8 @@ class Controller:
         """
 
     def start_bot(self):
-        md = self.__get_model()
-        vw = self.__get_view()
+        md = self._get_model()
+        vw = self._get_view()
         bots = md.get_bots()
         bt_ids = bots.get_keys()
         bot_refs = [bots.get(bot_id).__str__() for bot_id in bt_ids]
