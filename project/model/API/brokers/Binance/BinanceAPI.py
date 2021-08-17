@@ -908,7 +908,7 @@ class BinanceAPI(ABC):
         if (rq_ratelimit_weight is not None) and (rq_ratelimit_weight != rq_header_weight):
             rq_ratelimit.update_weight(rq_header_weight)
         # Update order
-        if _MF.regex_match(_cls._ORDER_RQ_REGEX, rq) or (rq == _cls.RQ_CANCEL_ORDER):
+        if _MF.regex_match(_cls._ORDER_RQ_REGEX, rq):    # or (rq == _cls.RQ_CANCEL_ORDER):
             # Instant order
             header_instant_weight = int(header['x-mbx-order-count-10s'])
             order_instant_weight  = order_instant_ratelimit.get_weight()
