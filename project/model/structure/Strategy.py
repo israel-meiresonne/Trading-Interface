@@ -389,8 +389,8 @@ class Strategy:
         To get all available Strategy\n
         :return: list of available Strategy
         """
-        p = Config.get(Config.DIR_STRATEGIES)
-        return FileManager.get_dirs(p, False)
+        path = Config.get(Config.DIR_STRATEGIES)
+        return FileManager.get_dirs(path, special=False)
 
     @staticmethod   # Broker
     def get_top_asset(bkr: Broker, stg_class: str, period: int, nb_period: int, maximum: int = _TOP_ASSET_MAX) -> Map:

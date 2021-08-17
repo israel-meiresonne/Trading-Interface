@@ -205,7 +205,7 @@ class BrokerRequest(ABC, Request):
         :return: the class name of Broker's Request class
         """
         path = Config.get(Config.DIR_BROKERS)
-        dirs = FileManager.get_dirs(path, False)
+        dirs = FileManager.get_dirs(path, special=False)
         if bkr_cls not in dirs:
             raise IndexError(f"This Broker '{bkr_cls}' is not supported")
         suffix = BrokerRequest._SUFFIX_REQUEST
