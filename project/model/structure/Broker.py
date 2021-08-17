@@ -115,8 +115,8 @@ class Broker:
         To get all available Broker\n
         :return: list of available Broker
         """
-        p = Config.get(Config.DIR_BROKERS)
-        return FileManager.get_dirs(p, False)
+        path = Config.get(Config.DIR_BROKERS)
+        return FileManager.get_dirs(path, special=False)
 
     @staticmethod
     def retrieve(bkr: str, configs: Map):

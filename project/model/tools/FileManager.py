@@ -13,6 +13,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 class FileManager(ABC):
     _PROJECT_DIR = None
     _REGEX_FILE_DIR = r'^.+\/'
+
     @abstractmethod
     def __init__(self):
         pass
@@ -123,15 +124,17 @@ class FileManager(ABC):
                 writer.writerow(row)
 
     @staticmethod
-    def get_files(path: str, extension: bool = True, spacial: bool = False) -> list:
+    def get_files(path: str, extension: bool = True, special: bool = False, make_dir: bool = False) -> list:
         """
         To list files of a directory\n
         :param path: the path of the directory
         :param extension: set True to get files with their extension else False
-        :param spacial: set True to get special files (.ignore, .DS_Store, etc...) else False to exclude them
+        :param special: set True to get special files (.ignore, .DS_Store, etc...) else False to exclude them
+        :param make_dir: Set True create missing directory else False to raise error if miss directory
         :return: list of files
         """
         project_dir = FileManager.get_project_directory()
+        FileManager.make_directory(path) if make_dir else None
         _, _, files = next(walk(project_dir + path))
         if not extension:
             ptr = r"\.[A-z]*$"
@@ -139,25 +142,27 @@ class FileManager(ABC):
                 file = files[i]
                 files[i] = rgx.sub(ptr, "", file)
         files = files
-        if not spacial:
+        if not special:
             regex_special = r'^\..+'
             files = [file for file in files if not _MF.regex_match(regex_special, file)]
         files.sort()
         return files
 
     @staticmethod
-    def get_dirs(p: str, include: bool = False) -> list:
+    def get_dirs(path: str, special: bool = False, make_dir: bool = False) -> list:
         """
          To list directories of a directory\n
-         :param p: the path of the directory
-         :param include: set True to include special directories else False.
+         :param path: the path of the directory
+         :param special: set True to include special directories else False.
                         Special file supported: .ignore, __pychache__
+         :param make_dir: Set True create missing directory else False to raise error if miss directory
          :return: list of directories
          """
-        root = FileManager.get_project_directory()
-        _, drs, _ = next(walk(root + p))
-        if not include:
-            ptr = "^__[\w]*__$|^\.[\w]"
+        project_dir = FileManager.get_project_directory()
+        FileManager.make_directory(path) if make_dir else None
+        _, drs, _ = next(walk(project_dir + path))
+        if not special:
+            ptr = r"^__[\w]*__$|^\.[\w]"
             ndrs = []
             for i in range(len(drs)):
                 f = drs[i]
@@ -171,7 +176,7 @@ class FileManager(ABC):
     @staticmethod
     def remove_file(path: str) -> None:
         """
-        To remove file
+        To remove file\n
         :param path: The path the file to remove from the project's directory, i.e.: content/my/file.txt
         """
         path = FileManager.get_project_directory() + path
@@ -190,7 +195,7 @@ class FileManager(ABC):
         To create a new directory\n
         :param path: The path from the project's directory to the new directory, i.e.: 'model/path/new/directory/'
         """
-        full_path = project_path = FileManager.get_project_directory() + path
+        full_path = FileManager.get_project_directory() + path
         Path(full_path).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -199,5 +204,5 @@ class FileManager(ABC):
         To create a new directory\n
         :param path: The path from '/' to the new directory, i.e.: 'model/path/new/directory/'
         """
-        full_path = project_path = FileManager.get_project_directory() + path
+        full_path = FileManager.get_project_directory() + path
         Path(full_path).rmdir()

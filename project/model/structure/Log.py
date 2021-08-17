@@ -24,7 +24,7 @@ class Log(ModelInterface, _MF):
         _stage = Config.get(Config.STAGE_MODE)
         path = Config.get(Config.DIR_DATABASE)
         bot_id_dir = path.replace('$stage', _stage).replace('$class', Bot.__name__)
-        bot_id_folders = FileManager.get_dirs(bot_id_dir)
+        bot_id_folders = FileManager.get_dirs(bot_id_dir, make_dir=True)
         for bot_id_folder in bot_id_folders:
             bot_backup_dir = f"{bot_id_dir}{bot_id_folder}/"
             bot_backup_files = FileManager.get_files(bot_backup_dir)

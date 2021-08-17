@@ -13,7 +13,6 @@ from model.tools.BrokerResponse import BrokerResponse
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
-from model.tools.Order import Order
 from model.tools.Pair import Pair
 
 
@@ -23,7 +22,7 @@ class BinanceFakeAPI(BinanceAPI):
     _FILE_LOAD_ORDERS = Config.get(Config.FILE_BINANCE_FAKE_API_ORDERS)
     _DIR_MARKET_HISTORICS = Config.get(Config.DIR_MARKET_HISTORICS)
     _CONST_INITIAL_INDEX = 60 * BinanceAPI.CONSTRAINT_KLINES_MAX_PERIOD     # 60 000, to initialize index's position
-    _CONST_MIN_PERIOD_MILLI = 60 * 1000 # Period interval of the min period available all in millisecond
+    _CONST_MIN_PERIOD_MILLI = 60 * 1000     # Period interval of the min period available all in millisecond
     _VARS = None
     """
     _VARS[Map.market][pair_merged{str}][period{int}]:   {List[list]}    # pair_merged format: 'DOGEUSDT', period in second
@@ -50,7 +49,7 @@ class BinanceFakeAPI(BinanceAPI):
         original_path = _cls._get_dir_market_historics()
         path_brokered = original_path.replace('$broker', _bkr_cls)
         path_pair_folder = path_brokered.replace('$pair/', '')
-        pair_folders = FileManager.get_dirs(path_pair_folder)
+        pair_folders = FileManager.get_dirs(path_pair_folder, make_dir=True)
         print("Start loading market historic...♻️")
         for pair_folder in pair_folders:
             pair_merged = _MF.regex_replace('%.+$', '', pair_folder)
@@ -188,7 +187,7 @@ class BinanceFakeAPI(BinanceAPI):
             orders = Map()
             file_path = _cls._get_file_load_orders()    # BinanceFakeAPI._FILE_LOAD_ORDERS
             folder_path = _MF.regex_replace(r'[0-9\-]+_.+\.json$', '', file_path)
-            files = FileManager.get_files(folder_path)
+            files = FileManager.get_files(folder_path, make_dir=True)
             file_name = files[-1] if len(files) > 0 else None
             if file_name is not None:
                 backup_file_path = folder_path + file_name
