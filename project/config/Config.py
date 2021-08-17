@@ -2,12 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from model.tools.FileManager import FileManager
+from config.files.Dev import Dev
+# from config.files.Prod import Prod
 
 
 class Config(ABC):
     # Configs Constants
-    __ENV_DEV = "dev"
-    __ENV_PROD = "prod"
+    __ENV_DEV = "Dev"
+    __ENV_PROD = "Prod"
     _FILES_DIR = "config/files"
     # Stages
     STAGE_MODE = "STAGE_MODE"
@@ -26,6 +28,7 @@ class Config(ABC):
     DIR_BROKERS = "DIR_BROKERS"
     DIR_STRATEGIES = "DIR_STRATEGIES"
     # Directories
+    DIR_SESSIONS = "DIR_SESSIONS"
     DIR_DATABASE = "DIR_DATABASE"
     DIR_SAVE_ORDER_RQ = "DIR_SAVE_ORDER_RQ"
     DIR_SAVE_FAKE_API_RQ = "DIR_SAVE_FAKE_API_RQ"
@@ -48,6 +51,7 @@ class Config(ABC):
     CONST_STABLECOINS = "CONST_STABLECOINS"
     CONST_FIATS = "CONST_FIATS"
     START_DATE = "START_DATE"
+    SESSION_ID = "SESSION_ID"
     API_KEY_BINANCE_PUBLIC = 'API_KEY_BINANCE_PUBLIC'
     API_KEY_BINANCE_SECRET = 'API_KEY_BINANCE_SECRET'
 
@@ -56,17 +60,20 @@ class Config(ABC):
         pass
 
     @staticmethod
-    def get(k: str):
+    def get(key: str):
         env = Config.get_environment()
+        value = eval(f"{env}.{key}")
+        """
         if env == Config.__ENV_DEV:
-            exec("from config.files.dev import " + k)
-            v = eval(k)
+            exec("from config.files.Dev import " + k)
+            value = eval(k)
         elif env == Config.__ENV_PROD:
             exec("from config.files.prod import " + k)
-            v = eval(k)
+            value = eval(k)
         else:
             raise Exception(f"Unknown environment '{env}'")
-        return v
+        """
+        return value
 
     @staticmethod
     def get_environment() -> str:
@@ -74,11 +81,19 @@ class Config(ABC):
         return Config.__ENV_DEV if (Config.__ENV_DEV in fs) else Config.__ENV_PROD
 
     @staticmethod
-    def update(k: str, v: Any) -> None:
+    def update(key: str, new_value: Any) -> None:
         env = Config.get_environment()
+        _env_cls = eval(env)
+        old_value = Config.get(key)
+        exec(f"{env}.{key} = new_value")
+        """
         if env == Config.__ENV_DEV:
-            exec("import config.files.dev as CONF_FILE")
-            exec(f"CONF_FILE.{k} = v")
+            import config.files.dev as CONF_FILE
+            exec(f"CONF_FILE.{key} = new_value")
         elif env == Config.__ENV_PROD:
-            exec("import config.files.prod as CONF_FILE")
-            exec(f"CONF_FILE.{k} = v")
+            import config.files.prod as CONF_FILE
+            exec(f"CONF_FILE.{key} = new_value")
+        else:
+            raise Exception(f"Unknown environment '{env}'")
+        """
+        _env_cls.update(old_value, new_value) if old_value is not None else None

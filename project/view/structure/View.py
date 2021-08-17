@@ -8,17 +8,19 @@ from model.tools.Map import Map
 class View(ViewInterface):
     FILE_MESSAGE = "message"
     FILE_ERROR = "error"
-    MENUS_KEY_TXT = "choices"
+    WORD_END = "end"
+    MENUS_KEY_HOME = "home"
+    MENUS_KEY_OPTION = "option"
     MENUS_KEY_FUNC = "func"
     __MENUS = {
-        "home": {
-            "choices": ["quit",
-                        "new Bot",
-                        "start Bot",
-                        "stop Bot",
-                        "stop Bots"
-                        ],
-            "func": [
+        MENUS_KEY_HOME: {
+            MENUS_KEY_OPTION: ["quit",
+                               "new Bot",
+                               "start Bot",
+                               "stop Bot",
+                               "stop Bots"
+                               ],
+            MENUS_KEY_FUNC: [
                 "quit",
                 "new_bot",
                 "start_bot",
