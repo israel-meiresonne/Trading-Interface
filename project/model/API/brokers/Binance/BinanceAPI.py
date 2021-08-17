@@ -910,12 +910,14 @@ class BinanceAPI(ABC):
         # Update order
         if _MF.regex_match(_cls._ORDER_RQ_REGEX, rq):    # or (rq == _cls.RQ_CANCEL_ORDER):
             # Instant order
-            header_instant_weight = int(header['x-mbx-order-count-10s'])
-            order_instant_weight  = order_instant_ratelimit.get_weight()
+            key_instant_w = 'x-mbx-order-count-10s'
+            header_instant_weight = int(header[key_instant_w]) if key_instant_w in header else None
+            order_instant_weight = order_instant_ratelimit.get_weight()
             if (order_instant_weight is not None) and (order_instant_weight != header_instant_weight):
                 order_instant_ratelimit.update_weight(header_instant_weight)
             # Daily order
-            header_daily_weight = int(header['x-mbx-order-count-1d'])
+            key_daily_w = 'x-mbx-order-count-1d'
+            header_daily_weight = int(header[key_daily_w]) if key_daily_w in header else None
             order_daily_weight = order_daily_ratelimit.get_weight()
             if (order_daily_weight is not None) and (order_daily_weight != header_daily_weight):
                 order_daily_ratelimit.update_weight(header_daily_weight)
