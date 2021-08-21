@@ -682,7 +682,7 @@ class BinanceAPI(ABC):
         """
         To close Binance's websocket\n
         """
-        BinanceAPI._SOCKET.close()
+        BinanceAPI._SOCKET.close() if BinanceAPI._SOCKET is not None else None
 
     @staticmethod
     def _generate_headers(api_keys: Map) -> dict:
