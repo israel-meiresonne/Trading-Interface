@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, List
 
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ from scipy.signal import find_peaks
 
 from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.Order import Order
@@ -1018,6 +1019,45 @@ class MarketPrice(ABC):
             Map.middle: mband
         })
         return kel_map
+
+    @staticmethod
+    def get_spot_pairs(broker_class: str, fiat_asset: Asset) -> List[Pair]:
+        """
+        To get pairs available for spot trading\n
+        Parameters
+        ----------
+        broker_class: str
+            Class name of a Broker
+        fiat_asset: Asset
+            Asset to use as right asset
+        Returns
+        -------
+        pairs: List[Pair]
+            Pairs available for spot trading
+        """
+        exec(f'from model.API.brokers.{broker_class}.{broker_class} import {broker_class}')
+        _bkr_cls = eval(broker_class)
+        stablecoins = Config.get(Config.CONST_STABLECOINS)
+        concat_stable = '|'.join(stablecoins)
+        stablecoin_rgx = f'({concat_stable})/\w+$'
+        # Fiat regex
+        fiats = Config.get(Config.CONST_FIATS)
+        concat_fiat = '|'.join(fiats)
+        fiat_rgx = rf'({concat_fiat})/\w+$'
+        # Get pairs
+        no_match = [
+            r'^\w+(up|down|bear|bull)\/\w+$',
+            r'^(bear|bull)/\w+$',
+            r'^\w*inch\w*/\w+$',
+            fiat_rgx,
+            stablecoin_rgx,
+            r'BCHSV/\w+$'
+        ]
+        match = [rf'^.+\/{fiat_asset.__str__()}']
+        # Add streams
+        pair_strs = _bkr_cls.get_pairs(match=match, no_match=no_match)
+        pairs = [Pair(pair_str) for pair_str in pair_strs]
+        return pairs
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
