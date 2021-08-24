@@ -250,6 +250,13 @@ class Order(ABC, Request):
         self.__execution_time = int(time)
 
     def get_execution_time(self) -> int:
+        """
+        To get execution time in millisecond\n
+        Returns
+        -------
+        exec_time: int
+            execution time in millisecond
+        """
         return self.__execution_time
 
     def _set_execution_price(self, prc: Price) -> None:
