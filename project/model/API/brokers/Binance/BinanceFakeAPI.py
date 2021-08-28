@@ -244,6 +244,7 @@ class BinanceFakeAPI(BinanceAPI):
             trade_rate = fees_rates.get(Map.taker)
             is_maker = False
             # Get exec prices
+            exec_price = actual_close
             exec_qty = order[Map.origQty]
             exec_amount = actual_close * exec_qty
         elif order_type == _cls.TYPE_STOP_LOSS_LIMIT:
@@ -259,7 +260,7 @@ class BinanceFakeAPI(BinanceAPI):
             trade_rate = fees_rates.get(Map.maker)
             is_maker = True
             # Get exec prices
-            limit_price = order[Map.price]
+            exec_price = limit_price = order[Map.price]
             quantity = exec_qty = order[Map.origQty]
             exec_amount = limit_price * quantity
         else:
@@ -279,7 +280,7 @@ class BinanceFakeAPI(BinanceAPI):
         # Add trade
         trade_id = _MF.new_code(salt=str(_MF.get_timestamp(_MF.TIME_MILLISEC)))
         order[Map.fills] = [{
-            Map.price: actual_close,
+            Map.price: exec_price,
             Map.qty: exec_qty,
             Map.commission: fees,
             Map.commissionAsset: fee_asset.__str__().upper(),
@@ -481,6 +482,7 @@ class BinanceFakeAPI(BinanceAPI):
         if nb_row > nb_period:
             nb_to_delete = nb_row - nb_period
             market = market[nb_to_delete:nb_row]
+        market[-1][4] = _cls._get_actual_close(pair_merged)
         return market
 
     @staticmethod
