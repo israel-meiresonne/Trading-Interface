@@ -39,6 +39,12 @@ class Pair(MyJson):
     def get_merged_symbols(self) -> str:
         return self.get_left().get_symbol() + self.get_right().get_symbol()
 
+    def are_same(self, second: 'Pair') -> None:
+        if not isinstance(second, Pair):
+            raise ValueError(f"Second pair must be instance of Pair(second='{second}')")
+        if self != second:
+            raise ValueError(f"Pair are not the same(self='{self}', second='{second}')")
+
     @staticmethod
     def _get_separator() -> str:
         return Pair._SEPARATOR
