@@ -51,6 +51,7 @@ class MarketPrice(ABC):
     COLLECTION_TRUE_RANGE_AVG = "COLLECTION_TRUE_RANGE_AVG"
     COLLECTION_TRUE_RANGE = "COLLECTION_TRUE_RANGE"
     COLLECTION_PSAR = "COLLECTION_PSAR"
+    COLLECTION_PSAR_RSI = "COLLECTION_PSAR_RSI"
     COLLECTION_MACD = "COLLECTION_MACD"
     COLLECTION_MACD_SIGNAL = "COLLECTION_MACD_SIGNAL"
     COLLECTION_MACD_HISTOGRAM = "COLLECTION_MACD_HISTOGRAM"
@@ -119,6 +120,7 @@ class MarketPrice(ABC):
             self.COLLECTION_TRUE_RANGE_AVG: None,
             self.COLLECTION_TRUE_RANGE: None,
             self.COLLECTION_PSAR: None,
+            self.COLLECTION_PSAR_RSI: None,
             self.COLLECTION_MACD: None,
             self.COLLECTION_MACD_SIGNAL: None,
             self.COLLECTION_MACD_HISTOGRAM: None,
@@ -319,6 +321,33 @@ class MarketPrice(ABC):
             raise ValueError(f"This period '{prd}' don't exist in RSI collection")
         return rsis[prd]
 
+    def get_psar_rsis(self, nb_period: int = _NB_PRD_RSIS) -> tuple:
+        k = self.COLLECTION_PSAR_RSI
+        psar_rsis = self._get_collection(k)
+        if psar_rsis is None:
+            # Rsis
+            rsis = list(self.get_rsis())
+            rsis.reverse()
+            rsis = rsis[nb_period-1:]
+            # High
+            highs = list(self.get_highs())
+            highs.reverse()
+            rsi_highs = MarketPrice.rsis(nb_period, highs)[nb_period-1:]
+            # Low
+            lows = list(self.get_lows())
+            lows.reverse()
+            rsi_lows = MarketPrice.rsis(nb_period, lows)[nb_period-1:]
+            # Psar
+            psar_rsis = MarketPrice.psar(rsi_highs, rsi_lows, rsis)
+            psar_rsis = [
+                *[float('nan') for i in range(nb_period - 1)],
+                *psar_rsis
+            ]
+            psar_rsis.reverse()
+            psar_rsis = tuple(psar_rsis)
+            self._set_collection(k, psar_rsis)
+        return psar_rsis
+
     # TSI DOWN
     def get_tsis(self, nb_prd_slow: int = _NB_PRD_SLOW_TSI, nb_prd_fast: int = _NB_PRD_FAST_TSI,
                  use_nan: bool = False) -> tuple:
@@ -327,12 +356,6 @@ class MarketPrice(ABC):
         if tsis is None:
             closes = list(self.get_closes())
             closes.reverse()
-            """
-            pd_series = pd.Series(np.array(closes))
-            tsis_obj = TSIIndicator(pd_series, nb_prd_slow, nb_prd_fast, not use_nan)
-            tsis_series = tsis_obj.tsi()
-            tsis = tsis_series.to_list()
-            """
             tsis = self.tsis(nb_prd_slow, nb_prd_fast, use_nan, closes)
             tsis = [float(str(v)) for v in tsis]
             tsis.reverse()
@@ -820,11 +843,6 @@ class MarketPrice(ABC):
         :param mkt_prc: MarketPrice
         :param vs: list/tuple where to look for the peak
         :return: period of the maximum price in MarketPrice
-        """
-        """
-        last_odr = self._get_orders().get_last_execution()
-        if last_odr is None:
-            raise Exception("Last order completed can't be empty")
         """
         buy_prd = MarketPrice.get_buy_period(last_odr, mkt_prc)
         # closes = mkt_prc.get_closes()
