@@ -148,6 +148,20 @@ class Controller:
                         }
                     }
                 })
+            elif stg == 'Icarus':
+                configs = Map({
+                    bkr: {
+                        Map.public: api_pb,
+                        Map.secret: api_sk,
+                        Map.test_mode: False
+                    },
+                    stg: {
+                        Map.maximum: None,
+                        Map.capital: 1000,
+                        Map.rate: 1,
+                        Map.period: 60 * 15
+                    }
+                })
             else:
                 raise Exception(f"Must implement menu for this Strategy '{stg}'.")
         elif _stage == Config.STAGE_3:
