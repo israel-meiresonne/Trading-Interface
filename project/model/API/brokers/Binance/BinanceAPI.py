@@ -1192,7 +1192,7 @@ class BinanceAPI(ABC):
         _min_price = float(price_filter.get(Map.minPrice))
         if (_min_price != 0) and (price_val < _min_price):
             raise ValueError(f"For trade pair '{pair.__str__().upper()}', the minimum price"
-                             f" is '{Price(_min_price, price.get_asset().get_symbol())}', instead '{Price}'.")
+                             f" is '{Price(_min_price, price.get_asset().get_symbol())}', instead '{price}'.")
         _max_price = float(price_filter.get(Map.maxPrice))
         if (_max_price != 0) and (price_val > _max_price):
             raise ValueError(f"For trade pair '{pair.__str__().upper()}', the maximum price"
