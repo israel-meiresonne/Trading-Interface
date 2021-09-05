@@ -235,16 +235,13 @@ class Icarus(TraderClass):
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
-        klc_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
+        klc_ok = (closes[-2] > klc_highs[-2])   # and (closes[-1] > closes[-2])
         # MACD
         macd_map = market_price.get_macd()
-        macds = list(macd_map.get(Map.macd))
-        macds.reverse()
-        signals = list(macd_map.get(Map.signal))
-        signals.reverse()
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
-        macd_ok = (macds[-2] > 0) and (signals[-2] > 0) and (histograms[-2] > 0)
+        macd_ok = histograms[-2] > 0
+        # Check
         can_add = supertrend_ok and psar_ok and klc_ok and macd_ok
         return can_add
 
@@ -274,6 +271,7 @@ class Icarus(TraderClass):
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
         macd_ok = histograms[-2] > 0
+        # Check
         can_buy = supertrend_ok and psar_ok and klc_ok and macd_ok
         return can_buy
 
