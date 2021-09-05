@@ -206,6 +206,7 @@ class TraderClass(Strategy, MyJson, ABC):
             self.execute(bkr, executions)
         mkt_prc = self._get_market_price(bkr)
         self._update_orders(bkr, mkt_prc)
+        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())
 
     def execute(self, bkr: Broker, executions: Map, mkt_prc: MarketPrice = None) -> None:
         """
