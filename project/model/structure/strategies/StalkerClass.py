@@ -17,14 +17,12 @@ from model.tools.Price import Price
 
 
 class StalkerClass(Strategy, MyJson, ABC):
-    _CONST_MARKET_PERIOD = 60 * 15      # in second
     _CONST_STALK_FREQUENCY = 60         # in second
     _CONST_STALKER_BOT_SLEEP_TIME = 10  # in second
     _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
-    _CONST_MAX_LOSS_RATE = -0.01
-    _CONST_FLOOR_COEF = 0.05
-    _CONST_MIN_FLOOR_COEF = 0.01
+    _BLACKLIST_TIME = 60 * 3  # in second
+    _PAIR_MANAGER_NB_PERIOD = 100
     _THREAD_BASE_MARKET_STALKING = 'market_stalking'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
@@ -44,6 +42,7 @@ class StalkerClass(Strategy, MyJson, ABC):
                params[*]:               {Strategy.__init__()}   # Same structure
                params[Map.strategy]:    {str}                   # Class name of Strategy to use
                params[Map.param]:       {dict}                  # Params for Strategy  to use
+               params[Map.period]:      {dict}                  # The period to stalk
         """
         ks = [Map.strategy, Map.param]
         rtn = _MF.keys_exist(ks, params.get_map())
@@ -52,6 +51,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         super().__init__(params)
         right_symbol = self.get_pair().get_right().get_symbol()
         self._set_pair(Pair(f'?/{right_symbol}'))
+        self.__period = params.get(Map.period)
         self.__next_stalk = None
         self.__transactions = None
         self.__max_strategy = self._CONST_MAX_STRATEGY
@@ -68,6 +68,13 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
+
+    def get_period(self) -> int:
+        """
+        To get interval (in second) between each market stalk\n
+        :return: interval (in second) between each market stalk
+        """
+        return self.__period
 
     def _set_next_stalk(self, unix_time: int) -> None:
         stalk_frequency = self.get_stalk_frequency()
@@ -250,7 +257,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         self._add_fee(fee)
         # Delete active Strategy
         del active_stgs.get_map()[pair_str]
-        self._delete_active_roi(pair)
 
     def _reset_next_blacklist_clean(self) -> None:
         self._next_blacklist_clean = None
@@ -263,7 +269,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         blacklist_time: int
             The time to blacklist pair
         """
-        # stalk_period = self.get_stalk_period()
         if self._get_stage() == Config.STAGE_1:
             trade_index = self._get_trade_index()
             stalk_period_minute = int(blacklist_time / 60)
@@ -286,11 +291,12 @@ class StalkerClass(Strategy, MyJson, ABC):
             self._reset_next_blacklist_clean()
         return self.__blacklist
 
-    def _blacklist_pair(self, pair: Pair, blacklist_time: int) -> None:
+    def _blacklist_pair(self, pair: Pair, blacklist_time: int = None) -> None:
         """
         To blacklist a new pair\n
         :param pair: Pair to blacklist
         """
+        blacklist_time = self.get_blacklist_time() if blacklist_time is None else blacklist_time
         blacklist = self.get_blacklist()
         if pair in blacklist:
             raise ValueError(f"This pair '{pair.__str__().upper()}' already exist in blacklist.")
@@ -403,7 +409,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Stalk of '{nb_pair}' unused pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
         perfs = Map()
         market_prices = Map()
-        stalk_period = self.get_stalk_period()
+        stalk_period = self.get_period()
         market_params = Map({
             Map.pair: None,
             # Map.period: 60 * 60,
@@ -475,7 +481,7 @@ class StalkerClass(Strategy, MyJson, ABC):
     def _manage_trades_add_streams(self, bkr: Broker, active_stgs_copy: Map) -> None:
         pair_strs = active_stgs_copy.get_keys()
         pairs = [active_stgs_copy.get(pair_str).get_pair() for pair_str in pair_strs]
-        stalk_period = self.get_stalk_period()
+        stalk_period = self.get_period()
         stalker_streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: stalk_period})) for pair in pairs]
         bkr.add_streams(stalker_streams)
         child_period = self.get_strategy_params().get(Map.period)
@@ -495,37 +501,22 @@ class StalkerClass(Strategy, MyJson, ABC):
         return Bot.get_trade_index()
 
     @staticmethod
-    def get_stalk_period() -> int:
-        """
-        To get interval (in second) between each market stalk\n
-        :return: interval (in second) between each market stalk
-        """
-        return StalkerClass._CONST_MARKET_PERIOD
-
-    @staticmethod
     def get_stalk_frequency() -> int:
         return StalkerClass._CONST_STALK_FREQUENCY
 
     @staticmethod
-    def get_max_loss() -> float:
-        return StalkerClass._CONST_MAX_LOSS_RATE
+    def get_blacklist_time() -> float:
+        return StalkerClass._BLACKLIST_TIME
 
-    @staticmethod
-    def get_floor_coef() -> float:
-        return StalkerClass._CONST_FLOOR_COEF
-
-    @staticmethod
-    def get_min_floor_coef() -> float:
-        return StalkerClass._CONST_MIN_FLOOR_COEF
-
-    @staticmethod
-    def _get_market_price(bkr: Broker, pair: Pair, period: int, nb_period: int=100) -> MarketPrice:
+    def _get_market_price(self, bkr: Broker, pair: Pair, period: int = None, nb_period: int = _PAIR_MANAGER_NB_PERIOD) \
+            -> MarketPrice:
         """
         To request MarketPrice to Broker\n
         :param bkr: an access to Broker's API
         :return: MarketPrice
         """
         _bkr_cls = bkr.__class__.__name__
+        period = self.get_period() if period is None else period
         mkt_params = Map({
             Map.pair: pair,
             Map.period: period,
@@ -578,6 +569,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         return StalkerClass._CONST_ALLOWED_PAIRS
 
     @staticmethod
+    @abstractmethod
     def _eligible(market_price: MarketPrice) -> bool:
         """
         To check if a pair is interesting to trade\n
@@ -585,22 +577,14 @@ class StalkerClass(Strategy, MyJson, ABC):
         :param market_price: Market price historic
         :return: True if pair is interesting else False
         """
-        # Extract closes
-        closes = list(market_price.get_closes())
-        closes.reverse()
-        # Extract supertrend
-        super_trends = list(market_price.get_super_trend())
-        super_trends.reverse()
-        trend = MarketPrice.get_super_trend_trend(closes, super_trends, -1)
-        prev_trend = MarketPrice.get_super_trend_trend(closes, super_trends, -2)
-        eligible = (trend == MarketPrice.SUPERTREND_RISING) and (prev_trend == MarketPrice.SUPERTREND_DROPPING)
-        return eligible
+        pass
 
     @staticmethod
     def get_bot_sleep_time() -> int:
         return StalkerClass._CONST_STALKER_BOT_SLEEP_TIME
 
     @staticmethod
+    @abstractmethod
     def generate_strategy(stg_class: str, params: Map) -> 'StalkerClass':
         pass
 
