@@ -13,7 +13,7 @@ from model.tools.Pair import Pair
 class Bot(MyJson):
     PREFIX_ID = 'bot_'
     _TRADE_INDEX = 0
-    _TRADE_INDEX_STOP = None
+    _TRADE_INDEX_STOP = 10000
 
     def __init__(self, bkr: str, stg: str, configs: Map):
         """
@@ -117,10 +117,9 @@ class Bot(MyJson):
                 sleep_time = None
             end = self._still_active()
             trade_index += 1
-            """
-            if (stop_index is not None) and (trade_index > stop_index):
+            # Stop stage1
+            if (_stage == Config.STAGE_1) and (stop_index is not None) and (trade_index > stop_index):
                 raise Exception(f"End code!🙂")
-            """
 
     @staticmethod
     def _still_active() -> bool:
