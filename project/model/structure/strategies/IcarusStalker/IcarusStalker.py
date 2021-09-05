@@ -97,7 +97,7 @@ class IcarusStalker(StalkerClass):
         :param market_price: Market price historic
         :return: True if pair is interesting else False
         """
-        return Icarus.stalker_can_add(market_price) and Icarus.can_buy(market_price)
+        return Icarus.stalker_can_add(market_price)     # and Icarus.can_buy(market_price)
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
