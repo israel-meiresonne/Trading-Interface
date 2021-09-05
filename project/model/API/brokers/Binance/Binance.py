@@ -29,6 +29,9 @@ class Binance(Broker, MyJson):
         self.__api_secret_key = configs.get(Map.secret)
         self.__test_mode = configs.get(Map.test_mode)
 
+    def is_active(self) ->  bool:
+        return BinanceAPI.is_active()
+
     def get_api_public_key(self) -> str:
         return self.__api_public_key
 
