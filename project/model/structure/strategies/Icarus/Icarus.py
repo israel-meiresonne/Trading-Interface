@@ -193,6 +193,7 @@ class Icarus(TraderClass):
         can_buy = self.can_buy(market_price)
         if can_buy:
             self._buy(executions)
+            self._secure_position(executions)
         self.save_move(market_price)
         return executions
 
@@ -214,6 +215,38 @@ class Icarus(TraderClass):
     @staticmethod
     def get_max_loss() -> float:
         return Icarus._MAX_LOSS
+
+    @staticmethod
+    def stalker_can_add(market_price: MarketPrice) -> bool:
+        # Close
+        closes = list(market_price.get_closes())
+        closes.reverse()
+        # Supertrend
+        supertrends = list(market_price.get_super_trend())
+        supertrends.reverse()
+        supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
+        supertrend_ok = supertrends_trend == MarketPrice.SUPERTREND_RISING
+        # Psar
+        psars = list(market_price.get_psar())
+        psars.reverse()
+        psar_trend = MarketPrice.get_psar_trend(closes, psars, -2)
+        psar_ok = psar_trend == MarketPrice.PSAR_RISING
+        # Keltner
+        klc = market_price.get_keltnerchannel()
+        klc_highs = list(klc.get(Map.high))
+        klc_highs.reverse()
+        klc_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
+        # MACD
+        macd_map = market_price.get_macd()
+        macds = list(macd_map.get(Map.macd))
+        macds.reverse()
+        signals = list(macd_map.get(Map.signal))
+        signals.reverse()
+        histograms = list(macd_map.get(Map.histogram))
+        histograms.reverse()
+        macd_ok = (macds[-2] > 0) and (signals[-2] > 0) and (histograms[-2] > 0)
+        can_add = supertrend_ok and psar_ok and klc_ok and macd_ok
+        return can_add
 
     @staticmethod
     def can_buy(market_price: MarketPrice) -> bool:
@@ -279,7 +312,7 @@ class Icarus(TraderClass):
         supertrends = list(market_price.get_super_trend())
         supertrends.reverse()
         supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
-        supertrend_ok = supertrends_trend == MarketPrice.SUPERTREND_RISING
+        supertrend_rising = supertrends_trend == MarketPrice.SUPERTREND_RISING
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
@@ -291,7 +324,7 @@ class Icarus(TraderClass):
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
-        klc_buy_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
+        klc_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
         # MACD
         macd_map = market_price.get_macd()
         macds = list(macd_map.get(Map.macd))
@@ -300,10 +333,8 @@ class Icarus(TraderClass):
         signals.reverse()
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
-        macd_ok = histograms[-2] > 0
-        """
-        Map
-        """
+        macd_histogram_positive = histograms[-2] > 0
+        # Map to print
         params_map = Map({
             'class': self.__class__.__name__,
             Map.pair: pair,
@@ -322,9 +353,6 @@ class Icarus(TraderClass):
             'psar_rsis': psar_rsis[-1],
             'psar_rsis[-2]': psar_rsis[-2],
             'max_rsi': self.get_max_rsi(market_price),
-            # 'rsi_sell_floor': self.get_rsi_sell_floor(market_price) if has_position else None,
-            # 'rsi_buy_trigger': self.get_rsi_buy_trigger(),
-            # 'rsi_sell_trigger': self.get_rsi_sell_trigger(),
             'max_loss': _MF.rate_to_str(self.get_max_loss()),
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
@@ -332,11 +360,11 @@ class Icarus(TraderClass):
             # 'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
             # 'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
             'CAN_BUY=>': '',
-            'supertrend_ok': supertrend_ok if not has_position else None,
-            'psar_buy_ok': psar_buy_ok if not has_position else None,
-            'psar_sell_ok': psar_sell_ok if has_position else None,
-            'macd_ok': macd_ok if not has_position else None,
-            'klc_buy_ok': klc_buy_ok if not has_position else None,
+            'supertrend_rising': supertrend_rising,
+            'psar_buy_ok': psar_buy_ok,
+            'psar_sell_ok': psar_sell_ok,
+            'macd_histogram_positive': macd_histogram_positive,
+            'klc_ok': klc_ok,
             'supertrends[-1]': supertrends[-1],
             'supertrends[-2]': supertrends[-2],
             'psars[-1]': psars[-1],
