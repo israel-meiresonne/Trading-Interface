@@ -552,14 +552,14 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         pair = _cls.merged_to_pair(params.get(Map.symbol))
         order_list = _cls._get_orders().get(pair.__str__())
-        return order_list
+        return order_list if order_list is not None else []
 
     @staticmethod
     def _retrieve_all_trades(params: Map) -> list:
         _cls = BinanceFakeAPI
         order_list = _cls._retrieve_all_orders(params)
         trade_list = [order[Map.fills][0] for order in order_list if order[Map.status] == _cls.STATUS_ORDER_FILLED]
-        return trade_list
+        return trade_list if trade_list is not None else []
 
     @staticmethod
     def merged_to_pair(pair_merged: str) -> Pair:
