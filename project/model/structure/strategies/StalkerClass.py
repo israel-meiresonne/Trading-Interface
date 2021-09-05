@@ -402,7 +402,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         """
         _cls = self
         print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + "Star stalking:".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
-        _stg_cls = self.__name__
+        _stg_cls = self.__class__.__name__
         _bkr_cls = bkr.__class__.__name__
         pairs = self._get_no_active_pairs(bkr)
         nb_pair = len(pairs)    # ❌
@@ -478,12 +478,14 @@ class StalkerClass(Strategy, MyJson, ABC):
         self._set_analyse_thread(analyse_thread)
         analyse_thread.start()
 
-    def _analyse_market(self, bkr: Broker) -> None:
+    def _analyse_market(self, broker: Broker) -> None:
         _color_cyan = self._TO_REMOVE_STYLE_CYAN
         _normal = self._TO_REMOVE_STYLE_NORMAL
         _color_green = self._TO_REMOVE_STYLE_GREEN
-        print(f"{_MF.prefix()}" + _color_cyan + f"Start analyse of market..." + _normal)
-        market_analyse = MarketPrice.analyse_market_trend(bkr)
+        _color_black = self._TO_REMOVE_STYLE_BLACK
+        _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
+        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market..." + _normal)
+        market_analyse = MarketPrice.analyse_market_trend(broker)
         print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
         self._set_market_analyse(market_analyse)
         print(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
@@ -500,7 +502,7 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def trade(self, bkr: Broker) -> int:
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
-        self._launch_analyse(bkr) if self.is_analysing() else None
+        self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self._manage_trades(bkr)
         return self._get_sleep_time()
 
