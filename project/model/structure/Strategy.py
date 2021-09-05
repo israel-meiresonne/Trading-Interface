@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import List
 
 from config.Config import Config
@@ -14,7 +14,7 @@ from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class Strategy:
+class Strategy(ABC):
     _CONST_BOT_SLEEP_TIME = 60
     _PERFORMANCE_INIT_CAPITAL = 100
     _TOP_ASSET = None
