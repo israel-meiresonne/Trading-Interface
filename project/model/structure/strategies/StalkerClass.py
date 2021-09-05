@@ -23,7 +23,8 @@ class StalkerClass(Strategy, MyJson, ABC):
     _CONST_MAX_STRATEGY = 20
     _BLACKLIST_TIME = 60 * 3  # in second
     _PAIR_MANAGER_NB_PERIOD = 100
-    _THREAD_BASE_MARKET_STALKING = 'market_stalking'
+    _THREAD_NAME_MARKET_STALKING = 'market_stalking'
+    _THREAD_NAME_MARKET_ANALYSE = 'market_analysing'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
     _TO_REMOVE_STYLE_BLACK = '\033[30m'
@@ -62,7 +63,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         self._next_blacklist_clean = None
         self.__blacklist = None
         self.__stalk_thread = None
-        self.__active_rois = None
+        self.__analyse_thread = None
         self.__market_analyse = None
         self.__fees = None
 
@@ -347,7 +348,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         last_stalk_thread = self.get_stalk_thread()
         if (last_stalk_thread is not None) and last_stalk_thread.is_alive():
             raise Exception("Can start a stalk thread while an other is working.")
-        thread_name = _MF.generate_thread_name(self._THREAD_BASE_MARKET_STALKING, 5)
+        thread_name = _MF.generate_thread_name(self._THREAD_NAME_MARKET_STALKING, 5)
         stalk_thread = Thread(target=self._manage_stalking, kwargs={Map.broker: bkr}, name=thread_name)
         self._set_stalk_thread(stalk_thread)
         stalk_thread.start()
@@ -380,7 +381,6 @@ class StalkerClass(Strategy, MyJson, ABC):
                 start_time = _MF.get_timestamp()
                 self._set_next_stalk(start_time)
                 self._stalk_market(broker)
-                self._set_market_analyse(broker)
                 next_stalk = self.get_next_stalk()
                 end_time = _MF.get_timestamp()
                 sleep_time = (next_stalk - end_time) if end_time < next_stalk else None
@@ -393,7 +393,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             print(f"{_MF.prefix()}End Managing Stalking.")
         except Exception as e:
             from model.structure.Bot import Bot
-            Bot.save_error(e, self.__name__)
+            Bot.save_error(e, self.__class__.__name__)
 
     def _stalk_market(self, bkr: Broker) -> None:
         """
@@ -448,18 +448,47 @@ class StalkerClass(Strategy, MyJson, ABC):
         # Backup
         # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
-    def _set_market_analyse(self, bkr: Broker) -> None:
+    # —————————————————————————————————————————————— ANALYSE MARKET DOWN ———————————————————————————————————————————————
+
+    def _set_market_analyse(self, market_analyse: Map) -> None:
+        self.__market_analyse = market_analyse
+
+    def get_market_analyse(self) ->  Map:
+        return self.__market_analyse
+
+    def _set_analyse_thread(self, analyse_thread: Thread) -> None:
+        self.__analyse_thread = analyse_thread
+
+    def get_analyse_thread(self) -> Thread:
+        return self.__analyse_thread
+
+    def is_analysing(self) -> bool:
+        analyse_thread = self.get_analyse_thread()
+        return (analyse_thread is not None) and analyse_thread.is_alive()
+
+    def _launch_analyse(self, broker: Broker) -> None:
+        """
+        To launch market analyse on its own Thread\n
+        """
+        last_analyse_thread = self.get_analyse_thread()
+        if (last_analyse_thread is not None) and last_analyse_thread.is_alive():
+            raise Exception("Can start an analyse thread while an other is working.")
+        thread_name = _MF.generate_thread_name(self._THREAD_NAME_MARKET_ANALYSE, 5)
+        analyse_thread = Thread(target=self._analyse_market, kwargs={Map.broker: broker}, name=thread_name)
+        self._set_analyse_thread(analyse_thread)
+        analyse_thread.start()
+
+    def _analyse_market(self, bkr: Broker) -> None:
         _color_cyan = self._TO_REMOVE_STYLE_CYAN
         _normal = self._TO_REMOVE_STYLE_NORMAL
         _color_green = self._TO_REMOVE_STYLE_GREEN
         print(f"{_MF.prefix()}" + _color_cyan + f"Start analyse of market..." + _normal)
         market_analyse = MarketPrice.analyse_market_trend(bkr)
         print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
-        self.__market_analyse = market_analyse
+        self._set_market_analyse(market_analyse)
         print(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
 
-    def get_market_analyse(self) ->  Map:
-        return self.__market_analyse
+    # ——————————————————————————————————————————————— ANALYSE MARKET UP ————————————————————————————————————————————————
 
     def _get_sleep_time(self) -> int:
         sleep_interval = self.get_bot_sleep_time()
@@ -471,6 +500,7 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def trade(self, bkr: Broker) -> int:
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
+        self._launch_analyse(bkr) if self.is_analysing() else None
         self._manage_trades(bkr)
         return self._get_sleep_time()
 
