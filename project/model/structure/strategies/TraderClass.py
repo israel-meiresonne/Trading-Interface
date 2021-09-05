@@ -72,6 +72,9 @@ class TraderClass(Strategy, MyJson, ABC):
     def get_best_period(self) -> int:
         return self.__best_period
 
+    def _reset_secure_order(self) -> None:
+        self.__secure_order = None
+
     def _set_secure_order(self, odr: Order) -> None:
         self.__secure_order = odr
 
@@ -189,6 +192,7 @@ class TraderClass(Strategy, MyJson, ABC):
         if self._has_position():
             executions = self._try_sell(mkt_prc)
         else:
+            self._reset_secure_order()
             executions = self._try_buy(mkt_prc)
         self.execute(bkr, executions, mkt_prc)
         # Backup Capital
@@ -247,6 +251,10 @@ class TraderClass(Strategy, MyJson, ABC):
         # Buy Order
         executions.put(self._EXEC_BUY, len(executions.get_map()))
         # Place Secure order
+        # executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
+
+    def _secure_position(self, executions: Map) -> None:
+        # Place Secure order
         executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
     @abstractmethod
@@ -266,7 +274,8 @@ class TraderClass(Strategy, MyJson, ABC):
         :param executions: where to place generated Order
         """
         # Cancel Secure Order
-        executions.put(self._EXEC_CANCEL_SECURE, len(executions.get_map()))
+        executions.put(self._EXEC_CANCEL_SECURE, len(executions.get_map())) \
+            if self._get_secure_order() is not None else None
         # Sell
         executions.put(self._EXEC_SELL, len(executions.get_map()))
 
