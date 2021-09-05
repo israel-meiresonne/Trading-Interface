@@ -58,6 +58,7 @@ class MarketPrice(ABC):
     COLLECTION_KELTNERC_MIDDLE = "COLLECTION_KELTNERC_MIDDLE"
     COLLECTION_KELTNERC_HIGH = "COLLECTION_KELTNERC_HIGH"
     COLLECTION_KELTNERC_LOW = "COLLECTION_KELTNERC_LOW"
+    # Collection Config
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
     _NB_PRD_SLOPES_AVG = 7
@@ -82,6 +83,8 @@ class MarketPrice(ABC):
     _MACD_FAST = 12
     _MACD_SIGNAL = 9
     _KELTNERC_WINDOW = 20
+    # Constantes
+    _PERIOD_MARKET_ANALYSE = 60 * 60
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -696,6 +699,10 @@ class MarketPrice(ABC):
         self.__set_indicator(self.INDIC_ACTUAL_SLOPE, slope)
 
     @staticmethod
+    def get_period_market_analyse() -> int:
+        return MarketPrice._PERIOD_MARKET_ANALYSE
+
+    @staticmethod
     def super_trend(nb_prd: int, coef: float, closes: list, highs: list, lows: list) -> list:
         pd_closes = pd.Series(np.array(closes))
         pd_highs = pd.Series(np.array(highs))
@@ -897,7 +904,7 @@ class MarketPrice(ABC):
         pair_strs = bkr.get_pairs(match=match, no_match=no_match)
         # pair_strs = [pair_strs[i] for i in range(len(pair_strs)) if i < 10]
         pairs = [Pair(pair_str) for pair_str in pair_strs]
-        period = 60 * 60
+        period = MarketPrice.get_period_market_analyse()
         streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
         bkr.add_streams(streams)
         # Get market prices

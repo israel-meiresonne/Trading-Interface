@@ -443,6 +443,17 @@ class BinanceAPI(ABC):
     _RATELIMIT_MAX_LIMIT = 0.9
 
     @staticmethod
+    def is_active() ->  bool:
+        """
+        To check if Binance is available to receive requests\n
+        Returns
+        -------
+        is_active: bool
+            True if the Broker is active else False
+        """
+        return BinanceAPI._SOCKET is not None
+
+    @staticmethod
     def _set_path_in_request_order_config() -> None:
         rq_configs = BinanceAPI._get_request_configs()
         for rq, config in rq_configs.items():
