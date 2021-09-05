@@ -484,7 +484,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_green = self._TO_REMOVE_STYLE_GREEN
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market..." + _normal)
+        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market:" + _normal)
         market_analyse = MarketPrice.analyse_market_trend(broker)
         print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
         self._set_market_analyse(market_analyse)
@@ -501,6 +501,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         return new_sleep_time if new_sleep_time > 0 else 0
 
     def trade(self, bkr: Broker) -> int:
+        self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self._manage_trades(bkr)
@@ -519,6 +520,47 @@ class StalkerClass(Strategy, MyJson, ABC):
         child_period = self.get_strategy_params().get(Map.period)
         stalker_streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: child_period})) for pair in pairs]
         bkr.add_streams(stalker_streams)
+
+    def add_streams(self, broker: Broker) -> None:
+        _normal = self._TO_REMOVE_STYLE_NORMAL
+        _color_cyan = self._TO_REMOVE_STYLE_CYAN
+        _color_green = self._TO_REMOVE_STYLE_GREEN
+        _color_black = self._TO_REMOVE_STYLE_BLACK
+        _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
+        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
+        pairs = self._get_allowed_pairs(broker)
+        stg_pairs = [Pair(pair_str) for pair_str in self.get_active_strategies().get_keys()]
+        pairs = [
+            *pairs,
+            *[stg_pair for stg_pair in stg_pairs if stg_pair not in pairs]
+        ]
+        periods = [
+            MarketPrice.get_period_market_analyse(),
+            self.get_period(),
+            self.get_strategy_params().get(Map.period)
+        ]
+        periods.sort()
+        nb_stream = len(pairs) * len(periods)
+        start_time = _MF.get_timestamp()
+        duration_time = start_time + nb_stream
+        start_date = _MF.unix_to_date(start_time)
+        duration_date = _MF.unix_to_date(duration_time)
+        duration_str = f"{int(nb_stream / 60)}min.{nb_stream % 60}sec."
+        print(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
+                                                f" '{start_date}'->'{duration_date}'" + _normal)
+        streams = []
+        for period in periods:
+            streams = [
+                *streams,
+                *[broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
+            ]
+        streams = list(dict.fromkeys(streams))
+        broker.add_streams(streams)
+        end_time = _MF.get_timestamp()
+        duration = end_time - start_time
+        real_duration_str = f"{int(duration / 60)}min.{duration % 60}sec."
+        print(f"{_MF.prefix()}" + _color_green + f"End adding '{nb_stream}' streams for '{real_duration_str}'"
+                                                 f" (estimated:'{duration_str}')" + _normal)
 
     def stop_trading(self, bkr: Broker) -> None:
         pass
@@ -599,6 +641,7 @@ class StalkerClass(Strategy, MyJson, ABC):
                 pair_strs = bkr.get_pairs(match=match, no_match=no_match)
             StalkerClass._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
         return StalkerClass._CONST_ALLOWED_PAIRS
+        # return [StalkerClass._CONST_ALLOWED_PAIRS[i] for i in range(len(StalkerClass._CONST_ALLOWED_PAIRS)) if i < 10]
 
     @staticmethod
     @abstractmethod
