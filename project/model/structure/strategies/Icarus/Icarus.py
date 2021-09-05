@@ -12,12 +12,8 @@ from model.tools.Price import Price
 
 
 class Icarus(TraderClass):
-    # _RSI_BUY_TRIGGER = 25
-    # _RSI_SELL_TRIGGER = 30
-    # _RSI_STEP = 10
     _MAX_LOSS = -0.01
     _ROI_FLOOR_FIXE = 0.002
-    # _ROI_STEP = 0.005
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -171,25 +167,14 @@ class Icarus(TraderClass):
         return buy_unix
 
     def can_sell(self, market_price: MarketPrice) -> bool:
-        """
-        rsis = list(market_price.get_rsis())
-        rsis.reverse()
-        rsi = rsis[-1]
-        max_rsi = self.get_max_rsi(market_price)
-        rsi_sell_trigger = self.get_rsi_sell_trigger()
-        # Rsi floor
-        rsi_sell_floor = self.get_rsi_sell_floor(market_price)
-        rsi_ok = (max_rsi >= rsi_sell_trigger) and (rsi <= rsi_sell_floor)
-        return rsi_ok
-        """
         # Close
         closes = list(market_price.get_closes())
         closes.reverse()
-        # Keltner
-        klc = market_price.get_keltnerchannel()
-        klc_highs = list(klc.get(Map.high))
-        klc_highs.reverse()
-        can_sell = closes[-1] <= klc_highs[-1]
+        # Psar
+        psars = list(market_price.get_psar())
+        psars.reverse()
+        prev_psar_trend_1 = MarketPrice.get_psar_trend(closes, psars, -2)
+        can_sell = prev_psar_trend_1 == MarketPrice.PSAR_DROPPING
         return can_sell
 
     def _try_buy(self, market_price: MarketPrice) -> Map:
@@ -223,36 +208,12 @@ class Icarus(TraderClass):
         can_sell = self.can_sell(market_price)
         if can_sell:
             self._sell(executions)
-        elif self.get_roi_floor(market_price) != self.get_floor_secure_order():
-            self._move_up_secure_order(executions)
         self.save_move(market_price)
         return executions
-
-    """
-    @staticmethod
-    def get_rsi_step() -> float:
-        return Icarus._RSI_STEP
-    """
 
     @staticmethod
     def get_max_loss() -> float:
         return Icarus._MAX_LOSS
-
-    """
-    @staticmethod
-    def get_roi_step() -> float:
-        return Icarus._ROI_STEP
-    """
-
-    """
-    @staticmethod
-    def get_rsi_buy_trigger() -> float:
-        return Icarus._RSI_BUY_TRIGGER
-
-    @staticmethod
-    def get_rsi_sell_trigger() -> float:
-        return Icarus._RSI_SELL_TRIGGER
-    """
 
     @staticmethod
     def can_buy(market_price: MarketPrice) -> bool:
@@ -267,22 +228,19 @@ class Icarus(TraderClass):
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
-        psar_trend = MarketPrice.get_psar_trend(closes, psars, -2)
-        psar_ok = psar_trend == MarketPrice.PSAR_RISING
+        prev_psar_trend_1 = MarketPrice.get_psar_trend(closes, psars, -2)
+        prev_psar_trend_2 = MarketPrice.get_psar_trend(closes, psars, -3)
+        psar_ok = (prev_psar_trend_1 == MarketPrice.PSAR_RISING) and (prev_psar_trend_2 == MarketPrice.PSAR_DROPPING)
         # Keltner
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
-        klc_ok = (closes[-3] < klc_highs[-3]) and (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
+        klc_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
         # MACD
         macd_map = market_price.get_macd()
-        macds = list(macd_map.get(Map.macd))
-        macds.reverse()
-        signals = list(macd_map.get(Map.signal))
-        signals.reverse()
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
-        macd_ok = (macds[-2] > 0) and (signals[-2] > 0) and (histograms[-2] > 0)
+        macd_ok = histograms[-2] > 0
         can_buy = supertrend_ok and psar_ok and klc_ok and macd_ok
         return can_buy
 
@@ -306,11 +264,11 @@ class Icarus(TraderClass):
         closes.reverse()
         rsis = list(market_price.get_rsis())
         rsis.reverse()
-        secure_odr = self._get_secure_order()
+        # secure_odr = self._get_secure_order()
         roi_position = self.get_roi_position(market_price)
         max_roi = self.get_max_roi(market_price)
-        roi_floor = self.get_roi_floor(market_price)
-        floor_secure_order = self.get_floor_secure_order()
+        # roi_floor = self.get_roi_floor(market_price)
+        # floor_secure_order = self.get_floor_secure_order()
         """
         can buy
         """
@@ -325,18 +283,15 @@ class Icarus(TraderClass):
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
-        psar_trend = MarketPrice.get_psar_trend(closes, psars, -2)
-        psar_ok = psar_trend == MarketPrice.PSAR_RISING
+        prev_psar_trend_1 = MarketPrice.get_psar_trend(closes, psars, -2)
+        prev_psar_trend_2 = MarketPrice.get_psar_trend(closes, psars, -3)
+        psar_buy_ok = (prev_psar_trend_1 == MarketPrice.PSAR_RISING) and (prev_psar_trend_2 == MarketPrice.PSAR_DROPPING)
+        psar_sell_ok = prev_psar_trend_1 == MarketPrice.PSAR_DROPPING
         # Keltner Buy
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
-        klc_buy_ok = (closes[-3] < klc_highs[-3]) and (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
-        # Keltner Sell
-        # klc = market_price.get_keltnerchannel()
-        # klc_highs = list(klc.get(Map.high))
-        # klc_highs.reverse()
-        klc_sell_ok = closes[-1] <= klc_highs[-1]
+        klc_buy_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
         # MACD
         macd_map = market_price.get_macd()
         macds = list(macd_map.get(Map.macd))
@@ -345,7 +300,7 @@ class Icarus(TraderClass):
         signals.reverse()
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
-        macd_ok = (macds[-2] > 0) and (signals[-2] > 0) and (histograms[-2] > 0)
+        macd_ok = histograms[-2] > 0
         """
         Map
         """
@@ -359,7 +314,7 @@ class Icarus(TraderClass):
             'closes[-2]': closes[-2],
             'closes[-3]': closes[-3],
             'has_position': has_position,
-            'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
+            # 'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'can_buy': self.can_buy(market_price) if not has_position else None,
             'can_sell': self.can_sell(market_price) if has_position else None,
             Map.rsi: rsis[-1],
@@ -374,14 +329,14 @@ class Icarus(TraderClass):
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
-            'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
-            'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
+            # 'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
+            # 'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
             'CAN_BUY=>': '',
             'supertrend_ok': supertrend_ok if not has_position else None,
-            'psar_ok': psar_ok if not has_position else None,
+            'psar_buy_ok': psar_buy_ok if not has_position else None,
+            'psar_sell_ok': psar_sell_ok if has_position else None,
             'macd_ok': macd_ok if not has_position else None,
             'klc_buy_ok': klc_buy_ok if not has_position else None,
-            'klc_sell_ok': klc_sell_ok if has_position else None,
             'supertrends[-1]': supertrends[-1],
             'supertrends[-2]': supertrends[-2],
             'psars[-1]': psars[-1],
