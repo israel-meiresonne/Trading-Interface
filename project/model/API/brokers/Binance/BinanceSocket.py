@@ -19,7 +19,7 @@ class BinanceSocket(BinanceAPI):
     _PATH_COMBINED_STEAM = '/stream?streams='
     _STREAM_FORMAT_KLINE = '$symbol@kline_$interval'
     # Constants
-    _CONST_MARKET_RESET_INTERVAL = 60 * 15  # in second
+    _CONST_MARKET_RESET_INTERVAL = 60 * 20  # in second
     _CONST_MAX_SIZE_SOCKET_LIST = 25
     _CONST_MAX_RETRY_ADD_NEW_STREAM = 10
     _CONST_MARKET_NETWORK_MAX_RETRY = 60 * 60
