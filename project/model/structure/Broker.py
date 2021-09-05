@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import List
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -10,7 +10,18 @@ from config.Config import Config
 from model.tools.Pair import Pair
 
 
-class Broker:
+class Broker(ABC):
+    @abstractmethod
+    def is_active(self) ->  bool:
+        """
+        To check if Broker is available to receive requests\n
+        Returns
+        -------
+        is_active: bool
+            True if the Broker is active else False
+        """
+        pass
+
     @abstractmethod
     def request(self, bkr_rq: BrokerRequest) -> None:
         """
