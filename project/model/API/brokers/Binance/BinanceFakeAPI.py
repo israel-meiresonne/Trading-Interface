@@ -185,8 +185,8 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         if _cls._ORDERS is None:
             orders = Map()
-            file_path = _cls._get_file_load_orders()    # BinanceFakeAPI._FILE_LOAD_ORDERS
-            folder_path = _MF.regex_replace(r'[0-9\-]+_.+\.json$', '', file_path)
+            file_path = _cls._get_file_load_orders()
+            folder_path = _MF.regex_replace(r'[0-9\-\._]+_[a-z]+\.json$', '', file_path)
             files = FileManager.get_files(folder_path, make_dir=True)
             file_name = files[-1] if len(files) > 0 else None
             if file_name is not None:
