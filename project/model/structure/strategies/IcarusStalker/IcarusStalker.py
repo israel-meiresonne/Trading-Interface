@@ -90,14 +90,11 @@ class IcarusStalker(StalkerClass):
         self._save_state(pair_closes, pairs_to_delete, market_trend, market_analyse)
         self._save_moves(rows) if len(rows) > 0 else None
 
-    @staticmethod
-    def _eligible(market_price: MarketPrice) -> bool:
-        """
-        To check if a pair is interesting to trade\n
-        :param market_price: Market price historic
-        :return: True if pair is interesting else False
-        """
-        return Icarus.stalker_can_add(market_price)     # and Icarus.can_buy(market_price)
+    def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
+        pair = market_price.get_pair()
+        child_period = self.get_strategy_params().get(Map.period)
+        child_market_price = self._get_market_price(broker, pair, child_period)
+        return Icarus.stalker_can_add(market_price) and Icarus.can_buy(child_market_price)
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
