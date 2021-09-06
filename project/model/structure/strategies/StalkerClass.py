@@ -440,7 +440,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         # Add new active Strategy
         for pair_str, perf in perfs_sorted.items():
             market_price = market_prices.get(pair_str)
-            if self._eligible(market_price):
+            if self._eligible(market_price, bkr):
                 print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
                 self._add_active_strategy(Pair(pair_str))
                 if self.max_active_strategies_reached():
@@ -643,14 +643,21 @@ class StalkerClass(Strategy, MyJson, ABC):
         return StalkerClass._CONST_ALLOWED_PAIRS
         # return [StalkerClass._CONST_ALLOWED_PAIRS[i] for i in range(len(StalkerClass._CONST_ALLOWED_PAIRS)) if i < 10]
 
-    @staticmethod
     @abstractmethod
-    def _eligible(market_price: MarketPrice) -> bool:
+    def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
         """
         To check if a pair is interesting to trade\n
-        ACTUAL CONDITION: actual trend is green AND super_trend <= last_red_close\n
-        :param market_price: Market price historic
-        :return: True if pair is interesting else False
+        
+        Parameters
+        ----------
+        market_price: market_price
+            Market price historic
+        broker: Broker
+            Access to Broker's API
+        Returns
+        -------
+        eligible: bool
+            True if pair is interesting else False
         """
         pass
 
