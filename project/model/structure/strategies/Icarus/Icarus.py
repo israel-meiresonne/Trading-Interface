@@ -193,7 +193,6 @@ class Icarus(TraderClass):
         can_buy = self.can_buy(market_price)
         if can_buy:
             self._buy(executions)
-            self._secure_position(executions)
         self.save_move(market_price)
         return executions
 
@@ -265,7 +264,7 @@ class Icarus(TraderClass):
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
-        klc_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
+        klc_ok = (closes[-2] > klc_highs[-2])   # and (closes[-1] > closes[-2])
         # MACD
         macd_map = market_price.get_macd()
         histograms = list(macd_map.get(Map.histogram))
