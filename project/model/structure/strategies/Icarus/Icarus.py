@@ -162,7 +162,7 @@ class Icarus(TraderClass):
             raise Exception("Strategy must have position to get buy unix time")
         last_order = self._get_orders().get_last_execution()
         exec_time = int(last_order.get_execution_time() / 1000)
-        period = self.get_best_period()
+        period = self.get_period()
         buy_unix = int(_MF.round_time(exec_time, period))
         return buy_unix
 
@@ -337,7 +337,7 @@ class Icarus(TraderClass):
             Map.pair: pair,
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.time: _MF.unix_to_date(market_price.get_time()),
-            Map.period: self.get_best_period(),
+            Map.period: self.get_period(),
             Map.close: closes[-1],
             'closes[-2]': closes[-2],
             'closes[-3]': closes[-3],
