@@ -37,7 +37,6 @@ class TraderClass(Strategy, MyJson, ABC):
         rtn = _MF.keys_exist([Map.period], params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required.")
-        self.__best_period = params.get(Map.period)
 
     def _init_strategy(self, bkr: Broker) -> None:
         if self.__configs is None:
@@ -48,11 +47,11 @@ class TraderClass(Strategy, MyJson, ABC):
 
     def _init_constants(self, bkr: Broker) -> None:
         _stage = Config.get(Config.STAGE_MODE)
-        best_period = self.get_best_period()
+        period = self.get_period()
         self.__configs = Map({
             self._CONF_MAKET_PRICE: Map({
                 Map.pair: self.get_pair(),
-                Map.period: best_period,
+                Map.period: period,
                 Map.begin_time: None,
                 Map.end_time: None,
                 Map.number: 100 if _stage == Config.STAGE_1 else 250
@@ -68,9 +67,6 @@ class TraderClass(Strategy, MyJson, ABC):
         if k not in configs.get_keys():
             raise IndexError(f"There's  not constant with this key '{k}'")
         return configs.get(k)
-
-    def get_best_period(self) -> int:
-        return self.__best_period
 
     def _reset_secure_order(self) -> None:
         self.__secure_order = None
@@ -325,7 +321,7 @@ class TraderClass(Strategy, MyJson, ABC):
             "class": self.__class__.__name__,
             Map.date: _MF.unix_to_date(_MF.get_timestamp(), _MF.FORMAT_D_H_M_S),
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
-            Map.period: int(self.get_best_period()) / 60,
+            Map.period: int(self.get_period()) / 60,
             'close': close,
             'initial': cap,
             'current_capital': current_capital_obj,

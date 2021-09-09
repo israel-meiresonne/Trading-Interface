@@ -19,6 +19,7 @@ class Strategy(ABC):
     _PERFORMANCE_INIT_CAPITAL = 100
     _TOP_ASSET = None
     _TOP_ASSET_MAX = 25
+    PREFIX_ID = 'stg_'
 
     @abstractmethod
     def __init__(self, params: Map):
@@ -26,12 +27,14 @@ class Strategy(ABC):
         Constructor\n
         :param params: params
                      params[Map.pair]:       {Pair}
-                     params[Map.capital]:    {Price}      # Initial capital
-                     params[Map.maximum]:    {Price|None} # Maximum of capital to use (if set, maximum > 0)
-                     params[Map.rate]:       {float|None} # ]0,1]
+                     params[Map.period]:     {int|None}     # ]0,1]
+                     params[Map.capital]:    {Price}        # Initial capital
+                     params[Map.maximum]:    {Price|None}   # Maximum of capital to use (if set, maximum > 0)
+                     params[Map.rate]:       {float|None}   # ]0,1]
         :Note : Map.maximum and Map.rate can't both be None
         """
         super().__init__()
+        self.__id = self.PREFIX_ID + _MF.new_code()
         ks = [Map.pair, Map.maximum, Map.capital, Map.rate]
         rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
@@ -40,23 +43,31 @@ class Strategy(ABC):
         max_cap = params.get(Map.maximum)
         rate = params.get(Map.rate)
         self._check_max_capital(max_cap, rate)
-        # capital = Price(prms.get(Map.capital), pr)
-        # self.__pair = pr
         self._set_pair(pair)
+        self.__period = params.get(Map.period)
         self.__capital = params.get(Map.capital)
         self.__max_capital = max_cap
         self.__rate = None if rate is None else rate
         self.__orders = Orders()
 
-    @staticmethod
-    def get_performance_init_capital() -> float:
-        return Strategy._PERFORMANCE_INIT_CAPITAL
+    def get_id(self) -> str:
+        return self.__id
 
     def _set_pair(self, pair: Pair) -> None:
         self.__pair = pair
 
     def get_pair(self) -> Pair:
         return self.__pair
+
+    def get_period(self) -> int:
+        """
+        To get period interval to request\n
+        Returns
+        -------
+        period: int
+            Period interval to request
+        """
+        return self.__period
 
     def get_initial_capital(self) -> Price:
         return self.__capital
@@ -188,11 +199,9 @@ class Strategy(ABC):
         odrs = self._get_orders()
         return odrs.has_position()
 
-    """
-    @abstractmethod
-    def set_best_period(self, best: int) -> None:
-        pass
-    """
+    @staticmethod
+    def get_performance_init_capital() -> float:
+        return Strategy._PERFORMANCE_INIT_CAPITAL
 
     @staticmethod
     @abstractmethod
