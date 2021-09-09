@@ -52,7 +52,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         super().__init__(params)
         right_symbol = self.get_pair().get_right().get_symbol()
         self._set_pair(Pair(f'?/{right_symbol}'))
-        self.__period = params.get(Map.period)
         self.__next_stalk = None
         self.__transactions = None
         self.__max_strategy = self._CONST_MAX_STRATEGY
@@ -69,13 +68,6 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
-
-    def get_period(self) -> int:
-        """
-        To get interval (in second) between each market stalk\n
-        :return: interval (in second) between each market stalk
-        """
-        return self.__period
 
     def _set_next_stalk(self, unix_time: int) -> None:
         stalk_frequency = self.get_stalk_frequency()
@@ -501,6 +493,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         return new_sleep_time if new_sleep_time > 0 else 0
 
     def trade(self, bkr: Broker) -> int:
+        self._update_nb_trade()
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None

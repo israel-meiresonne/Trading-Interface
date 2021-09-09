@@ -21,7 +21,6 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.MinMax.MinMax import MinMax
 from model.structure.strategies.Floor.Floor import Floor
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
-from model.structure.strategies.Stalker.Stalker import Stalker
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -29,7 +28,10 @@ from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
+_DIR_PRINT = 'content/print/'
 _PRINT_SUCCESS = '🖨 File printed ✅'
+_BROKER_ACCESS = None
+_ANALYSE_SRC_PATH = 'content/analyse/'
 
 
 def extract_market():
@@ -582,6 +584,65 @@ def analyse_final_roi(file_name: str) -> None:
     exec_time = _MF.get_timestamp() - start_time
     exec_time_str = f"{int(exec_time / 60)}min.{exec_time % 60}sec."
     print(_MF.prefix(), f"End printing: exec_time='{exec_time_str}'")
+
+
+def analyse_get_group_pairs(file_name: str) -> dict:
+    """
+    group[Pair.__str__()]:  {List[dict]}
+    """
+    path_base = _ANALYSE_SRC_PATH
+    src_path = f'{path_base}source/{file_name}'
+    print(_MF.prefix(), 'Start getting csv')
+    csv = FileManager.get_csv(src_path)
+    groups = {}
+    print(_MF.prefix(), 'Start Grouping')
+    for row in csv:
+        pair = row[Map.pair]
+        if '/' not in pair:
+            continue
+        groups[pair] = [] if pair not in groups else groups[pair]
+        groups[pair].append(row)
+    print(_MF.prefix(), 'Start sorting')
+    for pair, rows in groups.items():
+        groups[pair] = sorted(groups[pair], key=itemgetter('date'))
+    return groups
+
+
+def analyse_print(rows: List[dict], file_name: str, analyse_name: str) -> None:
+    print(_MF.prefix(), 'Start printing')
+    path_base = _ANALYSE_SRC_PATH
+    fields = list(rows[0].keys())
+    depot_path = f"{path_base}depot/{file_name.replace('.csv', f'_{analyse_name}.csv')}"
+    FileManager.write_csv(depot_path, fields, rows)
+    print(_MF.prefix(), _PRINT_SUCCESS)
+
+
+def analyse_stalker_moves_final(file_name: str) -> None:
+    def str_rate_to_float(str_rate: str) -> float:
+        return eval(str_rate.replace('%', '/100'))
+    groups = analyse_get_group_pairs(file_name)
+    final_rows = []
+    for pair_str, group in groups.items():
+        outs = []
+        rois = []
+        for i in range(len(group)):
+            group_row = group[i]
+            roi = str_rate_to_float(group_row[Map.roi])
+            roi_after = str_rate_to_float(group_row['roi_after'])
+            has_position = group_row['has_position'] == 'True'
+            outs.append(roi_after) if not has_position else None
+            rois.append(roi)
+        final_row = {
+            Map.date: group[0][Map.date],
+            Map.pair: pair_str,
+            'sum_final_roi': _MF.rate_to_str(sum(outs)),
+            'nb_final_roi': len(outs),
+            'last': group[-1]['roi_after'],
+            Map.maximum: _MF.rate_to_str(max(rois)),
+            'minimum': _MF.rate_to_str(min(rois))
+        }
+        final_rows.append(final_row)
+    analyse_print(final_rows, file_name, 'final_roi')
 
 
 def execute_orders() -> None:
