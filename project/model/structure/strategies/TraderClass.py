@@ -296,6 +296,10 @@ class TraderClass(Strategy, MyJson, ABC):
 
     def _print_move(self, datas: Map) -> None:
         pair = self.get_pair()
+        datas = Map({
+            'nb_trade': self.get_nb_trade(),
+            **datas.get_map()
+        })
         fields = datas.get_keys()
         rows = [{k: (datas.get(k) if datas.get(k) is not None else '—') for k in fields}]
         path = Config.get(Config.DIR_SAVE_MOVES)
@@ -319,6 +323,7 @@ class TraderClass(Strategy, MyJson, ABC):
         fee_init_capital_rate = fees / cap
         current_capital_obj = Price(current_capital_val, r_symbol)
         rows = [{
+            'nb_trade': self.get_nb_trade(),
             "class": self.__class__.__name__,
             Map.date: _MF.unix_to_date(_MF.get_timestamp(), _MF.FORMAT_D_H_M_S),
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
