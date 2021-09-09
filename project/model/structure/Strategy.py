@@ -45,6 +45,7 @@ class Strategy(ABC):
         self._check_max_capital(max_cap, rate)
         self._set_pair(pair)
         self.__period = params.get(Map.period)
+        self.__nb_trade = None
         self.__capital = params.get(Map.capital)
         self.__max_capital = max_cap
         self.__rate = None if rate is None else rate
@@ -68,6 +69,25 @@ class Strategy(ABC):
             Period interval to request
         """
         return self.__period
+
+    def get_nb_trade(self) -> int:
+        """
+        To get nb of call done of the function .trade()\n
+        NOTE: function .trade() must call ._update_nb_trade()
+        Returns
+        -------
+        nb_trade: int
+            Nb of call done of the function .trade()
+        """
+        if self.__nb_trade is None:
+            self.__nb_trade = 0
+        return self.__nb_trade
+    
+    def _update_nb_trade(self) -> None:
+        """
+        To increase the number of trade done\n
+        """
+        self.__nb_trade += 1
 
     def get_initial_capital(self) -> Price:
         return self.__capital
