@@ -177,7 +177,8 @@ class TraderClass(Strategy, MyJson, ABC):
         return odr
 
     def trade(self, bkr: Broker) -> int:
-        _stage = Config.get(Config.STAGE_MODE)
+        # Update nb trade done
+        self._update_nb_trade()
         # Init Strategy in First turn
         self._init_strategy(bkr)
         # Get Market
