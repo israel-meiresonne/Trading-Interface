@@ -493,6 +493,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         return new_sleep_time if new_sleep_time > 0 else 0
 
     def trade(self, bkr: Broker) -> int:
+        self._update_nb_trade()
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
