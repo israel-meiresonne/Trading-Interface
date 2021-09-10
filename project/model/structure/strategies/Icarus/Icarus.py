@@ -1,8 +1,6 @@
-from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.TraderClass import TraderClass
-from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
@@ -376,9 +374,4 @@ class Icarus(TraderClass):
             'histograms[-1]': histograms[-1],
             'histograms[-2]': histograms[-2]
         })
-        fields = params_map.get_keys()
-        rows = [{k: (params_map.get(k) if params_map.get(k) is not None else '—') for k in fields}]
-        overwrite = False
-        path = Config.get(Config.DIR_SAVE_MOVES)
-        path = path.replace('$pair', pair.__str__().replace('/', '_').upper())
-        FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
+        self._print_move(params_map)
