@@ -87,7 +87,7 @@ class Strategy(ABC):
         """
         To increase the number of trade done\n
         """
-        self.__nb_trade += 1
+        self.__nb_trade = self.get_nb_trade() + 1
 
     def get_initial_capital(self) -> Price:
         return self.__capital
