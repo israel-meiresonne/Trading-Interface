@@ -1,8 +1,6 @@
-from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.TraderClass import TraderClass
-from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
@@ -53,7 +51,7 @@ class Icarus(TraderClass):
 
     def get_rsi_sell_floor(self, market_price: MarketPrice) -> float:
         max_rsi = self.get_max_rsi(market_price)
-        rsi_step = self.get_rsi_step()
+        rsi_step = self.get_period()
         return max_rsi - rsi_step
 
     def _reset_max_roi(self) -> None:
@@ -166,7 +164,7 @@ class Icarus(TraderClass):
             raise Exception("Strategy must have position to get buy unix time")
         last_order = self._get_orders().get_last_execution()
         exec_time = int(last_order.get_execution_time() / 1000)
-        period = self.get_best_period()
+        period = self.get_period()
         buy_unix = int(_MF.round_time(exec_time, period))
         return buy_unix
 
@@ -382,7 +380,7 @@ class Icarus(TraderClass):
             Map.pair: pair,
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.time: _MF.unix_to_date(market_price.get_time()),
-            Map.period: self.get_best_period(),
+            Map.period: self.get_period(),
             Map.close: closes[-1],
             'closes[-2]': closes[-2],
             'closes[-3]': closes[-3],
