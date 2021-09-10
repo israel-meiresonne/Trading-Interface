@@ -5,6 +5,7 @@ from model.structure.strategies.StalkerClass import StalkerClass
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
+from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
@@ -43,7 +44,8 @@ class IcarusStalker(StalkerClass):
             print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
             # Prepare active Strategy
             pair = active_stg.get_pair()
-            market_price = self._get_market_price(bkr, pair)
+            stg_period = active_stg.get_period()
+            market_price = self._get_market_price(bkr, pair, stg_period)
             # Prepare closes
             closes = list(market_price.get_closes())
             closes.reverse()
@@ -57,13 +59,18 @@ class IcarusStalker(StalkerClass):
             fee_initial_capital_rate = fee / initial_capital
             fee_actual_capital = fee / actual_capital
             # Trade
-            active_stg.trade(bkr)
-            has_position = active_stg._has_position()
-            if has_position:
+            has_position_before = active_stg._has_position()
+            keep_stg = (active_stg.get_nb_trade() == 0) or has_position_before
+            active_stg.trade(bkr) if keep_stg else None
+            has_position_after = active_stg._has_position() if keep_stg else None
+            if keep_stg and has_position_after:
                 print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
             else:
                 active_stg.stop_trading(bkr)
                 self._delete_active_strategy(bkr, pair)
+                last_exec_order = active_stg._get_orders().get_last_execution()
+                self._blacklist_pair(pair, stg_period) \
+                    if (last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET) else None
                 pairs_to_delete.append(pair_str)
                 print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
             # Print
@@ -72,6 +79,7 @@ class IcarusStalker(StalkerClass):
             fee_initial_capital_rate_after = fee_after / initial_capital
             row = {
                 Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                'child_id': active_stg.get_id(),
                 Map.pair: pair,
                 Map.roi: _MF.rate_to_str(stg_roi),
                 'roi_after': _MF.rate_to_str(stg_roi_after),
@@ -82,7 +90,9 @@ class IcarusStalker(StalkerClass):
                 'fee_initial_capital_rate': _MF.rate_to_str(fee_initial_capital_rate),
                 'fee_initial_capital_rate_after': _MF.rate_to_str(fee_initial_capital_rate_after),
                 'fee_actual_capital': _MF.rate_to_str(fee_actual_capital),
-                'has_position': has_position,
+                'has_position_before': has_position_before,
+                'keep_stg': keep_stg,
+                'has_position_after': has_position_after,
                 'market_trend': market_trend,
                 Map.close: closes[-1]
             }
