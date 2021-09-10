@@ -10,7 +10,7 @@ from model.tools.Price import Price
 
 
 class Icarus(TraderClass):
-    _MAX_LOSS = -0.01
+    _MAX_LOSS = -0.03
     _ROI_FLOOR_FIXE = 0.002
 
     def __init__(self, params: Map):
@@ -87,14 +87,19 @@ class Icarus(TraderClass):
             '0.8%': 0.008,
             '1.8%': 0.018,
             '5%': 0.05,
-            '10%': 0.1
+            '6%': 0.06,
+            '10%': 0.10,
+            '12%': 0.12,
+            '20%': 0.20
         }
         if floors['1%'] <= max_roi < floors['1.8%']:
             roi_floor = floors['0.8%']
-        elif floors['1.8%'] <= max_roi < floors['10%']:
+        elif floors['1.8%'] <= max_roi < floors['6%']:
             roi_floor = max_roi - floors['0.8%']
-        elif max_roi >= floors['10%']:
-            roi_floor = max_roi - max_roi * floors['1%']
+        elif floors['6%'] <= max_roi < floors['12%']:
+            roi_floor = max_roi - floors['1%']
+        elif floors['12%'] <= max_roi:
+            roi_floor = max_roi - max_roi * floors['20%']
         return roi_floor + self._ROI_FLOOR_FIXE
 
     def get_roi_position(self, market_price: MarketPrice) -> float:
@@ -191,6 +196,7 @@ class Icarus(TraderClass):
         can_buy = self.can_buy(market_price)
         if can_buy:
             self._buy(executions)
+            self._secure_position(executions)
         self.save_move(market_price)
         return executions
 
@@ -206,6 +212,8 @@ class Icarus(TraderClass):
         can_sell = self.can_sell(market_price)
         if can_sell:
             self._sell(executions)
+        elif self.get_roi_floor(market_price) != self.get_floor_secure_order():
+            self._move_up_secure_order(executions)
         self.save_move(market_price)
         return executions
 
@@ -292,11 +300,11 @@ class Icarus(TraderClass):
         closes.reverse()
         rsis = list(market_price.get_rsis())
         rsis.reverse()
-        # secure_odr = self._get_secure_order()
+        secure_odr = self._get_secure_order()
         roi_position = self.get_roi_position(market_price)
         max_roi = self.get_max_roi(market_price)
-        # roi_floor = self.get_roi_floor(market_price)
-        # floor_secure_order = self.get_floor_secure_order()
+        roi_floor = self.get_roi_floor(market_price)
+        floor_secure_order = self.get_floor_secure_order()
         """
         can buy
         """
@@ -340,7 +348,7 @@ class Icarus(TraderClass):
             'closes[-2]': closes[-2],
             'closes[-3]': closes[-3],
             'has_position': has_position,
-            # 'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
+            'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'can_buy': self.can_buy(market_price) if not has_position else None,
             'can_sell': self.can_sell(market_price) if has_position else None,
             Map.rsi: rsis[-1],
@@ -352,8 +360,8 @@ class Icarus(TraderClass):
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
-            # 'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
-            # 'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
+            'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
+            'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
             'CAN_BUY=>': '',
             'supertrend_rising': supertrend_rising,
             'psar_buy_ok': psar_buy_ok,
