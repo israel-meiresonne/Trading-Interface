@@ -59,6 +59,7 @@ class IcarusStalker(StalkerClass):
             fee_initial_capital_rate = fee / initial_capital
             fee_actual_capital = fee / actual_capital
             # Trade
+            active_stg._update_orders(bkr, market_price)
             has_position_before = active_stg._has_position()
             keep_stg = (active_stg.get_nb_trade() == 0) or has_position_before
             active_stg.trade(bkr) if keep_stg else None
