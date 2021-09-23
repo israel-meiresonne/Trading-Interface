@@ -88,7 +88,6 @@ class TestMachineLearning(unittest.TestCase, ML):
         self.assertEqual(id(exp2), id(result2))
 
     def test_predict(self) -> None:
-        self.setUp()
         print_dir = FileManager.get_project_directory() + "tests/"
         a = self.coef1
         b = self.y1
@@ -113,7 +112,7 @@ class TestMachineLearning(unittest.TestCase, ML):
             plt.savefig('../graph2.png')
         # Graph X
         if False:
-            degree = 1
+            degree = 11
             xs = [[x] for x in range(-25, 25)]
             ys = [[a * x[0] ** degree + b] for x in xs]
             ml = ML(ys, xs, degree=degree)
