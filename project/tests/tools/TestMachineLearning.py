@@ -29,6 +29,14 @@ class TestMachineLearning(unittest.TestCase, ML):
         self.ys11 = [[a * x[0]**degree + b] for x in self.xs11]
         self.ml11 = ML(self.ys11, self.xs11, degree=degree)
 
+    @staticmethod
+    def generate_ml(n_sample: int, degree: int, n_features: int = None) -> ML:
+        n_value = int(n_sample / 2)
+        xs = [[x] for x in range(-n_value, n_value)]
+        ys = [[x[0] ** degree] for x in xs]
+        ml = ML(ys, xs, degree=degree)
+        return ml
+
     def test_set_dataset(self) -> None:
         ml = ML(self.ys1, self.xs1, degree=1)
         # Check Ys
@@ -66,6 +74,24 @@ class TestMachineLearning(unittest.TestCase, ML):
         # Degree == 0
         with self.assertRaises(ValueError):
             ml = ML(self.ys1, self.xs1, degree=0)
+        
+    def test_search_degree(self) -> None:
+        # Degree = 1
+        degree = 1
+        n_value = int(100 / 2)
+        xs = [[x] for x in range(-n_value, n_value)]
+        ys = [[x[0] ** degree] for x in xs]
+        ml1 = ML(ys, xs, degree=None)
+        exp1 = degree
+        result1 = ml1.get_degree()
+        self.assertEqual(exp1, result1)
+        # Degree = 7
+        degree = 7
+        ys = [[x[0] ** degree] for x in xs]
+        ml2 = ML(ys, xs, degree=None)
+        exp2 = degree
+        result2 = ml2.get_degree()
+        self.assertEqual(exp2, result2)
 
     def test_get_X(self) -> None:
         ml = self.ml1
@@ -74,7 +100,7 @@ class TestMachineLearning(unittest.TestCase, ML):
 
     def test_set_theta(self) -> None:
         ml1 = self.ml1
-        # Tehta is None
+        # Theta is None
         ml1._set_theta(theta=None)
         theta1 = ml1.get_theta()
         self.assertIsInstance(theta1, np.ndarray)
@@ -114,8 +140,9 @@ class TestMachineLearning(unittest.TestCase, ML):
             plt.savefig('../graph2.png')
         # Graph X
         if False:
-            degree = 11
-            xs = [[x] for x in range(-25, 25)]
+            degree = 4
+            n_sample = int(50/2)
+            xs = [[x] for x in range(-n_sample, n_sample)]
             ys = [[a * x[0] ** degree + b] for x in xs]
             ml = ML(ys, xs, degree=degree)
             plt.figure()
