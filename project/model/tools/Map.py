@@ -33,9 +33,11 @@ class Map(MyJson):
     neutral = "neutral"
     rise = "rise"
     middle = "middle"
+    x = "x"
+    theta = "theta"
+    historic = "historic"
+    coefficient = "coefficient"
     # Binance
-    # api_pb = "api_pb" => public
-    # api_sk = "api_sk" => secret
     test_mode = "test_mode"
     # BinanceAPI
     signed = "signed"

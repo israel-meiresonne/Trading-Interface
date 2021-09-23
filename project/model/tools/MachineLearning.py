@@ -2,6 +2,7 @@ from typing import List, Union
 
 import numpy as np
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.Map import Map
 from model.tools.MyJson import MyJson
 
 
@@ -24,6 +25,7 @@ class ML(MyJson):
         self.__cost_historic = None
         self.__cost_rates = None
         self.__coef_determination = None
+        self.__trains = None
         self._set_dataset(ys, xs)
         self._set_degree(degree)
 
@@ -55,7 +57,33 @@ class ML(MyJson):
             raise ValueError(f"Degree must be type int and > 0, instead '{degree}'({type(degree)})")
     
     def _search_degree(self) -> None:
-        raise Exception(f"Must implement")
+        max_degree = self._MAX_SEARCH_DEGREE
+        ys = self.get_ys()
+        xs = self.get_xs()
+        trains = Map()
+        for degree in range(1, max_degree + 1):
+            X = self.generate_X(xs, degree)
+            theta = self.generate_theta(X)
+            new_theta, cost_hist, cost_rates = self.gradient_decsent(X, ys, theta)
+            predictions = self.model(X, new_theta)
+            coef_determ = self.coef_determination(ys, predictions)
+            train = {
+                Map.coefficient: coef_determ,
+                Map.x: X,
+                Map.theta: new_theta,
+                Map.historic: cost_hist,
+                Map.rate: cost_rates
+            }
+            trains.put(train, degree)
+        trains_sorted = Map(sorted(trains.get_map().items(), key=lambda row: row[1][Map.coefficient]))
+        degrees = trains_sorted.get_keys()
+        best_degree = degrees[-1]
+        best_train = trains_sorted.get(best_degree)
+        best_theta = best_train[Map.theta]
+        best_cost_hist = best_train[Map.historic]
+        best_cost_rates = best_train[Map.rate]
+        self._set_degree(best_degree)
+        self._update_train_attributs(best_theta, best_cost_hist, best_cost_rates)
     
     def get_degree(self) -> int:
         self._search_degree() if self.__degree is None else None
@@ -77,8 +105,7 @@ class ML(MyJson):
     
     def _set_theta(self, theta: np.ndarray = None) -> None:
         if theta is None:
-            n_param = self.get_X().shape[1]
-            self.__theta = np.zeros((n_param, 1))
+            self.__theta = self.generate_theta(self.get_X())
         else:
             self.__theta = theta
     
@@ -113,8 +140,14 @@ class ML(MyJson):
         self.train() if not self.is_trained() else None
         return self.__coef_determination
     
-    def _update_train_attributs(self, new_theta: np.ndarray, cost_historic: list, cost_rates: list) -> None:
-        self._set_theta(new_theta)
+    def _set_trains(self, trains: Map) -> None:
+        self.__trains = trains
+    
+    def get_trains(self) -> Map:
+        return self.__trains
+    
+    def _update_train_attributs(self, theta: np.ndarray, cost_historic: list, cost_rates: list) -> None:
+        self._set_theta(theta)
         self._set_cost_historic(cost_historic)
         self._set_cost_rates(cost_rates)
         self._set_trained(is_trained=True)
@@ -127,7 +160,7 @@ class ML(MyJson):
         new_theta, cost_hist, cost_rates = self.gradient_decsent(X, ys, theta)
         self._update_train_attributs(new_theta, cost_hist, cost_rates)
     
-    def predict(self, xs: List[list]) -> np.ndarray:
+    def predict(self, xs: Union[List[list], np.ndarray]) -> np.ndarray:
         """
         To predit Y values of given sample\n
         xs: List[list]
@@ -139,7 +172,7 @@ class ML(MyJson):
         if xs.shape[1] != self.get_xs().shape[1]:
             raise ValueError(f"Dataset's Xs must have '{self.get_xs().shape[1]}' column, instead '{xs.shape[1]}'")
         self.train() if not self.is_trained() else None
-        X = self.generate_X(xs, self.get_degree())
+        X = self.get_X()
         return ML.model(X, self.get_theta())
     
     @staticmethod
@@ -149,7 +182,13 @@ class ML(MyJson):
         tab = [xs**i for i in range(degree, 0, -1)]
         tup = tuple([*tab, np.ones((xs.shape[0], 1))])
         return np.hstack(tup)
-    
+
+    @staticmethod
+    def generate_theta(X: np.ndarray) -> np.ndarray:
+        n_param = X.shape[1]
+        theta = np.zeros((n_param, 1))
+        return theta
+
     @staticmethod
     def model(X: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
@@ -256,10 +295,9 @@ class ML(MyJson):
                 elif cost_rate_bellow_limit:
                     perf_coefs.append(get_coef(new_theta))
                     delta_coef = abs(perf_coefs[-1] - perf_coefs[-2])
-                    end = (perf_coefs[-1] >= coef_determ_min) and (delta_coef <= coef_determ_limit)
+                    end = delta_coef <= coef_determ_limit
                     if not end:
                         alpha = reduce_alpha(alpha)
-                # end = True if (not end) and (i >= 5*10**(4)) else end
                 print(_MF.prefix() + f"i: {i}") if ML._DEBUG else None
                 print(_MF.prefix() + f"alpha: {alpha}") if ML._DEBUG else None
                 print(_MF.prefix() + f"cost: {cost}") if ML._DEBUG else None
