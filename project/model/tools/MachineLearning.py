@@ -9,6 +9,9 @@ class ML(MyJson):
     _DEBUG = True
     _COEF_ALPHA_UP = 10
     _COEF_ALPHA_DOWN = _COEF_ALPHA_UP
+    _LIMIT_COST_RATE = 10**(-3)
+    _LIMIT_COEF_DETERMINATION = 0.005
+    _MIN_COEF_DETERMINATION = 0.5
 
     def __init__(self, ys: List[list], xs: List[list], degree: int = None) -> None:
         self.__ys = None
@@ -207,7 +210,7 @@ class ML(MyJson):
                     new_cost = ML.cost_function(X, ys, func_new_theta)
                     cost_dropping = new_cost <= last_cost
                     func_alpha = reduce_alpha(func_alpha) if not cost_dropping else func_alpha
-            print(f"final alpha: {func_alpha}") if ML._DEBUG else None
+            print(_MF.prefix() + f"final alpha: {func_alpha}") if ML._DEBUG else None
             return func_alpha
 
         cost_hist = []
@@ -223,9 +226,9 @@ class ML(MyJson):
             # Found max alpha
             alpha = init_alpha(new_theta)
             # Train
-            cost_rate_limit = 10**(-4)
-            perf_coef_limit = 0.005
-            perf_coef_min = 0.5
+            cost_rate_limit = ML._LIMIT_COST_RATE
+            coef_determ_limit = ML._LIMIT_COEF_DETERMINATION
+            coef_determ_min = ML._MIN_COEF_DETERMINATION
             perf_coefs.append(get_coef(new_theta))
             cost = ML.cost_function(X, ys, new_theta)
             cost_hist.append(cost)
@@ -245,13 +248,13 @@ class ML(MyJson):
                 elif cost_rate_bellow_limit:
                     perf_coefs.append(get_coef(new_theta))
                     delta_coef = abs(perf_coefs[-1] - perf_coefs[-2])
-                    end = (perf_coefs[-1] >= perf_coef_min) and (delta_coef <= perf_coef_limit)
+                    end = (perf_coefs[-1] >= coef_determ_min) and (delta_coef <= coef_determ_limit)
                     if not end:
                         alpha = reduce_alpha(alpha)
-                end = True if (not end) and (i >= 5*10**(4)) else end
-                print(f"i: {i}") if ML._DEBUG else None
-                print(f"alpha: {alpha}") if ML._DEBUG else None
-                print(f"cost: {cost}") if ML._DEBUG else None
+                # end = True if (not end) and (i >= 5*10**(4)) else end
+                print(_MF.prefix() + f"i: {i}") if ML._DEBUG else None
+                print(_MF.prefix() + f"alpha: {alpha}") if ML._DEBUG else None
+                print(_MF.prefix() + f"cost: {cost}") if ML._DEBUG else None
                 i += 1
         return new_theta, cost_hist, cost_rates
     
