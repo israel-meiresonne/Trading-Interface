@@ -95,6 +95,8 @@ class TestMachineLearning(unittest.TestCase, ML):
             ml1 = ML(self.ys1, self.xs1, degree=1)
             perf_coef = ml1.get_coef_determination()
             self.assertTrue(perf_coef >= 0.9)
+            self.assertIsInstance(ml1.get_cost_historic(), list)
+            self.assertIsInstance(ml1.get_cost_rates(), list)
             print(perf_coef)
         # Graph
         if False:
