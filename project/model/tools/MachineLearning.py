@@ -12,6 +12,7 @@ class ML(MyJson):
     _LIMIT_COST_RATE = 10**(-3)
     _LIMIT_COEF_DETERMINATION = 0.005
     _MIN_COEF_DETERMINATION = 0.5
+    _MAX_SEARCH_DEGREE = 10
 
     def __init__(self, ys: List[list], xs: List[list], degree: int = None) -> None:
         self.__ys = None
@@ -22,6 +23,7 @@ class ML(MyJson):
         self.__trained = False
         self.__cost_historic = None
         self.__cost_rates = None
+        self.__coef_determination = None
         self._set_dataset(ys, xs)
         self._set_degree(degree)
 
@@ -90,34 +92,40 @@ class ML(MyJson):
     def is_trained(self) -> bool:
         return self.__trained
     
-    def _set_cost_historic(self, cost_historic: np.ndarray) -> None:
+    def _set_cost_historic(self, cost_historic: list) -> None:
         self.__cost_historic = cost_historic
     
-    def get_cost_historic(self) -> np.ndarray:
+    def get_cost_historic(self) -> list:
+        self.train() if not self.is_trained() else None
         return self.__cost_historic
     
-    def _set_cost_rates(self, cost_rates: np.ndarray) -> None:
+    def _set_cost_rates(self, cost_rates: list) -> None:
         self.__cost_rates = cost_rates
     
-    def get_cost_rates(self) -> np.ndarray:
+    def get_cost_rates(self) -> list:
+        self.train() if not self.is_trained() else None
         return self.__cost_rates
     
     def _set_coef_determination(self) -> None:
         self.__coef_determination = self.coef_determination(self.get_ys(), self.predict(self.get_xs()))
 
     def get_coef_determination(self) -> float:
+        self.train() if not self.is_trained() else None
         return self.__coef_determination
+    
+    def _update_train_attributs(self, new_theta: np.ndarray, cost_historic: list, cost_rates: list) -> None:
+        self._set_theta(new_theta)
+        self._set_cost_historic(cost_historic)
+        self._set_cost_rates(cost_rates)
+        self._set_trained(is_trained=True)
+        self._set_coef_determination()
     
     def train(self) -> None:
         X = self.get_X()
         ys = self.get_ys()
         theta = self.get_theta()
         new_theta, cost_hist, cost_rates = self.gradient_decsent(X, ys, theta)
-        self._set_theta(new_theta)
-        self._set_cost_historic(cost_hist)
-        self._set_cost_rates(cost_rates)
-        self._set_trained(is_trained=True)
-        self._set_coef_determination()
+        self._update_train_attributs(new_theta, cost_hist, cost_rates)
     
     def predict(self, xs: List[list]) -> np.ndarray:
         """
@@ -168,7 +176,7 @@ class ML(MyJson):
         return 1/m * X.T.dot(F - y)
 
     @staticmethod
-    def gradient_decsent(X: np.ndarray, ys: np.ndarray, theta: np.ndarray, alpha: float = None, n_lesson: int = None) -> tuple:
+    def gradient_decsent(X: np.ndarray, ys: np.ndarray, theta: np.ndarray, alpha: float = None, n_lesson: int = None) -> (np.ndarray, list, list):
         def get_new_theta(func_alpha: float, func_theta: np.ndarray) -> np.ndarray:
                 func_new_theta = func_theta - func_alpha * ML.gradient(X, ys, func_theta)
                 return func_new_theta
