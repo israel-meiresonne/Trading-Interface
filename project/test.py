@@ -1,3 +1,5 @@
 from tests.tools.TestMachineLearning import TestMachineLearning
 
-TestMachineLearning().test_predict()
+test = TestMachineLearning()
+test.setUp()
+test.test_predict()
