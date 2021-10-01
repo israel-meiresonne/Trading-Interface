@@ -1,12 +1,13 @@
-from datetime import datetime
+from datetime import date, datetime
 from operator import itemgetter
 from time import sleep
 from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pandas_ta import er as _er
 from pandas_ta import aroon as _aroon
+from pandas_ta import er as _er
 
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
@@ -15,23 +16,26 @@ from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
 from model.structure.Bot import Bot
 from model.structure.Broker import Broker
-from model.structure.Log import Log
-from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
-from model.structure.strategies.MinMax.MinMax import MinMax
+from model.structure.Log import Log
 from model.structure.strategies.Floor.Floor import Floor
+from model.structure.strategies.MinMax.MinMax import MinMax
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
+from model.structure.Strategy import Strategy
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
+from model.tools.MachineLearning import MachineLearning
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
+
 _DIR_PRINT = 'content/print/'
 _PRINT_SUCCESS = '🖨 File printed ✅'
 _BROKER_ACCESS = None
 _ANALYSE_SRC_PATH = 'content/analyse/'
+_AI_PATH = _DIR_PRINT + 'dev-icarus-ai/$pair/$session_id/'
 
 
 def extract_market():
@@ -157,13 +161,27 @@ def apimarket_to_market(src_path: str, depot_path: str) -> None:
     print(_PRINT_SUCCESS)
 
 
+def historic_to_market_generate_path(broker_class: str, pair: Pair, period: int) -> str:
+    file = f"{period * 60 * 1000}.csv"
+    path = Config.get(Config.DIR_MARKET_HISTORICS).replace(
+        '$broker', broker_class).replace('$pair', pair.get_merged_symbols().upper()) + file
+    return path
+
+
 def historic_to_market(path: str, pair: Pair, period: str) -> MarketPrice:
     _original_stage = Config.get(Config.STAGE_MODE)
     Config.update(Config.STAGE_MODE, Config.STAGE_1)
-    # path = "content/v0.01/market-historic/DOGE/DOGEUSDT-5min-2021-05-13 13.44.54.csv"
     csv = FileManager.get_csv(path)
-    mkt = [[row[Map.time], row[Map.open], row[Map.high], row[Map.low], row[Map.close]] for row in csv]
-    # market_price = BinanceMarketPrice(mkt, "5m", Pair("DOGE/USDT"))
+    if Map.open in csv[0]:
+        mkt = [[row[Map.time], row[Map.open], row[Map.high],
+                row[Map.low], row[Map.close]] for row in csv]
+    else:
+        mkt_duplic = [[row[str(i)] for i in range(len(row))] for row in csv]
+        mkt = Map()
+        for row in mkt_duplic:
+            if row[0] not in mkt.get_keys():
+                mkt.put(row, row[0])
+        mkt = list(mkt.get_map().values())
     market_price = BinanceMarketPrice(mkt, period, pair)
     Config.update(Config.STAGE_MODE, _original_stage)
     return market_price
@@ -268,7 +286,7 @@ def performance_get_rates(market_price: MarketPrice) -> list:
         close = closes[i]
         if (buy_price is None) \
                 and ((rsi is not None)
-                and (last_rsi is not None)) and ((last_rsi <= rsi_entry_trigger) and (rsi > last_rsi)):
+                     and (last_rsi is not None)) and ((last_rsi <= rsi_entry_trigger) and (rsi > last_rsi)):
             buy_price = closes[i]
             # max_loss_close = buy_price * (1 + max_loss_rate)
             """
@@ -282,7 +300,8 @@ def performance_get_rates(market_price: MarketPrice) -> list:
                 max_loss_close = None
             """
         elif buy_price is not None:
-            up_min_floor_once = rsi > min_out_floor if (up_min_floor_once is None) or (not up_min_floor_once) else up_min_floor_once
+            up_min_floor_once = rsi > min_out_floor if (up_min_floor_once is None) or (
+                not up_min_floor_once) else up_min_floor_once
             if up_min_floor_once:
                 last_floor = floors[get_floor_index(last_rsi, floors)]
                 if (last_floor >= min_out_floor) and (rsi < last_floor):
@@ -312,7 +331,8 @@ def performance_get_rates(market_price: MarketPrice) -> list:
         rows.append(row)
         perf_rate = None
         sell_price = None
-    date = _MF.unix_to_date(_MF.get_timestamp(), _MF.FORMAT_D_H_M_S).replace(":", ".")
+    date = _MF.unix_to_date(_MF.get_timestamp(),
+                            _MF.FORMAT_D_H_M_S).replace(":", ".")
     path = f'content/v0.01/print/Floor_perf-{date}.csv'
     fields = list(rows[0].keys())
     FileManager.write_csv(path, fields, rows)
@@ -346,7 +366,8 @@ def get_top_asset(bnc: Broker, interval: int = 60 * 5, nb_period: int = 1000):
     # period = 60 * 5
     # nb_period = 1000
     # maximum = 3
-    top_asset = Strategy.get_top_asset(bnc, MinMax.__name__, interval, nb_period)
+    top_asset = Strategy.get_top_asset(
+        bnc, MinMax.__name__, interval, nb_period)
     return top_asset
 
 
@@ -354,7 +375,8 @@ def resume_capital_files(prefix: str) -> None:
     folder_path = 'content/v0.01/tests/'
     file_names = FileManager.get_files(folder_path)
     regex = f'^{prefix}_g_capital_\w+.csv$'
-    capiatl_file_names = [file_name for file_name in file_names if _MF.regex_match(regex, file_name)]
+    capiatl_file_names = [
+        file_name for file_name in file_names if _MF.regex_match(regex, file_name)]
     # trade_sections = Map()
     trade_sections = []
     """
@@ -379,8 +401,10 @@ def resume_capital_files(prefix: str) -> None:
             row = csv[i]
             if (i == nb_row - 1) or row['initial'] != csv[i + 1]['initial']:
                 #  left_value = row[Map.left]
-                left_price = str_to_price(row[Map.left])     # Price(left_value, right_symbol)
-                right_price = str_to_price(row[Map.right])    # Price(right_value, right_symbol)
+                # Price(left_value, right_symbol)
+                left_price = str_to_price(row[Map.left])
+                # Price(right_value, right_symbol)
+                right_price = str_to_price(row[Map.right])
                 initial_capital_price = str_to_price(row['initial'])
                 actual_capital_price = str_to_price(row['current_capital'])
                 rate = actual_capital_price / initial_capital_price - 1
@@ -399,7 +423,8 @@ def resume_capital_files(prefix: str) -> None:
                 }
                 # trade_sections.get(pair_str).append(trade_section)
                 trade_sections.append(trade_section)
-    sections_sorted = sorted(trade_sections, key=lambda row: (row['unix_time'], row[Map.pair]))
+    sections_sorted = sorted(trade_sections, key=lambda row: (
+        row['unix_time'], row[Map.pair]))
     date = _MF.unix_to_date(_MF.get_timestamp())
     fields = list(sections_sorted[0].keys())
     sum_rate = sum([row[Map.rate] for row in sections_sorted])
@@ -413,7 +438,8 @@ def resume_capital_files(prefix: str) -> None:
     rows = [
         {field: f'⬇️ {date} ⬇️' for field in fields},
         *sections_sorted,
-        {**{field: f'—' for field in fields if field != Map.rate}, Map.rate: f"{sum_rate}%"},
+        {**{field: f'—' for field in fields if field !=
+            Map.rate}, Map.rate: f"{sum_rate}%"},
         fee_row
     ]
     print_path = folder_path + f'{prefix}_fb_global_capital_historic_👾.csv'
@@ -439,7 +465,8 @@ def print_global_capital(prefix: str) -> None:
         date = _MF.unix_to_date(unix_time)
         next_date = _MF.unix_to_date(next_time)
         sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-        print(f"Next print of '{prefix}': '{sleep_time_str}': '{date}'->'{next_date}'")
+        print(
+            f"Next print of '{prefix}': '{sleep_time_str}': '{date}'->'{next_date}'")
         sleep(sleep_time)
 
 
@@ -451,7 +478,8 @@ def play_with_websocket() -> None:
         Map.period: 60 * 15,
         Map.number: 5
     })
-    bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
+    bkr_rq = Broker.generate_broker_request(
+        Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
     bkr.request(bkr_rq)
     mkt_prc = bkr_rq.get_market_price()
     end = False
@@ -461,18 +489,21 @@ def play_with_websocket() -> None:
             end = True
             print('Programme ending...')
         elif entry == 'send':
-            bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
+            bkr_rq = Broker.generate_broker_request(
+                Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
             bkr.request(bkr_rq)
             mkt_prc = bkr_rq.get_market_price()
             print('Request sent and Market retrieved!')
         elif entry == 'show_market':
-            bkr_rq = Broker.generate_broker_request(Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
+            bkr_rq = Broker.generate_broker_request(
+                Binance.__name__, BrokerRequest.RQ_MARKET_PRICE, rq_params)
             bkr.request(bkr_rq)
             mkt_prc = bkr_rq.get_market_price()
             pair = mkt_prc.get_pair()
             print(f"Market ({pair}): close='{mkt_prc.get_close()}'")
             close_time = mkt_prc.get_time()
-            print(f"Market ({pair}): time='{close_time}'->'{_MF.unix_to_date(close_time)}'")
+            print(
+                f"Market ({pair}): time='{close_time}'->'{_MF.unix_to_date(close_time)}'")
         elif entry == 'exec':
             exec_end = False
             while not exec_end:
@@ -507,6 +538,7 @@ def analyse_final_roi(file_name: str) -> None:
     group[Map.pair]:    {List[row{dict}]}
     """
     start_time = _MF.get_timestamp()
+
     def delta_date(newest: str, older: str) -> int:
         return int(_MF.date_to_unix(newest) - _MF.date_to_unix(older))
 
@@ -536,7 +568,7 @@ def analyse_final_roi(file_name: str) -> None:
     ]
     consts = [
         '—',        # 0
-        '⬇️ ——— ⬇️',# 1
+        '⬇️ ——— ⬇️',  # 1
         0.0010,    # 2
         60 * 5     # 3
     ]
@@ -554,25 +586,31 @@ def analyse_final_roi(file_name: str) -> None:
             row['New Pair?'] = new_pair = row[Map.date] == first_row[Map.date]
             row['Last Pair?'] = last_pair = row[Map.date] == last_row[Map.date]
             key_out = 'Out'
-            row['Entry'] = entry = 1 if new_pair or (row['last_roi'] == consts[0]) or (prev_row[key_out] == 1) else 0
+            row['Entry'] = entry = 1 if new_pair or (
+                row['last_roi'] == consts[0]) or (prev_row[key_out] == 1) else 0
             roi_bellow_floor = ((row['last_floor'] != consts[0])
                                 and (str_rate_to_float(row[Map.roi]) <= str_rate_to_float(row['last_floor'])))
             row[key_out] = out = 1 if (not (row['supertrend_rising'] == 'True')) \
-                                    or str_rate_to_float(row[Map.roi]) <= str_rate_to_float(row['max_loss']) \
-                                    or roi_bellow_floor \
-                                    or last_pair else 0
+                or str_rate_to_float(row[Map.roi]) <= str_rate_to_float(row['max_loss']) \
+                or roi_bellow_floor \
+                or last_pair else 0
             row['Fee'] = get_fees(entry + out)
-            row['Final roi'] = final_roi = str_rate_to_float(row[Map.roi]) if out == 1 else consts[0]
+            row['Final roi'] = final_roi = str_rate_to_float(
+                row[Map.roi]) if out == 1 else consts[0]
             prev_last_final_roi = prev_row['Last Final roi'] if prev_row is not None else consts[0]
             row['Last Final roi'] = last_final_roi = final_roi if final_roi != consts[0] else prev_last_final_roi
             key_new_last_entry = 'New Last Entry'
-            prev_new_last_entry = prev_row[key_new_last_entry] if isinstance(prev_row, dict) else None
-            time_ok = (delta_date(row[Map.date], prev_new_last_entry)) >= consts[3] if prev_new_last_entry is not None else False
-            row[key_new_last_entry] = row[Map.date] if (prev_new_last_entry is None) or new_pair or ((entry == 1) and time_ok) else prev_new_last_entry
-            row['New Holds time'] = new_holds_time = delta_date(row[Map.date], row[key_new_last_entry])
+            prev_new_last_entry = prev_row[key_new_last_entry] if isinstance(
+                prev_row, dict) else None
+            time_ok = (delta_date(row[Map.date], prev_new_last_entry)
+                       ) >= consts[3] if prev_new_last_entry is not None else False
+            row[key_new_last_entry] = row[Map.date] if (prev_new_last_entry is None) or new_pair or (
+                (entry == 1) and time_ok) else prev_new_last_entry
+            row['New Holds time'] = new_holds_time = delta_date(
+                row[Map.date], row[key_new_last_entry])
             row['New Final roi'] = new_final_roi = last_final_roi if ((new_holds_time >= consts[3]) and (out == 1)) \
-                                                                     or last_pair \
-                                                                     or roi_bellow_floor else consts[0]
+                or last_pair \
+                or roi_bellow_floor else consts[0]
             row['New Out'] = new_out = 1 if new_final_roi != consts[0] else 0
             row['New Fee'] = get_fees(2) if new_out == 1 else consts[0]
             print_rows.append(row)
@@ -786,7 +824,8 @@ def get_supertrend(high, low, close, lookback=10, multiplier=3):
     # SUPERTREND
 
     supertrend = pd.DataFrame(columns=[f'supertrend_{lookback}'])
-    supertrend.iloc[:, 0] = [x for x in final_bands['upper'] - final_bands['upper']]
+    supertrend.iloc[:, 0] = [
+        x for x in final_bands['upper'] - final_bands['upper']]
 
     for i in range(len(supertrend)):
         if i == 0:
@@ -828,8 +867,202 @@ def get_supertrend(high, low, close, lookback=10, multiplier=3):
     return supertrend
 
 
+def get_print_path(pair: Pair) -> (str, str):
+    session_id = Config.get(Config.SESSION_ID)
+    print_path = _AI_PATH.replace('$pair', pair.get_merged_symbols().upper()).replace('$session_id', session_id)
+    return print_path, session_id
+
+
+def print_dataset(pair: Pair, test_id: int = None) -> (str, List[dict]):
+    TEST_ID = 7 # int(test_id) if test_id is not None else int(input('Enter TEST_ID: '))
+    
+    def get_row_base(func_i: int) -> dict:
+        func_buy_date = _MF.unix_to_date(times[func_i])
+        max_close = extract_max_roi(func_i)
+        max_roi = max_close / closes[func_i] - 1
+        return {
+            Map.time: times[func_i],
+            Map.date: func_buy_date,
+            Map.roi: max_roi
+        }
+
+    def can_buy(func_i: int) -> bool:
+        func_row = None
+        close = closes[func_i]
+        if TEST_ID == 1:
+            supertrend_ok = MarketPrice.get_super_trend_trend(
+                closes, supertrends, func_i) == MarketPrice.SUPERTREND_RISING
+            psar_rising = MarketPrice.get_psar_trend(
+                closes, psars, func_i) == MarketPrice.PSAR_RISING
+            psar_droping = (func_i > 0) and MarketPrice.get_psar_trend(
+                closes, psars, func_i - 1) == MarketPrice.PSAR_DROPPING
+            keltner_ok = close > keltner_highs[func_i]
+            macd_ok = macd_histograms[func_i] > 0
+            can_buy = supertrend_ok and psar_rising and psar_droping and keltner_ok and macd_ok
+            if can_buy:
+                func_row = {
+                    **get_row_base(func_i),
+                    Map.close: closes[func_i],
+                    'supertrend': supertrends[func_i],
+                    'psar[-1]': psars[func_i],
+                    'psar[-2]': psars[func_i-1],
+                    'keltner_high': keltner_highs[func_i],
+                    'macd_histogram': macd_histograms[func_i]
+                }
+        if TEST_ID == 3:
+            can_buy = keltner_ok = close > keltner_highs[func_i]
+            if can_buy:
+                func_row = {
+                    **get_row_base(func_i),
+                    Map.close: closes[func_i],
+                    'keltner_high': keltner_highs[func_i]
+                }
+        if TEST_ID == 4:
+            can_buy = keltner_ok = close > keltner_highs[func_i]
+            if can_buy:
+                func_row = {
+                    **get_row_base(func_i),
+                    'keltner_high': keltner_highs[func_i]
+                }
+        if TEST_ID == 5:
+            can_buy = keltner_ok = close > keltner_highs[func_i]
+            if can_buy:
+                func_row = {
+                    **get_row_base(func_i),
+                    'keltner_high_normalized': keltner_highs_normalized[func_i]
+                }
+        if TEST_ID == 7:
+            func_n_feature = 60
+            can_buy = func_i >= func_n_feature
+            if can_buy:
+                func_start_i = func_i - func_n_feature
+                close_set = closes_np[func_start_i:func_i].tolist()
+                func_row = {
+                    **get_row_base(func_i),
+                    Map.close: closes_np[func_i],
+                    **{f'close_{i}': close_set[i] for i in range(len(close_set))}
+                }
+                del func_row[Map.roi]
+        return can_buy, func_row
+
+    def extract_max_roi(func_i: int) -> float:
+        func_end_i = func_i + 1
+        end = (func_end_i >= n_period) or (mkt.get_psar_trend(
+            closes, psars, func_end_i) == MarketPrice.PSAR_DROPPING)
+        while not end:
+            func_end_i += 1
+            end = (func_end_i >= n_period) or (mkt.get_psar_trend(
+                closes, psars, func_end_i) == MarketPrice.PSAR_DROPPING)
+        max_close = max(highs[func_i:func_end_i])
+        return max_close
+
+    # pair = Pair('DOGE/USDT')
+    path = historic_to_market_generate_path(Binance.__name__, pair, 15)
+    mkt = historic_to_market(path, pair, '15m')
+    dataset = []
+    # Times
+    times = list(mkt.get_times())
+    times.reverse()
+    # Closes
+    closes = list(mkt.get_closes())
+    closes.reverse()
+    closes_np = np.array(closes)
+    # Highs
+    highs = list(mkt.get_highs())
+    highs.reverse()
+    # Supertrend
+    supertrends = list(mkt.get_super_trend())
+    supertrends.reverse()
+    # Psar
+    psars = list(mkt.get_psar())
+    psars.reverse()
+    # Keltner
+    keltner_highs = list(mkt.get_keltnerchannel().get(Map.high))
+    keltner_highs.reverse()
+    keltner_highs_np = np.array(keltner_highs)
+    keltner_highs_normalized = keltner_highs_np / np.linalg.norm(keltner_highs_np)
+    # MACD
+    macd_histograms = list(mkt.get_macd().get(Map.histogram))
+    macd_histograms.reverse()
+    # Loop
+    n_period = len(times)
+    for i in range(1, n_period):
+        can_buy_var, row = can_buy(i)
+        if can_buy_var and (i < (n_period - 1)):
+            buy_date = row[Map.date]
+            print(_MF.prefix() + f"buy: i='{i}', date='{buy_date}'")
+            dataset.append(row)
+    # Print dataset
+    session_id = Config.get(Config.SESSION_ID)
+    print_path, session_id = get_print_path(pair)
+    dataset_path = print_path + f"{session_id}_dataset.csv"
+    fields = list(dataset[0].keys())
+    FileManager.write_csv(dataset_path, fields, rows=dataset,
+                          overwrite=True, make_dir=True)
+    print(_PRINT_SUCCESS + ': dataset')
+    return dataset_path, dataset
+
+
+def train_ai(pair: Pair) -> None:
+    """
+    path = 'content/print/datasets/DOGEUSDT/2021-09-24_16.33.12_dataset.csv'
+    csv = FileManager.get_csv(path)
+    """
+    _, dataset_csv = print_dataset(pair)
+    keys = list(dataset_csv[0].keys())
+    dataset = np.array([[float(row[keys[i]])
+                       for i in range(2, len(keys))] for row in dataset_csv])
+    ys = dataset[:, 0]
+    ys = ys.reshape((ys.shape[0], 1))
+    n_sample = ys.shape[0]
+    xs = dataset[:, 1:]
+    ml = MachineLearning(ys, xs)
+    ai_json = ml.json_encode()
+    predictions = ml.predict(xs)
+    stacked = np.hstack((ys, predictions)).tolist()
+    stacked_csv = [{'ys': row[0], 'predictions': row[1]} for row in stacked]
+    # Analyse
+    delta_ys = ys - predictions
+    n_win = np.sum((delta_ys > 0) * 1)
+    win_rate = n_win / n_sample
+    n_loss = np.sum((delta_ys < 0) * 1)
+    loss_rate = n_loss / n_sample
+    n_null = np.sum((delta_ys == 0) * 1)
+    null_rate = n_null / n_sample
+    analyse_csv = [{
+        'degree': ml.get_degree(),
+        Map.coefficient: _MF.rate_to_str(ml.get_coef_determination()),
+        'n_sample': n_sample,
+        'n_win': n_win,
+        'win_rate': _MF.rate_to_str(win_rate),
+        'n_loss': n_loss,
+        'loss_rate': _MF.rate_to_str(loss_rate),
+        'n_null': n_null,
+        'null_rate': _MF.rate_to_str(null_rate),
+    }]
+    # Path
+    print_path, session_id = get_print_path(pair)
+    # Print AI
+    ai_path = print_path + f"{session_id}_ai.json"
+    FileManager.write(ai_path, ai_json, overwrite=False, make_dir=True)
+    # Print predictions
+    prediction_path = print_path + f"{session_id}_prediction.csv"
+    fields = list(stacked_csv[0].keys())
+    FileManager.write_csv(prediction_path, fields, stacked_csv, make_dir=True)
+    # Print graph
+    graph_path = FileManager.get_project_directory() + print_path
+    plt.plot(range(n_sample), ys)
+    plt.plot(range(n_sample), predictions, 'r')
+    plt.savefig(graph_path + 'prediction.png')
+    # Print Analyse
+    analyse_path = print_path + f"{session_id}_analyse.csv"
+    analyse_fields = list(analyse_csv[0].keys())
+    FileManager.write_csv(analyse_path, analyse_fields, analyse_csv, overwrite=True, make_dir=True)
+    print(_PRINT_SUCCESS + ": AI train")
+
+
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    bkr = get_broker()
-    print_historic(bkr, Pair('BTC/USDT'), prd=60*15)
-    bkr.close()
+    # print_dataset()
+    train_ai(Pair('DOGE/USDT'))
+    # print(get_print_path(Pair('DOGE/USDT')))
