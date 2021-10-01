@@ -7,7 +7,7 @@ class Dev:
     SESSION_ID = START_DATE
     # Stage Modes
     STAGE_MODE = None
-    # Files
+    # Static Files
     DIR_BINANCE_EXCHANGE_INFOS = "tests/datas/API/brokers/Binance/BinanceFakeAPI/response_exchange_infos.json"
     DIR_BINANCE_TRADE_FEE = "tests/datas/API/brokers/Binance/BinanceFakeAPI/trade_fee.json"
     DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03.26 00.52.00.csv'
@@ -15,13 +15,13 @@ class Dev:
     FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE = 'content/executable/model/tools/MyJson/json_instantiate.py'
     FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE = 'content/executable/model/tools/MyJson/test_json_encode_decode.py'
     DIR_PRINT_HISTORIC = 'content/market-historic/Broker/$broker/$pair/$pair_ref/$period.csv'
-    # Directories
+    # Static paths
     DIR_BROKERS = "model/API/brokers"
     DIR_STRATEGIES = "model/structure/strategies"
     DIR_SESSIONS = 'content/sessions/'
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_MARKET_HISTORICS = 'content/market-historic/Active/$broker/$pair/'
-    # Backup Files
+    # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_BINANCE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/BinanceFakeAPI/orders/{SESSION_ID}_orders.json'
     DIR_BEGIN_BACKUP = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_a_a————————————————————.csv'
@@ -48,6 +48,16 @@ class Dev:
 
     @staticmethod
     def update(old: str, new: str) -> None:
+        """
+        To replace occurence of old word with new word in some constants
+
+        Parameters
+        ----------
+        old: str
+            Old word to search
+        new: str
+            New word to replace old occurences
+        """
         Dev.DIR_ACTUAL_SESSION =            Dev.DIR_ACTUAL_SESSION.replace(old, new)
         Dev.FILE_BINANCE_FAKE_API_ORDERS =  Dev.FILE_BINANCE_FAKE_API_ORDERS.replace(old, new)
         Dev.DIR_DATABASE =                  Dev.DIR_DATABASE.replace(old, new)
