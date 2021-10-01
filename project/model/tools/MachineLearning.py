@@ -8,12 +8,13 @@ from model.tools.MyJson import MyJson
 
 class MachineLearning(MyJson):
     _DEBUG = False
+    _VERBOSE = False
     _COEF_ALPHA_UP = 10
     _COEF_ALPHA_DOWN = _COEF_ALPHA_UP
     _LIMIT_COST_RATE = 10**(-3)
     _LIMIT_COEF_DETERMINATION = 0.005
     _MIN_COEF_DETERMINATION = 0.5
-    _MAX_SEARCH_DEGREE = 10
+    _MAX_SEARCH_DEGREE = [0, 10]
 
     def __init__(self, ys: List[list], xs: List[list], degree: int = None, train: bool = True) -> None:
         self.__ys = None
@@ -61,11 +62,12 @@ class MachineLearning(MyJson):
             raise ValueError(f"Degree must be type int and > 0, instead '{degree}'({type(degree)})")
     
     def _search_degree(self) -> None:
-        max_degree = self._MAX_SEARCH_DEGREE
+        search_degrees = self._MAX_SEARCH_DEGREE
         ys = self.get_ys()
         xs = self.get_xs()
         trains = Map()
-        for degree in range(1, max_degree + 1):
+        for degree in range(search_degrees[0], search_degrees[1] + 1):
+            print(_MF.prefix() + f"Search degree '{degree}'...") if MachineLearning._DEBUG else None
             X = self.generate_X(xs, degree)
             theta = self.generate_theta(X)
             new_theta, cost_hist, cost_rates = self.gradient_decsent(X, ys, theta)
@@ -266,7 +268,7 @@ class MachineLearning(MyJson):
                     new_cost = MachineLearning.cost_function(X, ys, func_new_theta)
                     cost_dropping = new_cost <= last_cost
                     func_alpha = reduce_alpha(func_alpha) if not cost_dropping else func_alpha
-            print(_MF.prefix() + f"final alpha: {func_alpha}") if MachineLearning._DEBUG else None
+            print(_MF.prefix() + f"final alpha: {func_alpha}") if MachineLearning._VERBOSE else None
             return func_alpha
 
         cost_hist = []
@@ -307,9 +309,9 @@ class MachineLearning(MyJson):
                     end = delta_coef <= coef_determ_limit
                     if not end:
                         alpha = reduce_alpha(alpha)
-                print(_MF.prefix() + f"i: {i}") if MachineLearning._DEBUG else None
-                print(_MF.prefix() + f"alpha: {alpha}") if MachineLearning._DEBUG else None
-                print(_MF.prefix() + f"cost: {cost}") if MachineLearning._DEBUG else None
+                print(_MF.prefix() + f"i: {i}") if MachineLearning._VERBOSE else None
+                print(_MF.prefix() + f"alpha: {alpha}") if MachineLearning._VERBOSE else None
+                print(_MF.prefix() + f"cost: {cost}") if MachineLearning._VERBOSE else None
                 i += 1
         return new_theta, cost_hist, cost_rates
     
