@@ -4,15 +4,15 @@ __pycache__*/
 .idea/
 .run/
 *.pyc
+.pytest_cache
 project/content/v0.01/
 project/content/storage/
 project/content/market-historic/
 project/content/sessions/
 project/content/analyse/
 project/content/print/
-# project/content/storage/STAGE_2/Bot_binary
-# project/content/storage/STAGE_1
-# project/content/storage/STAGE_3
+project/tests/datas/tools/TestDeepLearning/
+project/tests/datas/tools/TestPredictor/
 project/venv/
 project/env/
-.pytest_cache
+project/dev_env/
