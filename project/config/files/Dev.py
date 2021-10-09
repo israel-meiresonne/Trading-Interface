@@ -41,6 +41,9 @@ class Dev:
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
     # Storage
     DIR_STORAGE = 'content/storage/'
+    # Predictor
+    PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
+    PREDICTOR_PATH_LEARN = '$class/learns/$pair/$period/$model_type/'
     # Constants
     CONST_STABLECOINS = ['busd', 'dai', 'husd', 'pax', 'susd', 'tusd', 'usdc', 'usdn', 'usdt', 'ust', 'usdsb', 'usds']
     CONST_FIATS = ['aud', 'brl', 'eur', 'gbp', 'ghs', 'hkd', 'kes', 'kzt', 'ngn', 'nok', 'pen', 'rub', 'try', 'uah',
