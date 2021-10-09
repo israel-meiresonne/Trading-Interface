@@ -1,6 +1,6 @@
 from abc import ABC
 from time import sleep
-from typing import List, Any
+from typing import List, Any, Union
 
 from requests import get as rq_get, Response
 from requests import post as rq_post
@@ -789,16 +789,20 @@ class BinanceAPI(ABC):
         broker_response: BrokerResponse
             Binance's API response
         """
-        api_keys = BinanceAPI.format_api_keys(public_key, secret_key)
+        # Prepare
         _stage = Config.get(Config.STAGE_MODE)
+        api_keys = BinanceAPI.format_api_keys(public_key, secret_key)
+        # Check
         BinanceAPI._check_params(rq, params)
+        # Generate
+        rq_kline_time_set = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
         rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE]
         if _stage == Config.STAGE_1:
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             return BinanceFakeAPI.steal_request(rq, params)
         if (_stage == Config.STAGE_2) and (rq not in rq_excluded):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            if rq == BinanceAPI.RQ_KLINES:
+            if (rq == BinanceAPI.RQ_KLINES) and (not rq_kline_time_set):
                 rsp = BinanceAPI._send_market_historics_request(test_mode, rq, params)
                 pair_merged = params.get(Map.symbol)
                 period_str = params.get(Map.interval)
@@ -806,6 +810,8 @@ class BinanceAPI(ABC):
                 BinanceFakeAPI.add_market_historic(pair_merged, period_milli, rsp.get_content())
                 BinanceFakeAPI.steal_request(rq, params)
                 return rsp
+            elif (rq == BinanceAPI.RQ_KLINES) and rq_kline_time_set:
+                BinanceFakeAPI.steal_request(rq, params)
             else:
                 return BinanceFakeAPI.steal_request(rq, params)
         start_time = params.get(Map.startTime)
@@ -1272,7 +1278,7 @@ class BinanceAPI(ABC):
         return float(round(new_value, nb_decimal))
 
     @staticmethod
-    def _will_pass_filter(new_value: float, _step: [int, float], _min: [int, float]) -> bool:
+    def _will_pass_filter(new_value: float, _step: Union[int, float], _min: Union[int, float]) -> bool:
         """
         To check if the new value will pass Binance API's filter\n
         :param new_value: the new value generated  with «BinanceAPI._get_new_price()»
