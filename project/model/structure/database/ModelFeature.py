@@ -1,3 +1,4 @@
+import dill
 import re as rgx
 import threading
 from abc import abstractmethod
@@ -285,15 +286,15 @@ class ModelFeature(ModelAccess):
         return rgx.match(regex, string) is not None
 
     @staticmethod
-    def regex_replace(regex: str, substitu: str, string: str) -> str:
+    def regex_replace(regex: str, new_str: str, string: str) -> str:
         """
         To remplace the regex patern in the given string with a new one\n
         :param regex: The regex
-        :param substitu: The replacement
+        :param new_str: The replacement
         :param string: The string to search in
         :return: The given string with replacement if found
         """
-        new_string = rgx.sub(regex, substitu, string)
+        new_string = rgx.sub(regex, new_str, string)
         return new_string
 
     @staticmethod
@@ -359,3 +360,11 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def rate_to_str(rate: float) -> str:
         return f"{round(rate * 100, 2)}%"
+    
+    @staticmethod
+    def binary_encode(obj: object) -> str:
+        return dill.dumps(obj)
+
+    @staticmethod
+    def binary_decode(binary: str) -> object:
+        return dill.loads(binary)
