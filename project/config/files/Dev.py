@@ -39,6 +39,8 @@ class Dev:
     DIR_SAVE_PERIOD_RANKING = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_k_period_ranking_$pair.csv'
     DIR_END_BACKUP = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_z————————————————————.csv'
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
+    # Storage
+    DIR_STORAGE = 'content/storage/'
     # Constants
     CONST_STABLECOINS = ['busd', 'dai', 'husd', 'pax', 'susd', 'tusd', 'usdc', 'usdn', 'usdt', 'ust', 'usdsb', 'usds']
     CONST_FIATS = ['aud', 'brl', 'eur', 'gbp', 'ghs', 'hkd', 'kes', 'kzt', 'ngn', 'nok', 'pen', 'rub', 'try', 'uah',
