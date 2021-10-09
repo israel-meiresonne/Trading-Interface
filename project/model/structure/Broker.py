@@ -40,17 +40,6 @@ class Broker(ABC):
         """
         pass
 
-    @staticmethod
-    @abstractmethod
-    def get_pairs(match: List[str] = None, no_match: List[str] = None) -> List[str]:
-        """
-        To get pairs available in Broker's API\n
-        :param match: Include only pair that match this list of regex
-        :param no_match: Exclude all pair that match this list of regex
-        :return: Pairs available in Broker's API
-        """
-        pass
-
     @abstractmethod
     def execute(self, order: Order) -> None:
         """
@@ -83,6 +72,17 @@ class Broker(ABC):
         ----------
         new_streams: List[str]
             List of new stream
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_pairs(match: List[str] = None, no_match: List[str] = None) -> List[str]:
+        """
+        To get pairs available in Broker's API\n
+        :param match: Include only pair that match this list of regex
+        :param no_match: Exclude all pair that match this list of regex
+        :return: Pairs available in Broker's API
         """
         pass
 
