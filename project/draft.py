@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from operator import itemgetter
 from time import sleep
-from typing import List
+from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,7 +33,6 @@ from model.tools.Price import Price
 
 _DIR_PRINT = 'content/print/'
 _PRINT_SUCCESS = '🖨 File printed ✅'
-_BROKER_ACCESS = None
 _ANALYSE_SRC_PATH = 'content/analyse/'
 _AI_PATH = _DIR_PRINT + 'dev-icarus-ai/$pair/$session_id/'
 
@@ -188,12 +187,6 @@ def historic_to_market(path: str, pair: Pair, period: str) -> MarketPrice:
 
 
 def get_historic(bnc: Broker, pr: Pair, period: int, nb_prd: int, begin_time: int = None, end_time: int = None) -> MarketPrice:
-    """
-    bnc = Binance(Map({Map.api_pb: "pb_k",
-                       Map.api_sk: "sk_k",
-                       Map.test_mode: False
-                       }))
-    """
     rq_prm = Map({Map.pair: pr,
                   Map.period: period,
                   Map.begin_time: begin_time,
@@ -356,9 +349,9 @@ def print_performance(rows: list, path: str) -> None:
 
 def get_broker() -> Broker:
     bnc = Binance(Map({Map.public: "—",
-                       Map.secret: "—",
-                       Map.test_mode: False
-                       }))
+                    Map.secret: "—",
+                    Map.test_mode: False
+                    }))
     return bnc
 
 
@@ -867,13 +860,13 @@ def get_supertrend(high, low, close, lookback=10, multiplier=3):
     return supertrend
 
 
-def get_print_path(pair: Pair) -> (str, str):
+def get_print_path(pair: Pair) -> Tuple[str, str]:
     session_id = Config.get(Config.SESSION_ID)
     print_path = _AI_PATH.replace('$pair', pair.get_merged_symbols().upper()).replace('$session_id', session_id)
     return print_path, session_id
 
 
-def print_dataset(pair: Pair, test_id: int = None) -> (str, List[dict]):
+def print_dataset(pair: Pair, test_id: int = None) -> Tuple[str, List[dict]]:
     TEST_ID = 7 # int(test_id) if test_id is not None else int(input('Enter TEST_ID: '))
     
     def get_row_base(func_i: int) -> dict:
@@ -1061,8 +1054,12 @@ def train_ai(pair: Pair) -> None:
     print(_PRINT_SUCCESS + ": AI train")
 
 
+def main() -> None:
+    pair = Pair('DOGE/USDT')
+    print(pair)
+    
+
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_2)
-    # print_dataset()
-    train_ai(Pair('DOGE/USDT'))
-    # print(get_print_path(Pair('DOGE/USDT')))
+    main()
+    get_broker().close()
