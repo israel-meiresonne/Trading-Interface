@@ -93,10 +93,11 @@ class MarketPrice(ABC):
         :param mkt: market prices.
         NOTE: market prices must be ordered from the newest to the older
         """
+        if not isinstance(mkt, list):
+            raise ValueError(f"Market param must be type 'list', instead '{type(mkt)}'")
         mkt = [row.copy() for row in mkt]
         mkt.reverse()
-        mkt = tuple(mkt)
-        self.__market = mkt
+        self.__market = tuple(mkt)
         self.__period_time = prd_time
         self.__pair = pair
         self.__indicators = Map()
@@ -816,7 +817,7 @@ class MarketPrice(ABC):
         return trend
 
     @staticmethod
-    def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> [int, None]:
+    def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> Union[int, None]:
         nb_prd = len(vs)
         if max_idx >= nb_prd:
             peak_idx = _MF.get_maximum(vs, min_idx, nb_prd - 1)
@@ -843,7 +844,7 @@ class MarketPrice(ABC):
         return buy_prd
 
     @staticmethod
-    def get_peak_since_buy(last_odr: Order, vs: Union[list, tuple], mkt_prc) -> [int, None]:
+    def get_peak_since_buy(last_odr: Order, vs: Union[list, tuple], mkt_prc) -> Union[int, None]:
         """
         To get the period of the maximum price in MarketPrice\n
         :param last_odr: last Order executed
