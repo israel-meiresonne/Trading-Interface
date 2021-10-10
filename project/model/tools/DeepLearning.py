@@ -109,10 +109,11 @@ class DeepLearning(MyJson):
         --------
             Values scaled
         """
-        values_flattened = values.reshape((values.size, 1))
-        values_flattened_scaled = self.get_scaler().transform(values_flattened)
-        values_scaled = values_flattened_scaled.reshape(values.shape)
-        return values_scaled
+        # values_flattened = values.reshape((values.size, 1))
+        # values_flattened_scaled = self.get_scaler().transform(values_flattened)
+        # values_scaled = values_flattened_scaled.reshape(values.shape)
+        # return values_scaled
+        return values
     
     def scaler_inverse_transform(self, values_scaled: np.ndarray) -> np.ndarray:
         """
@@ -127,10 +128,11 @@ class DeepLearning(MyJson):
         --------
             Values unscaled
         """
-        values_scaled_flattened = values_scaled.reshape((values_scaled.size, 1))
-        values_flattened = self.get_scaler().inverse_transform(values_scaled_flattened)
-        values = values_flattened.reshape(values_scaled.shape)
-        return values
+        # values_scaled_flattened = values_scaled.reshape((values_scaled.size, 1))
+        # values_flattened = self.get_scaler().inverse_transform(values_scaled_flattened)
+        # values = values_flattened.reshape(values_scaled.shape)
+        # return values
+        return values_scaled
 
     # ——————————————————————————————————————————— STATIC SCALER UP —————————————————————————————————————————————————————
 
