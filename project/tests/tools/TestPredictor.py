@@ -70,14 +70,14 @@ class TestPredictor(unittest.TestCase, Predictor):
         from model.tools.MarketPrice import MarketPrice
         from model.tools.Asset import Asset
         bkr = self.broker_switch(True)
-        """
+        # """
         n_row2 = 5*10**(4)
         self._DATASET_SIZES[Map.minimum] = n_row2
         self._DATASET_SIZES[Map.maximum] = n_row2
         self._LEARN_PERIODS = [60 * 5]
-        """
+        # """
         # pairs = MarketPrice.get_spot_pairs(bkr.__class__.__name__, Asset('USDT'))
-        pairs = [Pair('bch/usdt')]
+        pairs = [Pair('ADA/USDT')]
         self.add_learns(bkr, pairs)
         self.broker_switch(False)
     
@@ -89,8 +89,14 @@ class TestPredictor(unittest.TestCase, Predictor):
         self.broker_switch(False)
     
     def test_learn(self) -> None:
-        pair = Pair('coti/usdt')
-        self._learn(pair)
+        hist_dir = 'content/storage/Predictor/market-histories/'
+        learn_dir = 'content/storage/Predictor/learns/'
+        hist_pairs_str = FileManager.get_dirs(hist_dir)
+        learn_pairs_str = FileManager.get_dirs(learn_dir)
+        pairs_to_learn = [Pair(pair_str.replace('_', '/')) for pair_str in hist_pairs_str if pair_str not in learn_pairs_str]
+        # pair = Pair('DOGE/USDT')
+        for pair in pairs_to_learn:
+            self._learn(pair)
 
     def test_model(self) -> None:
         n_feature = self.get_n_feature()
@@ -204,17 +210,3 @@ class TestPredictor(unittest.TestCase, Predictor):
         file_path = path + f'{plot_name}.png'
         FileManager.make_directory(path)
         plt.savefig(project_dir + file_path)
-    
-    def resume_learn(self) -> None:
-        _back_cyan = '\033[46m' + '\033[30m'
-        _normal = '\033[0m'
-        hist_dir = 'content/storage/Predictor/market-histories/'
-        learn_dir = 'content/storage/Predictor/learns/'
-        hist_pairs_str = FileManager.get_dirs(hist_dir, make_dir=True)
-        learn_pairs_str = FileManager.get_dirs(learn_dir, make_dir=True)
-        pairs_to_learn = [Pair(pair_str.replace('_', '/')) for pair_str in hist_pairs_str if pair_str not in learn_pairs_str]
-        # pair = Pair('DOGE/USDT')
-        for pair in pairs_to_learn:
-            print(_MF.prefix() + _back_cyan + f"Start learning '{pair.__str__().upper()}'..." + _normal)
-            self._learn(pair)
-            print(_MF.prefix() + _back_cyan + f"End learning '{pair.__str__().upper()}'" + _normal)
