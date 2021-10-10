@@ -10,6 +10,7 @@ class Map(MyJson):
     action = "action"
     request = "request"
     response = "response"
+    minimum = "minimum"
     maximum = "maximum"
     GET = "GET"
     POST = "POST"
@@ -33,9 +34,13 @@ class Map(MyJson):
     neutral = "neutral"
     rise = "rise"
     middle = "middle"
+    x = "x"
+    theta = "theta"
+    historic = "historic"
+    coefficient = "coefficient"
+    model = "model"
+    shape = "shape"
     # Binance
-    # api_pb = "api_pb" => public
-    # api_sk = "api_sk" => secret
     test_mode = "test_mode"
     # BinanceAPI
     signed = "signed"

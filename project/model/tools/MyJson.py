@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from collections import Iterable
 from typing import Any
 
+import numpy as np
+
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 
@@ -23,7 +25,6 @@ class MyJson(ABC):
         """
         _class_token = MyJson.get_class_name_token()
         class_name = self.__class__.__name__
-        # class_regex = MyJson._REGEX_REPLACE_ATTRIBUTE.replace(_class_token, class_name)
         attrs = self.__dict__
         json_dict = {_class_token: class_name}
         for attr, value in attrs.items():
@@ -55,10 +56,15 @@ class MyJson(ABC):
                 json_key = f"{key}@{key.__class__.__name__}"
                 value_encoded[json_key] = MyJson.__root_encoding(value)
         elif (iter_type == list) or (iter_type == tuple):
-            list_type = iter_type.__name__
-            value_encoded = [list_type]
+            iter_name = iter_type.__name__
+            value_encoded = [iter_name]
             for value in iterable_value:
                 value_encoded.append(MyJson.__root_encoding(value))
+        elif iter_type == np.ndarray:
+            iter_name = iter_type.__name__
+            np_list = iterable_value.tolist()
+            np_list_json = MyJson.__root_encoding(np_list)
+            value_encoded = [iter_name, np_list_json]
         else:
             raise ValueError(f"This iterable type '{iter_type}' is not supported")
         return value_encoded
@@ -182,20 +188,27 @@ class MyJson(ABC):
 
     @staticmethod
     def __decode_iterable(iterable_value: Iterable) -> Iterable:
-        iter_type = type(iterable_value)
+        iterable_value_copy = iterable_value.copy()
+        iter_type = type(iterable_value_copy)
         if iter_type == dict:
             value_decoded = {}
-            for json_key, value in iterable_value.items():
+            for json_key, value in iterable_value_copy.items():
                 str_key, key_type = json_key.split('@')
                 key = eval(f"{key_type}(str_key)")
                 value_decoded[key] = MyJson._root_decoding(value)
         elif iter_type == list:
-            list_type = iterable_value[0]
-            del iterable_value[0]
-            value_decoded = []
-            for value in iterable_value:
-                value_decoded.append(MyJson._root_decoding(value))
-            value_decoded = eval(f"{list_type}(value_decoded)")
+            list_type = iterable_value_copy[0]
+            del iterable_value_copy[0]
+            if (list_type == list.__name__) or (list_type == tuple.__name__):
+                value_decoded = []
+                for value in iterable_value_copy:
+                    value_decoded.append(MyJson._root_decoding(value))
+                value_decoded = eval(f"{list_type}(value_decoded)")
+            elif list_type == np.ndarray.__name__:
+                np_list = MyJson._root_decoding(iterable_value_copy[0])
+                value_decoded = np.array(np_list)
+            else:
+                raise ValueError(f"This list type '{list_type}' is not supported")
         else:
             raise ValueError(f"This iterable type '{iter_type}' is not supported")
         return value_decoded
