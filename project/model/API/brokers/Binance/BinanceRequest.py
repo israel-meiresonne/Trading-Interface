@@ -11,6 +11,8 @@ from model.tools.Price import Price
 
 
 class BinanceRequest(BrokerRequest, MyJson):
+    _MARKET_MAX_TIME_INTERVAL = 60 * 60 * 24 * 90   # 90 days in sec
+
     CONV_ACCOUNT = Map({
         BrokerRequest.ACCOUNT_MAIN: BinanceAPI.ACCOUNT_TYPE_SPOT,
         BrokerRequest.ACCOUNT_MARGIN: BinanceAPI.ACCOUNT_TYPE_MARGIN,
@@ -30,6 +32,7 @@ class BinanceRequest(BrokerRequest, MyJson):
         rtn = ModelFeat.keys_exist(ks, prms.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required to get market prices")
+        self._check_market_price(prms)
         request = Map({
             Map.symbol: prms.get(Map.pair).get_merged_symbols().upper(),
             Map.interval: BinanceAPI.convert_interval(prms.get(Map.period)),
@@ -39,6 +42,17 @@ class BinanceRequest(BrokerRequest, MyJson):
         })
         self._set_endpoint(BinanceAPI.RQ_KLINES)
         self._set_request(request)
+    
+    def _check_market_price(self, params: Map) -> None:
+        starttime = params.get(Map.begin_time)
+        endtime = params.get(Map.end_time)
+        if (starttime is not None) and (endtime is not None) \
+            and ((abs(endtime - starttime)) > BinanceRequest._MARKET_MAX_TIME_INTERVAL):
+            a = BinanceRequest._MARKET_MAX_TIME_INTERVAL
+            day = 60 * 60 * 24
+            time_str = f'{int(a / day)}days'
+            inter_str = f'{int(abs(endtime - starttime) / day)}days'
+            raise ValueError(f"Max interval between 'starttime' and 'endtime' must be less than '{time_str}', instead '{inter_str}'")
 
     def get_market_price(self) -> BinanceMarketPrice:
         result = self._get_result()

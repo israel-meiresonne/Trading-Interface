@@ -4,6 +4,10 @@ from model.tools.MyJson import MyJson
 
 class Pair(MyJson):
     _SEPARATOR = "/"
+    LEFT = '$left'
+    RIGHT = '$right'
+    _FORMAT_MERGED = LEFT + RIGHT
+    FORMAT_UNDERSCORE = LEFT + '_' + RIGHT
 
     def __init__(self, *agrs):
         nb = len(agrs)
@@ -38,6 +42,21 @@ class Pair(MyJson):
 
     def get_merged_symbols(self) -> str:
         return self.get_left().get_symbol() + self.get_right().get_symbol()
+    
+    def format(self, format: str = _FORMAT_MERGED) -> str:
+        """
+        To format Pair into a string in the given format
+
+        Parameters
+        ----------
+        format: str
+            The format
+
+        Returns
+        -------
+            Pair formatted into given format
+        """
+        return format.replace(Pair.LEFT, self.get_left().get_symbol()).replace(Pair.RIGHT, self.get_right().get_symbol())
 
     def are_same(self, second: 'Pair') -> None:
         if not isinstance(second, Pair):
@@ -64,4 +83,4 @@ class Pair(MyJson):
         return self.get_left().get_symbol() + self._SEPARATOR + self.get_right().get_symbol()
 
     def __repr__(self) -> str:
-        return self.__str__() + f"({id(self)})"
+        return self.__str__()
