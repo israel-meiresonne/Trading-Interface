@@ -16,3 +16,4 @@ project/tests/datas/tools/TestPredictor/
 project/venv/
 project/env/
 project/dev_env/
+project/dev_requirements.txt
