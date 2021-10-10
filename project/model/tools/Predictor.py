@@ -25,7 +25,7 @@ class Predictor:
     _LEARN_PERIODS = [
         # 60 * 1,
         # 60 * 3,
-        60 * 5,
+        # 60 * 5,
         # 60 * 15,
         # 60 * 30,
         60 * 60
@@ -147,6 +147,7 @@ class Predictor:
                 Predictor._maintain_market_history(bkr, pair)
         print(_MF.prefix() + _back_cyan + f"End to add '{len(can_add)}' pairs histories" + _normal) if Predictor._DEBUG else None
         print(_MF.json_encode([pair.__str__() for pair in can_add])) if Predictor._DEBUG else None
+        bkr.close()
         # Learn
         print(_MF.prefix() + _back_cyan + f"Start learning '{len(can_add)}' pairs..." + _normal) if Predictor._DEBUG else None
         [Predictor._learn(pair) for pair in can_add]
