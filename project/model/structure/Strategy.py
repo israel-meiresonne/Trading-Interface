@@ -263,6 +263,44 @@ class Strategy(ABC):
         wakeup_time = round_time + sleep_time
         new_sleep_time = int(wakeup_time - unix_time)
         return new_sleep_time
+    
+    @staticmethod
+    def _market_price(bkr: Broker, pair: Pair, period: int, n_period: int, starttime: int = None, endtime: int = None) -> MarketPrice:
+        """
+        To request MarketPrice to Broker
+
+        Parameters
+        ----------
+        bkr: Broker
+            Access to a Broker's API
+        pair: Pair
+            Pair to get market prices for
+        period: int
+            The period interval to request
+        n_period: int
+            The number of period to retrieve
+        starttime: int
+            The older time
+        endtime: int
+            The most recent time
+
+        Returns
+        -------
+        return: MarketPrice
+            MarketPrice from Broker's API
+        """
+        _bkr_cls = bkr.__class__.__name__
+        mkt_params = Map({
+            Map.pair: pair,
+            Map.period: period,
+            Map.begin_time: starttime,
+            Map.end_time: endtime,
+            Map.number: n_period
+        })
+        bkr_rq = bkr.generate_broker_request(
+            _bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
+        bkr.request(bkr_rq)
+        return bkr_rq.get_market_price()
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'Strategy':
