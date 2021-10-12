@@ -236,13 +236,13 @@ class Predictor:
         return dl
 
     @staticmethod
-    def generate_dataset(prices: np.ndarray, n_feature: int) -> Tuple[np.ndarray, np.ndarray]:
+    def generate_dataset(prices: Union[list[float], np.ndarray], n_feature: int) -> Tuple[np.ndarray, np.ndarray]:
         """
         To generate Xs and Ys with prices
 
         Pamaters:
         ---------
-        prices: np.ndarray
+        prices: Union[list[float], np.ndarray]
             Prices of shape=(n_samples, 1)
         n_feature: int
             The number of feature to place in Xs (number of columns)
@@ -254,6 +254,8 @@ class Predictor:
         ys: np.ndarray
             [1] Ys of shape=(n_samples-1, 1)
         """
+        if isinstance(prices, list):
+            prices = np.array(prices).reshape((len(prices), 1))
         Predictor._check_shape(prices, (prices.shape[0],1))
         n_row = prices.shape[0]
         xs = []
