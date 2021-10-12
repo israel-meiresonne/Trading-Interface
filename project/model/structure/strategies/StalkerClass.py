@@ -233,7 +233,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         new_stg = eval(f"{stg_class}.generate_strategy(stg_class, stg_params)")
         active_strategies.put(new_stg, pair_str)
 
-    def _delete_active_strategy(self, bkr: Broker, pair: Pair) -> None:
+    def _delete_active_strategy(self, bkr: Broker, pair: Pair, marketprice: MarketPrice) -> None:
         active_stgs = self.get_active_strategies()
         pair_str = pair.__str__()
         if pair_str not in active_stgs.get_keys():
@@ -242,8 +242,10 @@ class StalkerClass(Strategy, MyJson, ABC):
         # Sell all positions
         stg.stop_trading(bkr)
         # Add new transaction
-        actual_capital = stg.get_actual_capital()
-        final_capital = actual_capital.get(Map.right)
+        # actual_capital = stg.get_actual_capital()
+        # final_capital = actual_capital.get(Map.right)
+        # self._add_transaction(final_capital)
+        final_capital = stg.get_actual_capital_merged(marketprice)
         self._add_transaction(final_capital)
         # Add new fee
         fee = stg.get_fee()
