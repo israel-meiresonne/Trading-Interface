@@ -92,7 +92,7 @@ class ModelFeature(ModelAccess):
         return None
 
     @staticmethod
-    def clean(tab: Union[list, dict]) -> [list, dict]:
+    def clean(tab: Union[list, dict]) -> Union[list, dict]:
         """
         Clean collection by removing None or empty string element\n
         :param tab: the collection to clean
@@ -368,3 +368,9 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def binary_decode(binary: str) -> object:
         return dill.loads(binary)
+    
+    @staticmethod
+    def progress_rate(new_value: float, old_value: float) -> float:
+        if (new_value < 0) or (old_value <= 0):
+            raise ValueError(f"Don't respect contraint '(new_value'{new_value}' < 0) or (old_value'{old_value}' <= 0)'")
+        return new_value / old_value - 1
