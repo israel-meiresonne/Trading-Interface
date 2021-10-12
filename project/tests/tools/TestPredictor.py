@@ -37,11 +37,11 @@ class TestPredictor(unittest.TestCase, Predictor):
 
     def test_predict(self) -> None:
         bkr = self.broker_switch(True)
-        pair = Pair('coti/usdt')
-        period = 60 * 5
+        pair = Pair('doge/usdt')
+        period = 60 * 60
         n_period = 1000
         predictor = Predictor(pair, period)
-        mkt_obj = self._market_price(bkr, pair, period, n_preiod=n_period)
+        mkt_obj = self._market_price(bkr, pair, period, n_period=n_period)
         highs = list(mkt_obj.get_highs())
         highs.reverse()
         highs = np.array(highs).reshape((len(highs), 1))
@@ -116,6 +116,20 @@ class TestPredictor(unittest.TestCase, Predictor):
         sum_xs_to_ys = sum([ys[i,-1] - xs[i,-1] for i in range(ys.shape[0])])
         self.assertEqual(n_row-n_feature, sum_xs_to_ys)
 
+    def test_market_price_to_np(self) -> None:
+        bkr = self.broker_switch(True)
+        pair = Pair('DOGE/USDT')
+        period = 60 * 5
+        n_period = 100
+        n_feature = self.get_n_feature()
+        marketprice = self._market_price(bkr, pair, period, n_period=n_period)
+        xs = self.market_price_to_np(marketprice, self.HIGH, n_feature)
+        self.assertEqual(n_feature, xs.size)
+        self.assertEqual(marketprice.get_highs()[0], xs[0,-1])
+        self.assertEqual(marketprice.get_highs()[n_feature-1], xs[0,0])
+        self.assertTupleEqual((1, n_feature), xs.shape)
+        self.broker_switch(False)
+    
     def test_enough_period(self) -> None:
         bnc = self.broker_switch(True)
         # Change FIDA with new listed token if test fail

@@ -182,18 +182,18 @@ class TraderClass(Strategy, MyJson, ABC):
         # Init Strategy in First turn
         self._init_strategy(bkr)
         # Get Market
-        mkt_prc = self._get_market_price(bkr)
+        marketprice = self._get_market_price(bkr)
         # Update Orders
-        self._update_orders(bkr, mkt_prc)
+        self._update_orders(bkr, marketprice)
         # Get And Execute Orders
         if self._has_position():
-            executions = self._try_sell(mkt_prc)
+            executions = self._try_sell(marketprice, bkr)
         else:
             self._reset_secure_order()
-            executions = self._try_buy(mkt_prc)
-        self.execute(bkr, executions, mkt_prc)
+            executions = self._try_buy(marketprice, bkr)
+        self.execute(bkr, executions, marketprice)
         # Backup Capital
-        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())
+        self._save_capital(close=marketprice.get_close(), time=marketprice.get_time())
         return Strategy.get_bot_sleep_time()
 
     def stop_trading(self, bkr: Broker) -> None:
@@ -231,7 +231,7 @@ class TraderClass(Strategy, MyJson, ABC):
                 raise Exception(f"Unknown execution '{execution}'.")
 
     @abstractmethod
-    def _try_buy(self, market_price: MarketPrice) -> Map:
+    def _try_buy(self, market_price: MarketPrice, bkr: Broker) -> Map:
         """
         To try to buy position\n
         :param market_price: market price
@@ -256,7 +256,7 @@ class TraderClass(Strategy, MyJson, ABC):
         executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
     @abstractmethod
-    def _try_sell(self, market_price: MarketPrice) -> Map:
+    def _try_sell(self, market_price: MarketPrice, bkr: Broker) -> Map:
         """
         To try to sell position\n
         :param market_price: market prices
@@ -291,13 +291,17 @@ class TraderClass(Strategy, MyJson, ABC):
     # ——————————————— SAVE DOWN ———————————————
 
     @abstractmethod
-    def save_move(self, market_price: MarketPrice):
+    def save_move(self, **agrs):
         pass
 
     def _print_move(self, datas: Map) -> None:
         pair = self.get_pair()
         datas = Map({
+            Map.id: self.get_id(),
+            'class': self.__class__.__name__,
             'nb_trade': self.get_nb_trade(),
+            Map.pair: pair,
+            Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             **datas.get_map()
         })
         fields = datas.get_keys()
