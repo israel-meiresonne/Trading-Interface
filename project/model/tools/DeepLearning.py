@@ -15,11 +15,13 @@ class DeepLearning(MyJson):
 
     def __init__(self, ys: Union[List[list], np.ndarray], xs: Union[List[list], np.ndarray], train: bool = True) -> None:
         self.__ys = None
+        self.__ys_predicted = None
         self.__xs = None
+        self.__offset_mean = None
+        self.__coef_determination = None
         self.__scaler = None
         self.__model = None
         self.__model_file_path = None
-        self.__coef_determination = None
         self._set_dataset(ys, xs)
         self.train() if train else None
 
@@ -40,8 +42,20 @@ class DeepLearning(MyJson):
     def get_ys(self) -> np.ndarray:
         return self.__ys
 
+    def get_ys_predicted(self) -> np.ndarray:
+        if self.__ys_predicted is None:
+            self.__ys_predicted = self.predict(self.get_xs(), fixe_offset=False)
+        return self.__ys_predicted
+
     def get_xs(self) -> np.ndarray:
         return self.__xs
+    
+    def get_offset_mean(self) -> float:
+        if self.__offset_mean is None:
+            ys = self.get_ys()
+            ys_predicted = self.get_ys_predicted()
+            self.__offset_mean = DeepLearning.offset_mean(ys, ys_predicted)
+        return self.__offset_mean
     
     def _reset_scaler(self) -> None:
         self.__scaler = None
@@ -88,7 +102,8 @@ class DeepLearning(MyJson):
     
     def get_coef_determination(self) -> float:
         if self.__coef_determination is None:
-            self.__coef_determination = float(self.coef_determination(self.get_ys(), self.predict(self.get_xs())))
+            ys_predicted = self.get_ys_predicted()
+            self.__coef_determination = float(self.coef_determination(self.get_ys(), ys_predicted))
         return self.__coef_determination
     
     def n_feature(self) -> int:
@@ -142,7 +157,7 @@ class DeepLearning(MyJson):
     def train(self) -> None:
         self._set_model() if not self.is_trained() else None
 
-    def predict(self, xs: Union[List[list], np.ndarray], mode: str = PREDICT_MODE_MODEL, n_prediction: int = None) -> np.ndarray:
+    def predict(self, xs: Union[List[list], np.ndarray], mode: str = PREDICT_MODE_MODEL, n_prediction: int = None, fixe_offset: bool = True, xs_offset: Union[List[list], np.ndarray] = None, ys_offset: Union[List[list], np.ndarray] = None) -> np.ndarray:
         """
         To predict Ys
 
@@ -155,6 +170,12 @@ class DeepLearning(MyJson):
             If mode=PREDICT_MODE_RECURSIVE function will use first line to build recursively n_prediction
         n_prediction: int = None
             If mode=PREDICT_MODE_RECURSIVE the number of prediction to build recursively
+        fixe_offset: bool = True
+            Set True to fixe prediction with mean offset else False
+        xs_offset: Union[List[list], np.ndarray] = None
+            Xs to use to evaluate the offset to  apply on prediction if fixe_offset=True
+        ys_offset: Union[List[list], np.ndarray] = None
+            Ys to use to evaluate the offset to  apply on prediction if fixe_offset=True
 
         Raise
         -----
@@ -164,6 +185,8 @@ class DeepLearning(MyJson):
             if mode=PREDICT_MODE_RECURSIVE and n_prediction is not set
         raise: Exception
             if model is not train
+        raise: ValueException
+            if xs_offset or ys_offset have wrong shape
 
         Return
         ------
@@ -171,9 +194,19 @@ class DeepLearning(MyJson):
             Predicted Ys with shape (n_row, 1)
         """
         xs = np.array(xs)
+        have_offset_datas = xs_offset is not None
         if xs.shape[1] != self.get_xs().shape[1]:
             raise ValueError(
                 f"xs must have '{self.get_xs().shape[1]}' column, instead '{xs.shape[1]}'")
+        if have_offset_datas:
+            xs_offset = np.array(xs_offset)
+            ys_offset = np.array(ys_offset)
+            if xs_offset.shape[1] != self.get_xs().shape[1]:
+                raise ValueError(
+                    f"xs_offset must have '{self.get_xs().shape[1]}' column, instead '{xs_offset.shape[1]}'")
+            if ys_offset.shape != (xs_offset.shape[0], 1):
+                raise ValueError(
+                    f"ys_offset must have shape '{(xs_offset.shape[0], 1)}', instead '{ys_offset.shape}'")
         if not self.is_trained():
             raise Exception("The model must be train before predict")
         if (mode == self.PREDICT_MODE_RECURSIVE) and (n_prediction is None):
@@ -182,11 +215,17 @@ class DeepLearning(MyJson):
         predictions = None
         if mode == self.PREDICT_MODE_MODEL:
             predictions = self._predict_model(xs)
+            if fixe_offset and have_offset_datas:
+                predictions_offset = self._predict_model(xs_offset)
+                offset_mean = self.offset_mean(ys_offset, predictions_offset)
+                predictions = predictions + offset_mean
         elif mode == self.PREDICT_MODE_RECURSIVE:
+            raise Exception(f"This prediction mode '{mode}' is not supported")
             predictions = self._predict_recursive(xs, n_prediction)
         else:
             raise ValueError(f"This prediction mode '{mode}' is not supported")
         predictions = predictions.reshape((predictions.shape[0], 1))
+        predictions = predictions + self.get_offset_mean() if fixe_offset and (not have_offset_datas) else predictions
         return predictions
 
     def _predict_model(self, xs: np.ndarray) -> np.ndarray:
@@ -256,6 +295,35 @@ class DeepLearning(MyJson):
         u = ((ys - predictions)**2).sum()
         v = ((ys - ys.mean())**2).sum()
         return 1 - u/v
+
+    @staticmethod
+    def offset_mean(ys: np.ndarray, predictions: np.ndarray) -> float:
+        """
+        To evaluate mean offset between Ys and Predictions
+        NOTE: The mean offset is the value to Add(+) on Predictions to match Ys's values (ys = predictions + offset_mean)
+
+        Parameters:
+        -----------
+        ys: np.ndarray
+            Target to predict
+        predictions: np.ndarray
+            Predicted values
+
+        Returns:
+        --------
+        return: float
+            Mean offset between Ys and Predictions
+        """
+        if ys.shape != predictions.shape:
+            raise ValueError(f"Ys'{ys.shape}' and Predictions'{predictions.shape}' must have same shape")
+        offsets = ys - predictions
+        offsets_pos = offsets[offsets>0]
+        offsets_neg = offsets[offsets<0]
+        if offsets_pos.shape[0] == offsets_neg.shape[0]:
+            offset_mean = offsets_pos.mean() if abs(offsets_pos.mean()) > abs(offsets_neg.mean()) else offsets_neg.mean()
+        else:
+            offset_mean = offsets_pos.mean() if offsets_pos.shape[0] > offsets_neg.shape[0] else offsets_neg.mean()
+        return float(offset_mean)
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
