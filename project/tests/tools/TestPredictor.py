@@ -131,6 +131,13 @@ class TestPredictor(unittest.TestCase, Predictor):
         # Check last column and ys
         sum_xs_to_ys = sum([ys[i,-1] - xs[i,-1] for i in range(ys.shape[0])])
         self.assertEqual(n_row-n_feature, sum_xs_to_ys)
+        # Prices is list
+        prices = [i for i in range(n_row)]
+        ys_exp1 = [i for i in range(n_feature, n_row)]
+        xs, ys = self.generate_dataset(prices, n_feature)
+        self.assertTupleEqual((n_row-n_feature, n_feature), xs.shape)
+        self.assertTupleEqual((n_row-n_feature, 1), ys.shape)
+        self.assertListEqual(ys_exp1, ys[:,0].tolist())
 
     def test_market_price_to_np(self) -> None:
         bkr = self.broker_switch(True)
