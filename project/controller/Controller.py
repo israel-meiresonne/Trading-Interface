@@ -157,7 +157,7 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 15
+                        Map.period: 60 * 5
                     }
                 })
             elif stg == 'IcarusStalker':
@@ -179,7 +179,7 @@ class Controller:
                             Map.maximum: None,
                             Map.capital: -1,
                             Map.rate: 1,
-                            Map.period: 60 * 15,
+                            Map.period: 60 * 5,
                         }
                     }
                 })
