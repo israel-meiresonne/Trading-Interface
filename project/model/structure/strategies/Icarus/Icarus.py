@@ -15,7 +15,7 @@ class Icarus(TraderClass):
     _MAX_LOSS = -0.03
     _ROI_FLOOR_FIXE = 0.002
     _PREDICTOR_PERIOD = 60 * 60
-    _PREDICTOR_N_PERIOD = 100
+    _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 1/100
 
     def __init__(self, params: Map):
@@ -26,12 +26,42 @@ class Icarus(TraderClass):
         self.__predictor = None
         self.__max_close_predicted = None
     
+    # ——————————————————————————————————————————— FUNCTION GETTER DOWN —————————————————————————————————————————————————
+
     def get_predictor(self) -> Predictor:
         if self.__predictor is None:
             period = self.get_predictor_period()
             self.__predictor = Predictor(self.get_pair(), period)
         return self.__predictor
 
+    # ——————————————————————————————————————————— FUNCTION GETTER UP ———————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED DOWN ——————————————————————————————————————
+
+    def _reset_max_close_predicted(self) -> None:
+        self.__max_close_predicted = None
+    
+    def _set_max_close_predicted(self, predictor_marketprice: MarketPrice = None) -> None:
+        predictor = self.get_predictor()
+        self.__max_close_predicted = self._predict_max_high(predictor_marketprice, predictor)
+    
+    def _update_max_close_predicted(self, max_close_predicted: float) -> None:
+        self.__max_close_predicted = max_close_predicted
+    
+    def get_max_close_predicted(self) -> float:
+        return self.__max_close_predicted
+    
+    def max_roi_predicted(self) -> float:
+        max_roi_predicted = None
+        if self._has_position():
+            last_order = self._get_orders().get_last_execution()
+            exec_price = last_order.get_execution_price()
+            max_close_predicted = self.get_max_close_predicted()
+            max_roi_predicted = _MF.progress_rate(max_close_predicted, exec_price.get_value())
+        return max_roi_predicted
+
+    # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED UP ————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION RSI DOWN ————————————————————————————————————————————————————
+    
     def _reset_max_rsi(self) -> None:
         self.__max_rsi = -1
 
@@ -62,6 +92,9 @@ class Icarus(TraderClass):
         max_rsi = self.get_max_rsi(market_price)
         rsi_step = self.get_rsi_step()
         return max_rsi - rsi_step
+
+    # ——————————————————————————————————————————— FUNCTION RSI UP ——————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION MAX ROI DOWN ————————————————————————————————————————————————
 
     def _reset_max_roi(self) -> None:
         self.__max_roi = -1
@@ -94,6 +127,9 @@ class Icarus(TraderClass):
             exec_price = last_order.get_execution_price()
             max_roi = max_close / exec_price - 1
             self._set_max_roi(max_roi)
+
+    # ——————————————————————————————————————————— FUNCTION MAX ROI UP ——————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION ROI FLOOR DOWN ——————————————————————————————————————————————
 
     def get_roi_floor(self, market_price: MarketPrice) -> float:
         max_roi = self.get_max_roi(market_price)
@@ -150,6 +186,9 @@ class Icarus(TraderClass):
     def get_floor_secure_order(self) -> float:
         return self.__floor_secure_order
 
+    # ——————————————————————————————————————————— FUNCTION ROI FLOOR UP ————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
+
     def _new_secure_order(self, bkr: Broker, mkt_prc: MarketPrice) -> Order:
         if not self._has_position():
             raise Exception("Strategy must have position to generate secure Order")
@@ -185,6 +224,9 @@ class Icarus(TraderClass):
         buy_unix = int(_MF.round_time(exec_time, period))
         return buy_unix
 
+    # ——————————————————————————————————————————— FUNCTION SECURE ORDER UP —————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION CAN SELL DOWN ———————————————————————————————————————————————
+
     def can_sell(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         # indicator
         indicator_ok = self._can_sell_indicator(marketprice)
@@ -218,28 +260,9 @@ class Icarus(TraderClass):
             market_dropping = new_max_roi_pred < self.get_min_roi_predicted()
             self._update_max_close_predicted(new_max_close_pred) if not market_dropping else None
         return market_dropping
-    
-    def _reset_max_close_predicted(self) -> None:
-        self.__max_close_predicted = None
-    
-    def _set_max_close_predicted(self, predictor_marketprice: MarketPrice = None) -> None:
-        predictor = self.get_predictor()
-        self.__max_close_predicted = self._predict_max_high(predictor_marketprice, predictor)
-    
-    def _update_max_close_predicted(self, max_close_predicted: float) -> None:
-        self.__max_close_predicted = max_close_predicted
-    
-    def get_max_close_predicted(self) -> float:
-        return self.__max_close_predicted
-    
-    def max_roi_predicted(self) -> float:
-        max_roi_predicted = None
-        if self._has_position():
-            last_order = self._get_orders().get_last_execution()
-            exec_price = last_order.get_execution_price()
-            max_close_predicted = self.get_max_close_predicted()
-            _MF.progress_rate(max_close_predicted, exec_price)
-        return max_roi_predicted
+
+    # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION TRY BUY/SELL DOWN ———————————————————————————————————————————
 
     def _try_buy(self, market_price: MarketPrice, bkr: Broker) -> Map:
         """
@@ -286,6 +309,9 @@ class Icarus(TraderClass):
         self.save_move(**var_param)
         return executions
 
+    # ——————————————————————————————————————————— FUNCTION TRY BUY/SELL UP —————————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION GETTER DOWN ——————————————————————————————————————————
+
     @staticmethod
     def get_max_loss() -> float:
         return Icarus._MAX_LOSS
@@ -301,6 +327,9 @@ class Icarus(TraderClass):
     @staticmethod
     def get_min_roi_predicted() -> float:
         return Icarus._MIN_ROI_PREDICTED
+    
+    # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
 
     @staticmethod
     def stalker_can_add(market_price: MarketPrice) -> bool:
@@ -386,15 +415,18 @@ class Icarus(TraderClass):
         max_roi_ok = max_roi_pred >= Icarus.get_min_roi_predicted()
         return max_roi_ok
     
+    # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY UP ———————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR DOWN ——————————————————————————————————————
+    
     @staticmethod
     def _predict_max_high(predictor_marketprice: MarketPrice, predictor: Predictor) -> float:
-        # pair = predictor.get_pair()
-        # period = predictor.get_period()
-        # n_period = Icarus.get_predictor_n_period()
-        # marketprice = Icarus._market_price(bkr, pair, period, n_period)
-        n_feature = predictor.get_model(Predictor.HIGH).n_feature()
+        model = predictor.get_model(Predictor.HIGH)
+        n_feature = model.n_feature()
+        highs = list(predictor_marketprice.get_highs())
+        highs.reverse()
+        xs, ys = Predictor.generate_dataset(highs, n_feature)
         highs_np = Predictor.market_price_to_np(predictor_marketprice, Predictor.HIGH, n_feature)
-        max_close_pred = predictor.predict(highs_np, Predictor.HIGH)[-1,-1]
+        max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
         return float(max_close_pred)
     
     @staticmethod
@@ -403,6 +435,9 @@ class Icarus(TraderClass):
         n_period = Icarus.get_predictor_n_period()
         marketprice = Icarus._market_price(bkr, pair, period, n_period)
         return marketprice
+
+    # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR UP ————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
@@ -477,12 +512,14 @@ class Icarus(TraderClass):
             Map.close: closes[-1],
             'closes[-2]': closes[-2],
             'closes[-3]': closes[-3],
-            'has_position': has_position,
             'buy_price': buy_price,
             'max_close_predicted': max_close_predicted,
             # 'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             # 'can_buy': self.can_buy(market_price) if not has_position else None,
             # 'can_sell': self.can_sell(market_price) if has_position else None,
+            'has_position': has_position,
+            'indicator_buy': self._can_buy_indicator(market_price),
+            'indicator_sell': self._can_sell_indicator(market_price),
             Map.rsi: rsis[-1],
             'last_rsi': rsis[-2],
             'psar_rsis': psar_rsis[-1],
@@ -516,3 +553,5 @@ class Icarus(TraderClass):
             'histograms[-2]': histograms[-2]
         })
         self._print_move(params_map)
+
+    # ——————————————————————————————————————————— STATIC FUNCTION UP ———————————————————————————————————————————————————
