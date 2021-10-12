@@ -68,7 +68,7 @@ class IcarusStalker(StalkerClass):
                 print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
             else:
                 active_stg.stop_trading(bkr)
-                self._delete_active_strategy(bkr, pair)
+                self._delete_active_strategy(bkr, pair, market_price)
                 last_exec_order = active_stg._get_orders().get_last_execution()
                 self._blacklist_pair(pair, stg_period) \
                     if (last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET) else None
