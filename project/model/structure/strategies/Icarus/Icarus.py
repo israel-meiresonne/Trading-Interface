@@ -369,9 +369,9 @@ class Icarus(TraderClass):
         # indicator
         indicator_ok = Icarus._can_buy_indicator(child_marketprice)
         # Predictor
-        max_roi_ok = Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
+        # max_roi_ok = Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
         # Check
-        can_buy = indicator_ok and max_roi_ok
+        can_buy = indicator_ok and Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
         return can_buy
 
     @staticmethod
