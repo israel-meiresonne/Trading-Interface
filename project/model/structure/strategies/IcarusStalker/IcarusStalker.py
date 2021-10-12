@@ -1,3 +1,4 @@
+from typing import List
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Icarus.Icarus import Icarus
@@ -7,6 +8,7 @@ from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
+from model.tools.Predictor import Predictor
 from model.tools.Price import Price
 
 
@@ -101,12 +103,25 @@ class IcarusStalker(StalkerClass):
         self._save_state(pair_closes, pairs_to_delete, market_trend, market_analyse)
         self._save_moves(rows) if len(rows) > 0 else None
 
+    def _add_streams_periods(self) -> list:
+        return [
+            MarketPrice.get_period_market_analyse(),
+            self.get_period(),
+            self.get_strategy_params().get(Map.period),
+            *Predictor.get_learn_periods()
+        ]
+
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
         pair = market_price.get_pair()
         child_period = self.get_strategy_params().get(Map.period)
         child_marketprice = self._get_market_price(broker, pair, child_period)
         predictor_marketprice = Icarus.predictor_market_price(broker, pair)
         return Icarus.stalker_can_add(market_price) and Icarus.can_buy(predictor_marketprice, child_marketprice)
+
+    def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
+        if self._allowed_pairs is None:
+            self._allowed_pairs = Predictor.learned_pairs()
+        return self._allowed_pairs
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
