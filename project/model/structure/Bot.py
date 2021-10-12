@@ -13,7 +13,7 @@ from model.tools.Pair import Pair
 class Bot(MyJson):
     PREFIX_ID = 'bot_'
     _TRADE_INDEX = 0
-    _TRADE_INDEX_STOP = 10000
+    _TRADE_INDEX_STOP = 1000
 
     def __init__(self, bkr: str, stg: str, configs: Map):
         """
