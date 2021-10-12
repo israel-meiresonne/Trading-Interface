@@ -3,11 +3,12 @@ from model.tools.MyJson import MyJson
 
 
 class Pair(MyJson):
-    _SEPARATOR = "/"
+    SEPARATOR = "/"
+    UNDERSCORE = '_'
     LEFT = '$left'
     RIGHT = '$right'
     _FORMAT_MERGED = LEFT + RIGHT
-    FORMAT_UNDERSCORE = LEFT + '_' + RIGHT
+    FORMAT_UNDERSCORE = LEFT + UNDERSCORE + RIGHT
 
     def __init__(self, *agrs):
         nb = len(agrs)
@@ -21,7 +22,7 @@ class Pair(MyJson):
         Constructor\n
         :param prsbl: couple of Asset symbol, i.e.: "BTC/USDT"
         """
-        prs = prsbl.split(self._SEPARATOR)
+        prs = prsbl.split(self.SEPARATOR)
         self.__left = Asset(prs[0])
         self.__right = Asset(prs[1])
 
@@ -66,7 +67,7 @@ class Pair(MyJson):
 
     @staticmethod
     def _get_separator() -> str:
-        return Pair._SEPARATOR
+        return Pair.SEPARATOR
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
@@ -80,7 +81,7 @@ class Pair(MyJson):
                self.get_right() == other.get_right()
 
     def __str__(self) -> str:
-        return self.get_left().get_symbol() + self._SEPARATOR + self.get_right().get_symbol()
+        return self.get_left().get_symbol() + self.SEPARATOR + self.get_right().get_symbol()
 
     def __repr__(self) -> str:
         return self.__str__()
