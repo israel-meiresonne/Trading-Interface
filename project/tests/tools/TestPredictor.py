@@ -139,6 +139,17 @@ class TestPredictor(unittest.TestCase, Predictor):
         self.assertTupleEqual((n_row-n_feature, 1), ys.shape)
         self.assertListEqual(ys_exp1, ys[:,0].tolist())
 
+    def test_learned_pairs(self) -> None:
+        pairs = self.learned_pairs()
+        self.assertIsInstance(pairs, list)
+        self.assertIsInstance(pairs[0], Pair)
+
+    def test_learn_dir(self) -> None:
+        exp1 = 'content/storage/Predictor/learns/'
+        result1 = self.learn_dir()
+        self.assertEqual(exp1, result1)
+        self.assertIsInstance(FileManager.get_dirs(result1), list)
+
     def test_market_price_to_np(self) -> None:
         bkr = self.broker_switch(True)
         pair = Pair('DOGE/USDT')
