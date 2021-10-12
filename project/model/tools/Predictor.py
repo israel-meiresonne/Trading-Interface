@@ -120,6 +120,10 @@ class Predictor:
     @staticmethod
     def get_learn_model_file() -> str:
         return Predictor._FILE_LEARN_MODEL
+    
+    @staticmethod
+    def get_learn_path() -> str:
+        return Predictor._PATH_LEARN
 
     # ——————————————————————————————————————————— STATIC GETTTER UP ————————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION LEARN DOWN ———————————————————————————————————————————
@@ -301,6 +305,26 @@ class Predictor:
         return dl
 
     @staticmethod
+    def learned_pairs() -> List[Pair]:
+        pair_path = Predictor.learn_dir()
+        pairs_str = FileManager.get_dirs(pair_path, make_dir=True)
+        pairs = [Pair(pair_str.replace(Pair.UNDERSCORE, Pair.SEPARATOR)) for pair_str in pairs_str]
+        return pairs
+
+    @staticmethod
+    def learn_dir() -> str:
+        """
+        To get directory where learn of pair are stored
+        ie: 'content/storage/Predictor/learns/'
+        """
+        learn_path = Config.get(Config.DIR_STORAGE)
+        learn_path += Predictor.get_learn_path()
+        learn_path = learn_path.replace('$class', Predictor.__name__)
+        regex = r'\$pair.*'
+        learn_path = _MF.regex_replace(regex, '', learn_path)
+        return learn_path
+
+    @staticmethod
     def learn_file_path(pair: Pair, period: int, model_type: str, file_name: str) -> str:
         files = [Predictor.get_learn_json_file(), Predictor.get_learn_model_file()]
         if file_name not in files:
@@ -309,7 +333,7 @@ class Predictor:
         if model_type not in hist_types:
             raise ValueError(f"This history type '{file_name}' is not supported")
         file_path = Config.get(Config.DIR_STORAGE)
-        file_path += Predictor._PATH_LEARN
+        file_path += Predictor.get_learn_path()
         file_path += file_name
         pair_str = pair.format(Pair.FORMAT_UNDERSCORE).upper()
         file_path = file_path.replace('$class', Predictor.__name__)
