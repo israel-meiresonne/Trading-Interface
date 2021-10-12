@@ -34,6 +34,7 @@ class Predictor:
         Map.minimum: 1*10**(4),
         Map.maximum: 1.6*10**(4)
     }
+    _LOADED_MODELS = Map()
     CLOSE = Map.close
     HIGH = Map.high
     LOW = Map.low
@@ -62,10 +63,11 @@ class Predictor:
             raise ValueError(f"This model type '{model_type}' is not supported")
         model = models.get(model_type)
         if model is None:
-            models.put(self.load_model(self.get_pair(), self.get_period(), model_type=model_type), model_type)
-        return models.get(model_type)
+            model = self.load_model(self.get_pair(), self.get_period(), model_type=model_type)
+            models.put(model, model_type)
+        return model
     
-    def predict(self, prices: np.ndarray, model_type: str) -> float:
+    def predict(self, prices: np.ndarray, model_type: str) -> np.ndarray:
         """
         To predict next market price
 
@@ -102,6 +104,10 @@ class Predictor:
     @staticmethod
     def get_dataset_sizes() -> dict:
         return Predictor._DATASET_SIZES
+    
+    @staticmethod
+    def get_loaded_models() -> Map:
+        return Predictor._LOADED_MODELS
 
     @staticmethod
     def get_n_feature() -> int:
@@ -283,8 +289,13 @@ class Predictor:
 
     @staticmethod
     def load_model(pair: Pair, period: int, model_type: str) -> DeepLearning:
-        json_file_path = Predictor.learn_file_path(pair, period, model_type, Predictor.get_learn_json_file())
-        dl = DeepLearning.load(json_file_path)
+        model_key = f"{pair.__str__()}_{period}_{model_type}"
+        loaded_models = Predictor.get_loaded_models()
+        dl = loaded_models.get(model_key)
+        if dl is None:
+            json_file_path = Predictor.learn_file_path(pair, period, model_type, Predictor.get_learn_json_file())
+            dl = DeepLearning.load(json_file_path)
+            loaded_models.put(dl, model_key)
         return dl
 
     @staticmethod
@@ -309,6 +320,29 @@ class Predictor:
     # ——————————————————————————————————————————— STATIC FUNCTION MARKET UP ————————————————————————————————————————————
 
     @staticmethod
+    def market_price_to_np(marketprice: MarketPrice, model_type: str, n_feature: int) -> np.ndarray:
+        """
+        To prepare list of MarketPrice to be predicted
+
+        Parameters:
+        -----------
+        marketprice: MarketPrice
+            MarketPrice
+        model_type: str
+            The list or MarketPrice to convert
+        n_feature: int
+            The number of feature neccessary to predict
+
+        Returns:
+        --------
+        return: np.ndarray
+            list of MarketPrice prepared to be predicted shape=(1, n_feature)
+        """
+        prices = list(eval(f"marketprice.get_{model_type}s()"))
+        prices.reverse()
+        return np.array(prices[-n_feature:]).reshape((1, n_feature))
+
+    @staticmethod
     def _enough_period(bkr: Broker, pair: Pair) -> bool:
         """
         To check if there's enough period history on a Pair
@@ -323,14 +357,14 @@ class Predictor:
         endtime = _MF.get_timestamp() - max_period * ds_min_size
         try:
             marketprice = Predictor._market_price(
-                bkr, pair, max_period, n_preiod=1, endtime=endtime)
+                bkr, pair, max_period, n_period=1, endtime=endtime)
             enough_period = len(marketprice.get_closes()) > 0
         except Exception as error:
             enough_period = False
         return enough_period
 
     @staticmethod
-    def _market_price(bkr: Broker, pair: Pair, period: int, n_preiod: int = _MARKET_MAX_N_PERIOD, starttime: int = None, endtime: int = None) -> MarketPrice:
+    def _market_price(bkr: Broker, pair: Pair, period: int, n_period: int = _MARKET_MAX_N_PERIOD, starttime: int = None, endtime: int = None) -> MarketPrice:
         """
         To request MarketPrice to Broker
 
@@ -342,7 +376,7 @@ class Predictor:
             Pair to get market prices for
         period: int
             The period interval to request
-        n_preiod: int
+        n_period: int
             The number of period to retrieve
         starttime: int
             The older time
@@ -360,7 +394,7 @@ class Predictor:
             Map.period: period,
             Map.begin_time: starttime,
             Map.end_time: endtime,
-            Map.number: n_preiod
+            Map.number: n_period
         })
         bkr_rq = bkr.generate_broker_request(
             _bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
@@ -381,7 +415,7 @@ class Predictor:
             Pair to get market prices for
         period: int
             The period interval to request
-        n_preiod: int
+        n_period: int
             The number of period to retrieve
         starttime: int
             The older time
@@ -433,7 +467,7 @@ class Predictor:
         end = False
         while not end:
             marketprice = Predictor._market_price(
-                bkr, pair, period, n_preiod=max_n_period, endtime=endtime_copy)
+                bkr, pair, period, n_period=max_n_period, endtime=endtime_copy)
             market = list(marketprice.get_market())
             market.reverse()
             martket_np = np.array(market, dtype=np.float64)
