@@ -37,7 +37,7 @@ class TestPredictor(unittest.TestCase, Predictor):
 
     def test_predict(self) -> None:
         bkr = self.broker_switch(True)
-        pair = Pair('doge/usdt')
+        pair = Pair('ada/usdt')
         period = 60 * 60
         n_period = 1000
         predictor = Predictor(pair, period)
@@ -56,14 +56,30 @@ class TestPredictor(unittest.TestCase, Predictor):
             self.HIGH: highs,
             self.LOW: lows
         }
+        rows = []
         for model_type, prices in mkts.items():
             model = predictor.get_model(model_type)
             n_feature = model.n_feature()
             xs, ys = self.generate_dataset(prices, n_feature)
-            predictions = predictor.predict(xs, model_type)
-            print(f"{model_type.upper()} Global coef: {model.get_coef_determination()}")
-            print(f"{model_type.upper()} coef: {model.coef_determination(ys, predictions)}")
-            self.plot(ys, predictions, f'{pair.format()}_plot_{model_type}_')
+            predictions = model.predict(xs, fixe_offset=True, xs_offset=xs, ys_offset=ys)
+            model_coef = model.get_coef_determination()
+            market_coef = model.coef_determination(ys, predictions)
+            print(f"{model_type.upper()} Global coef: {model_coef}")
+            print(f"{model_type.upper()} coef: {market_coef}")
+            print_dir = self.plot(ys, predictions, f'{pair.format()}_plot_{model_type}_')
+            row = {
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.pair: pair,
+                Map.type: model_type,
+                Map.shape: xs.shape,
+                'offset': model.get_offset_mean(),
+                Map.model: _MF.rate_to_str(model_coef),
+                Map.market: _MF.rate_to_str(market_coef)
+            }
+            rows.append(row)
+        print_file_path = print_dir + 'config.csv'
+        fields = list(rows[0].keys())
+        FileManager.write_csv(print_file_path, fields, rows, overwrite=True, make_dir=False)
         self.broker_switch(False)
     
     def test_add_learns(self) -> None:
@@ -203,7 +219,7 @@ class TestPredictor(unittest.TestCase, Predictor):
         result2 = Predictor.learn_file_path(pair, period, hist_type, Predictor.get_learn_model_file())
         self.assertEqual(exp2, result2)
 
-    def plot(self, ys, predictions, plot_name: str = 'plot_') -> None:
+    def plot(self, ys, predictions, plot_name: str = 'plot_') -> str:
         import matplotlib.pyplot as plt
         project_dir = FileManager.get_project_directory()
         plt.style.use('fivethirtyeight')
@@ -218,6 +234,7 @@ class TestPredictor(unittest.TestCase, Predictor):
         file_path = path + f'{plot_name}.png'
         FileManager.make_directory(path)
         plt.savefig(project_dir + file_path)
+        return path
     
     def resume_learn(self) -> None:
         _back_cyan = '\033[46m' + '\033[30m'
