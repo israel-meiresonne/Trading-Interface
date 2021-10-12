@@ -70,6 +70,16 @@ class TestDeepLearning(unittest.TestCase, DeepLearning):
             print(f"Recursive prediction coef: {dl.coef_determination(ys, predictions)}")
         self.plot(ys, predictions)
     
+    def test_offset_mean(self) -> None:
+        ys = np.linspace(0, 100, 10)
+        delta = 3
+        predictions = ys + delta
+        exp1 = -delta
+        result1 = self.offset_mean(ys, predictions)
+        self.assertEqual(exp1, result1)
+        self.assertIsInstance(result1, float)
+        self.assertListEqual(ys.tolist(), (predictions + result1).tolist())
+    
     def test_json_decode(self) -> None:
         dl = self.load()
         dl.get_model()
