@@ -19,7 +19,6 @@ from model.tools.Price import Price
 class StalkerClass(Strategy, MyJson, ABC):
     _CONST_STALK_FREQUENCY = 60         # in second
     _CONST_STALKER_BOT_SLEEP_TIME = 10  # in second
-    _CONST_ALLOWED_PAIRS = None
     _CONST_MAX_STRATEGY = 20
     _BLACKLIST_TIME = 60 * 3  # in second
     _PAIR_MANAGER_NB_PERIOD = 100
@@ -65,6 +64,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         self.__analyse_thread = None
         self.__market_analyse = None
         self.__fees = None
+        self._allowed_pairs = None
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
@@ -418,7 +418,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         cpt = 1     # ❌
         for pair in pairs:
             print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN
-                  + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of 1 hour."
+                  + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of {int(stalk_period/60)}min."
                   + _cls._TO_REMOVE_STYLE_NORMAL)
             cpt += 1
             pair_str = pair.__str__()
@@ -432,13 +432,17 @@ class StalkerClass(Strategy, MyJson, ABC):
         # Sort performances
         perfs_sorted = dict(sorted(perfs.get_map().items(), key=lambda row: row[1][Map.roi], reverse=True))
         # Add new active Strategy
+        cpt = 1
         for pair_str, perf in perfs_sorted.items():
             market_price = market_prices.get(pair_str)
-            if self._eligible(market_price, bkr):
+            eligible = self._eligible(market_price, bkr)
+            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}]Pair '{pair_str.upper()}' eligible: {eligible}" + _cls._TO_REMOVE_STYLE_NORMAL)
+            if eligible:
                 print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
                 self._add_active_strategy(Pair(pair_str))
                 if self.max_active_strategies_reached():
                     break
+            cpt += 1
         # Backup
         # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
@@ -523,26 +527,14 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
         print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
-        pairs = self._get_allowed_pairs(broker)
+        pairs = MarketPrice.get_spot_pairs(broker.__class__.__name__, self.get_pair().get_right())
         stg_pairs = [Pair(pair_str) for pair_str in self.get_active_strategies().get_keys()]
         pairs = [
             *pairs,
-            *[stg_pair for stg_pair in stg_pairs if stg_pair not in pairs]
+            *[stg_pair for stg_pair in stg_pairs if stg_pair not in pairs]            
         ]
-        periods = [
-            MarketPrice.get_period_market_analyse(),
-            self.get_period(),
-            self.get_strategy_params().get(Map.period)
-        ]
+        periods = self._add_streams_periods()
         periods.sort()
-        nb_stream = len(pairs) * len(periods)
-        start_time = _MF.get_timestamp()
-        duration_time = start_time + nb_stream
-        start_date = _MF.unix_to_date(start_time)
-        duration_date = _MF.unix_to_date(duration_time)
-        duration_str = f"{int(nb_stream / 60)}min.{nb_stream % 60}sec."
-        print(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
-                                                f" '{start_date}'->'{duration_date}'" + _normal)
         streams = []
         for period in periods:
             streams = [
@@ -550,12 +542,27 @@ class StalkerClass(Strategy, MyJson, ABC):
                 *[broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
             ]
         streams = list(dict.fromkeys(streams))
+        nb_stream = len(streams)
+        start_time = _MF.get_timestamp()
+        duration_time = start_time + nb_stream
+        start_date = _MF.unix_to_date(start_time)
+        duration_date = _MF.unix_to_date(duration_time)
+        duration_str = f"{int(nb_stream / 60)}min.{nb_stream % 60}sec."
+        print(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
+                                                f" '{start_date}'->'{duration_date}'" + _normal)
         broker.add_streams(streams)
         end_time = _MF.get_timestamp()
         duration = end_time - start_time
         real_duration_str = f"{int(duration / 60)}min.{duration % 60}sec."
         print(f"{_MF.prefix()}" + _color_green + f"End adding '{nb_stream}' streams for '{real_duration_str}'"
                                                  f" (estimated:'{duration_str}')" + _normal)
+
+    def _add_streams_periods(self) -> list:
+        return [
+            MarketPrice.get_period_market_analyse(),
+            self.get_period(),
+            self.get_strategy_params().get(Map.period)
+        ]
 
     def stop_trading(self, bkr: Broker) -> None:
         pass
@@ -597,15 +604,14 @@ class StalkerClass(Strategy, MyJson, ABC):
         bkr.request(bkr_rq)
         return bkr_rq.get_market_price()
 
-    @staticmethod
-    def _get_allowed_pairs(bkr: Broker) -> List[Pair]:
+    def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
         """
         To get pair allowed to trade with this Strategy\n
         :param bkr: Access to Broker's API
         :return: Pair allowed to trade with this Strategy
                  Map[index{int}]:   {Pair}
         """
-        if StalkerClass._CONST_ALLOWED_PAIRS is None:
+        if self._allowed_pairs is None:
             if StalkerClass._get_stage() == Config.STAGE_1:
                 path = Config.get(Config.DIR_MARKET_HISTORICS)
                 _bkr_cls = bkr.__class__.__name__
@@ -634,9 +640,8 @@ class StalkerClass(Strategy, MyJson, ABC):
                 ]
                 match = [r'^.+\/usdt']
                 pair_strs = bkr.get_pairs(match=match, no_match=no_match)
-            StalkerClass._CONST_ALLOWED_PAIRS = [Pair(pair_str) for pair_str in pair_strs]
-        return StalkerClass._CONST_ALLOWED_PAIRS
-        # return [StalkerClass._CONST_ALLOWED_PAIRS[i] for i in range(len(StalkerClass._CONST_ALLOWED_PAIRS)) if i < 10]
+            self._allowed_pairs = [Pair(pair_str) for pair_str in pair_strs]
+        return self._allowed_pairs
 
     @abstractmethod
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
