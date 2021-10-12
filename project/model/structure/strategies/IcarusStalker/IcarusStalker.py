@@ -104,8 +104,9 @@ class IcarusStalker(StalkerClass):
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
         pair = market_price.get_pair()
         child_period = self.get_strategy_params().get(Map.period)
-        child_market_price = self._get_market_price(broker, pair, child_period)
-        return Icarus.stalker_can_add(market_price) and Icarus.can_buy(child_market_price)
+        child_marketprice = self._get_market_price(broker, pair, child_period)
+        predictor_marketprice = Icarus.predictor_market_price(broker, pair)
+        return Icarus.stalker_can_add(market_price) and Icarus.can_buy(predictor_marketprice, child_marketprice)
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
