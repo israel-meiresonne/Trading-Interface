@@ -27,4 +27,4 @@ class Asset(MyJson):
         return self.get_symbol()
 
     def __repr__(self) -> str:
-        return self.__str__() + f"({id(self)})"
+        return self.__str__()
