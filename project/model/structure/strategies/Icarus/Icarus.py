@@ -241,11 +241,11 @@ class Icarus(TraderClass):
         closes = list(market_price.get_closes())
         closes.reverse()
         # Psar
-        psars = list(market_price.get_psar())
-        psars.reverse()
+        supertrend = list(market_price.get_super_trend())
+        supertrend.reverse()
         # Check
-        prev_psar_trend_1 = MarketPrice.get_psar_trend(closes, psars, -2)
-        can_sell = prev_psar_trend_1 == MarketPrice.PSAR_DROPPING
+        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        can_sell = prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING
         return can_sell
     
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -535,7 +535,8 @@ class Icarus(TraderClass):
             'CAN_BUY=>': '',
             'supertrend_rising': supertrend_rising,
             'psar_buy_ok': psar_buy_ok,
-            'psar_sell_ok': psar_sell_ok,
+            # 'psar_sell_ok': psar_sell_ok,
+            'supertrend_sell_ok': not supertrend_rising,
             'macd_histogram_positive': macd_histogram_positive,
             'klc_ok': klc_ok,
             'supertrends[-1]': supertrends[-1],
