@@ -18,4 +18,4 @@ def dynamic_exec(class_name: str, test_func: str) -> None:
 # dynamic_exec(class_name='TestPredictor', test_func='test_predict')
 # dynamic_exec(class_name='TestPredictor', test_func='test_add_learns')
 # dynamic_exec(class_name='TestPredictor', test_func='resume_learn')
-dynamic_exec(class_name='TestPredictor', test_func='test_learned_pairs')
+dynamic_exec(class_name='TestPredictor', test_func='test_json_encode_decode')
