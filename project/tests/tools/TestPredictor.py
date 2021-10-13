@@ -7,6 +7,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Predictor import Predictor
 
@@ -236,6 +237,19 @@ class TestPredictor(unittest.TestCase, Predictor):
         exp2 = f'content/storage/Predictor/learns/DOGE_USDT/900/{hist_type}/model.xyz'
         result2 = Predictor.learn_file_path(pair, period, hist_type, Predictor.get_learn_model_file())
         self.assertEqual(exp2, result2)
+    
+    def test_json_encode_decode(self) -> None:
+        pair = Pair("DOGE/USDT")
+        period = 60 * 60
+        predictor = Predictor(pair, period)
+        model = predictor.get_model(Predictor.CLOSE)
+        model = predictor.get_model(Predictor.HIGH)
+        model = predictor.get_model(Predictor.LOW)
+        json_str = predictor.json_encode()
+        new_predictor = MyJson.json_decode(json_str)
+        self.assertEqual(pair, new_predictor.get_pair())
+        self.assertEqual(period, new_predictor.get_period())
+        self.assertNotEqual(id(predictor), id(new_predictor))
 
     def plot(self, ys, predictions, plot_name: str = 'plot_') -> str:
         import matplotlib.pyplot as plt

@@ -23,6 +23,7 @@ class MyJson(ABC):
         serialized: str
             Custom class object's JSON string
         """
+        self._json_encode_prepare()
         _class_token = MyJson.get_class_name_token()
         class_name = self.__class__.__name__
         attrs = self.__dict__
@@ -35,6 +36,13 @@ class MyJson(ABC):
             json_dict[attr] = value_serialized
         json_str = _MF.json_encode(json_dict)
         return json_str
+    
+    def _json_encode_prepare(self) -> None:
+        """
+        To prepare Object to be encoded
+        NOTE: first function called in function MyJson.json_encode()
+        """
+        pass
 
     @staticmethod
     def __root_encoding(value: Any) -> Any:

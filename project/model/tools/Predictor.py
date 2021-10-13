@@ -10,10 +10,11 @@ from model.tools.DeepLearning import DeepLearning
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 
 
-class Predictor:
+class Predictor(MyJson):
     _DEBUG = True
     _MARKET_MAX_N_PERIOD = 1000
     _N_FEATURE = 60
@@ -95,6 +96,10 @@ class Predictor:
         predictions = model.predict(prices)
         return predictions
 
+    def _json_encode_prepare(self) -> None:
+        models = self.get_models()
+        keys = models.get_keys()
+        [models.put(None, key) for key in keys]
     # ——————————————————————————————————————————— STATIC GETTTER DOWN ——————————————————————————————————————————————————
 
     @staticmethod
@@ -575,3 +580,13 @@ class Predictor:
         return history_dir
 
     # ——————————————————————————————————————————— STATIC FUNCTION MARKET DOWN ——————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Predictor(Pair('@json/@json'), -1)
+        exec(MyJson.get_executable())
+        return instance
+
+    # ——————————————————————————————————————————— STATIC FUNCTION UP ———————————————————————————————————————————————————
