@@ -40,14 +40,29 @@ class Icarus(TraderClass):
     def _reset_max_close_predicted(self) -> None:
         self.__max_close_predicted = None
     
-    def _set_max_close_predicted(self, predictor_marketprice: MarketPrice = None) -> None:
-        predictor = self.get_predictor()
-        self.__max_close_predicted = self._predict_max_high(predictor_marketprice, predictor)
-    
-    def _update_max_close_predicted(self, max_close_predicted: float) -> None:
-        self.__max_close_predicted = max_close_predicted
+    def _set_max_close_predicted(self, predictor_marketprice: MarketPrice = None, max_close_predicted: float = None) -> None:
+        if predictor_marketprice is not None:
+            predictor = self.get_predictor()
+            max_close_predicted = self._predict_max_high(predictor_marketprice, predictor)
+        self.__max_close_predicted = [max_close_predicted * 1]
+
+    def _add_max_close_predicted(self, predictor_marketprice: MarketPrice = None, max_close_predicted: float = None) -> None:
+        if self.__max_close_predicted is None:
+            self.__max_close_predicted = []
+        if predictor_marketprice is not None:
+            predictor = self.get_predictor()
+            max_close_predicted = self._predict_max_high(predictor_marketprice, predictor)
+        max_preds = self.__max_close_predicted
+        max_preds.append(max_close_predicted * 1) if max_close_predicted not in max_preds else None
     
     def get_max_close_predicted(self) -> float:
+        mean = None
+        max_close_predicted = self.__max_close_predicted
+        if max_close_predicted is not None:
+            mean = sum(max_close_predicted) / len(max_close_predicted)
+        return mean
+    
+    def get_max_close_predicted_list(self) -> list:
         return self.__max_close_predicted
     
     def max_roi_predicted(self) -> float:
@@ -247,19 +262,41 @@ class Icarus(TraderClass):
         prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
         can_sell = prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING
         return can_sell
-    
+
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
-        market_dropping = False
-        max_roi = self.get_max_roi(marketprice)
-        max_roi_pred = self.max_roi_predicted()
-        if max_roi >= max_roi_pred:
-            predictor = self.get_predictor()
+        def is_prediction_reached() -> bool:
+            max_roi = self.get_max_roi(marketprice)
+            max_roi_pred = self.max_roi_predicted()
+            return max_roi >= max_roi_pred
+        def is_market_dropping() -> Tuple[bool, float]:
             close = marketprice.get_close()
-            new_max_close_pred = self._predict_max_high(predictor_marketprice, predictor)
-            new_max_roi_pred = _MF.progress_rate(new_max_close_pred, close)
-            market_dropping = new_max_roi_pred < self.get_min_roi_predicted()
-            self._update_max_close_predicted(new_max_close_pred) if not market_dropping else None
-        return market_dropping
+            func_new_max_close_pred = get_new_max_close_pred()
+            new_max_roi_pred = _MF.progress_rate(func_new_max_close_pred, close)
+            func_market_dropping = new_max_roi_pred < self.get_min_roi_predicted()
+            return func_market_dropping, func_new_max_close_pred
+        def get_new_max_close_pred() -> float:
+            predictor = self.get_predictor()
+            return self._predict_max_high(predictor_marketprice, predictor)
+        # Start
+        can_sell = False
+        prediction_reached = is_prediction_reached()
+        # Check if market is dropping
+        market_dropping = False
+        if prediction_reached:
+            market_dropping, new_max_close_pred = is_market_dropping()
+        else:
+            new_max_close_pred = get_new_max_close_pred()
+        # Check if can Sell
+        if not prediction_reached:
+            can_sell = False
+            self._add_max_close_predicted(max_close_predicted=new_max_close_pred)
+        elif prediction_reached and market_dropping:
+            can_sell = True
+            # self._reset_max_close_predicted()
+        elif prediction_reached and (not market_dropping):
+            can_sell = False
+            self._set_max_close_predicted(max_close_predicted=new_max_close_pred)
+        return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION TRY BUY/SELL DOWN ———————————————————————————————————————————
@@ -281,7 +318,7 @@ class Icarus(TraderClass):
         predictor_marketprice = self.predictor_market_price(bkr, self.get_pair())
         can_buy = self.can_buy(predictor_marketprice, market_price)
         if can_buy:
-            self._set_max_close_predicted(predictor_marketprice)
+            self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
             # self._secure_position(executions)
         # Save
@@ -505,6 +542,13 @@ class Icarus(TraderClass):
         max_roi_predicted = self.max_roi_predicted()
         if max_roi_predicted is None:
             max_roi_predicted = _MF.progress_rate(max_close_predicted, closes[-1])
+        max_close_predicted_list = self.get_max_close_predicted_list()
+        max_roi_predicted_max = None
+        max_roi_predicted_min = None
+        n_prediction = len(max_close_predicted_list) if max_close_predicted_list is not None else -1
+        if has_position and (n_prediction > 0):
+            max_roi_predicted_max = _MF.progress_rate(max(max_close_predicted_list), buy_price.get_value())
+            max_roi_predicted_min = _MF.progress_rate(min(max_close_predicted_list), buy_price.get_value())
         # Map to print
         params_map = Map({
             Map.time: _MF.unix_to_date(market_price.get_time()),
@@ -530,6 +574,9 @@ class Icarus(TraderClass):
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
             'max_roi_predicted': _MF.rate_to_str(max_roi_predicted) if max_roi_predicted is not None else max_roi_predicted,
+            'max_roi_predicted_max': _MF.rate_to_str(max_roi_predicted_max) if max_roi_predicted_max is not None else max_roi_predicted_max,
+            'max_roi_predicted_min': _MF.rate_to_str(max_roi_predicted_min) if max_roi_predicted_min is not None else max_roi_predicted_min,
+            'n_prediction': n_prediction,
             # 'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
             # 'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
             'CAN_BUY=>': '',
