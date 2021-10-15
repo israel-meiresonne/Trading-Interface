@@ -284,6 +284,7 @@ class Icarus(TraderClass):
         market_dropping = False
         if prediction_reached:
             market_dropping, new_max_close_pred = is_market_dropping()
+        """
         else:
             new_max_close_pred = get_new_max_close_pred()
         # Check if can Sell
@@ -296,6 +297,10 @@ class Icarus(TraderClass):
         elif prediction_reached and (not market_dropping):
             can_sell = False
             self._set_max_close_predicted(max_close_predicted=new_max_close_pred)
+        """
+        # Check if can Sell
+        if prediction_reached and market_dropping:
+            can_sell = True
         return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
@@ -421,6 +426,7 @@ class Icarus(TraderClass):
         supertrends.reverse()
         supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
         supertrend_ok = supertrends_trend == MarketPrice.SUPERTREND_RISING
+        """
         # Psar
         psars = list(child_marketprice.get_psar())
         psars.reverse()
@@ -439,6 +445,8 @@ class Icarus(TraderClass):
         macd_ok = histograms[-2] > 0
         # Check
         can_buy = supertrend_ok and psar_ok and klc_ok and macd_ok
+        """
+        can_buy = supertrend_ok
         return can_buy
 
     @staticmethod
