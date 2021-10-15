@@ -172,7 +172,7 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 30,
+                        Map.period: 60 * 5,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
                                                                no_selected_stgs)],
                         Map.param: {
