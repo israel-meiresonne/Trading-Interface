@@ -18,26 +18,27 @@ class Dev:
     # Static paths
     DIR_BROKERS = "model/API/brokers"
     DIR_STRATEGIES = "model/structure/strategies"
-    DIR_SESSIONS = 'content/sessions/'
+    DIR_SESSIONS = 'content/sessions/running/'
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_MARKET_HISTORICS = 'content/market-historic/Active/$broker/$pair/'
+    DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_BINANCE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/BinanceFakeAPI/orders/{SESSION_ID}_orders.json'
-    DIR_BEGIN_BACKUP = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_a_a————————————————————.csv'
-    DIR_SAVE_BOT_ERRORS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_b_bot_error.csv'
-    DIR_SAVE_FAKE_API_RQ = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_c_logs.csv'
-    DIR_SAVE_API_RSP = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_d_broker_response.csv'
-    DIR_SAVE_MARKET = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_e_market_historic.csv'
-    DIR_SAVE_MARKET_STALK = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_f_market_stalk.csv'
-    DIR_SAVE_GLOBAL_STATE = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_fa_global_capital.csv'
-    DIR_SAVE_GLOBAL_MOVES = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_fb_$class_moves.csv'
-    DIR_SAVE_CAPITAL = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_g_capital_$pair.csv'
-    DIR_SAVE_MOVES = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_h_moves_$pair.csv'
-    DIR_SAVE_ORDER_RQ = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_i_submitted_orders.csv'
-    DIR_SAVE_ORDER_ACTIONS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_j_order_updates_$pair.csv'
-    DIR_SAVE_PERIOD_RANKING = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_k_period_ranking_$pair.csv'
-    DIR_END_BACKUP = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/{SESSION_ID}_z————————————————————.csv'
+    DIR_BEGIN_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_a_a————————————————————.csv'
+    DIR_SAVE_BOT_ERRORS = f'{DIR_SAVE_DATAS}{SESSION_ID}_b_bot_error.csv'
+    DIR_SAVE_FAKE_API_RQ = f'{DIR_SAVE_DATAS}{SESSION_ID}_c_logs.csv'
+    DIR_SAVE_API_RSP = f'{DIR_SAVE_DATAS}{SESSION_ID}_d_broker_response.csv'
+    DIR_SAVE_MARKET = f'{DIR_SAVE_DATAS}{SESSION_ID}_e_market_historic.csv'
+    DIR_SAVE_MARKET_STALK = f'{DIR_SAVE_DATAS}{SESSION_ID}_f_market_stalk.csv'
+    DIR_SAVE_GLOBAL_STATE = f'{DIR_SAVE_DATAS}{SESSION_ID}_fa_global_capital.csv'
+    DIR_SAVE_GLOBAL_MOVES = f'{DIR_SAVE_DATAS}{SESSION_ID}_fb_$class_moves.csv'
+    DIR_SAVE_CAPITAL = f'{DIR_SAVE_DATAS}{SESSION_ID}_g_capital_$pair.csv'
+    DIR_SAVE_MOVES = f'{DIR_SAVE_DATAS}{SESSION_ID}_h_moves_$pair.csv'
+    DIR_SAVE_ORDER_RQ = f'{DIR_SAVE_DATAS}{SESSION_ID}_i_submitted_orders.csv'
+    DIR_SAVE_ORDER_ACTIONS = f'{DIR_SAVE_DATAS}{SESSION_ID}_j_order_updates_$pair.csv'
+    DIR_SAVE_PERIOD_RANKING = f'{DIR_SAVE_DATAS}{SESSION_ID}_k_period_ranking_$pair.csv'
+    DIR_END_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_z————————————————————.csv'
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
     # Storage
     DIR_STORAGE = 'content/storage/'
@@ -63,6 +64,7 @@ class Dev:
         new: str
             New word to replace old occurences
         """
+        Dev.DIR_SAVE_DATAS =                Dev.DIR_SAVE_DATAS.replace(old, new)
         Dev.DIR_ACTUAL_SESSION =            Dev.DIR_ACTUAL_SESSION.replace(old, new)
         Dev.FILE_BINANCE_FAKE_API_ORDERS =  Dev.FILE_BINANCE_FAKE_API_ORDERS.replace(old, new)
         Dev.DIR_DATABASE =                  Dev.DIR_DATABASE.replace(old, new)
