@@ -18,7 +18,7 @@ class Dev:
     # Static paths
     DIR_BROKERS = "model/API/brokers"
     DIR_STRATEGIES = "model/structure/strategies"
-    DIR_SESSIONS = 'content/sessions/'
+    DIR_SESSIONS = 'content/sessions/running/'
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_MARKET_HISTORICS = 'content/market-historic/Active/$broker/$pair/'
     DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
