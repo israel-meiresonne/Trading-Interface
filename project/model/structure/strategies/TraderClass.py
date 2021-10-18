@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
 from config.Config import Config
 from model.structure.Broker import Broker
@@ -62,7 +63,7 @@ class TraderClass(Strategy, MyJson, ABC):
     def __get_constants(self) -> Map:
         return self.__configs
 
-    def _get_constant(self, k) -> [float, Map]:
+    def _get_constant(self, k) -> Union[float, Map]:
         configs = self.__get_constants()
         if k not in configs.get_keys():
             raise IndexError(f"There's  not constant with this key '{k}'")
@@ -147,28 +148,43 @@ class TraderClass(Strategy, MyJson, ABC):
         return odr
 
     def _new_secure_order(self, bkr: Broker, mkt_prc: MarketPrice) -> Order:
+        """
+        To generate a STOP LIMIT order to sell at max loss following the buy price
+
+        Parameters:
+        -----------
+        bkr: Broker
+            Access to Broker's API
+        mkt_prc: MarketPrice
+            MarketPrice history
+        
+        Raises:
+        -------
+        raise: Exception
+            If Strategy has not position to secure (must buy before)
+        
+        Return:
+        -------
+        return: Order
+            The secure Order to execute
+        """
+        if not self._has_position():
+            raise Exception("Strategy must have position to generate secure Order")
         _bkr_cls = bkr.__class__.__name__
-        # odr_cls = bkr_cls + Order.__name__
-        pr = self.get_pair()
-        max_drop_rate = self._get_constant(self._CONF_MAX_DR)
-        # max_rate = 1
-        if self._has_position():
-            sum_odr = self._get_orders().get_sum()
-            qty = sum_odr.get(Map.left)
-            qty = Price(qty.get_value(), qty.get_asset().get_symbol())
-        else:
-            close_val = mkt_prc.get_close()
-            b_cap = self._get_buy_capital()
-            qty_val = b_cap.get_value() / close_val
-            qty = Price(qty_val, pr.get_left().get_symbol())
-        super_trend = mkt_prc.get_super_trend()[0]
-        stop = super_trend * (1 + max_drop_rate)
-        # stop = super_trend
+        pair = self.get_pair()
+        # Get Quantity
+        sum_odr = self._get_orders().get_sum()
+        qty = sum_odr.get(Map.left)
+        qty = Price(qty.get_value(), qty.get_asset().get_symbol())
+        # Get stop price
+        buy_price = self._get_orders().get_last_execution().get_execution_price()
+        max_loss = self.get_max_loss()
+        stop = buy_price * (1 + max_loss)
         odr_params = Map({
-            Map.pair: pr,
+            Map.pair: pair,
             Map.move: Order.MOVE_SELL,
-            Map.stop: Price(stop, pr.get_right().get_symbol()),
-            Map.limit: Price(stop, pr.get_right().get_symbol()),
+            Map.stop: Price(stop, pair.get_right().get_symbol()),
+            Map.limit: Price(stop, pair.get_right().get_symbol()),
             Map.quantity: qty
         })
         odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_STOP_LIMIT, odr_params)
@@ -377,6 +393,11 @@ class TraderClass(Strategy, MyJson, ABC):
         FileManager.write_csv(path, fields, rows, overwrite=False, make_dir=True)
 
     # ——————————————— STATIC METHOD DOWN ———————————————
+
+    @staticmethod
+    @abstractmethod
+    def get_max_loss() -> float:
+        pass
 
     @staticmethod
     def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
