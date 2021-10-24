@@ -521,8 +521,13 @@ class Predictor(MyJson):
 
     @staticmethod
     def load_market_history(pair: Pair, period: int) -> pd.DataFrame:
+        def sec_to_milli(time: int) -> int:
+            return int(time * 1000)
         file_path = Predictor.history_file_path(pair, period)
-        return pd.read_csv(file_path)
+        project_dir = FileManager.get_project_directory()
+        market_hist = pd.read_csv(project_dir + file_path)
+        market_hist = _MF.df_apply(market_hist, ['0'], sec_to_milli)
+        return market_hist
 
     @staticmethod
     def _print_market_history(pair: Pair, period: int, marketprices: pd.DataFrame, overwrite: bool) -> None:

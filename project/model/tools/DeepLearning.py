@@ -265,7 +265,8 @@ class DeepLearning(MyJson):
         """
         self._set_model_file_path(model_file_path)
         # save model
-        self.get_model().save(model_file_path)
+        project_dir = FileManager.get_project_directory()
+        self.get_model().save(project_dir + model_file_path)
         self._freeze_class()
         # save json
         json = self.json_encode()
@@ -331,6 +332,7 @@ class DeepLearning(MyJson):
         instance = DeepLearning([[1]], [[-1]], train=False)
         exec(MyJson.get_executable())
         # load model
-        model = load_model(instance.get_model_file_path())
+        project_dir = FileManager.get_project_directory()
+        model = load_model(project_dir + instance.get_model_file_path())
         instance._init_model(model)
         return instance

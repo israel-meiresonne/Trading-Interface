@@ -213,7 +213,7 @@ def print_market(mkt: MarketPrice) -> str:
     degs = mkt.get_slopes_degree(14)
     degs = [v for v in degs if v is not None]
     spr_extrems = _MF.get_super_extremums(list(degs))
-    super_rsis = mkt.get_super_trend_rsis()
+    super_rsis = mkt.get_supertrend_rsis()
     macds = mkt.get_macd().get(Map.macd)
     signals = mkt.get_macd().get(Map.signal)
     histograms = mkt.get_macd().get(Map.histogram)
