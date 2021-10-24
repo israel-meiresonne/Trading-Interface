@@ -1,4 +1,3 @@
-import dill
 import re as rgx
 import threading
 from abc import abstractmethod
@@ -7,14 +6,15 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 from time import time as time_time
-from typing import Union, Any
+from typing import Any, Union
 
+import dill
 import numpy as np
+import pandas as pd
+from model.structure.database.ModelAccess import ModelAccess
 from pytz import timezone
 from scipy.signal import find_peaks
 from scipy.stats import linregress
-
-from model.structure.database.ModelAccess import ModelAccess
 
 
 class ModelFeature(ModelAccess):
@@ -374,3 +374,29 @@ class ModelFeature(ModelAccess):
         if (new_value < 0) or (old_value <= 0):
             raise ValueError(f"Don't respect contraint '(new_value'{new_value}' < 0) or (old_value'{old_value}' <= 0)'")
         return new_value / old_value - 1
+    
+    @staticmethod
+    def df_apply(df: pd.DataFrame, columns: list, func, params: list = None) -> pd.DataFrame:
+        """
+        To apply function on given columns of a DataFrame
+
+        Parameters:
+        -----------
+        df: pd.DataFrame
+            DataFrame to treat
+        columns: list
+            List of colomn name of given DataFrame
+        func: function
+            The function to apply on columns
+        params: list = None
+            Arguments to pass to function
+        
+        Returns:
+        --------
+        return: pd.DataFrame
+            New DataFrame tranformed
+        """
+        df = df.copy()
+        for col in columns:
+            df[col] = df[col].apply(func, args=params) if params is not None else df[col].apply(func)
+        return df
