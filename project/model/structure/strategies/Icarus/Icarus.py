@@ -246,22 +246,23 @@ class Icarus(TraderClass):
         # indicator
         indicator_ok = self._can_sell_indicator(marketprice)
         # Predictor
-        max_roi_ok = self._can_sell_prediction(predictor_marketprice, marketprice)
+        # max_roi_ok = self._can_sell_prediction(predictor_marketprice, marketprice)
         # Check
-        can_sell = indicator_ok or max_roi_ok
+        can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
         return can_sell
     
-    def _can_sell_indicator(self, market_price: MarketPrice) ->  bool:
+    def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
         # Close
-        closes = list(market_price.get_closes())
+        closes = list(marketprice.get_closes())
         closes.reverse()
-        # Psar
-        supertrend = list(market_price.get_super_trend())
-        supertrend.reverse()
-        # Check
-        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
-        can_sell = prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING
-        return can_sell
+        # Supertrend
+        supertrends = list(marketprice.get_super_trend())
+        supertrends.reverse()
+        # Get trends
+        prev_supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -3)
+        now_supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
+        can_sell_indicator = (now_supertrends_trend == MarketPrice.SUPERTREND_DROPPING) and (prev_supertrends_trend == MarketPrice.SUPERTREND_RISING)
+        return can_sell_indicator
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         def is_prediction_reached() -> bool:
@@ -418,36 +419,39 @@ class Icarus(TraderClass):
 
     @staticmethod
     def _can_buy_indicator(child_marketprice: MarketPrice) -> bool:
+        can_buy_indicator = False
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        # Supertrend
-        supertrends = list(child_marketprice.get_super_trend())
-        supertrends.reverse()
-        supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
-        supertrend_ok = supertrends_trend == MarketPrice.SUPERTREND_RISING
-        """
-        # Psar
-        psars = list(child_marketprice.get_psar())
-        psars.reverse()
-        prev_psar_trend_1 = MarketPrice.get_psar_trend(closes, psars, -2)
-        prev_psar_trend_2 = MarketPrice.get_psar_trend(closes, psars, -3)
-        psar_ok = (prev_psar_trend_1 == MarketPrice.PSAR_RISING) and (prev_psar_trend_2 == MarketPrice.PSAR_DROPPING)
-        # Keltner
-        klc = child_marketprice.get_keltnerchannel()
-        klc_highs = list(klc.get(Map.high))
-        klc_highs.reverse()
-        klc_ok = (closes[-2] > klc_highs[-2])   # and (closes[-1] > closes[-2])
-        # MACD
-        macd_map = child_marketprice.get_macd()
-        histograms = list(macd_map.get(Map.histogram))
-        histograms.reverse()
-        macd_ok = histograms[-2] > 0
+        #  Supertrend
+        supertrend = list(child_marketprice.get_super_trend())
+        supertrend.reverse()
+        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        # Rsi
+        rsis = list(child_marketprice.get_rsis())
+        rsis.reverse()
+        # Psar trend
+        psar = list(child_marketprice.get_psar())
+        psar.reverse()
+        psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+        # PsarRsi trend
+        psar_rsis = list(child_marketprice.get_psar_rsis())
+        psar_rsis.reverse()
+        psar_rsis_trend = MarketPrice.get_psar_trend(rsis, psar_rsis, -2)
         # Check
-        can_buy = supertrend_ok and psar_ok and klc_ok and macd_ok
-        """
-        can_buy = supertrend_ok
-        return can_buy
+        if supertrend_trend == MarketPrice.SUPERTREND_DROPPING:
+            # Psar Dropping
+            psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
+            # PsarRsi Rising
+            psar_rsi_rising = psar_rsis_trend == MarketPrice.PSAR_RISING
+            # Can Buy
+            can_buy_indicator = psar_dropping and psar_rsi_rising
+        elif supertrend_trend == MarketPrice.SUPERTREND_RISING:
+            # PsarRsi Rising
+            psar_rsi_rising = psar_rsis_trend == MarketPrice.PSAR_RISING
+            # Can Buy
+            can_buy_indicator = psar_rsi_rising
+        return can_buy_indicator
 
     @staticmethod
     def _can_buy_prediction(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> bool:
