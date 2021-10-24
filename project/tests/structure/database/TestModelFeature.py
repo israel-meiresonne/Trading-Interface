@@ -1,6 +1,8 @@
 import unittest
 from math import pi as _pi
 
+import pandas as pd
+
 from model.structure.database.ModelFeature import ModelFeature
 
 
@@ -160,6 +162,20 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         exp1 = 1620457200       # 2021-05-08 09:00:00
         result1 = ModelFeature.round_time(unix_time, interval)
         self.assertEqual(exp1, result1)
+    
+    def test_df_apply(self) -> None:
+        def func_apply(val: float, arg1) -> str:
+            return str(f"{val * 1000}_{arg1}")
+        param1 = 23
+        param2 = 'hello'
+        cols = ['col1', 'col2']
+        df_dict = [{cols[0]: param1, cols[1]: param1, 'col3': param1} for i in range(3)]
+        df = pd.DataFrame(df_dict)
+        exp1_val = func_apply(param1, param2)
+        exp1 = df[0:]
+        exp1.loc[:, cols] = exp1_val
+        result1 = self.df_apply(df, cols, func_apply, params=[param2])
+        self.assertEqual(exp1.to_csv(), result1.to_csv())
 
 
 if __name__ == '__main__':
