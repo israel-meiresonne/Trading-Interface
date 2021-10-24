@@ -352,6 +352,27 @@ class MarketPrice(ABC):
             self._set_collection(k, psar_rsis)
         return psar_rsis
 
+    def get_supertrend_rsis(self, nb_prd: int = _SUPERTREND_NB_PERIOD, coef: float = _SUPERTREND_COEF) -> tuple:
+        k = self.COLLECTION_SUPER_TREND_RSIS
+        super_rsis = self._get_collection(k)
+        if super_rsis is None:
+            # RSI Close
+            rsis = list(self.get_rsis(nb_prd))
+            rsis.reverse()
+            # RSI High
+            highs = list(self.get_highs())
+            highs.reverse()
+            rsis_highs = self.rsis(nb_prd, highs)
+            # RSI Low
+            lows = list(self.get_lows())
+            lows.reverse()
+            rsis_lows = self.rsis(nb_prd, lows)
+            super_rsis = self.super_trend(nb_prd, coef, rsis, rsis_highs, rsis_lows)
+            super_rsis.reverse()
+            super_rsis = tuple(super_rsis)
+            self._set_collection(k, super_rsis)
+        return super_rsis
+
     # TSI DOWN
     def get_tsis(self, nb_prd_slow: int = _NB_PRD_SLOW_TSI, nb_prd_fast: int = _NB_PRD_FAST_TSI,
                  use_nan: bool = False) -> tuple:
@@ -533,30 +554,6 @@ class MarketPrice(ABC):
             supers = tuple(supers)
             self._set_collection(k, supers)
         return supers
-
-    def get_super_trend_rsis(self, nb_prd: int = _SUPERTREND_NB_PERIOD, coef: float = _SUPERTREND_COEF) -> tuple:
-        k = self.COLLECTION_SUPER_TREND_RSIS
-        super_rsis = self._get_collection(k)
-        if super_rsis is None:
-            # RSI Close
-            rsis_closes = list(self.get_rsis(nb_prd))
-            rsis_closes.reverse()
-            rsis_closes = [float(v) for v in rsis_closes]
-            # RSI High
-            highs = list(self.get_highs())
-            highs.reverse()
-            highs = [float(v) for v in highs]
-            rsis_highs = self.rsis(nb_prd, highs)
-            # RSI Low
-            lows = list(self.get_lows())
-            lows.reverse()
-            lows = [float(v) for v in lows]
-            rsis_lows = self.rsis(nb_prd, lows)
-            super_rsis = self.super_trend(nb_prd, coef, rsis_closes, rsis_highs, rsis_lows)
-            super_rsis.reverse()
-            super_rsis = tuple(super_rsis)
-            self._set_collection(k, super_rsis)
-        return super_rsis
 
     def get_psar(self) -> tuple:
         k = self.COLLECTION_PSAR
