@@ -438,6 +438,10 @@ class Icarus(TraderClass):
         psar_rsis = list(child_marketprice.get_psar_rsis())
         psar_rsis.reverse()
         psar_rsis_trend = MarketPrice.get_psar_trend(rsis, psar_rsis, -2)
+        # Supertrend Rsi
+        supertrend_rsi = list(child_marketprice.get_supertrend_rsis())
+        supertrend_rsi.reverse()
+        supertrend_rsi_trend = MarketPrice.get_super_trend_trend(rsis, supertrend_rsi, -2)
         # Check
         if supertrend_trend == MarketPrice.SUPERTREND_DROPPING:
             # Psar Dropping
@@ -449,8 +453,10 @@ class Icarus(TraderClass):
         elif supertrend_trend == MarketPrice.SUPERTREND_RISING:
             # PsarRsi Rising
             psar_rsi_rising = psar_rsis_trend == MarketPrice.PSAR_RISING
+            # SupertrendRsi Rising
+            supertrend_rsi_rising = supertrend_rsi_trend == MarketPrice.SUPERTREND_RISING
             # Can Buy
-            can_buy_indicator = psar_rsi_rising
+            can_buy_indicator = psar_rsi_rising and supertrend_rsi_rising
         return can_buy_indicator
 
     @staticmethod
