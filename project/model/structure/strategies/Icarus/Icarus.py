@@ -133,14 +133,14 @@ class Icarus(TraderClass):
         last_order = self._get_orders().get_last_execution()
         times = list(market_price.get_times())
         times.reverse()
-        closes = list(market_price.get_closes())
-        closes.reverse()
+        highs = list(market_price.get_highs())
+        highs.reverse()
         if buy_unix in times:
             buy_time_idx = times.index(buy_unix)
-            closes_since_buy = closes[buy_time_idx:]
-            max_close = max(closes_since_buy)
+            highs_since_buy = highs[buy_time_idx:]
+            max_high = max(highs_since_buy)
             exec_price = last_order.get_execution_price()
-            max_roi = max_close / exec_price - 1
+            max_roi = max_high / exec_price - 1
             self._set_max_roi(max_roi)
 
     # ——————————————————————————————————————————— FUNCTION MAX ROI UP ——————————————————————————————————————————————————
