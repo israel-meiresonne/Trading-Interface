@@ -17,7 +17,7 @@ class Icarus(TraderClass):
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 1/100
-    _PREDICTION_FILLING_RATE = 55/100
+    _PREDICTION_OCCUPATION_RATE = 80/100
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -75,7 +75,7 @@ class Icarus(TraderClass):
             last_order = self._get_orders().get_last_execution()
             exec_price = last_order.get_execution_price()
             max_close_predicted = self.get_max_close_predicted()
-            pred_fill_rate = self.get_prediction_filling_rate()
+            pred_fill_rate = self.get_prediction_occupation_rate()
             max_roi_predicted = _MF.progress_rate(max_close_predicted, exec_price.get_value())
             max_roi_predicted = max_roi_predicted * pred_fill_rate if max_roi_predicted > 0 else max_roi_predicted
         return max_roi_predicted
@@ -237,8 +237,6 @@ class Icarus(TraderClass):
     def can_sell(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         # indicator
         indicator_ok = self._can_sell_indicator(marketprice)
-        # Predictor
-        # max_roi_ok = self._can_sell_prediction(predictor_marketprice, marketprice)
         # Check
         can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
         return can_sell
@@ -247,16 +245,24 @@ class Icarus(TraderClass):
         # Close
         closes = list(marketprice.get_closes())
         closes.reverse()
-        # Supertrend
-        supertrends = list(marketprice.get_super_trend())
-        supertrends.reverse()
-        # Get trends
-        prev_supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -3)
-        now_supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
-        can_sell_indicator = (now_supertrends_trend == MarketPrice.SUPERTREND_DROPPING) and (prev_supertrends_trend == MarketPrice.SUPERTREND_RISING)
-        return can_sell_indicator
+        # Psar
+        supertrend = list(marketprice.get_super_trend())
+        supertrend.reverse()
+        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        supertrend_dropping = supertrend_trend == MarketPrice.SUPERTREND_DROPPING
+        return supertrend_dropping
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
+        def is_psar_dropping() -> bool:
+            # Close
+            closes = list(marketprice.get_closes())
+            closes.reverse()
+            # Psar
+            psar = list(marketprice.get_psar())
+            psar.reverse()
+            psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+            var_psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
+            return var_psar_dropping
         def is_prediction_reached() -> bool:
             max_roi = self.get_max_roi(marketprice)
             max_roi_pred = self.max_roi_predicted()
@@ -270,24 +276,16 @@ class Icarus(TraderClass):
         def get_new_max_close_pred() -> float:
             predictor = self.get_predictor()
             return self._predict_max_high(predictor_marketprice, predictor)
-        # Start
+
         can_sell = False
         prediction_reached = is_prediction_reached()
-        # Check if market is dropping
-        market_dropping = False
-        if prediction_reached:
+        psar_dropping = is_psar_dropping()
+        if prediction_reached or psar_dropping:
             market_dropping, new_max_close_pred = is_market_dropping()
-        else:
-            new_max_close_pred = get_new_max_close_pred()
-        # Check if can Sell
-        if not prediction_reached:
-            can_sell = False
-            self._add_max_close_predicted(max_close_predicted=new_max_close_pred)
-        elif prediction_reached and market_dropping:
-            can_sell = True
-        elif prediction_reached and (not market_dropping):
-            can_sell = False
-            self._set_max_close_predicted(max_close_predicted=new_max_close_pred)
+            can_sell = (prediction_reached or psar_dropping) and market_dropping
+            market_will_rise = prediction_reached and (not market_dropping)
+            if can_sell or market_will_rise:
+                 self._set_max_close_predicted(max_close_predicted=new_max_close_pred)
         return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
@@ -312,7 +310,7 @@ class Icarus(TraderClass):
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
-            self._secure_position(executions)
+            # self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -358,8 +356,8 @@ class Icarus(TraderClass):
         return Icarus._MIN_ROI_PREDICTED
     
     @staticmethod
-    def get_prediction_filling_rate() -> float:
-        return Icarus._PREDICTION_FILLING_RATE
+    def get_prediction_occupation_rate() -> float:
+        return Icarus._PREDICTION_OCCUPATION_RATE
     
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
@@ -401,8 +399,6 @@ class Icarus(TraderClass):
             raise ValueError(f"Predictor's MarketPrice must have period '{predictor_period}', instead '{period}'")
         # indicator
         indicator_ok = Icarus._can_buy_indicator(child_marketprice)
-        # Predictor
-        # max_roi_ok = Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
         # Check
         can_buy = indicator_ok and Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
         return can_buy
@@ -413,40 +409,21 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        #  Supertrend
+        # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
-        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
-        # Rsi
-        rsis = list(child_marketprice.get_rsis())
-        rsis.reverse()
-        # Psar trend
+        now_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -3)
+        # Psar
         psar = list(child_marketprice.get_psar())
         psar.reverse()
-        psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
-        # PsarRsi trend
-        psar_rsis = list(child_marketprice.get_psar_rsis())
-        psar_rsis.reverse()
-        psar_rsis_trend = MarketPrice.get_psar_trend(rsis, psar_rsis, -2)
-        # Supertrend Rsi
-        supertrend_rsi = list(child_marketprice.get_supertrend_rsis())
-        supertrend_rsi.reverse()
-        supertrend_rsi_trend = MarketPrice.get_super_trend_trend(rsis, supertrend_rsi, -2)
+        now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+        prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -3)
         # Check
-        if supertrend_trend == MarketPrice.SUPERTREND_DROPPING:
-            # Psar Dropping
-            psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
-            # PsarRsi Rising
-            psar_rsi_rising = psar_rsis_trend == MarketPrice.PSAR_RISING
-            # Can Buy
-            can_buy_indicator = psar_dropping and psar_rsi_rising
-        elif supertrend_trend == MarketPrice.SUPERTREND_RISING:
-            # PsarRsi Rising
-            psar_rsi_rising = psar_rsis_trend == MarketPrice.PSAR_RISING
-            # SupertrendRsi Rising
-            supertrend_rsi_rising = supertrend_rsi_trend == MarketPrice.SUPERTREND_RISING
-            # Can Buy
-            can_buy_indicator = psar_rsi_rising and supertrend_rsi_rising
+        supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
+        supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
+        psar_switch_up = (now_psar_trend == MarketPrice.PSAR_RISING) and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
+        can_buy_indicator = (psar_switch_up and supertrend_rising) or supertrend_switch_up
         return can_buy_indicator
 
     @staticmethod
@@ -550,7 +527,7 @@ class Icarus(TraderClass):
         max_close_predicted = self._predict_max_high(predictor_marketprice, self.get_predictor()) if max_close_predicted is None else max_close_predicted
         max_roi_predicted = self.max_roi_predicted()
         real_max_roi_predicted = self.real_max_roi_predicted()
-        prediction_filling_rate = self.get_prediction_filling_rate()
+        prediction_occupation_rate = self.get_prediction_occupation_rate()
         if max_roi_predicted is None:
             max_roi_predicted = _MF.progress_rate(max_close_predicted, closes[-1])
         max_close_predicted_list = self.get_max_close_predicted_list()
@@ -590,7 +567,7 @@ class Icarus(TraderClass):
             'max_roi_predicted_min': _MF.rate_to_str(max_roi_predicted_min) if max_roi_predicted_min is not None else max_roi_predicted_min,
             'n_prediction': n_prediction,
             'real_max_roi_predicted': _MF.rate_to_str(real_max_roi_predicted) if real_max_roi_predicted is not None else real_max_roi_predicted,
-            'prediction_filling_rate': _MF.rate_to_str(prediction_filling_rate),
+            'prediction_occupation_rate': _MF.rate_to_str(prediction_occupation_rate),
             # 'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
             # 'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
             'CAN_BUY=>': '',
