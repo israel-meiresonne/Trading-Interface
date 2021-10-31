@@ -16,7 +16,7 @@ class Icarus(TraderClass):
     _ROI_FLOOR_FIXE = 0.002
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
-    _MIN_ROI_PREDICTED = 1/100
+    _MIN_ROI_PREDICTED = 2/100
     _PREDICTION_OCCUPATION_RATE = 80/100
 
     def __init__(self, params: Map):
@@ -528,6 +528,7 @@ class Icarus(TraderClass):
         max_roi_predicted = self.max_roi_predicted()
         real_max_roi_predicted = self.real_max_roi_predicted()
         prediction_occupation_rate = self.get_prediction_occupation_rate()
+        prediction_strigger = self.get_min_roi_predicted()
         if max_roi_predicted is None:
             max_roi_predicted = _MF.progress_rate(max_close_predicted, closes[-1])
         max_close_predicted_list = self.get_max_close_predicted_list()
@@ -548,6 +549,7 @@ class Icarus(TraderClass):
             'max_close_predicted': max_close_predicted,
             'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'max_loss': _MF.rate_to_str(max_loss),
+            'prediction_strigger': _MF.rate_to_str(prediction_strigger),
             # 'can_buy': self.can_buy(market_price) if not has_position else None,
             # 'can_sell': self.can_sell(market_price) if has_position else None,
             'has_position': has_position,
