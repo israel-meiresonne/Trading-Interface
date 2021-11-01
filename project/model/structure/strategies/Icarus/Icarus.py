@@ -367,28 +367,13 @@ class Icarus(TraderClass):
         # Close
         closes = list(market_price.get_closes())
         closes.reverse()
-        # Supertrend
-        supertrends = list(market_price.get_super_trend())
-        supertrends.reverse()
-        supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
-        supertrend_ok = supertrends_trend == MarketPrice.SUPERTREND_RISING
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
         psar_trend = MarketPrice.get_psar_trend(closes, psars, -2)
-        psar_ok = psar_trend == MarketPrice.PSAR_RISING
-        # Keltner
-        klc = market_price.get_keltnerchannel()
-        klc_highs = list(klc.get(Map.high))
-        klc_highs.reverse()
-        klc_ok = (closes[-2] > klc_highs[-2])   # and (closes[-1] > closes[-2])
-        # MACD
-        macd_map = market_price.get_macd()
-        histograms = list(macd_map.get(Map.histogram))
-        histograms.reverse()
-        macd_ok = histograms[-2] > 0
+        psar_rising = psar_trend == MarketPrice.PSAR_RISING
         # Check
-        can_add = supertrend_ok and psar_ok and klc_ok and macd_ok
+        can_add = psar_rising
         return can_add
 
     @staticmethod

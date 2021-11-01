@@ -116,7 +116,7 @@ class IcarusStalker(StalkerClass):
         child_period = self.get_strategy_params().get(Map.period)
         child_marketprice = self._get_market_price(broker, pair, child_period)
         predictor_marketprice = Icarus.predictor_market_price(broker, pair)
-        return Icarus.can_buy(predictor_marketprice, child_marketprice)
+        return Icarus.stalker_can_add(predictor_marketprice) and Icarus.can_buy(predictor_marketprice, child_marketprice)
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
         if self._allowed_pairs is None:
