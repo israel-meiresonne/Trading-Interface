@@ -12,7 +12,7 @@ from model.tools.Price import Price
 
 
 class Icarus(TraderClass):
-    _MAX_LOSS = -3/100
+    _MAX_LOSS = -0.1/100
     _ROI_FLOOR_FIXE = 0.002
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
@@ -108,6 +108,11 @@ class Icarus(TraderClass):
         max_roi_pred = self.max_roi_predicted()
         max_roi = self.get_max_roi(marketprice)
         return max_roi / max_roi_pred
+
+    def is_occupation_trigger_reached(self, market_price: MarketPrice) -> bool:
+        occup_trigger = self.get_prediction_occupation_secure_trigger()
+        occupation = self.prediction_max_occupation(market_price)
+        return occupation >= occup_trigger
 
     # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED UP ————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION RSI DOWN ————————————————————————————————————————————————————
@@ -271,8 +276,16 @@ class Icarus(TraderClass):
     def can_sell(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         # indicator
         indicator_ok = self._can_sell_indicator(marketprice)
+        # Roi
+        roi_ok = self._can_sell_roi(marketprice)
         # Check
-        can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
+        can_sell = roi_ok or indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
+        return can_sell
+    
+    def _can_sell_roi(self, marketprice: MarketPrice) -> bool:
+        roi_pos = self.get_roi_position(marketprice)
+        max_loss = self.get_max_loss()
+        can_sell = roi_pos <= max_loss
         return can_sell
     
     def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
@@ -360,10 +373,6 @@ class Icarus(TraderClass):
         """
         def is_new_prediction(old_close: float, new_close) -> bool:
             return new_close > old_close
-        def is_occupation_trigger_reached() -> bool:
-            occup_trigger = self.get_prediction_occupation_secure_trigger()
-            occupation = self.prediction_max_occupation(market_price)
-            return occupation >= occup_trigger
 
         executions = Map()
         max_close_pred = self.get_max_close_predicted()
@@ -375,7 +384,7 @@ class Icarus(TraderClass):
         else:
             new_max_close_pred = self.get_max_close_predicted()
             new_prediction = is_new_prediction(max_close_pred, new_max_close_pred)
-            occup_trigger_reached = is_occupation_trigger_reached()
+            occup_trigger_reached = self.is_occupation_trigger_reached(market_price)
             if new_prediction and occup_trigger_reached:
                 self._move_up_secure_order(executions)
             elif (self._get_secure_order() is None) and occup_trigger_reached:
