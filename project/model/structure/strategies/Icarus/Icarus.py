@@ -17,7 +17,9 @@ class Icarus(TraderClass):
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 2/100
-    _PREDICTION_OCCUPATION_RATE = 80/100
+    _PREDICTION_OCCUPATION_RATE = 100/100
+    _PREDICTION_OCCUPATION_SECURE_TRIGGER = 50/100
+    _PREDICTION_OCCUPATION_REDUCE = 30/100
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -91,6 +93,21 @@ class Icarus(TraderClass):
             max_close_predicted = self.get_max_close_predicted()
             max_roi_predicted = _MF.progress_rate(max_close_predicted, exec_price.get_value())
         return max_roi_predicted
+
+    def prediction_max_occupation(self, marketprice: MarketPrice) -> float:
+        """
+        To get max rate reached of max close predicted
+
+        NOTE: formula: max_roi / max_roi_predicted
+
+        Returns:
+        --------
+        return: float
+            The max rate reached of max close predicted
+        """
+        max_roi_pred = self.max_roi_predicted()
+        max_roi = self.get_max_roi(marketprice)
+        return max_roi / max_roi_pred
 
     # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED UP ————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION RSI DOWN ————————————————————————————————————————————————————
@@ -222,6 +239,23 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION ROI FLOOR UP ————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
 
+    def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
+        pair = self.get_pair()
+        # Get values
+        buy_price = self._get_orders().get_last_execution().get_execution_price().get_value()
+        get_max_close_pred = self.get_max_close_predicted()
+        max_occupation = self.prediction_max_occupation(marketprice)
+        reduce_rate = self.get_prediction_occupation_reduce()
+        # Delta between buy price and prediction price
+        increase_range = get_max_close_pred - buy_price
+        # Eval price corresponding to occupation rate
+        occup_close = increase_range * max_occupation + buy_price
+        # Eval price point to reduce
+        reduce = increase_range * reduce_rate
+        # Reduce price point to occupation to get secure price
+        secure_close = occup_close - reduce
+        return Price(secure_close, pair.get_right().get_symbol())
+
     def get_buy_unix(self) -> int:
         if not self._has_position():
             raise Exception("Strategy must have position to get buy unix time")
@@ -324,12 +358,28 @@ class Icarus(TraderClass):
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
         """
+        def is_new_prediction(old_close: float, new_close) -> bool:
+            return new_close > old_close
+        def is_occupation_trigger_reached() -> bool:
+            occup_trigger = self.get_prediction_occupation_secure_trigger()
+            occupation = self.prediction_max_occupation(market_price)
+            return occupation >= occup_trigger
+
         executions = Map()
+        max_close_pred = self.get_max_close_predicted()
         # Evaluate Sell
         predictor_marketprice = self.predictor_market_price(bkr, self.get_pair())
         can_sell = self.can_sell(predictor_marketprice, market_price)
         if can_sell:
             self._sell(executions)
+        else:
+            new_max_close_pred = self.get_max_close_predicted()
+            new_prediction = is_new_prediction(max_close_pred, new_max_close_pred)
+            occup_trigger_reached = is_occupation_trigger_reached()
+            if new_prediction and occup_trigger_reached:
+                self._move_up_secure_order(executions)
+            elif (self._get_secure_order() is None) and occup_trigger_reached:
+                self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -358,6 +408,14 @@ class Icarus(TraderClass):
     @staticmethod
     def get_prediction_occupation_rate() -> float:
         return Icarus._PREDICTION_OCCUPATION_RATE
+    
+    @staticmethod
+    def get_prediction_occupation_secure_trigger() -> float:
+        return Icarus._PREDICTION_OCCUPATION_SECURE_TRIGGER
+    
+    @staticmethod
+    def get_prediction_occupation_reduce() -> float:
+        return Icarus._PREDICTION_OCCUPATION_REDUCE
     
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
@@ -523,6 +581,9 @@ class Icarus(TraderClass):
         if has_position and (n_prediction > 0):
             max_roi_predicted_max = _MF.progress_rate(max(max_close_predicted_list), buy_price.get_value())
             max_roi_predicted_min = _MF.progress_rate(min(max_close_predicted_list), buy_price.get_value())
+        occup_trigger = self.get_prediction_occupation_secure_trigger()
+        max_occupation = self.prediction_max_occupation(market_price) if has_position else None
+        occup_reduce_rate = self.get_prediction_occupation_reduce()
         # Map to print
         params_map = Map({
             Map.time: _MF.unix_to_date(market_price.get_time()),
@@ -535,6 +596,8 @@ class Icarus(TraderClass):
             'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'max_loss': _MF.rate_to_str(max_loss),
             'prediction_strigger': _MF.rate_to_str(prediction_strigger),
+            'occup_trigger': _MF.rate_to_str(occup_trigger),
+            'occup_reduce_rate': _MF.rate_to_str(occup_reduce_rate),
             # 'can_buy': self.can_buy(market_price) if not has_position else None,
             # 'can_sell': self.can_sell(market_price) if has_position else None,
             'has_position': has_position,
@@ -546,6 +609,7 @@ class Icarus(TraderClass):
             'psar_rsis[-2]': psar_rsis[-2],
             'max_rsi': self.get_max_rsi(market_price),
             # 'max_loss': _MF.rate_to_str(self.get_max_loss()),
+            'max_occupation': _MF.rate_to_str(max_occupation) if has_position else None,
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
