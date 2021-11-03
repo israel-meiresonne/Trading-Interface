@@ -13,6 +13,8 @@ from model.tools.Price import Price
 
 
 class IcarusStalker(StalkerClass):
+    _CONST_MAX_STRATEGY = 10
+
     def __init__(self, params: Map):
         """
         Constructor\n
@@ -73,7 +75,7 @@ class IcarusStalker(StalkerClass):
                 self._delete_active_strategy(bkr, pair, market_price)
                 last_exec_order = active_stg._get_orders().get_last_execution()
                 self._blacklist_pair(pair, stg_period) \
-                    if (last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET) else None
+                    if (stg_roi < 0) or ((last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET)) else None
                 pairs_to_delete.append(pair_str)
                 print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
             # Print
