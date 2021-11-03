@@ -146,22 +146,48 @@ class TraderClass(Strategy, MyJson, ABC):
         odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_MARKET, odr_params)
         self._add_order(odr)
         return odr
-
-    def _new_secure_order(self, bkr: Broker, mkt_prc: MarketPrice) -> Order:
+    
+    def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
         """
-        To generate a STOP LIMIT order to sell at max loss following the buy price
+        To get Price at witch place secure Order
+
+        NOTE: by default use get_max_loss() with buy Price as reference
 
         Parameters:
         -----------
         bkr: Broker
             Access to Broker's API
-        mkt_prc: MarketPrice
+        marketprice: MarketPrice
+            MarketPrice history
+
+        Returns:
+        --------
+        return: Price
+            Price (in right Strategy's right Asset) at witch place secure Order
+        """
+        pair = self.get_pair()
+        # Get stop price
+        buy_price = self._get_orders().get_last_execution().get_execution_price()
+        max_loss = self.get_max_loss()
+        stop = buy_price * (1 + max_loss)
+        return Price(stop, pair.get_right().get_symbol())
+
+    def _new_secure_order(self, bkr: Broker, marketprice: MarketPrice) -> Order:
+        """
+        To generate a STOP LIMIT order to sell at Price returned by function _secure_order_price()
+
+        Parameters:
+        -----------
+        bkr: Broker
+            Access to Broker's API
+        marketprice: MarketPrice
             MarketPrice history
         
         Raises:
         -------
         raise: Exception
             If Strategy has not position to secure (must buy before)
+            If stop price hasn't Strategy's right Asset
         
         Return:
         -------
@@ -176,15 +202,15 @@ class TraderClass(Strategy, MyJson, ABC):
         sum_odr = self._get_orders().get_sum()
         qty = sum_odr.get(Map.left)
         qty = Price(qty.get_value(), qty.get_asset().get_symbol())
-        # Get stop price
-        buy_price = self._get_orders().get_last_execution().get_execution_price()
-        max_loss = self.get_max_loss()
-        stop = buy_price * (1 + max_loss)
+        #  Generate Order
+        stop = self._secure_order_price(bkr, marketprice)
+        if stop.get_asset() != pair.get_right():
+            raise Exception(f"Stop price '{stop}' must be in Strategy's right asset '{pair.__str__().upper()}'")
         odr_params = Map({
             Map.pair: pair,
             Map.move: Order.MOVE_SELL,
-            Map.stop: Price(stop, pair.get_right().get_symbol()),
-            Map.limit: Price(stop, pair.get_right().get_symbol()),
+            Map.stop: stop,
+            Map.limit: stop,
             Map.quantity: qty
         })
         odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_STOP_LIMIT, odr_params)
