@@ -542,19 +542,13 @@ class Icarus(TraderClass):
         supertrends = list(market_price.get_super_trend())
         supertrends.reverse()
         supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
-        supertrend_rising = supertrends_trend == MarketPrice.SUPERTREND_RISING
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
-        prev_psar_trend_1 = MarketPrice.get_psar_trend(closes, psars, -2)
-        prev_psar_trend_2 = MarketPrice.get_psar_trend(closes, psars, -3)
-        psar_buy_ok = (prev_psar_trend_1 == MarketPrice.PSAR_RISING) and (prev_psar_trend_2 == MarketPrice.PSAR_DROPPING)
-        psar_sell_ok = prev_psar_trend_1 == MarketPrice.PSAR_DROPPING
         # Keltner Buy
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
-        klc_ok = (closes[-2] > klc_highs[-2]) and (closes[-1] > closes[-2])
         # MACD
         macd_map = market_price.get_macd()
         macds = list(macd_map.get(Map.macd))
@@ -563,7 +557,6 @@ class Icarus(TraderClass):
         signals.reverse()
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
-        macd_histogram_positive = histograms[-2] > 0
         # Prediction
         buy_price = self._get_orders().get_last_execution().get_execution_price() if has_position else None
         max_close_predicted = self.get_max_close_predicted()
@@ -598,15 +591,15 @@ class Icarus(TraderClass):
             'prediction_strigger': _MF.rate_to_str(prediction_strigger),
             'occup_trigger': _MF.rate_to_str(occup_trigger),
             'occup_reduce_rate': _MF.rate_to_str(occup_reduce_rate),
-            # 'can_buy': self.can_buy(market_price) if not has_position else None,
-            # 'can_sell': self.can_sell(market_price) if has_position else None,
             'has_position': has_position,
             'indicator_buy': self._can_buy_indicator(market_price),
             'indicator_sell': self._can_sell_indicator(market_price),
             Map.rsi: rsis[-1],
-            'last_rsi': rsis[-2],
+            'rsis[-2]': rsis[-2],
+            'rsis[-3]': rsis[-3],
             'psar_rsis': psar_rsis[-1],
             'psar_rsis[-2]': psar_rsis[-2],
+            'psar_rsis[-3]': psar_rsis[-3],
             'max_rsi': self.get_max_rsi(market_price),
             # 'max_loss': _MF.rate_to_str(self.get_max_loss()),
             'max_occupation': _MF.rate_to_str(max_occupation) if has_position else None,
@@ -619,19 +612,12 @@ class Icarus(TraderClass):
             'n_prediction': n_prediction,
             'real_max_roi_predicted': _MF.rate_to_str(real_max_roi_predicted) if real_max_roi_predicted is not None else real_max_roi_predicted,
             'prediction_occupation_rate': _MF.rate_to_str(prediction_occupation_rate),
-            # 'roi_floor': _MF.rate_to_str(roi_floor) if has_position else roi_floor,
-            # 'floor_secure_order': _MF.rate_to_str(floor_secure_order) if has_position else floor_secure_order,
-            'CAN_BUY=>': '',
-            'supertrend_rising': supertrend_rising,
-            'psar_buy_ok': psar_buy_ok,
-            # 'psar_sell_ok': psar_sell_ok,
-            'supertrend_sell_ok': not supertrend_rising,
-            'macd_histogram_positive': macd_histogram_positive,
-            'klc_ok': klc_ok,
             'supertrends[-1]': supertrends[-1],
             'supertrends[-2]': supertrends[-2],
+            'supertrends[-2]': supertrends[-3],
             'psars[-1]': psars[-1],
             'psars[-2]': psars[-2],
+            'psars[-2]': psars[-3],
             'klc_highs[-1]': klc_highs[-1],
             'klc_highs[-2]': klc_highs[-2],
             'klc_highs[-3]': klc_highs[-3],
