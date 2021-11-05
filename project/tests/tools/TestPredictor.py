@@ -150,6 +150,10 @@ class TestPredictor(unittest.TestCase, Predictor):
         result1 = self.learn_dir()
         self.assertEqual(exp1, result1)
         self.assertIsInstance(FileManager.get_dirs(result1), list)
+    
+    def test_market_history_pairs(self) -> None:
+        pairs = self.market_history_pairs()
+        self.assertIsInstance(pairs[0], Pair)
 
     def test_market_price_to_np(self) -> None:
         bkr = self.broker_switch(True)
@@ -209,8 +213,8 @@ class TestPredictor(unittest.TestCase, Predictor):
         self.broker_switch(False)
 
     def test_market_history_exist(self) -> None:
-        self.assertTrue(self.market_history_file_exist(Pair('TEST/USDT'), 123))
-        self.assertFalse(self.market_history_file_exist(Pair('FALSE/USDT'), 123))
+        self.assertTrue(self.exist_market_history(Pair('TEST/USDT'), 123))
+        self.assertFalse(self.exist_market_history(Pair('FALSE/USDT'), 123))
 
     def test_history_file_path(self) -> None:
         pair = Pair("DOGE/USDT")
