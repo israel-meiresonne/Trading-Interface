@@ -199,7 +199,7 @@ class Predictor(MyJson):
                 Predictor._maintain_market_history(bkr, pair, periods)
     
     @staticmethod
-    def update_learns(periods: List[int] = None) -> None:
+    def update_learns(pairs: List[Pair] = None, periods: List[int] = None) -> None:
         """
         To generate learn model on market hisories for given period
 
@@ -207,13 +207,31 @@ class Predictor(MyJson):
         ----------
         periods: List[int] = None
             List of period interval in second
+        pairs: List[Pair] = None
+            List of Pair
         """
+        def progression() -> str:
+            prefix_str = _MF.prefix() + _back_cyan
+            endtime = _MF.predict_endtime(starttime, turn, n_turn) if turn > 1 else None
+            endtime_str = _MF.delta_time(starttime, endtime) if endtime is not None else '?'
+            enddate = _MF.unix_to_date(endtime) if endtime is not None else '?'
+            status = prefix_str + f"[{turn}/{n_turn}] {pair.__str__().upper()} == '{enddate}' == '{endtime_str}'" + _normal
+            return status
+
+        _back_cyan = '\033[46m' + '\033[30m'
+        _normal = '\033[0m'
         periods = periods if periods is not None else Predictor.get_learn_periods()
-        pairs = Predictor.market_history_pairs()
+        pairs = pairs if pairs is not None else Predictor.market_history_pairs()
+        starttime = _MF.get_timestamp()
+        n_turn = len(pairs)
+        i = 0
         for pair in pairs:
+            turn = i + 1
+            print(progression()) if Predictor._DEBUG else None
             for period in periods:
                 if Predictor.exist_market_history(pair, period):
                     Predictor._learn(pair, [period])
+            i += 1
 
     @staticmethod
     def _maintain_market_history(bkr: Broker, pair: Pair, periods: List[int] = None) -> None:
@@ -596,8 +614,8 @@ class Predictor(MyJson):
 
     @staticmethod
     def _print_market_history(pair: Pair, period: int, marketprices: pd.DataFrame, overwrite: bool) -> None:
-        if period not in Predictor.get_learn_periods():
-            raise Exception(f"This period '{period}' is not supported")
+        # if period not in Predictor.get_learn_periods():
+        #     raise Exception(f"This period '{period}' is not supported")
         file_path = Predictor.history_file_path(pair, period)
         content = marketprices.to_csv(index=False, header=overwrite)
         FileManager.write(file_path, content,
