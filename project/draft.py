@@ -34,8 +34,8 @@ from model.tools.Price import Price
 _PRINT_SUCCESS = '🖨 File printed ✅'
 
 def get_broker() -> Broker:
-    bnc = Binance(Map({Map.public: "—",
-                    Map.secret: "—",
+    bnc = Binance(Map({Map.public: "-",
+                    Map.secret: "-",
                     Map.test_mode: False
                     }))
     return bnc
@@ -49,6 +49,6 @@ def main() -> None:
     
 
 if __name__ == '__main__':
-    Config.update(Config.STAGE_MODE, Config.STAGE_2)
+    Config.update(Config.STAGE_MODE, Config.STAGE_3)
     main()
     get_broker().close()
