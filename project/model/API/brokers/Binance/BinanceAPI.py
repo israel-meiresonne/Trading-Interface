@@ -978,10 +978,14 @@ class BinanceAPI(ABC):
                     sleep(limits_sleep_time) if isinstance(limits_sleep_time, int) else None
                 response = _cls._send_request(test_mode, api_keys, rq, params)
             except Exception as error:
+                # Save error
+                from model.structure.Bot import Bot
+                Bot.save_error(error, _cls.__name__)
+                # Quit room
                 waitingroom.quit_room(ticket)
                 wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
-                print(f"{_MF.prefix()}\033[31mQuit room in '{wait_time_str}'"
-                      f" (size='{room_size(waitingroom)}', ticket='{ticket}'" + '\033[0m') if _cls._DEBUG else None
+                print(f"{_MF.prefix()}\033[31mQuit room with error in '{wait_time_str}'"
+                      f" (size='{room_size(waitingroom)}', ticket='{ticket}')\n error: « {error} »" + '\033[0m') if _cls._DEBUG else None
                 raise error
             waitingroom.treat_ticket(ticket)
             wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
@@ -1263,7 +1267,7 @@ class BinanceAPI(ABC):
         return Price(new_qty_val, quantity.get_asset().get_symbol())
 
     @staticmethod
-    def _get_new_price(value: float, _step: [int, float], _min: [int, float]) -> float:
+    def _get_new_price(value: float, _step: Union[int, float], _min: Union[int, float]) -> float:
         """
         To generate a new value that will pass Binance API's filters\n
         :param value: the value to convert
