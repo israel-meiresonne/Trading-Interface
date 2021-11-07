@@ -5,6 +5,7 @@ import pandas as pd
 from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.Asset import Asset
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.DeepLearning import DeepLearning
 from model.tools.FileManager import FileManager
@@ -137,7 +138,9 @@ class Predictor(MyJson):
     def add_learns(bkr: Broker, pairs: List[Pair]) -> None:
         """
         To learn AI to predict market prices for given pairs
+
         NOTE: Add histories and learns only if history don't exist
+
         Parameters
         ----------
         bkr: Broker
@@ -171,9 +174,67 @@ class Predictor(MyJson):
     @staticmethod
     def update_learns():
         pass
+    
+    @staticmethod
+    def update_market_histories(bkr: Broker, fiat_asset: Asset, pairs: List[Pair] = None, periods: List[int] = None) -> None:
+        """
+        To create new histories if enought period and push most recent period in existing histories
+
+        Parameters:
+        ----------
+        bkr: Broker
+            Access to a Broker's API
+        fiat_asset: Asset
+            The right asset to use on Pair
+        pairs: List[Pair] = None
+            List of Pair
+        periods: List[int] = None
+            List of period interval in second
+        """
+        bkr_cls = bkr.__class__.__name__
+        pairs = pairs if pairs is not None else MarketPrice.get_spot_pairs(bkr_cls, fiat_asset)
+        periods = periods if periods is not None else Predictor.get_learn_periods()
+        for pair in pairs:
+            if Predictor._enough_period(bkr, pair, periods):
+                Predictor._maintain_market_history(bkr, pair, periods)
+    
+    @staticmethod
+    def update_learns(pairs: List[Pair] = None, periods: List[int] = None) -> None:
+        """
+        To generate learn model on market hisories for given period
+
+        Parameters:
+        ----------
+        periods: List[int] = None
+            List of period interval in second
+        pairs: List[Pair] = None
+            List of Pair
+        """
+        def progression() -> str:
+            prefix_str = _MF.prefix() + _back_cyan
+            endtime = _MF.predict_endtime(starttime, turn, n_turn) if turn > 1 else None
+            endtime_str = _MF.delta_time(starttime, endtime) if endtime is not None else '?'
+            enddate = _MF.unix_to_date(endtime) if endtime is not None else '?'
+            status = prefix_str + f"[{turn}/{n_turn}] {pair.__str__().upper()} == '{enddate}' == '{endtime_str}'" + _normal
+            return status
+
+        _back_cyan = '\033[46m' + '\033[30m'
+        _normal = '\033[0m'
+        periods = periods if periods is not None else Predictor.get_learn_periods()
+        pairs = pairs if pairs is not None else Predictor.market_history_pairs()
+        starttime = _MF.get_timestamp()
+        n_turn = len(pairs)
+        i = 0
+        for pair in pairs:
+            turn = i + 1
+            print(progression()) if Predictor._DEBUG else None
+            for period in periods:
+                if Predictor.exist_market_history(pair, period):
+                    Predictor._learn(pair, [period])
+            i += 1
 
     @staticmethod
-    def _maintain_market_history(bkr: Broker, pair: Pair) -> None:
+    def _maintain_market_history(bkr: Broker, pair: Pair, periods: List[int] = None) -> None:
         """
         To create new market history if there's none else add histories since last add
 
@@ -183,14 +244,16 @@ class Predictor(MyJson):
             Access to a Broker's API
         pairs: List[Pair]
             Pair to download
+        periods: List[int] = None
+            List of period interval in second
         """
         _cyan = '\033[36m'
         _normal = '\033[0m'
-        periods = Predictor.get_learn_periods()
+        periods = periods if periods is not None else Predictor.get_learn_periods()
         unix_time = _MF.get_timestamp()
         for period in periods:
             endtime = _MF.round_time(unix_time, period)
-            if Predictor.market_history_file_exist(pair, period):
+            if Predictor.exist_market_history(pair, period):
                 print(_MF.prefix() + _cyan + f"({pair.__str__().upper()}) history exist for period '{int(period/60)}min'" + _normal) if Predictor._DEBUG else None
                 overwrite = False
                 starttime = Predictor.load_market_history(
@@ -207,19 +270,21 @@ class Predictor(MyJson):
                     pair, period, marketprices, overwrite)
 
     @staticmethod
-    def _learn(pair: Pair) -> None:
+    def _learn(pair: Pair, periods: List[int] = None) -> None:
         """
-        To create and store learn for existing strored market history
+        To create and store learn model for existing market history
 
         Parameters
         ----------
         pair: Pair
             Pair to learn of
+        periods: List[int] = None
+            List of period interval in second
         """
         _cyan = '\033[36m' + '\033[30m'
         _normal = '\033[0m'
         n_feature = Predictor.get_n_feature()
-        periods = Predictor.get_learn_periods()
+        periods = periods if periods is not None else Predictor.get_learn_periods()
         print(_MF.prefix() + _cyan + f"Learn pair '{pair.__str__().upper()}'" + _normal) if Predictor._DEBUG else None
         for period in periods:
             print(_MF.prefix() + _cyan + f"Learn for period '{int(period/60)}min'" + _normal) if Predictor._DEBUG else None
@@ -351,6 +416,21 @@ class Predictor(MyJson):
     # ——————————————————————————————————————————— STATIC FUNCTION MARKET UP ————————————————————————————————————————————
 
     @staticmethod
+    def market_history_pairs() -> List[Pair]:
+        """
+        To get list of Pair with a market history
+        
+        Returns:
+        --------
+        return: List[Pair]
+            List of Pair with a market history
+        """
+        pair_histories_dir = Predictor.history_dir()
+        pairs_str = FileManager.get_dirs(pair_histories_dir)
+        pairs = [Pair(pair_str.replace(Pair.UNDERSCORE, Pair.SEPARATOR)) for pair_str in pairs_str]
+        return pairs
+
+    @staticmethod
     def market_price_to_np(marketprice: MarketPrice, model_type: str, n_feature: int) -> np.ndarray:
         """
         To prepare list of MarketPrice to be predicted
@@ -374,16 +454,19 @@ class Predictor(MyJson):
         return np.array(prices[-n_feature:]).reshape((1, n_feature))
 
     @staticmethod
-    def _enough_period(bkr: Broker, pair: Pair) -> bool:
+    def _enough_period(bkr: Broker, pair: Pair, periods: List[int] = None) -> bool:
         """
         To check if there's enough period history on a Pair
         bkr: Broker
             Access to a Broker's API
         pairs: List[Pair]
             Pair to check
+        periods: List[int] = None
+            List of period interval in second
         """
         enough_period = False
-        max_period = max(Predictor.get_learn_periods())
+        periods = periods if periods is not None else Predictor.get_learn_periods()
+        max_period = max(periods)
         ds_min_size = Predictor.get_dataset_sizes()[Map.minimum]
         endtime = _MF.get_timestamp() - max_period * ds_min_size
         try:
@@ -531,17 +614,17 @@ class Predictor(MyJson):
 
     @staticmethod
     def _print_market_history(pair: Pair, period: int, marketprices: pd.DataFrame, overwrite: bool) -> None:
-        if period not in Predictor.get_learn_periods():
-            raise Exception(f"This period '{period}' is not supported")
+        # if period not in Predictor.get_learn_periods():
+        #     raise Exception(f"This period '{period}' is not supported")
         file_path = Predictor.history_file_path(pair, period)
         content = marketprices.to_csv(index=False, header=overwrite)
         FileManager.write(file_path, content,
                           overwrite=overwrite, make_dir=True)
 
     @staticmethod
-    def market_history_file_exist(pair: Pair, period: int) -> bool:
+    def exist_market_history(pair: Pair, period: int) -> bool:
         """
-        To check if a market history exist
+        To check if a market history exist by checking  if file exist
 
         Parameters
         ----------

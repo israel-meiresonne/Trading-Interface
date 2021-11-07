@@ -9,7 +9,7 @@ from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
-class BinanceOrder(Order, MyJson):
+class BinanceOrder(Order):
     CONV_STATUS = Map({
         BinanceAPI.STATUS_ORDER_NEW: Order.STATUS_SUBMITTED,
         BinanceAPI.STATUS_ORDER_PARTIALLY: Order.STATUS_PROCESSING,

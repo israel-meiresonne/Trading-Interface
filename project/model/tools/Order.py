@@ -4,12 +4,13 @@ from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 from model.tools.Request import Request
 
 
-class Order(ABC, Request):
+class Order(Request, MyJson, ABC):
     PREFIX_ID = 'odr_'
     # Types
     TYPE_MARKET = "_set_market"
@@ -473,3 +474,7 @@ class Order(ABC, Request):
             Map.fee: fees
         })
         return datas
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        pass

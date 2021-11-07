@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Union
 
 from model.tools.Asset import Asset
 from model.tools.MyJson import MyJson
 
 
 class Price(MyJson):
-    def __init__(self, value: [int, float], symbol: str):
+    def __init__(self, value: Union[int, float], symbol: str):
         self.__value = round(float(value), 8)
         self.__asset = Asset(symbol)
 
@@ -58,16 +58,16 @@ class Price(MyJson):
         new_val = self.get_value() - other.get_value()
         return Price(new_val, self.get_asset().get_symbol())
 
-    def __mul__(self, other: [int, float]) -> [int, float]:
+    def __mul__(self, other: Union[int, float]) -> Union[int, float]:
         return self.get_value() * other.get_value() if isinstance(other, Price) else self.get_value() * other
 
-    def __rmul__(self, other: [int, float]) -> [int, float]:
+    def __rmul__(self, other: Union[int, float]) -> Union[int, float]:
         return self * other
 
-    def __truediv__(self, other: [int, float]) -> [int, float]:
+    def __truediv__(self, other: Union[int, float]) -> Union[int, float]:
         return self.get_value() / other.get_value() if isinstance(other, Price) else self.get_value() / other
 
-    def __rtruediv__(self, other: [int, float]) -> [int, float]:
+    def __rtruediv__(self, other: Union[int, float]) -> Union[int, float]:
         return other.get_value() / self.get_value() if isinstance(other, Price) else other / self.get_value()
 
     def __neg__(self) -> 'Price':
