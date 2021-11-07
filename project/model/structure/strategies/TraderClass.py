@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Union
 
 from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
-from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
@@ -16,8 +14,7 @@ from model.tools.Price import Price
 
 
 class TraderClass(Strategy, MyJson, ABC):
-    _CONF_MAKET_PRICE = "config_market_price"
-    _CONF_MAX_DR = "CONF_MAX_DR"
+    _MARKET_PRICE_N_PERIOD = 1000
     _EXEC_BUY = "EXEC_BUY"
     _EXEC_PLACE_SECURE = "EXEC_PLACE_SECURE"
     _EXEC_SELL = "EXEC_SELL"
@@ -31,43 +28,53 @@ class TraderClass(Strategy, MyJson, ABC):
                params[Map.period]:  {int}                   # Period interval in second
         """
         super().__init__(params)
-        self.__configs = None
-        self.__secure_order = None
-        self._last_red_close = None
-        self._last_dropping_close = None
         rtn = _MF.keys_exist([Map.period], params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required.")
+        self.__marketprices = None
+        self.__buy_order = None
+        self.__secure_order = None
+        self.__broker = None
 
-    def _init_strategy(self, bkr: Broker) -> None:
-        if self.__configs is None:
-            self._init_constants(bkr)
+    def _reset_marketprices(self) -> None:
+        self.__marketprices = None
 
-    def _init_capital(self, bkr: Broker) -> None:
-        pass
+    def _get_marketprices(self) -> Map:
+        """
+        To get collection of MarketPrice
 
-    def _init_constants(self, bkr: Broker) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
-        period = self.get_period()
-        self.__configs = Map({
-            self._CONF_MAKET_PRICE: Map({
-                Map.pair: self.get_pair(),
-                Map.period: period,
-                Map.begin_time: None,
-                Map.end_time: None,
-                Map.number: 100 if _stage == Config.STAGE_1 else 250
-            }),
-            self._CONF_MAX_DR: -0.05
-        })
+        NOTE: marketprices[period{int}] => {MarketPrice}
 
-    def __get_constants(self) -> Map:
-        return self.__configs
+        Returns:
+        --------
+        return: Map
+            Collection of MarketPrice
+        """
+        if self.__marketprices is None:
+            self.__marketprices = Map()
+        return self.__marketprices
 
-    def _get_constant(self, k) -> Union[float, Map]:
-        configs = self.__get_constants()
-        if k not in configs.get_keys():
-            raise IndexError(f"There's  not constant with this key '{k}'")
-        return configs.get(k)
+    def get_marketprice(self, period: int, n_period: int = None) -> MarketPrice:
+        marketprices = self._get_marketprices()
+        if period not in marketprices.get_keys():
+            bkr = self.get_broker()
+            pair = self.get_pair()
+            n_period = n_period if n_period is not None else self.get_marketprice_n_period()
+            marketprice = self._market_price(bkr, pair, period, n_period)
+            marketprices.put(marketprice, period)
+        return marketprices.get(period)
+
+    def _reset_buy_order(self) -> None:
+        self.__buy_order = None
+
+    def _set_buy_order(self, buy_order: Order) -> None:
+        self.__buy_order = buy_order
+
+    def get_buy_order(self) -> Order:
+        """
+        To get executed Order of the last buy
+        """
+        return self.__buy_order
 
     def _reset_secure_order(self) -> None:
         self.__secure_order = None
@@ -77,6 +84,15 @@ class TraderClass(Strategy, MyJson, ABC):
 
     def _get_secure_order(self) -> Order:
         return self.__secure_order
+    
+    def _reset_broker(self) -> None:
+        self.__broker = None
+
+    def _set_broker(self, bkr: Broker) -> None:
+        self.__broker = bkr
+
+    def get_broker(self) -> Broker:
+        return self.__broker
 
     def _get_buy_capital(self) -> Price:
         """
@@ -106,18 +122,6 @@ class TraderClass(Strategy, MyJson, ABC):
             s_qty += odr_sum.get(Map.left).get_value()
         l_sbl = self.get_pair().get_left().get_symbol()
         return Price(s_qty, l_sbl)
-
-    def _get_market_price(self, bkr: Broker) -> MarketPrice:
-        """
-        To request MarketPrice to Broker\n
-        :param bkr: an access to Broker's API
-        :return: MarketPrice
-        """
-        _bkr_cls = bkr.__class__.__name__
-        mkt_prms = self._get_constant(self._CONF_MAKET_PRICE)
-        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_prms)
-        bkr.request(bkr_rq)
-        return bkr_rq.get_market_price()
 
     def _new_buy_order(self, bkr: Broker) -> Order:
         _bkr_cls = bkr.__class__.__name__
@@ -221,10 +225,11 @@ class TraderClass(Strategy, MyJson, ABC):
     def trade(self, bkr: Broker) -> int:
         # Update nb trade done
         self._update_nb_trade()
-        # Init Strategy in First turn
-        self._init_strategy(bkr)
+        # Set Broker
+        self._set_broker(bkr)
         # Get Market
-        marketprice = self._get_market_price(bkr)
+        period = self.get_period()
+        marketprice = self.get_marketprice(period)
         # Update Orders
         self._update_orders(bkr, marketprice)
         # Get And Execute Orders
@@ -232,10 +237,14 @@ class TraderClass(Strategy, MyJson, ABC):
             executions = self._try_sell(marketprice, bkr)
         else:
             self._reset_secure_order()
+            self._reset_buy_order()
             executions = self._try_buy(marketprice, bkr)
         self.execute(bkr, executions, marketprice)
         # Backup Capital
         self._save_capital(close=marketprice.get_close(), time=marketprice.get_time())
+        # Reset
+        self._reset_marketprices()
+        self._reset_broker()
         return Strategy.get_bot_sleep_time()
 
     def stop_trading(self, bkr: Broker) -> None:
@@ -258,6 +267,7 @@ class TraderClass(Strategy, MyJson, ABC):
             if execution == self._EXEC_BUY:
                 buy_order = self._new_buy_order(bkr)
                 bkr.execute(buy_order)
+                self._set_buy_order(buy_order)
             elif execution == self._EXEC_PLACE_SECURE:
                 secure_order = self._new_secure_order(bkr, mkt_prc)
                 bkr.execute(secure_order)
@@ -271,6 +281,9 @@ class TraderClass(Strategy, MyJson, ABC):
                     bkr.cancel(old_secure_order)
             else:
                 raise Exception(f"Unknown execution '{execution}'.")
+        if not self._has_position():
+            self._reset_secure_order()
+            self._reset_buy_order()
 
     @abstractmethod
     def _try_buy(self, market_price: MarketPrice, bkr: Broker) -> Map:
@@ -330,7 +343,41 @@ class TraderClass(Strategy, MyJson, ABC):
         # Place Secure order
         executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
-    # ——————————————— SAVE DOWN ———————————————
+    def _json_encode_prepare(self) -> None:
+        self._reset_marketprices()
+
+    # ——————————————— STATIC METHOD DOWN ———————————————
+
+    @staticmethod
+    @abstractmethod
+    def get_max_loss() -> float:
+        pass
+
+    @staticmethod
+    def get_marketprice_n_period() -> int:
+        """
+        To get number of period to retrieve from Broker's API
+
+        Returns:
+        --------
+        return: int
+            The number of period to retrieve from Broker's API
+        """
+        return TraderClass._MARKET_PRICE_N_PERIOD
+
+    @staticmethod
+    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
+        pass
+
+    @staticmethod
+    def performance_get_rates(market_price: MarketPrice) -> list:
+        pass
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        pass
+
+   # ——————————————— SAVE DOWN ———————————————
 
     @abstractmethod
     def save_move(self, **agrs):
@@ -417,22 +464,3 @@ class TraderClass(Strategy, MyJson, ABC):
         path = Config.get(Config.DIR_SAVE_PERIOD_RANKING)
         fields = list(rows[0].keys())
         FileManager.write_csv(path, fields, rows, overwrite=False, make_dir=True)
-
-    # ——————————————— STATIC METHOD DOWN ———————————————
-
-    @staticmethod
-    @abstractmethod
-    def get_max_loss() -> float:
-        pass
-
-    @staticmethod
-    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
-        pass
-
-    @staticmethod
-    def performance_get_rates(market_price: MarketPrice) -> list:
-        pass
-
-    @staticmethod
-    def json_instantiate(object_dic: dict) -> object:
-        pass
