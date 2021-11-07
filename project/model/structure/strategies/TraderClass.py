@@ -54,10 +54,10 @@ class TraderClass(Strategy, MyJson, ABC):
             self.__marketprices = Map()
         return self.__marketprices
 
-    def get_marketprice(self, period: int, n_period: int = None) -> MarketPrice:
+    def get_marketprice(self, period: int, n_period: int = None, bkr: Broker = None) -> MarketPrice:
         marketprices = self._get_marketprices()
         if period not in marketprices.get_keys():
-            bkr = self.get_broker()
+            bkr = bkr if bkr is not None else self.get_broker()
             pair = self.get_pair()
             n_period = n_period if n_period is not None else self.get_marketprice_n_period()
             marketprice = self._market_price(bkr, pair, period, n_period)
@@ -252,9 +252,9 @@ class TraderClass(Strategy, MyJson, ABC):
             executions = Map()
             self._sell(executions)
             self.execute(bkr, executions)
-        mkt_prc = self._get_market_price(bkr)
-        self._update_orders(bkr, mkt_prc)
-        self._save_capital(close=mkt_prc.get_close(), time=mkt_prc.get_time())
+        marketprice = self.get_marketprice(self.get_period(), bkr=bkr)
+        self._update_orders(bkr, marketprice)
+        self._save_capital(close=marketprice.get_close(), time=marketprice.get_time())
 
     def execute(self, bkr: Broker, executions: Map, mkt_prc: MarketPrice = None) -> None:
         """
