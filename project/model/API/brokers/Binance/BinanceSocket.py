@@ -185,7 +185,7 @@ class BinanceSocket(BinanceAPI):
         _cls = BinanceSocket
         stream_added = False
         nb_pushed = len([self._push_new_stream(new_stream) for new_stream in new_streams])
-        print(_MF.prefix() + f"Pushed '{nb_pushed}' new stream in new stream list")
+        print(_MF.prefix() + f"Pushed '{nb_pushed}' new stream in new stream list") if _cls._DEBUG else None
         try:
             nb_added = 1
             for new_stream in new_streams:
@@ -193,13 +193,13 @@ class BinanceSocket(BinanceAPI):
                 add_msg_str = f"{new_stream}({nb_added}/{nb_pushed})"
                 while (new_stream not in self._get_market_historics().get_keys()) or (not self.is_active()):
                     print(_MF.prefix() + f"Waiting for new stream '{add_msg_str}' to be add "
-                                         f"in market historic n°'{i}'...")
+                                         f"in market historic n°'{i}'...") if _cls._DEBUG else None
                     if i > _cls._CONST_MAX_RETRY_ADD_NEW_STREAM:
                         raise Exception(f"Max retry to add new stream '{add_msg_str}' in market historic")
                     else:
                         time.sleep(1)
                     i += 1
-                print(_MF.prefix() + f"New stream '{add_msg_str}' added in market historic")
+                print(_MF.prefix() + f"New stream '{add_msg_str}' added in market historic") if _cls._DEBUG else None
                 nb_added += 1
             stream_added = True
         except Exception as error:

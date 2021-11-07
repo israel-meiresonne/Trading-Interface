@@ -1,7 +1,7 @@
 import re as rgx
 import threading
 from abc import abstractmethod
-from datetime import datetime
+import datetime
 from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
@@ -46,12 +46,11 @@ class ModelFeature(ModelAccess):
 
     @staticmethod
     def date_to_unix(date: str) -> float:
-        return datetime.fromisoformat(date).timestamp()
+        return datetime.datetime.fromisoformat(date).timestamp()
 
     @staticmethod
     def unix_to_date(time: int, form: str = FORMAT_D_H_M_S, timezone_str: str = TIME_ZONE_UTC) -> str:
-        # return datetime.fromtimestamp(time).strftime(form)
-        return datetime.fromtimestamp(time, timezone(timezone_str)).strftime(form)
+        return datetime.datetime.fromtimestamp(time, timezone(timezone_str)).strftime(form)
 
     # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
     @staticmethod
@@ -400,3 +399,34 @@ class ModelFeature(ModelAccess):
         for col in columns:
             df[col] = df[col].apply(func, args=params) if params is not None else df[col].apply(func)
         return df
+
+    def predict_endtime(starttime: int, turn: int, n_turn: int, now_time: int = None) -> int:
+        """
+        To predict when iteration will end
+
+        Parameters:
+        -----------
+        starttime: int
+            The unix time when loop started
+        turn: int
+            The number of tour done
+        n_turn: int
+            The number of tour to do
+        now_time: int = None
+            The actual unix time
+
+        Returns:
+        --------
+        return: int
+            The unix time of when iteration will end in second
+        """
+        if turn <= 0:
+            raise ValueError(f"Number of turn done must be greater than Zero,instead '{turn}'")
+        now_time = ModelFeature.get_timestamp() if now_time is None else now_time
+        delta_time = now_time - starttime
+        time_per_turn = delta_time / turn
+        endtime = starttime + time_per_turn * n_turn
+        return endtime
+    
+    def delta_time(starttime: int, endtime: int) -> datetime.timedelta:
+        return datetime.timedelta(seconds=endtime-starttime)
