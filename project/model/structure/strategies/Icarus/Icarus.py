@@ -5,7 +5,6 @@ from model.structure.strategies.TraderClass import TraderClass
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
-from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Predictor import Predictor
 from model.tools.Price import Price
@@ -20,13 +19,17 @@ class Icarus(TraderClass):
     _PREDICTION_OCCUPATION_RATE = 100/100
     _PREDICTION_OCCUPATION_SECURE_TRIGGER = 50/100
     _PREDICTION_OCCUPATION_REDUCE = 30/100
+    _MIN_PERIOD = 60
+    _PERIODS_REQUIRRED = [_MIN_PERIOD]
+    _MAX_FLOAT_DEFAULT = -1
 
     def __init__(self, params: Map):
         super().__init__(params)
         self.__max_rsi = -1
-        self.__max_roi = -1
         self.__floor_secure_order = None
         self.__predictor = None
+        self.__max_price_id = None
+        self.__max_prices = None
         self.__max_close_predicted = None
     
     # ——————————————————————————————————————————— FUNCTION GETTER DOWN —————————————————————————————————————————————————
@@ -106,7 +109,7 @@ class Icarus(TraderClass):
             The max rate reached of max close predicted
         """
         max_roi_pred = self.max_roi_predicted()
-        max_roi = self.get_max_roi(marketprice)
+        max_roi = self.max_roi(marketprice)
         return max_roi / max_roi_pred
 
     # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED UP ————————————————————————————————————————
@@ -144,45 +147,113 @@ class Icarus(TraderClass):
         return max_rsi - rsi_step
 
     # ——————————————————————————————————————————— FUNCTION RSI UP ——————————————————————————————————————————————————————
-    # ——————————————————————————————————————————— FUNCTION MAX ROI DOWN ————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION MAX PRICE DOWN ——————————————————————————————————————————————
 
-    def _reset_max_roi(self) -> None:
-        self.__max_roi = -1
-
-    def _set_max_roi(self, new_max_roi: float) -> None:
-        if not isinstance(new_max_roi, float):
-            raise ValueError(f"max_roi must be float, instead '{new_max_roi}({type(new_max_roi)})'")
-        max_roi = self.__max_roi
-        self.__max_roi = new_max_roi if new_max_roi > max_roi else max_roi
-
-    def get_max_roi(self, market_price: MarketPrice) -> float:
+    def max_roi(self, marketprice: MarketPrice) -> float:
         """
         To get max roi for the current position taken
+
+        Parameters:
+        -----------
+        marketprice: MarketPrice
+            Market prices
+        
+        Returns:
+        --------
+        return: float
+            The roi for the current position taken
         """
-        market_price.get_pair().are_same(self.get_pair())
-        self._update_max_roi(market_price) if self._has_position() else None
-        return self.__max_roi
+        max_price = max_roi = self.get_max_price(marketprice)
+        if max_price >= 0:
+            exec_price = self.get_buy_order().get_execution_price().get_value()
+            max_roi = _MF.progress_rate(max_price, exec_price)
+        return max_roi
 
-    def _update_max_roi(self, market_price: MarketPrice) -> None:
-        buy_unix = self.get_buy_unix()
-        last_order = self._get_orders().get_last_execution()
-        times = list(market_price.get_times())
-        times.reverse()
-        highs = list(market_price.get_highs())
-        highs.reverse()
-        if buy_unix in times:
-            buy_time_idx = times.index(buy_unix)
-            highs_since_buy = highs[buy_time_idx:]
-            max_high = max(highs_since_buy)
-            exec_price = last_order.get_execution_price()
-            max_roi = max_high / exec_price - 1
-            self._set_max_roi(max_roi)
+    def _set_max_price_id(self, max_price_id: int) -> None:
+        self.__max_price_id = max_price_id
 
-    # ——————————————————————————————————————————— FUNCTION MAX ROI UP ——————————————————————————————————————————————————
+    def _get_max_price_id(self) -> int:
+        return self.__max_price_id
+
+    def _reset_max_prices(self) -> None:
+        self.__max_prices = None
+
+    def get_max_prices(self) -> list:
+        """
+        To get list of different high prices reached since last buy
+
+        Returns:
+        return: list
+            The list of different high prices reached since last buy
+        """
+        if self.__max_prices is None:
+            self.__max_prices = [-1]
+        return self.__max_prices
+    
+    def _set_max_price(self, new_max_price: float) -> None:
+        max_prices = self.get_max_prices()
+        max_price = max_prices[-1]
+        max_prices.append(new_max_price) if new_max_price > max_price else None
+        
+    def get_max_price(self, marketprice: MarketPrice) -> float:
+        """
+        To get max price reached since position taken
+
+        NOTE: its max of high prices
+
+        Parameters:
+        -----------
+        marketprice: MarketPrice
+            Market prices
+
+        Returns:
+        --------
+        return: float
+            The max price reached since position taken
+        """
+        max_price_id = id(marketprice)
+        if self._has_position() and (max_price_id != self._get_max_price_id()):
+            marketprice.get_pair().are_same(self.get_pair())
+            self._update_max_price(marketprice)
+            self._set_max_price_id(max_price_id)
+        max_prices = self.get_max_prices()
+        return max_prices[-1]
+
+    def _update_max_price(self, marketprice: MarketPrice) -> None:
+        buy_order = self.get_buy_order()
+        buy_time = int(buy_order.get_execution_time() / 1000)
+        min_period = self.get_min_period()
+        buy_period_time = _MF.round_time(buy_time, min_period)
+        min_marketprice = self.get_marketprice(min_period)
+        min_times = list(min_marketprice.get_times())
+        min_times.reverse()
+        if buy_period_time in min_times:
+            buy_price = buy_order.get_execution_price()
+            min_highs = list(min_marketprice.get_highs())
+            min_highs.reverse()
+            # Replace high with buy price
+            buy_time_idx = min_times.index(buy_period_time)
+            min_highs[buy_time_idx] = buy_price.get_value()
+            # Get and Update max high since buy
+            max_price = max(min_highs[buy_time_idx:])
+        else:
+            stg_period = self.get_period()
+            buy_period_time = _MF.round_time(buy_time, stg_period)
+            stg_times =  list(marketprice.get_times())
+            stg_times.reverse()
+            stg_highs = list(marketprice.get_highs())
+            stg_highs.reverse()
+            if buy_period_time in stg_times:
+                buy_time_idx = stg_times.index(buy_period_time)
+                stg_highs = stg_highs[buy_time_idx+1:]
+            max_price = max(stg_highs)
+        self._set_max_price(max_price)
+
+    # ——————————————————————————————————————————— FUNCTION MAX PRICE UP ————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION ROI FLOOR DOWN ——————————————————————————————————————————————
 
     def get_roi_floor(self, market_price: MarketPrice) -> float:
-        max_roi = self.get_max_roi(market_price)
+        max_roi = self.max_roi(market_price)
         roi_floor = self.get_max_loss()
         floors = {
             '1%': 0.01,
@@ -298,7 +369,7 @@ class Icarus(TraderClass):
             var_psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
             return var_psar_dropping
         def is_prediction_reached() -> bool:
-            max_roi = self.get_max_roi(marketprice)
+            max_roi = self.max_roi(marketprice)
             max_roi_pred = self.max_roi_predicted()
             return max_roi >= max_roi_pred
         def is_market_dropping() -> Tuple[bool, float]:
@@ -335,7 +406,7 @@ class Icarus(TraderClass):
         executions = Map()
         # Reset
         self._reset_max_rsi()
-        self._reset_max_roi()
+        self._reset_max_prices()
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
         # Evaluate Buy
@@ -358,15 +429,18 @@ class Icarus(TraderClass):
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
         """
-        def is_new_prediction(old_close: float, new_close) -> bool:
+        def is_new_prediction_higher(old_close: float, new_close) -> bool:
             return new_close > old_close
         def is_occupation_trigger_reached() -> bool:
             occup_trigger = self.get_prediction_occupation_secure_trigger()
             occupation = self.prediction_max_occupation(market_price)
             return occupation >= occup_trigger
+        def is_max_price_higher(old_max_price: float, new_max_price: float) -> bool:
+            return new_max_price > old_max_price
 
         executions = Map()
         max_close_pred = self.get_max_close_predicted()
+        old_max_price = self.get_max_prices()[-1]
         # Evaluate Sell
         predictor_marketprice = self.predictor_market_price(bkr, self.get_pair())
         can_sell = self.can_sell(predictor_marketprice, market_price)
@@ -374,12 +448,14 @@ class Icarus(TraderClass):
             self._sell(executions)
         else:
             new_max_close_pred = self.get_max_close_predicted()
-            new_prediction = is_new_prediction(max_close_pred, new_max_close_pred)
+            new_prediction_higher = is_new_prediction_higher(max_close_pred, new_max_close_pred)
             occup_trigger_reached = is_occupation_trigger_reached()
-            if new_prediction and occup_trigger_reached:
+            if new_prediction_higher and occup_trigger_reached:
                 self._move_up_secure_order(executions)
             elif (self._get_secure_order() is None) and occup_trigger_reached:
                 self._secure_position(executions)
+            elif (self._get_secure_order() is not None) and is_max_price_higher(old_max_price, new_max_price=self.get_max_price(market_price)):
+                self._move_up_secure_order(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -416,6 +492,25 @@ class Icarus(TraderClass):
     @staticmethod
     def get_prediction_occupation_reduce() -> float:
         return Icarus._PREDICTION_OCCUPATION_REDUCE
+    
+    @staticmethod
+    def get_min_period() -> int:
+        """
+        To get Broker's minimum period
+        """
+        return Icarus._MIN_PERIOD
+
+    @staticmethod
+    def get_periods_required() -> list:
+        """
+        To get list of period used to trade
+
+        Returns:
+        --------
+        return: list
+            List of period used to trade
+        """
+        return Icarus._PERIODS_REQUIRRED
     
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
@@ -528,9 +623,9 @@ class Icarus(TraderClass):
         rsis.reverse()
         secure_odr = self._get_secure_order()
         roi_position = self.get_roi_position(market_price)
-        max_roi = self.get_max_roi(market_price)
-        # roi_floor = self.get_roi_floor(market_price)
-        # floor_secure_order = self.get_floor_secure_order()
+        max_roi = self.max_roi(market_price)
+        max_price_id = self._get_max_price_id()
+        max_price = self.get_max_price(market_price)
         max_loss = self.get_max_loss()
         """
         can buy
@@ -541,7 +636,6 @@ class Icarus(TraderClass):
         # Supertrend
         supertrends = list(market_price.get_super_trend())
         supertrends.reverse()
-        supertrends_trend = MarketPrice.get_super_trend_trend(closes, supertrends, -2)
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
@@ -585,6 +679,8 @@ class Icarus(TraderClass):
             'closes[-2]': closes[-2],
             'closes[-3]': closes[-3],
             'buy_price': buy_price,
+            'max_price_id': max_price_id,
+            'max_price': max_price,
             'max_close_predicted': max_close_predicted,
             'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'max_loss': _MF.rate_to_str(max_loss),
@@ -601,7 +697,6 @@ class Icarus(TraderClass):
             'psar_rsis[-2]': psar_rsis[-2],
             'psar_rsis[-3]': psar_rsis[-3],
             'max_rsi': self.get_max_rsi(market_price),
-            # 'max_loss': _MF.rate_to_str(self.get_max_loss()),
             'max_occupation': _MF.rate_to_str(max_occupation) if has_position else None,
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
