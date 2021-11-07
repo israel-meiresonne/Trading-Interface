@@ -112,11 +112,6 @@ class Icarus(TraderClass):
         max_roi = self.max_roi(marketprice)
         return max_roi / max_roi_pred
 
-    def is_occupation_trigger_reached(self, market_price: MarketPrice) -> bool:
-        occup_trigger = self.get_prediction_occupation_secure_trigger()
-        occupation = self.prediction_max_occupation(market_price)
-        return occupation >= occup_trigger
-
     # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED UP ————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION RSI DOWN ————————————————————————————————————————————————————
     
