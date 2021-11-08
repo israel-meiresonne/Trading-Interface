@@ -430,3 +430,15 @@ class ModelFeature(ModelAccess):
     
     def delta_time(starttime: int, endtime: int) -> datetime.timedelta:
         return datetime.timedelta(seconds=endtime-starttime)
+
+    
+    @staticmethod
+    def loop_progression(starttime: int, turn: int, n_turn: int, message: str) -> str:
+        _back_cyan = '\033[46m' + '\033[30m'
+        _normal = '\033[0m'
+        prefix_str = ModelFeature.prefix() + _back_cyan
+        endtime = ModelFeature.predict_endtime(starttime, turn, n_turn) if turn > 1 else None
+        endtime_str = ModelFeature.delta_time(starttime, endtime) if endtime is not None else '?'
+        enddate = ModelFeature.unix_to_date(endtime) if endtime is not None else '?'
+        status = prefix_str + f"[{turn}/{n_turn}] {message} == '{enddate}' == '{endtime_str}'" + _normal
+        return status
