@@ -43,10 +43,11 @@ def get_broker() -> Broker:
 def main() -> None:
     bkr = get_broker()
     fiat_asset = Asset('USDT')
-    periods = [60 * 30]
-    Predictor.update_market_histories(bkr, fiat_asset, periods=periods)
-    Predictor.update_learns(periods=periods)
-    
+    pairs = Predictor.learned_pairs()
+    hist_periods = [60 * 15, 60 * 30, 60 * 60]
+    learn_periods = [60 * 15]
+    Predictor.update_market_histories(bkr, fiat_asset, pairs=pairs, periods=hist_periods)
+    Predictor.update_learns(pairs=pairs, periods=learn_periods)
 
 if __name__ == '__main__':
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
