@@ -194,9 +194,15 @@ class Predictor(MyJson):
         bkr_cls = bkr.__class__.__name__
         pairs = pairs if pairs is not None else MarketPrice.get_spot_pairs(bkr_cls, fiat_asset)
         periods = periods if periods is not None else Predictor.get_learn_periods()
+        starttime = _MF.get_timestamp()
+        n_turn = len(pairs)
+        i = 0
         for pair in pairs:
+            turn = i + 1
+            print(_MF.loop_progression(starttime, turn, n_turn, pair.__str__().upper())) if Predictor._DEBUG else None
             if Predictor._enough_period(bkr, pair, periods):
                 Predictor._maintain_market_history(bkr, pair, periods)
+            i += 1
     
     @staticmethod
     def update_learns(pairs: List[Pair] = None, periods: List[int] = None) -> None:
@@ -210,16 +216,6 @@ class Predictor(MyJson):
         pairs: List[Pair] = None
             List of Pair
         """
-        def progression() -> str:
-            prefix_str = _MF.prefix() + _back_cyan
-            endtime = _MF.predict_endtime(starttime, turn, n_turn) if turn > 1 else None
-            endtime_str = _MF.delta_time(starttime, endtime) if endtime is not None else '?'
-            enddate = _MF.unix_to_date(endtime) if endtime is not None else '?'
-            status = prefix_str + f"[{turn}/{n_turn}] {pair.__str__().upper()} == '{enddate}' == '{endtime_str}'" + _normal
-            return status
-
-        _back_cyan = '\033[46m' + '\033[30m'
-        _normal = '\033[0m'
         periods = periods if periods is not None else Predictor.get_learn_periods()
         pairs = pairs if pairs is not None else Predictor.market_history_pairs()
         starttime = _MF.get_timestamp()
@@ -227,7 +223,7 @@ class Predictor(MyJson):
         i = 0
         for pair in pairs:
             turn = i + 1
-            print(progression()) if Predictor._DEBUG else None
+            print(_MF.loop_progression(starttime, turn, n_turn, pair.__str__().upper())) if Predictor._DEBUG else None
             for period in periods:
                 if Predictor.exist_market_history(pair, period):
                     Predictor._learn(pair, [period])
@@ -376,6 +372,14 @@ class Predictor(MyJson):
 
     @staticmethod
     def learned_pairs() -> List[Pair]:
+        """
+        To get list of Pair with learned model
+
+        Returns:
+        --------
+        return: List[Pair]
+            List of Pair with learned model
+        """
         pair_path = Predictor.learn_dir()
         pairs_str = FileManager.get_dirs(pair_path, make_dir=True)
         pairs = [Pair(pair_str.replace(Pair.UNDERSCORE, Pair.SEPARATOR)) for pair_str in pairs_str]
