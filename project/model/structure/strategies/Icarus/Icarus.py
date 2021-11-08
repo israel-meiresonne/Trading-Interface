@@ -16,6 +16,8 @@ class Icarus(TraderClass):
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 2/100
+    _PREDICTION_ROI_HIGH_TRIGGER = 2/100
+    _PREDICTION_ROI_LOW_TRIGGER = 0
     _PREDICTION_OCCUPATION_RATE = 100/100
     _PREDICTION_OCCUPATION_SECURE_TRIGGER = 50/100
     _PREDICTION_OCCUPATION_REDUCE = 30/100
@@ -31,6 +33,8 @@ class Icarus(TraderClass):
         self.__max_price_id = None
         self.__max_prices = None
         self.__max_close_predicted = None
+        self.__min_price_predicted = None
+        self.__min_price_predicted_id = None
     
     # ——————————————————————————————————————————— FUNCTION GETTER DOWN —————————————————————————————————————————————————
 
@@ -113,6 +117,39 @@ class Icarus(TraderClass):
         return max_roi / max_roi_pred
 
     # ——————————————————————————————————————————— FUNCTION MAX ROI PREDICTED UP ————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION MIN PRICEPREDICTED DOWN —————————————————————————————————————
+
+    def _set_min_price_predicted_id(self, min_price_predicted_id: int) -> int:
+        self.__min_price_predicted_id = min_price_predicted_id
+
+    def get_min_price_predicted_id(self) -> int:
+        """
+        To get the id of the MarquetPrice used to evaluate prediction
+
+        Returns:
+        --------
+        return: int
+            The id of the MarquetPrice used to evaluate prediction
+        """
+        return self.__min_price_predicted_id
+    
+    def _reset_min_price_predicted(self) -> None:
+        self.__min_price_predicted = None
+
+    def _set_min_price_predicted(self) -> None:
+        old_min_pred_id = self.get_min_price_predicted_id()
+        predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
+        new_pred_id = id(predictor_marketprice)
+        if new_pred_id != old_min_pred_id:
+            predictor = self.get_predictor()
+            self.__min_price_predicted = self._predict_min_low(predictor_marketprice, predictor)
+            self._set_min_price_predicted_id(new_pred_id)
+    
+    def get_min_price_predicted(self) -> float:
+        self._set_min_price_predicted() if not self._has_position() else None
+        return self.__min_price_predicted
+
+    # ——————————————————————————————————————————— FUNCTION MIN PRICEPREDICTED UP ———————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION RSI DOWN ————————————————————————————————————————————————————
     
     def _reset_max_rsi(self) -> None:
@@ -376,7 +413,7 @@ class Icarus(TraderClass):
             close = marketprice.get_close()
             func_new_max_close_pred = get_new_max_close_pred()
             new_max_roi_pred = _MF.progress_rate(func_new_max_close_pred, close)
-            func_market_dropping = new_max_roi_pred < self.get_min_roi_predicted()
+            func_market_dropping = new_max_roi_pred < self.get_prediction_roi_high_trigger()
             return func_market_dropping, func_new_max_close_pred
         def get_new_max_close_pred() -> float:
             predictor = self.get_predictor()
@@ -409,6 +446,7 @@ class Icarus(TraderClass):
         self._reset_max_prices()
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
+        self._reset_min_price_predicted()
         # Evaluate Buy
         predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
         can_buy = self.can_buy(predictor_marketprice, market_price)
@@ -478,8 +516,12 @@ class Icarus(TraderClass):
         return Icarus._PREDICTOR_N_PERIOD
 
     @staticmethod
-    def get_min_roi_predicted() -> float:
-        return Icarus._MIN_ROI_PREDICTED
+    def get_prediction_roi_high_trigger() -> float:
+        return Icarus._PREDICTION_ROI_HIGH_TRIGGER
+
+    @staticmethod
+    def get_prediction_roi_low_trigger() -> float:
+        return Icarus._PREDICTION_ROI_LOW_TRIGGER
     
     @staticmethod
     def get_prediction_occupation_rate() -> float:
@@ -570,10 +612,17 @@ class Icarus(TraderClass):
         pair = child_marketprice.get_pair()
         period = Icarus.get_predictor_period()
         predictor = Predictor(pair, period)
-        max_close_pred = Icarus._predict_max_high(predictor_marketprice, predictor)
-        max_roi_pred = _MF.progress_rate(max_close_pred, close)
-        max_roi_ok = max_roi_pred >= Icarus.get_min_roi_predicted()
-        return max_roi_ok
+        # High
+        max_price_pred = Icarus._predict_max_high(predictor_marketprice, predictor)
+        max_roi_pred = _MF.progress_rate(max_price_pred, close)
+        max_roi_pred_ok = max_roi_pred >= Icarus.get_prediction_roi_high_trigger()
+        # Low
+        min_price_pred = Icarus._predict_min_low(predictor_marketprice, predictor)
+        min_roi_pred = _MF.progress_rate(min_price_pred, close)
+        min_roi_pred_ok = min_roi_pred >= Icarus.get_prediction_roi_low_trigger()
+        # Check
+        can_buy = max_roi_pred_ok and  min_roi_pred_ok
+        return can_buy
     
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR DOWN ——————————————————————————————————————
@@ -588,6 +637,17 @@ class Icarus(TraderClass):
         highs_np = Predictor.market_price_to_np(predictor_marketprice, Predictor.HIGH, n_feature)
         max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
         return float(max_close_pred)
+    
+    @staticmethod
+    def _predict_min_low(predictor_marketprice: MarketPrice, predictor: Predictor) -> float:
+        model = predictor.get_model(Predictor.LOW)
+        n_feature = model.n_feature()
+        lows = list(predictor_marketprice.get_lows())
+        lows.reverse()
+        xs, ys = Predictor.generate_dataset(lows, n_feature)
+        lows_np = Predictor.market_price_to_np(predictor_marketprice, Predictor.LOW, n_feature)
+        min_price_pred = model.predict(lows_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
+        return float(min_price_pred)
     
     @staticmethod
     def predictor_market_price(bkr: Broker, pair: Pair) -> MarketPrice:
@@ -658,7 +718,7 @@ class Icarus(TraderClass):
         max_roi_predicted = self.max_roi_predicted()
         real_max_roi_predicted = self.real_max_roi_predicted()
         prediction_occupation_rate = self.get_prediction_occupation_rate()
-        prediction_strigger = self.get_min_roi_predicted()
+        prediction_strigger = self.get_prediction_roi_high_trigger()
         if max_roi_predicted is None:
             max_roi_predicted = _MF.progress_rate(max_close_predicted, closes[-1])
         max_close_predicted_list = self.get_max_close_predicted_list()
@@ -671,6 +731,14 @@ class Icarus(TraderClass):
         occup_trigger = self.get_prediction_occupation_secure_trigger()
         max_occupation = self.prediction_max_occupation(market_price) if has_position else None
         occup_reduce_rate = self.get_prediction_occupation_reduce()
+        # Min prediction
+        min_price_pred = self.__min_price_predicted
+        min_price_predicted_id = self.get_min_price_predicted_id()
+        min_roi_pred = None
+        if has_position:
+            min_roi_pred = _MF.progress_rate(min_price_pred, buy_price.get_value())
+        elif min_price_pred is not None:
+            min_roi_pred = _MF.progress_rate(min_price_pred, closes[-1])
         # Map to print
         params_map = Map({
             Map.time: _MF.unix_to_date(market_price.get_time()),
@@ -682,6 +750,8 @@ class Icarus(TraderClass):
             'max_price_id': max_price_id,
             'max_price': max_price,
             'max_close_predicted': max_close_predicted,
+            'min_price_predicted_id': min_price_predicted_id,
+            'min_price_predicted': min_price_pred,
             'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'max_loss': _MF.rate_to_str(max_loss),
             'prediction_strigger': _MF.rate_to_str(prediction_strigger),
@@ -702,6 +772,7 @@ class Icarus(TraderClass):
             Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
             'max_roi_predicted': _MF.rate_to_str(max_roi_predicted) if max_roi_predicted is not None else max_roi_predicted,
+            'min_roi_predicted': min_roi_pred,
             'max_roi_predicted_max': _MF.rate_to_str(max_roi_predicted_max) if max_roi_predicted_max is not None else max_roi_predicted_max,
             'max_roi_predicted_min': _MF.rate_to_str(max_roi_predicted_min) if max_roi_predicted_min is not None else max_roi_predicted_min,
             'n_prediction': n_prediction,
