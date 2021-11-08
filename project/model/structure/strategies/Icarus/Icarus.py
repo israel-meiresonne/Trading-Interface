@@ -410,7 +410,7 @@ class Icarus(TraderClass):
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
         # Evaluate Buy
-        predictor_marketprice = self.predictor_market_price(bkr, self.get_pair())
+        predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
         can_buy = self.can_buy(predictor_marketprice, market_price)
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
@@ -442,7 +442,7 @@ class Icarus(TraderClass):
         max_close_pred = self.get_max_close_predicted()
         old_max_price = self.get_max_prices()[-1]
         # Evaluate Sell
-        predictor_marketprice = self.predictor_market_price(bkr, self.get_pair())
+        predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
         can_sell = self.can_sell(predictor_marketprice, market_price)
         if can_sell:
             self._sell(executions)
