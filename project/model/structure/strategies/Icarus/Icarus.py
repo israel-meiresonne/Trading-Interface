@@ -146,7 +146,7 @@ class Icarus(TraderClass):
             self._set_min_price_predicted_id(new_pred_id)
     
     def get_min_price_predicted(self) -> float:
-        self._set_min_price_predicted() if not self._has_position() else None
+        self._set_min_price_predicted()
         return self.__min_price_predicted
 
     # ——————————————————————————————————————————— FUNCTION MIN PRICEPREDICTED UP ———————————————————————————————————————
@@ -452,6 +452,7 @@ class Icarus(TraderClass):
         can_buy = self.can_buy(predictor_marketprice, market_price)
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
+            self._set_min_price_predicted()
             self._buy(executions)
             # self._secure_position(executions)
         # Save
@@ -732,13 +733,13 @@ class Icarus(TraderClass):
         max_occupation = self.prediction_max_occupation(market_price) if has_position else None
         occup_reduce_rate = self.get_prediction_occupation_reduce()
         # Min prediction
-        min_price_pred = self.__min_price_predicted
+        min_price_pred = self.get_min_price_predicted()
         min_price_predicted_id = self.get_min_price_predicted_id()
         min_roi_pred = None
         if has_position:
-            min_roi_pred = _MF.progress_rate(min_price_pred, buy_price.get_value())
+            min_roi_pred = _MF.rate_to_str(_MF.progress_rate(min_price_pred, buy_price.get_value()))
         elif min_price_pred is not None:
-            min_roi_pred = _MF.progress_rate(min_price_pred, closes[-1])
+            min_roi_pred = _MF.rate_to_str(_MF.progress_rate(min_price_pred, closes[-1]))
         # Map to print
         params_map = Map({
             Map.time: _MF.unix_to_date(market_price.get_time()),
