@@ -13,7 +13,7 @@ from model.tools.Price import Price
 class Icarus(TraderClass):
     _MAX_LOSS = -3/100
     _ROI_FLOOR_FIXE = 0.002
-    _PREDICTOR_PERIOD = 60 * 60
+    _PREDICTOR_PERIOD = 60 * 15
     _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 2/100
     _PREDICTION_OCCUPATION_RATE = 100/100
