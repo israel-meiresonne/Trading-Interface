@@ -542,6 +542,14 @@ class StalkerClass(Strategy, MyJson, ABC):
                 *streams,
                 *[broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
             ]
+        # Add streams for market analyse
+        market_analyse_period = MarketPrice.get_period_market_analyse()
+        spot_pairs = MarketPrice.get_spot_pairs(broker.__class__.__name__, self.get_pair().get_right())
+        spot_pairs = [spot_pair for spot_pair in spot_pairs if spot_pair not in pairs]
+        for spot_pair in spot_pairs:
+            spot_stream = broker.generate_stream(Map({Map.pair: spot_pair, Map.period: market_analyse_period}))
+            streams.append(spot_stream)
+        # Add streams
         streams = list(dict.fromkeys(streams))
         nb_stream = len(streams)
         start_time = _MF.get_timestamp()
