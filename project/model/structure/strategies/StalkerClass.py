@@ -527,13 +527,14 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
         print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
-        pairs = MarketPrice.get_spot_pairs(broker.__class__.__name__, self.get_pair().get_right())
+        pairs = self._get_allowed_pairs(broker)
         stg_pairs = [Pair(pair_str) for pair_str in self.get_active_strategies().get_keys()]
         pairs = [
             *pairs,
             *[stg_pair for stg_pair in stg_pairs if stg_pair not in pairs]            
         ]
         periods = self._add_streams_periods()
+        periods = list(dict.fromkeys(periods))
         periods.sort()
         streams = []
         for period in periods:
