@@ -111,7 +111,8 @@ class IcarusStalker(StalkerClass):
             self.get_period(),
             self.get_strategy_params().get(Map.period),
             *Predictor.get_learn_periods(),
-            *Icarus.get_periods_required()
+            *Icarus.get_periods_required(),
+            Icarus.get_predictor_period()
         ]
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
