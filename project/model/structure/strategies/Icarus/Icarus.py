@@ -169,6 +169,9 @@ class Icarus(TraderClass):
             max_roi = _MF.progress_rate(max_price, exec_price)
         return max_roi
 
+    def _reset_max_price_id(self) -> None:
+        self.__max_price_id = None
+
     def _set_max_price_id(self, max_price_id: int) -> None:
         self.__max_price_id = max_price_id
 
@@ -177,6 +180,7 @@ class Icarus(TraderClass):
 
     def _reset_max_prices(self) -> None:
         self.__max_prices = None
+        self._reset_max_price_id()
 
     def get_max_prices(self) -> list:
         """
@@ -211,7 +215,7 @@ class Icarus(TraderClass):
         return: float
             The max price reached since position taken
         """
-        max_price_id = id(marketprice)
+        max_price_id = marketprice.get_id()
         if self._has_position() and (max_price_id != self._get_max_price_id()):
             marketprice.get_pair().are_same(self.get_pair())
             self._update_max_price(marketprice)
@@ -621,6 +625,7 @@ class Icarus(TraderClass):
         return instance
 
     def save_move(self, **agrs) -> None:
+        args_map = Map(agrs)
         market_price = agrs['market_price']
         predictor_marketprice = agrs['predictor_marketprice']
         # pair = self.get_pair()
@@ -729,7 +734,13 @@ class Icarus(TraderClass):
             'signals[-1]': signals[-1],
             'signals[-2]': signals[-2],
             'histograms[-1]': histograms[-1],
-            'histograms[-2]': histograms[-2]
+            'histograms[-2]': histograms[-2],
+            "max_close_pred": args_map.get('max_close_pred'),
+            "old_max_price": args_map.get('old_max_price'),
+            "can_sell": args_map.get('can_sell'),
+            "new_max_close_pred": args_map.get('new_max_close_pred'),
+            "new_prediction_higher": args_map.get('new_prediction_higher'),
+            "occup_trigger_reached": args_map.get('occup_trigger_reached')
         })
         self._print_move(params_map)
 
