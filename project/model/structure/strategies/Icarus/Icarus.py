@@ -758,7 +758,8 @@ class Icarus(TraderClass):
             "new_prediction_higher": args_map.get('new_prediction_higher'),
             "occup_trigger_reached": args_map.get('occup_trigger_reached'),
             "secure_is_max_loss": args_map.get('secure_is_max_loss'),
-            "max_price_higher": args_map.get('max_price_higher')
+            "max_price_higher": args_map.get('max_price_higher'),
+            "occup_trigger_reached": args_map.get('occup_trigger_reached')
         })
         self._print_move(params_map)
 
