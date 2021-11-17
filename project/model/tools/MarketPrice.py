@@ -21,6 +21,7 @@ from model.tools.Pair import Pair
 
 
 class MarketPrice(ABC):
+    PREFIX_ID = 'mktprc_'
     # Indicators
     INDIC_MS = "_set_ms"
     INDIC_DR = "_set_dr"
@@ -95,6 +96,8 @@ class MarketPrice(ABC):
         """
         if not isinstance(mkt, list):
             raise ValueError(f"Market param must be type 'list', instead '{type(mkt)}'")
+        self.__id = self.PREFIX_ID + _MF.new_code()
+        self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
         mkt = [row.copy() for row in mkt]
         mkt.reverse()
         self.__market = tuple(mkt)
@@ -135,6 +138,20 @@ class MarketPrice(ABC):
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
         # self._save_market(self) if stage != Config.STAGE_1 else None
+
+    def get_id(self) -> str:
+        return self.__id
+
+    def get_settime(self) -> int:
+        """
+        To get the creation time in millisecond
+
+        Returns:
+        --------
+        return: int
+            The creation time in millisecond
+        """
+        return self.__settime
 
     def get_market(self) -> tuple:
         return self.__market
