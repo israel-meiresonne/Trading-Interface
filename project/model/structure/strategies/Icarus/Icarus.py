@@ -169,6 +169,9 @@ class Icarus(TraderClass):
             max_roi = _MF.progress_rate(max_price, exec_price)
         return max_roi
 
+    def _reset_max_price_id(self) -> None:
+        self.__max_price_id = None
+
     def _set_max_price_id(self, max_price_id: int) -> None:
         self.__max_price_id = max_price_id
 
@@ -177,6 +180,7 @@ class Icarus(TraderClass):
 
     def _reset_max_prices(self) -> None:
         self.__max_prices = None
+        self._reset_max_price_id()
 
     def get_max_prices(self) -> list:
         """
@@ -211,7 +215,7 @@ class Icarus(TraderClass):
         return: float
             The max price reached since position taken
         """
-        max_price_id = id(marketprice)
+        max_price_id = marketprice.get_id()
         if self._has_position() and (max_price_id != self._get_max_price_id()):
             marketprice.get_pair().are_same(self.get_pair())
             self._update_max_price(marketprice)
@@ -311,21 +315,25 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
 
     def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
-        pair = self.get_pair()
         # Get values
+        pair = self.get_pair()
         buy_price = self._get_orders().get_last_execution().get_execution_price().get_value()
-        get_max_close_pred = self.get_max_close_predicted()
-        max_occupation = self.prediction_max_occupation(marketprice)
-        reduce_rate = self.get_prediction_occupation_reduce()
-        # Delta between buy price and prediction price
-        increase_range = get_max_close_pred - buy_price
-        # Eval price corresponding to occupation rate
-        occup_close = increase_range * max_occupation + buy_price
-        # Eval price point to reduce
-        reduce = increase_range * reduce_rate
-        # Reduce price point to occupation to get secure price
-        secure_close = occup_close - reduce
-        return Price(secure_close, pair.get_right().get_symbol())
+        if self._get_secure_order() is None:
+            secure_price = TraderClass._secure_order_price(self, bkr, marketprice)
+        else:
+            get_max_close_pred = self.get_max_close_predicted()
+            max_occupation = self.prediction_max_occupation(marketprice)
+            reduce_rate = self.get_prediction_occupation_reduce()
+            # Delta between buy price and prediction price
+            increase_range = get_max_close_pred - buy_price
+            # Eval price corresponding to occupation rate
+            occup_close = increase_range * max_occupation + buy_price
+            # Eval price point to reduce
+            reduce = increase_range * reduce_rate
+            # Reduce price point to occupation to get secure price
+            secure_close = occup_close - reduce
+            secure_price = Price(secure_close, pair.get_right().get_symbol())
+        return secure_price
 
     def get_buy_unix(self) -> int:
         if not self._has_position():
@@ -343,9 +351,9 @@ class Icarus(TraderClass):
         # indicator
         indicator_ok = self._can_sell_indicator(marketprice)
         # Roi
-        roi_ok = self._can_sell_roi(marketprice)
+        # roi_ok = self._can_sell_roi(marketprice)
         # Check
-        can_sell = roi_ok or indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
+        can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
         return can_sell
     
     def _can_sell_roi(self, marketprice: MarketPrice) -> bool:
@@ -423,7 +431,7 @@ class Icarus(TraderClass):
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
-            # self._secure_position(executions)
+            self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -439,12 +447,19 @@ class Icarus(TraderClass):
         """
         def is_new_prediction_higher(old_close: float, new_close) -> bool:
             return new_close > old_close
+
         def is_occupation_trigger_reached() -> bool:
             occup_trigger = self.get_prediction_occupation_secure_trigger()
             occupation = self.prediction_max_occupation(market_price)
             return occupation >= occup_trigger
+
         def is_max_price_higher(old_max_price: float, new_max_price: float) -> bool:
             return new_max_price > old_max_price
+
+        def is_secure_is_max_loss() -> bool:
+            buy_odr = self.get_buy_order()
+            secure_odr = self._get_secure_order()
+            return secure_odr.get_limit_price().get_value() < buy_odr.get_execution_price().get_value()
 
         executions = Map()
         max_close_pred = self.get_max_close_predicted()
@@ -458,11 +473,16 @@ class Icarus(TraderClass):
             new_max_close_pred = self.get_max_close_predicted()
             new_prediction_higher = is_new_prediction_higher(max_close_pred, new_max_close_pred)
             occup_trigger_reached = is_occupation_trigger_reached()
+            secure_is_max_loss = is_secure_is_max_loss()
+            max_price_higher = is_max_price_higher(old_max_price, new_max_price=self.get_max_price(market_price))
             if new_prediction_higher and occup_trigger_reached:
+                # Move up occupation secure if new prediction and occup trigger reached
                 self._move_up_secure_order(executions)
-            elif (self._get_secure_order() is None) and occup_trigger_reached:
-                self._secure_position(executions)
-            elif (self._get_secure_order() is not None) and is_max_price_higher(old_max_price, new_max_price=self.get_max_price(market_price)):
+            elif secure_is_max_loss and occup_trigger_reached:
+                # Move up occupation secure
+                self._move_up_secure_order(executions)
+            elif occup_trigger_reached and max_price_higher:
+                # Move up occupation secure
                 self._move_up_secure_order(executions)
         # Save
         var_param = vars().copy()
@@ -621,6 +641,7 @@ class Icarus(TraderClass):
         return instance
 
     def save_move(self, **agrs) -> None:
+        args_map = Map(agrs)
         market_price = agrs['market_price']
         predictor_marketprice = agrs['predictor_marketprice']
         # pair = self.get_pair()
@@ -729,7 +750,15 @@ class Icarus(TraderClass):
             'signals[-1]': signals[-1],
             'signals[-2]': signals[-2],
             'histograms[-1]': histograms[-1],
-            'histograms[-2]': histograms[-2]
+            'histograms[-2]': histograms[-2],
+            "max_close_pred": args_map.get('max_close_pred'),
+            "old_max_price": args_map.get('old_max_price'),
+            "can_sell": args_map.get('can_sell'),
+            "new_max_close_pred": args_map.get('new_max_close_pred'),
+            "new_prediction_higher": args_map.get('new_prediction_higher'),
+            "occup_trigger_reached": args_map.get('occup_trigger_reached'),
+            "secure_is_max_loss": args_map.get('secure_is_max_loss'),
+            "max_price_higher": args_map.get('max_price_higher')
         })
         self._print_move(params_map)
 
