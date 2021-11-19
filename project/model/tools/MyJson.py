@@ -44,6 +44,10 @@ class MyJson(ABC):
         """
         pass
 
+    def copy(self) -> object:
+        obj_copy = MyJson.json_decode(self.json_encode())
+        return obj_copy        
+
     @staticmethod
     def __root_encoding(value: Any) -> Any:
         serializables = MyJson.get_imports().get_keys()
