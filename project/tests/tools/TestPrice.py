@@ -1,6 +1,6 @@
 import unittest
 
-from model.tools.MyJson import MyJson
+from model.tools.Asset import Asset
 from model.tools.Price import Price
 
 
@@ -12,6 +12,18 @@ class TestPrice(unittest.TestCase, Price):
         self.price2 = Price(2, self.symbol1)
         self.price3 = Price(3, self.symbol2)
         self.price4 = Price(4, self.symbol2)
+    
+    def test_set_asset(self) -> None:
+        # asset is string
+        symbol = self.symbol1
+        price1 = Price(15, symbol)
+        self.assertEqual(price1.get_asset(), Asset(symbol))
+        # asset is Asset
+        price2 = Price(15, Asset(symbol))
+        self.assertEqual(price2.get_asset(), Asset(symbol))
+        # asset is not string or Asset
+        with self.assertRaises(ValueError):
+            Price(15, 34)
 
     def test_sum(self) -> None:
         symbol = 'USDT'

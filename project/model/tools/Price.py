@@ -5,15 +5,24 @@ from model.tools.MyJson import MyJson
 
 
 class Price(MyJson):
-    def __init__(self, value: Union[int, float], symbol: str):
+    def __init__(self, value: Union[int, float], asset: Union[str, Asset]):
         self.__value = round(float(value), 8)
-        self.__asset = Asset(symbol)
+        self.__asset = None
+        self._set_asset(asset)
 
     def _set_value(self, value: float) -> None:
         self.__value = value
 
     def get_value(self) -> float:
         return self.__value
+    
+    def _set_asset(self, asset: Union[str, Asset]) -> None:
+        if isinstance(asset, str):
+            self.__asset = Asset(asset)
+        elif isinstance(asset, Asset):
+            self.__asset = asset
+        else:
+            raise ValueError(f"The asset '{asset}' must type 'str' or 'Asset', instead '{type(asset)}'")
 
     def get_asset(self) -> Asset:
         return self.__asset
