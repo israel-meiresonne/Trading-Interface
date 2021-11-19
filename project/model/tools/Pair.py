@@ -1,3 +1,4 @@
+from typing import Union
 from model.tools.Asset import Asset
 from model.tools.MyJson import MyJson
 
@@ -26,14 +27,14 @@ class Pair(MyJson):
         self.__left = Asset(prs[0])
         self.__right = Asset(prs[1])
 
-    def __constructor2(self, lsbl: str, rsbl: str):
+    def __constructor2(self, left: Union[str, Asset], right: Union[str, Asset]):
         """
         Constructor
         :param lsbl: symbol of the left Asset
         :param rsbl: symbol of the right Asset
         """
-        self.__left = Asset(lsbl)
-        self.__right = Asset(rsbl)
+        self.__left = left if isinstance(left, Asset) else Asset(left)
+        self.__right = right if isinstance(right, Asset) else Asset(right)
 
     def get_left(self) -> Asset:
         return self.__left
