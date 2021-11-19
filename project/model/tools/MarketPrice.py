@@ -21,6 +21,7 @@ from model.tools.Pair import Pair
 
 
 class MarketPrice(ABC):
+    PREFIX_ID = 'mktprc_'
     # Indicators
     INDIC_MS = "_set_ms"
     INDIC_DR = "_set_dr"
@@ -96,6 +97,8 @@ class MarketPrice(ABC):
         if not isinstance(mkt, list):
             raise ValueError(f"Market param must be type 'list', instead '{type(mkt)}'")
         mkt = [row.copy() for row in mkt]
+        self.__id = self.PREFIX_ID + _MF.new_code()
+        self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
         mkt.reverse()
         self.__market = tuple(mkt)
         self.__period_time = prd_time
@@ -135,6 +138,20 @@ class MarketPrice(ABC):
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
         # self._save_market(self) if stage != Config.STAGE_1 else None
+
+    def get_id(self) -> str:
+        return self.__id
+
+    def get_settime(self) -> int:
+        """
+        To get the creation time in millisecond
+
+        Returns:
+        --------
+        return: int
+            The creation time in millisecond
+        """
+        return self.__settime
 
     def get_market(self) -> tuple:
         return self.__market
@@ -875,12 +892,12 @@ class MarketPrice(ABC):
             Rate of number of Pair in each market trend
             Map[MarketPrice.MARKET_TREND_*]:    {float} # Rate [0,1]
         """
+        from model.tools.BrokerRequest import BrokerRequest
         if (end_time is not None) and ((not isinstance(end_time, int)) or (end_time < 1)):
             raise ValueError(f"End Time must be type int and >= 1, instead '{end_time}({type(end_time)})'")
         if (nb_period is not None) and ((not isinstance(nb_period, int)) or (nb_period < 1)):
             raise ValueError(f"Number of period to use must be type int and >= 1, "
                              f"instead '{nb_period}({type(nb_period)})'")
-        from model.tools.BrokerRequest import BrokerRequest
         stablecoins = Config.get(Config.CONST_STABLECOINS)
         concat_stable = '|'.join(stablecoins)
         stablecoin_rgx = f'({concat_stable})/\w+$'
@@ -1081,6 +1098,46 @@ class MarketPrice(ABC):
         pair_strs = _bkr_cls.get_pairs(match=match, no_match=no_match)
         pairs = [Pair(pair_str) for pair_str in pair_strs]
         return pairs
+
+    @staticmethod
+    def marketprice(bkr: 'Broker', pair: Pair, period: int, n_period: int, starttime: int = None, endtime: int = None) -> 'MarketPrice':
+        """
+        To request MarketPrice to Broker
+
+        Parameters
+        ----------
+        bkr: Broker
+            Access to a Broker's API
+        pair: Pair
+            Pair to get market prices for
+        period: int
+            The period interval to request
+        n_period: int
+            The number of period to retrieve
+        starttime: int
+            The older time
+        endtime: int
+            The most recent time
+
+        Returns
+        -------
+        return: MarketPrice
+            MarketPrice from Broker's API
+        """
+        from model.structure.Broker import Broker
+        from model.tools.BrokerRequest import BrokerRequest
+        _bkr_cls = bkr.__class__.__name__
+        mkt_params = Map({
+            Map.pair: pair,
+            Map.period: period,
+            Map.begin_time: starttime,
+            Map.end_time: endtime,
+            Map.number: n_period
+        })
+        bkr_rq = bkr.generate_broker_request(
+            _bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
+        bkr.request(bkr_rq)
+        return bkr_rq.get_market_price()
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
