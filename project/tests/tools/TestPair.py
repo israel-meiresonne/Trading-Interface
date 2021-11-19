@@ -18,9 +18,16 @@ class TestPair(unittest.TestCase, Pair):
         self.assertDictEqual(self.exp_rasset.__dict__, pr.get_right().__dict__)
 
     def test_constructor_with_two_params(self) -> None:
+        # Params are string
         pr = Pair(self.lsbl, self.rsbl)
         self.assertDictEqual(self.exp_lasset.__dict__, pr.get_left().__dict__)
         self.assertDictEqual(self.exp_rasset.__dict__, pr.get_right().__dict__)
+        # Params are Asset
+        left = self.exp_lasset
+        right = self.exp_rasset
+        pair = Pair(left, right)
+        self.assertEqual(left, pair.get_left())
+        self.assertEqual(right, pair.get_right())
 
     def test_get_merges_symbols(self) -> None:
         exp = (self.lsbl + self.rsbl).lower()
