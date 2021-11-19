@@ -19,9 +19,26 @@ push_path()
 # dynamic_exec(class_name='TestDeepLearning', test_func='test_perso')
 # dynamic_exec(class_name='TestDeepLearning', test_func='test_offset_mean')
 
-dynamic_exec(class_name='TestPredictor', test_func='test_market_history_pairs')
+# dynamic_exec(class_name='TestPredictor', test_func='test_market_history_pairs')
 # dynamic_exec(class_name='TestPredictor', test_func='test_predict')
 # dynamic_exec(class_name='TestPredictor', test_func='test_add_learns')
 # dynamic_exec(class_name='TestPredictor', test_func='resume_learn')
 
 # dynamic_exec(class_name='TestModelFeature', test_func='test_df_apply')
+
+a = [
+    'test_set_initial',
+    'test_get_position_value',
+    'test_get_marketprice',
+    'test_deposit',
+    'test_withdraw',
+    'test_buy',
+    'test_sell',
+    'test_add_position',
+    'test_remove_position',
+    'test_multiple_transaction',
+    'test_json_encode_decode'
+]
+[dynamic_exec(class_name='TestWallet', test_func=func) for func in a]
+# dynamic_exec(class_name='TestWallet', test_func='test_json_encode_decode')
+
