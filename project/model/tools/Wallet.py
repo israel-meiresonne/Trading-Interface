@@ -425,7 +425,7 @@ class Wallet(MyJson):
         # Check
         transac_right = transaction.get_right()
         transac_left = transaction.get_left()
-        transac_fee = transaction.get_fee()
+        transac_fee = transaction.get_transaction_fee()
         self._not_negative(transac_right)
         self._not_negative(transac_left)
         self._not_negative(transac_fee)
@@ -470,7 +470,7 @@ class Wallet(MyJson):
         # Check
         transac_right = transaction.get_right()
         transac_left = transaction.get_left()
-        transac_fee = transaction.get_fee()
+        transac_fee = transaction.get_transaction_fee()
         self._not_negative(transac_right)
         self._not_negative(transac_left)
         self._not_negative(transac_fee)
@@ -613,8 +613,8 @@ class Wallet(MyJson):
     
     @staticmethod
     def _transaction_type(transaction: Transaction, transac_type: str) -> None:
-        if transaction.get_type() != transac_type:
-            raise TypeError(f"The transaction's type must be '{transac_type}', instead '{transaction.get_type()}'")
+        if transaction.get_transaction_type() != transac_type:
+            raise TypeError(f"The transaction's type must be '{transac_type}', instead '{transaction.get_transaction_type()}'")
     
     @staticmethod
     def _enough_fund(fund: Price, amount: Price) -> bool:
