@@ -101,7 +101,7 @@ class TestTransactions(unittest.TestCase, Transactions, Transaction):
         exp2 =  Map({
             Map.left: Price.sum([transac.get_left() for transac in transac_list]),
             Map.right: Price.sum([transac.get_right() for transac in transac_list]),
-            Map.fee: Price.sum([transac.get_fee() for transac in transac_list])
+            Map.fee: Price.sum([transac.get_transaction_fee() for transac in transac_list])
         })
         result2 = transacs.sum()
         self.assertDictEqual(exp2.get_map(), result2.get_map())

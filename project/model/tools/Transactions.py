@@ -87,7 +87,7 @@ class Transactions(MyJson):
         for transac_id, transac in transacs.get_map().items():
             rights.append(transac.get_right())
             lefts.append(transac.get_left())
-            fees.append(transac.get_fee())
+            fees.append(transac.get_transaction_fee())
         transac_sum = Map({
             Map.left: Price.sum(lefts),
             Map.right: Price.sum(rights),
