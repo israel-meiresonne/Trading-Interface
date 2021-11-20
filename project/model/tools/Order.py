@@ -58,7 +58,7 @@ class Order(Request, MyJson, ABC):
                         params[Map.quantity]    => {Price}
                         params[Map.amount]      => {Price}
         """
-        super().__init__()
+        super(Request).__init__()
         self.__id = self.PREFIX_ID + _MF.new_code()
         self.__broker_id = None
         if odr_type not in self.ODR_TYPES:
