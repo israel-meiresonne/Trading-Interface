@@ -81,12 +81,10 @@ class Controller:
         _stage = Config.get(Config.STAGE_MODE)
         md = self._get_model()
         vw = self._get_view()
-        # """
         # params
         if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
             api_pb = Config.get(Config.API_KEY_BINANCE_PUBLIC)
             api_sk = Config.get(Config.API_KEY_BINANCE_SECRET)
-            # """
             bkr = 'Binance'
             stgs = md.list_strategies()
             stg = stgs[vw.menu("Choose a Strategy:", stgs)]
@@ -148,6 +146,43 @@ class Controller:
                         }
                     }
                 })
+            elif stg == 'Icarus':
+                configs = Map({
+                    bkr: {
+                        Map.public: api_pb,
+                        Map.secret: api_sk,
+                        Map.test_mode: False
+                    },
+                    stg: {
+                        Map.maximum: None,
+                        Map.capital: 1000,
+                        Map.rate: 1,
+                        Map.period: 60 * 5
+                    }
+                })
+            elif stg == 'IcarusStalker':
+                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
+                configs = Map({
+                    bkr: {
+                        Map.public: api_pb,
+                        Map.secret: api_sk,
+                        Map.test_mode: False
+                    },
+                    stg: {
+                        Map.maximum: None,
+                        Map.capital: 1000,
+                        Map.rate: 1,
+                        Map.period: 60 * 5,
+                        Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
+                                                               no_selected_stgs)],
+                        Map.param: {
+                            Map.maximum: None,
+                            Map.capital: -1,
+                            Map.rate: 1,
+                            Map.period: 60 * 5,
+                        }
+                    }
+                })
             else:
                 raise Exception(f"Must implement menu for this Strategy '{stg}'.")
         elif _stage == Config.STAGE_3:
@@ -192,7 +227,6 @@ class Controller:
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
         print(configs.get_map())
-        # """
         # create Bot
         configs.put(pair_code, stg, Map.pair)
         bot = md.create_bot(bkr, stg, pair_code, configs)
