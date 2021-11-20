@@ -68,11 +68,11 @@ class TestTransaction(unittest.TestCase, Transaction):
         def correct_attribut(t:Transaction, c: Transaction) -> None:
             self.assertNotEqual(t.get_id(), c.get_id())
             self.assertNotEqual(t.get_settime(), c.get_settime())
-            self.assertEqual(t.get_type(), c.get_type())
+            self.assertEqual(t.get_transaction_type(), c.get_transaction_type())
             self.assertEqual(t.get_pair(), c.get_pair())
             self.assertEqual(t.get_right(), c.get_right())
             self.assertEqual(t.get_left(), c.get_left())
-            self.assertEqual(t.get_fee(), c.get_fee())
+            self.assertEqual(t.get_transaction_fee(), c.get_transaction_fee())
         transac = self.transac1
         # Clone is correct
         clone1 = transac.clone()
@@ -86,11 +86,11 @@ class TestTransaction(unittest.TestCase, Transaction):
         clone2 = transac.clone(type=transac_type, pair=pair, right=right, left=left, fee=fee)
         self.assertNotEqual(transac.get_id(), clone2.get_id())
         self.assertNotEqual(transac.get_settime(), clone2.get_settime())
-        self.assertEqual(transac_type, clone2.get_type())
+        self.assertEqual(transac_type, clone2.get_transaction_type())
         self.assertEqual(pair, clone2.get_pair())
         self.assertEqual(right, clone2.get_right())
         self.assertEqual(left, clone2.get_left())
-        self.assertEqual(fee, clone2.get_fee())
+        self.assertEqual(fee, clone2.get_transaction_fee())
     
     def test_json_encode_decode(self) -> None:
         trasanc = self.transac1

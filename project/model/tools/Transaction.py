@@ -15,25 +15,28 @@ class Transaction(MyJson):
     _TYPES = [TYPE_DEPOSIT, TYPE_WITHDRAWAL, TYPE_BUY, TYPE_SELL]
     
     def __init__(self, type: str, pair: Pair, right: Price, left: Price, fee: Price) -> None:
+        self._set_attributs()
+        self._set_id()
+        self._set_settime()
+        self._set_transaction_type(type)
+        self._set_pair(pair)
+        self._set_right(right)
+        self._set_left(left)
+        self._set_transaction_fee(fee)
+    
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN ——————————————————————————————————————————
+    
+    def _set_attributs(self) -> None:
         self.__id = None
         self.__settime = None
         self.__execution_time = None
         self.__link = None
-        self.__type = None
+        self.__transaction_type = None
         self.__pair = None
         self.__right = None
         self.__left = None
-        self.__fee = None
-        self._set_id()
-        self._set_settime()
-        self._set_type(type)
-        self._set_pair(pair)
-        self._set_right(right)
-        self._set_left(left)
-        self._set_fee(fee)
-    
-    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN ——————————————————————————————————————————
-    
+        self.__transaction_fee = None
+
     def _set_id(self) -> None:
         self.__id = self.PREFIX_ID + _MF.new_code()
 
@@ -86,15 +89,17 @@ class Transaction(MyJson):
         link = self._get_link_original()
         return link.copy()
 
-    def _set_type(self, type: str) -> None:
-        if type not in self.get_types():
-            raise ValueError(f"This type is not supported {type}")
-        self.__type = type
+    def _set_transaction_type(self, transaction_type: str) -> None:
+        if transaction_type not in self.get_types():
+            raise ValueError(f"This type is not supported {transaction_type}")
+        self.__transaction_type = transaction_type
         
-    def get_type(self) -> str:
-        return self.__type
+    def get_transaction_type(self) -> str:
+        return self.__transaction_type
 
     def _set_pair(self, pair: Pair) -> None:
+        if not isinstance(pair, Pair):
+            raise ValueError(f"The pair '{pair}' must be of type Pair, instead '{type(pair)}': ")
         self.__pair = pair
         
     def get_pair(self) -> Pair:
@@ -132,12 +137,12 @@ class Transaction(MyJson):
         """
         return self.__left
 
-    def _set_fee(self, fee: Price) -> None:
+    def _set_transaction_fee(self, fee: Price) -> None:
         if fee.get_asset() != self.get_pair().get_right():
-            raise ValueError(f"The fee's Asset '{fee}' must match Pair's right '{self.get_pair()}'")
-        self.__fee = fee
+            raise ValueError(f"The fee's Asset '{fee}' must match Transaction.pair's right Asset '{self.get_pair()}'")
+        self.__transaction_fee = fee
         
-    def get_fee(self) -> Price:
+    def get_transaction_fee(self) -> Price:
         """
         To get fee charged for the Transaction in Transaction.pair’s right Asset
 
@@ -146,7 +151,7 @@ class Transaction(MyJson):
         return: Price
             The fee charged for the Transaction in Transaction.pair’s right Asset
         """
-        return self.__fee
+        return self.__transaction_fee
 
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
@@ -171,7 +176,7 @@ class Transaction(MyJson):
         clone._set_pair(pair) if pair is not None else None
         clone._set_right(right) if right is not None else None
         clone._set_left(left) if left is not None else None
-        clone._set_fee(fee) if fee is not None else None
+        clone._set_transaction_fee(fee) if fee is not None else None
         return clone
 
     # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
