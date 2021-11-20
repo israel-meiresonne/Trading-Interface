@@ -4,7 +4,6 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
-from model.tools.Pair import Pair
 from model.tools.Price import Price
 from model.tools.Request import Request
 from model.tools.Transaction import Transaction
@@ -26,6 +25,7 @@ class Order(Request, Transaction, MyJson, ABC):
     # Moves
     MOVE_BUY = "MOVE_BUY"
     MOVE_SELL = "MOVE_SELL"
+    _MOVES = [MOVE_BUY, MOVE_SELL]
     # Status
     STATUS_SUBMITTED = "SUBMITTED"
     STATUS_PROCESSING = "PROCESSING"
@@ -58,14 +58,12 @@ class Order(Request, Transaction, MyJson, ABC):
                         params[Map.quantity]    => {Price}
                         params[Map.amount]      => {Price}
         """
-        super(Request).__init__()
-        self.__id = None
-        self.__settime = None
+        super().__init__()
+        super()._set_attributs()
         self.__broker_id = None
         self.__type = None
         self.__status = None
         self.__move = None
-        self.__pair = None
         self.__market = None
         self._limit = None
         self._stop = None
@@ -185,18 +183,6 @@ class Order(Request, Transaction, MyJson, ABC):
                                  f"that the left asset of the pair '{pr}'")
 
     # ——————————————————————————————————————————— FUNCTION SELF SETTER/GETTER DOWN —————————————————————————————————————
-    
-    def _set_id(self) -> None:
-        self.__id = self.PREFIX_ID + _MF.new_code()
-
-    def get_id(self) -> str:
-        return self.__id
-
-    def _set_settime(self) -> None:
-        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
-
-    def get_settime(self) -> int:
-        return self.__settime
 
     def _set_broker_id(self, odr_id) -> None:
         if self.__broker_id is not None:
@@ -229,18 +215,13 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__status
 
     def _set_move(self, move: str) -> None:
+        if move not in self.get_moves():
+            raise ValueError(f"This move '{move}' is not supported")
         self.__move = move
+        self._set_transaction_type(Transaction.TYPE_BUY) if move == self.MOVE_BUY else self._set_transaction_type(Transaction.TYPE_SELL)
 
     def get_move(self) -> str:
         return self.__move
-
-    def _set_pair(self, pair: Pair) -> None:
-        if not isinstance(pair, Pair):
-            raise ValueError(f"The pair '{pair}' must be of type Pair, instead '{type(pair)}': ")
-        self.__pair = pair
-
-    def get_pair(self) -> Pair:
-        return self.__pair
 
     def _set_limit_price(self, limit: Price) -> None:
         self._limit = limit
@@ -281,12 +262,20 @@ class Order(Request, Transaction, MyJson, ABC):
         """
         return self.__execution_time
 
-    def _set_execution_price(self, prc: Price) -> None:
+    def _set_execution_price(self, price: Price) -> None:
         if self.__execution_price is not None:
-            raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{prc}').")
-        self.__execution_price = prc
+            raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{price}').")
+        self.__execution_price = price
 
     def get_execution_price(self) -> Price:
+        """
+        To get market price at witch Order have been executed
+
+        Returns:
+        --------
+        return: Price
+            The market price at witch Order have been executed
+        """
         return self.__execution_price
 
     def _set_executed_quantity(self, quantity: Price) -> None:
@@ -294,8 +283,17 @@ class Order(Request, Transaction, MyJson, ABC):
             raise Exception(f"The execution quantity "
                             f"'{self.__executed_quantity}' is already set, (new quantity '{quantity}').")
         self.__executed_quantity = quantity
+        self._set_left(quantity)
 
     def get_executed_quantity(self) -> Price:
+        """
+        To get quantity of left Asset traded
+
+        Returns:
+        --------
+        return: Price
+            The quantity of left Asset traded
+        """
         return self.__executed_quantity
 
     def _set_executed_amount(self, amount: Price) -> None:
@@ -303,8 +301,17 @@ class Order(Request, Transaction, MyJson, ABC):
             raise Exception(f"The execution amount "
                             f"'{self.__executed_amount}' is already set, (new amount '{amount}').")
         self.__executed_amount = amount
+        self._set_right(amount)
 
     def get_executed_amount(self) -> Price:
+        """
+        To get amount of right Asset traded
+
+        Returns:
+        --------
+        return: Price
+            The amount of right Asset traded
+        """
         return self.__executed_amount
 
     def _set_fee(self, fee: Price) -> None:
@@ -327,6 +334,7 @@ class Order(Request, Transaction, MyJson, ABC):
             l_symbol: l_fee,
             r_symbol: r_fee,
         })
+        self._set_transaction_fee(r_fee)
 
     def get_fee(self, asset: Asset) -> Price:
         pair = self.get_pair()
@@ -441,8 +449,15 @@ class Order(Request, Transaction, MyJson, ABC):
 
     # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION TRANSACTION DOWN ————————————————————————————————————————————
-    
+
     # ——————————————————————————————————————————— FUNCTION TRANSACTION UP ——————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION STATIC SETTER/GETTER DOWN ———————————————————————————————————
+
+    @staticmethod
+    def get_moves() -> list:
+        return Order._MOVES
+
+    # ——————————————————————————————————————————— FUNCTION STATIC SETTER/GETTER UP —————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION STATIC DOWN —————————————————————————————————————————————————
 
     @staticmethod
