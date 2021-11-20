@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-from config.Config import Config
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
 from model.tools.Map import Map
@@ -8,9 +7,10 @@ from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 from model.tools.Request import Request
+from model.tools.Transaction import Transaction
 
 
-class Order(Request, MyJson, ABC):
+class Order(Request, Transaction, MyJson, ABC):
     PREFIX_ID = 'odr_'
     # Types
     TYPE_MARKET = "_set_market"
@@ -59,17 +59,13 @@ class Order(Request, MyJson, ABC):
                         params[Map.amount]      => {Price}
         """
         super(Request).__init__()
-        self.__id = self.PREFIX_ID + _MF.new_code()
+        self.__id = None
+        self.__settime = None
         self.__broker_id = None
-        if odr_type not in self.ODR_TYPES:
-            raise ValueError(f"This Order type '{odr_type}' is not supported")
-        self.__type = odr_type
+        self.__type = None
         self.__status = None
-        self.__move = None  # set in _set_order
-        pair = params.get(Map.pair)
-        if not isinstance(pair, Pair):
-            raise ValueError(f"Pair must be an instance of the Pair class, instead '{type(pair)}': '{pair}'")
-        self.__pair = pair
+        self.__move = None
+        self.__pair = None
         self.__market = None
         self._limit = None
         self._stop = None
@@ -78,14 +74,18 @@ class Order(Request, MyJson, ABC):
         self.__order_params = params
         self.__request_params = None
         self.__cancel_request_params = None
-        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
         # After Execution Down
         self.__execution_time = None
         self.__execution_price = None
         self.__executed_quantity = None
         self.__executed_amount = None
         self.__fee = None
-        self.__trades = None    # Usually an order is split by the Broker to sub-order (= trade) to be fill easier
+        self.__trades = None
+        pair = params.get(Map.pair)
+        self._set_id()
+        self._set_settime()
+        self._set_type(odr_type)
+        self._set_pair(pair)
         self._set_order(params)
 
     def _set_order(self, params: Map) -> None:
@@ -184,8 +184,19 @@ class Order(Request, MyJson, ABC):
                 raise ValueError(f"Quantity's asset '{qty_sbl}' must the same "
                                  f"that the left asset of the pair '{pr}'")
 
+    # ——————————————————————————————————————————— FUNCTION SELF SETTER/GETTER DOWN —————————————————————————————————————
+    
+    def _set_id(self) -> None:
+        self.__id = self.PREFIX_ID + _MF.new_code()
+
     def get_id(self) -> str:
         return self.__id
+
+    def _set_settime(self) -> None:
+        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
+
+    def get_settime(self) -> int:
+        return self.__settime
 
     def _set_broker_id(self, odr_id) -> None:
         if self.__broker_id is not None:
@@ -194,6 +205,11 @@ class Order(Request, MyJson, ABC):
 
     def get_broker_id(self) -> str:
         return self.__broker_id
+
+    def _set_type(self, odr_type: str) -> None:
+        if odr_type not in self.ODR_TYPES:
+            raise ValueError(f"This Order type '{odr_type}' is not supported")
+        self.__type = odr_type
 
     def get_type(self) -> str:
         return self.__type
@@ -217,6 +233,11 @@ class Order(Request, MyJson, ABC):
 
     def get_move(self) -> str:
         return self.__move
+
+    def _set_pair(self, pair: Pair) -> None:
+        if not isinstance(pair, Pair):
+            raise ValueError(f"The pair '{pair}' must be of type Pair, instead '{type(pair)}': ")
+        self.__pair = pair
 
     def get_pair(self) -> Pair:
         return self.__pair
@@ -316,6 +337,8 @@ class Order(Request, MyJson, ABC):
     def _set_trades(self, trades: Map) -> None:
         """
         To set trades executed\n
+        Note: Usually an order is split by the Broker to sub-order (= trade) to be fill easier
+
         :param trades: executed trades
                Map[trade_id][*]:    {BrokerRequest.get_trades()}    # Same format
         """
@@ -352,9 +375,6 @@ class Order(Request, MyJson, ABC):
 
     def _set_cancel_request_params(self, params: Map) -> None:
         self.__cancel_request_params = params
-
-    def get_settime(self) -> int:
-        return self.__settime
 
     @abstractmethod
     def _set_market(self) -> None:
@@ -399,6 +419,9 @@ class Order(Request, MyJson, ABC):
             params[Map.quantity]=> {Price}  # in left asset
         """
         pass
+    
+    # ——————————————————————————————————————————— FUNCTION SELF SETTER/GETTER UP ———————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
 
     @abstractmethod
     def generate_order(self) -> Map:
@@ -415,6 +438,12 @@ class Order(Request, MyJson, ABC):
         :return: params to cancel the Order
         """
         pass
+
+    # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION TRANSACTION DOWN ————————————————————————————————————————————
+    
+    # ——————————————————————————————————————————— FUNCTION TRANSACTION UP ——————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION STATIC DOWN —————————————————————————————————————————————————
 
     @staticmethod
     def generate_broker_order(broker_class: str, order_type: str, params: Map) -> 'Order':
@@ -478,3 +507,5 @@ class Order(Request, MyJson, ABC):
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         pass
+
+    # ——————————————————————————————————————————— FUNCTION STATIC UP ———————————————————————————————————————————————————
