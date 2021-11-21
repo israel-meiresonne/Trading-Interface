@@ -29,10 +29,6 @@ class TestWallet(unittest.TestCase, Wallet):
     
     def tearDown(self) -> None:
         self.broker_switch(False)
-        print('end')
-    
-    def tearClassDown(self) -> None:
-        print('end')
 
     def broker_switch(self, on: bool = False) -> Broker:
         if on:
@@ -45,7 +41,7 @@ class TestWallet(unittest.TestCase, Wallet):
             }))
         else:
             init_stage = self.init_stage
-            self.bkr.close()
+            self.bkr.close() if self.bkr is not None else None
             Config.update(Config.STAGE_MODE,
                           init_stage) if init_stage is not None else None
         return self.bkr
@@ -61,7 +57,47 @@ class TestWallet(unittest.TestCase, Wallet):
         # Negative Price
         with self.assertRaises(ValueError):
             Wallet(-initial)
-    
+
+    def test_set_max_buy(self) -> None:
+        wallet = self.w1
+        initial = self.initial1
+        r_asset = initial.get_asset()
+        # max_buy is None
+        self.assertIsNone(wallet.get_max_buy())
+        # Correct
+        max_buy1 = Price(10, r_asset)
+        wallet.set_max_buy(max_buy1)
+        self.assertEqual(max_buy1, wallet.get_max_buy())
+        # max_buy == 0
+        max_buy2 = Price(0, r_asset)
+        with self.assertRaises(ValueError):
+            wallet.set_max_buy(max_buy2)
+        # max_buy < 0
+        max_buy3 = Price(-1, r_asset)
+        with self.assertRaises(ValueError):
+            wallet.set_max_buy(max_buy3)
+
+    def test_set_get_buy_rate(self) -> None:
+        wallet = self.w1
+        # Getter: buy_rate is None
+        exp1 = Wallet.get_default_buy_rate()
+        result1 = wallet.get_buy_rate()
+        self.assertEqual(exp1, result1)
+        # Setter: correct
+        exp2 = 0.018
+        wallet.set_buy_rate(exp2)
+        result2 = wallet.get_buy_rate()
+        self.assertEqual(exp2, result2)
+        # buy_rate > 1
+        with self.assertRaises(ValueError):
+            wallet.set_buy_rate(10)
+        # buy_rate == 0
+        with self.assertRaises(ValueError):
+            wallet.set_buy_rate(0)
+        # buy_rate < 0
+        with self.assertRaises(ValueError):
+            wallet.set_buy_rate(-10)
+
     def test_get_position_value(self) -> None:
         bkr = self.broker_switch(True)
         wallet = self.w1
@@ -240,6 +276,15 @@ class TestWallet(unittest.TestCase, Wallet):
         transacx =  Transaction(type=Transaction.TYPE_WITHDRAWAL, pair=pair1, right=righ1, left=left3, fee=fee3)
         with self.assertRaises(TypeError):
             wallet.buy(transacx)
+        # Exceed buy_capital available
+        self.setUp()
+        wallet = self.w1
+        max_buy = Price(1, initial.get_asset())
+        wallet.set_max_buy(max_buy)
+        transacx = Transaction(type=Transaction.TYPE_BUY, pair=pair1, right=righ1, left=left3, fee=fee3)
+        with self.assertRaises(ValueError):
+            wallet.buy(transacx)
+
 
     def test_sell(self) -> None:
         wallet = self.w1
@@ -426,6 +471,40 @@ class TestWallet(unittest.TestCase, Wallet):
         quantityx = Price(quantity2*10, quantity2.get_asset())
         with self.assertRaises(ValueError):
             wallet.remove_position(quantityx)
+
+    def test_buy_capital(self) -> None:
+        wallet = self.w1
+        initial = self.initial1
+        r_asset = initial.get_asset()
+        # buy_capital = Wallet.spot
+        exp1 = initial
+        result1 = wallet.buy_capital()
+        self.assertEqual(exp1, result1)
+        # buy_rate
+        buy_rate2 = 0.5
+        wallet.set_buy_rate(buy_rate2)
+        exp2 = Price(initial * buy_rate2, r_asset)
+        result2 = wallet.buy_capital()
+        self.assertEqual(exp2, result2)
+        # max_buy
+        self.setUp()
+        wallet = self.w1
+        max_buy3 = Price(initial/3, r_asset)
+        wallet.set_max_buy(max_buy3)
+        exp3 = max_buy3
+        result3 = wallet.buy_capital()
+        self.assertEqual(exp3, result3)
+        # buy_rate & max_buy
+        self.setUp()
+        buy_rate4 = 0.2
+        max_buy4 = Price(initial/10, r_asset)
+        wallet.set_max_buy(max_buy4)
+        wallet.set_buy_rate(buy_rate4)
+        exp4 = max_buy4
+        result4 = wallet.buy_capital()
+        self.assertEqual(exp4, result4)
+        self.assertEqual(max_buy4, wallet.get_max_buy())
+        self.assertEqual(buy_rate4, wallet.get_buy_rate())
 
     def test_multiple_transaction(self) -> None:
         state_idx = 0

@@ -14,6 +14,7 @@ class Wallet(MyJson):
     PREFIX_ID = 'wallet_'
     _MARKET_PERIOD = 60
     _MARKET_N_PERIOD = 10
+    _DEFAULT_BUY_RATE = 1
     ATTR_POSIIONS = 'POSITION'                  # Pair(left/right)
     ATTR_ADDED_POSIIONS = 'ADDED_POSIIONS'      # Pair(left/left)
     ATTR_REMOVED_POSIIONS = 'REMOVED_POSIIONS'  # Pair(left/left)
@@ -25,6 +26,8 @@ class Wallet(MyJson):
         self.__depot = None
         self.__withdrawal = None
         self.__spot = None
+        self.__max_buy = None
+        self.__buy_rate = None
         self.__buy = None
         self.__sell = None
         self.__positions = None
@@ -76,7 +79,46 @@ class Wallet(MyJson):
     
     def get_depot(self) -> Price:
         return self._get_depot_transactions().sum().get(Map.right)
+
+    def reset_max_buy(self) -> None:
+        self.__max_buy = None
+
+    def set_max_buy(self, max_buy: Price) -> None:
+        if max_buy.get_value() <= 0:
+            raise ValueError(f"The max buy capital must be > 0")
+        if max_buy.get_asset() != self.get_initial().get_asset():
+            r_asset = self.get_initial().get_asset()
+            raise ValueError(f"The max buy capital's Asset must be '{r_asset}', instead '{max_buy.get_asset()}'")
+        self.__max_buy = max_buy
+
+    def get_max_buy(self) -> Price:
+        """
+        To get the max amount of Wallet.spot that can be used to buy
+
+        Return:
+        -------
+        return: Price
+            The max amount of Wallet.spot that can be used to buy
+        """
+        return self.__max_buy
+
+    def set_buy_rate(self, buy_rate: float) -> None:
+        if not (0 < buy_rate <= 1):
+            raise ValueError(f"The Wallet.buy_rate must respect domain ]0,1]")
+        self.__buy_rate = buy_rate
+
+    def get_buy_rate(self) -> float:
+        """
+        To get the max rate of Wallet.spot that can be used to buy
         
+        Returns:
+        --------
+        return: float
+            The max rate of Wallet.spot that can be used to buy
+        """
+        buy_rate = self.__buy_rate
+        return buy_rate if buy_rate is not None else self.get_default_buy_rate()
+
     def _get_withdrawal_transactions(self) -> Transactions:
         if self.__withdrawal is None:
             pair = self._new_pair()
@@ -432,6 +474,9 @@ class Wallet(MyJson):
         fund = self.get_spot()
         self._enough_fund(fund, transac_right)
         self._transaction_type(transaction, Transaction.TYPE_BUY)
+        buy_capital = self.buy_capital()
+        if transac_right.get_value() > buy_capital.get_value():
+            raise ValueError(f"The buy amount '{transac_right}' exceed the max buy capital '{buy_capital}'")
         # Prepare
         neg_transac_right = -transac_right
         pos_pair = transaction.get_pair()
@@ -449,7 +494,7 @@ class Wallet(MyJson):
         position.link(buy)
         position.link(spot)
 
-    def sell(self, transaction: Transaction) -> Price:
+    def sell(self, transaction: Transaction) -> None:
         """
         To sell Asset
 
@@ -573,6 +618,24 @@ class Wallet(MyJson):
         # Reset
         self._reset_total()
 
+    def buy_capital(self) -> Price:
+        """
+        To get amount of Wallet.spot available to buy
+
+        Returns:
+        --------
+        return: Price
+            The amount of Wallet.spot available to buy
+        """
+        max_buy = self.get_max_buy()
+        buy_rate = self.get_buy_rate()
+        spot = self.get_spot()
+        r_asset = self.get_initial().get_asset()
+        buy_capital = spot * buy_rate
+        buy_capital = max_buy \
+            if (max_buy is not None) and (buy_capital > max_buy.get_value()) else Price(buy_capital, r_asset)
+        return buy_capital
+
     def _json_encode_prepare(self) -> None:
         self.reset_marketprices()
     # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
@@ -589,7 +652,7 @@ class Wallet(MyJson):
             The default period to request MarketPrice
         """
         return Wallet._MARKET_PERIOD
-    
+
     @staticmethod
     def get_n_period() -> int:
         """
@@ -601,6 +664,18 @@ class Wallet(MyJson):
             The number of period to request MarketPrice
         """
         return Wallet._MARKET_N_PERIOD
+
+    @staticmethod
+    def get_default_buy_rate() -> float:
+        """
+        To get default buy rate
+
+        Return:
+        -------
+        return: float
+            The default buy rate
+        """
+        return Wallet._DEFAULT_BUY_RATE
 
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
