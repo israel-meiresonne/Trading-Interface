@@ -35,6 +35,38 @@ class TestTransactions(unittest.TestCase, Transactions, Transaction):
         with self.assertRaises(IndexError):
             transacs.get_transaction(transac4.get_id())
 
+    def test_set_sum(self) -> None:
+        transacs = self.transacs1
+        # Correct
+        transac_sum1 = Map({
+            Map.left: Price(1, 'USDT'),
+            Map.right: Price(2, 'USDT'),
+            Map.fee: Price(3, 'USDT')
+        })
+        transacs._set_sum(transac_sum1)
+        self.assertEqual(transac_sum1, transacs._get_sum())
+        # Miss left Price
+        transac_sum2 = Map({
+            Map.right: Price(2, 'USDT'),
+            Map.fee: Price(3, 'USDT')
+        })
+        with self.assertRaises(ValueError):
+            transacs._set_sum(transac_sum2)
+        # Miss right Price
+        transac_sum3 = Map({
+            Map.left: Price(1, 'USDT'),
+            Map.fee: Price(3, 'USDT')
+        })
+        with self.assertRaises(ValueError):
+            transacs._set_sum(transac_sum3)
+        # Miss fee Price
+        transac_sum4 = Map({
+            Map.left: Price(1, 'USDT'),
+            Map.right: Price(2, 'USDT')
+        })
+        with self.assertRaises(ValueError):
+            transacs._set_sum(transac_sum4)
+
     def test_add(self) -> None:
         transacs = self.transacs1
         transac1 = self.transac1
@@ -105,7 +137,32 @@ class TestTransactions(unittest.TestCase, Transactions, Transaction):
         })
         result2 = transacs.sum()
         self.assertDictEqual(exp2.get_map(), result2.get_map())
-    
+        # Re-use when no transaction
+        self.setUp()
+        transacs = self.transacs1
+        transac_sum = transacs.sum()
+        exp3 = transac_sum
+        result3 = transacs.sum()
+        self.assertEqual(id(exp3), id(result3))
+        self.assertEqual(exp3, result3)
+        # Reset when add Transaction
+        transacs.add(transac1)
+        result4 = transacs.sum()
+        self.assertNotEquals(id(transac_sum), id(result4))
+        self.assertNotEqual(transac_sum, result4)
+        # Reset when remove Transaction
+        transacs.remove(transac1.get_id())
+        last_sum = result4
+        result5 = transacs.sum()
+        self.assertNotEquals(id(last_sum), id(result5))
+        self.assertNotEqual(last_sum, result5)
+        # Re-use when contain transaction
+        transacs.add(transac2)
+        exp6 = transacs.sum()
+        result6 = transacs.sum()
+        self.assertEqual(id(exp6), id(result6))
+        self.assertEqual(exp6, result6)
+
     def test_json_encode_decode(self) -> None:
         transacs = self.transacs1
         transac1 = self.transac1
