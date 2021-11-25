@@ -15,7 +15,7 @@ class Wallet(MyJson):
     _MARKET_PERIOD = 60
     _MARKET_N_PERIOD = 10
     _DEFAULT_BUY_RATE = 1
-    ATTR_POSIIONS = 'POSITION'                  # Pair(left/right)
+    ATTR_POSITONS = 'POSITIONS'                 # Pair(left/right)
     ATTR_ADDED_POSIIONS = 'ADDED_POSIIONS'      # Pair(left/left)
     ATTR_REMOVED_POSIIONS = 'REMOVED_POSIIONS'  # Pair(left/left)
 
@@ -69,6 +69,14 @@ class Wallet(MyJson):
         self._get_spot_transactions().add(transac)
     
     def get_initial(self) -> Price:
+        """
+        To get the initial capital
+
+        Returns:
+        --------
+        return: Price
+            The initial capital
+        """
         return self.__initial
 
     def _get_depot_transactions(self) -> Transactions:
@@ -171,7 +179,7 @@ class Wallet(MyJson):
         """
         return self._get_sell_transactions().sum().get(Map.right)
 
-    def _get_positions(self, attribute: str = ATTR_POSIIONS) -> Map:
+    def _get_positions(self, attribute: str = ATTR_POSITONS) -> Map:
         """
         To get positions holds in each Asset
         
@@ -181,7 +189,7 @@ class Wallet(MyJson):
             Positions holds in each Asset
             positions[Pair{str}]: {Transactions}
         """
-        if attribute == self.ATTR_POSIIONS:
+        if attribute == self.ATTR_POSITONS:
             if self.__positions is None:
                 self.__positions = Map()
             return self.__positions
@@ -196,23 +204,23 @@ class Wallet(MyJson):
         else:
             raise ValueError(f"This positions attribut '{attribute}' is not supported")
     
-    def _get_position_transactions(self, asset: Asset, attribute: str = ATTR_POSIIONS) -> Transactions:
+    def _get_position_transactions(self, asset: Asset, attribute: str = ATTR_POSITONS) -> Transactions:
         positions = self._get_positions(attribute)
-        pair = self._new_pair(asset) if attribute == self.ATTR_POSIIONS else Pair(asset, asset)
+        pair = self._new_pair(asset) if attribute == self.ATTR_POSITONS else Pair(asset, asset)
         pair_str = pair.__str__()
         if pair_str not in positions.get_keys():
             transacs = Transactions(pair)
             positions.put(transacs, pair_str)
         return positions.get(pair_str)
 
-    def get_position(self, asset: Asset, attribute: str = ATTR_POSIIONS) -> Price:
+    def get_position(self, asset: Asset, attribute: str = ATTR_POSITONS) -> Price:
         """
         To get position on the given Asset
 
         Parameters:
         -----------
         asset: Asset
-            The Asset to get position of
+            The left Asset to get position of
 
         Returns:
         --------
@@ -220,12 +228,12 @@ class Wallet(MyJson):
             The position on the given Asset
         """
         positions = self._get_positions(attribute)
-        pair = self._new_pair(asset) if attribute == self.ATTR_POSIIONS else Pair(asset, asset)
+        pair = self._new_pair(asset) if attribute == self.ATTR_POSITONS else Pair(asset, asset)
         pair_str = pair.__str__()
         transacs = positions.get(pair_str)
         return transacs.sum().get(Map.left) if isinstance(transacs, Transactions) else Price(0, asset)
     
-    def get_position_value(self, bkr: Broker, asset: Asset, attribute: str = ATTR_POSIIONS) -> Price:
+    def get_position_value(self, bkr: Broker, asset: Asset, attribute: str = ATTR_POSITONS) -> Price:
         """
         To get the given Asset's value in Wallet.initial's Asset
 
@@ -234,7 +242,7 @@ class Wallet(MyJson):
         bkr: Broker
             Access to Broker's API
         asset: Asset
-            The Asset to get value of
+            The left Asset to get position of
 
         Returns:
         --------
@@ -250,7 +258,7 @@ class Wallet(MyJson):
             pos_value = Price(position * close, right_asset)
         return pos_value
 
-    def get_all_position_value(self, bkr: Broker, attribute: str = ATTR_POSIIONS) -> Price:
+    def get_all_position_value(self, bkr: Broker, attribute: str = ATTR_POSITONS) -> Price:
         """
         To get value of all positions in Wallet.initial's Asset
 
@@ -309,9 +317,8 @@ class Wallet(MyJson):
     def _set_total(self, bkr: Broker) -> None:
         def total() -> Price:
             spot = self.get_spot()
-            position = self.get_all_position_value(bkr, self.ATTR_POSIIONS)
-            total = spot + position
-            return total
+            position = self.get_all_position_value(bkr, self.ATTR_POSITONS)
+            return spot + position
         self.__total = total()
 
     def get_total(self, bkr: Broker) -> Price:
@@ -335,17 +342,17 @@ class Wallet(MyJson):
         self.__roi = None
 
     def _set_roi(self, bkr: Broker) -> None:
-        def roi() -> float:
+        def func_roi() -> float:
             roi = 0
             buy = self.get_buy()
             if buy.get_value() != 0:
                 sell = self.get_sell()
-                position = self.get_all_position_value(bkr, self.ATTR_POSIIONS)
+                position = self.get_all_position_value(bkr, self.ATTR_POSITONS)
                 add_position = self.get_all_position_value(bkr, self.ATTR_ADDED_POSIIONS)
-                removed_position  = self.get_all_position_value(bkr, self.ATTR_REMOVED_POSIIONS)
+                removed_position = self.get_all_position_value(bkr, self.ATTR_REMOVED_POSIIONS)
                 roi = (position + sell - add_position + removed_position) / buy - 1
             return roi
-        self.__roi = roi()
+        self.__roi = func_roi()
 
     def get_roi(self, bkr: Broker) -> float:
         """
@@ -373,7 +380,7 @@ class Wallet(MyJson):
         wallet_asset = self.get_initial().get_asset()
         return Pair(asset, wallet_asset) if asset is not None else Pair(wallet_asset, wallet_asset)
     
-    def assets(self, attribute: str = ATTR_POSIIONS) -> list[Asset]:
+    def assets(self, attribute: str = ATTR_POSITONS) -> list[Asset]:
         pair_strs = self._get_positions(attribute)
         assets = [Pair(pair_str).get_left() for pair_str in pair_strs.get_keys()]
         return assets
@@ -409,6 +416,8 @@ class Wallet(MyJson):
         self._get_spot_transactions().add(spot)
         # Link
         depot.link(spot)
+        # Reset
+        self._reset_total()
 
     def withdraw(self, amount: Price, fee: Price = None) -> None:
         """
@@ -445,6 +454,8 @@ class Wallet(MyJson):
         self._get_spot_transactions().add(spot)
         # Link
         withdraw.link(spot)
+        # Reset
+        self._reset_total()
 
     def buy(self, transaction: Transaction) -> None:
         """
@@ -493,6 +504,9 @@ class Wallet(MyJson):
         # Link
         position.link(buy)
         position.link(spot)
+        # Reset
+        self._reset_total()
+        self._reset_roi()
 
     def sell(self, transaction: Transaction) -> None:
         """
@@ -519,7 +533,7 @@ class Wallet(MyJson):
         self._not_negative(transac_right)
         self._not_negative(transac_left)
         self._not_negative(transac_fee)
-        fund = self.get_position(transac_left.get_asset(), self.ATTR_POSIIONS)
+        fund = self.get_position(transac_left.get_asset(), self.ATTR_POSITONS)
         self._enough_fund(fund, transac_left)
         self._transaction_type(transaction, Transaction.TYPE_SELL)
         # Prepare
@@ -539,6 +553,9 @@ class Wallet(MyJson):
         # Link
         position.link(sell)
         position.link(spot)
+        # Reset
+        self._reset_total()
+        self._reset_roi()
 
     def add_position(self, quantity: Price, fee: Price = None) -> None:
         """
@@ -549,7 +566,7 @@ class Wallet(MyJson):
         quantity: Price
             The Asset to add
         fee: Price = None
-            Transaction fee
+            Transaction fee in Wallet.initial's Asset
         
         Raises:
         -------
@@ -572,7 +589,7 @@ class Wallet(MyJson):
         # Position
         pos_right = Price(0, pair.get_right())
         position = add_pos.clone(pair=pair, right=pos_right, left=quantity, fee=fee)
-        self._get_position_transactions(asset, self.ATTR_POSIIONS).add(position)
+        self._get_position_transactions(asset, self.ATTR_POSITONS).add(position)
         # Link
         add_pos.link(position)
         # Reset
@@ -587,7 +604,7 @@ class Wallet(MyJson):
         quantity: Price
             The Asset to remove
         fee: Price = None
-            Transaction fee
+            Transaction fee in Wallet.initial's Asset
         
         Raises:
         -------
@@ -602,7 +619,7 @@ class Wallet(MyJson):
         pair = self._new_pair(asset)
         fee = fee if fee is not None else Price(0, pair.get_right())
         self._not_negative(fee)
-        fund = self.get_position(asset, self.ATTR_POSIIONS)
+        fund = self.get_position(asset, self.ATTR_POSITONS)
         self._enough_fund(fund, quantity)
         # Remove Position
         pair_double = Pair(asset, asset)
@@ -612,7 +629,7 @@ class Wallet(MyJson):
         # Position
         pos_right = Price(0, pair.get_right())
         position = remove_pos.clone(pair=pair, right=pos_right, left=-quantity, fee=fee)
-        self._get_position_transactions(asset, self.ATTR_POSIIONS).add(position)
+        self._get_position_transactions(asset, self.ATTR_POSITONS).add(position)
         # Link
         remove_pos.link(position)
         # Reset
@@ -636,8 +653,37 @@ class Wallet(MyJson):
             if (max_buy is not None) and (buy_capital > max_buy.get_value()) else Price(buy_capital, r_asset)
         return buy_capital
 
+    def spot_fee(self) -> Price:
+        """
+        To get total fee charged for all deposit and withdrawal
+        NOTE: spot_fee = sum(Wallet.depot.fee) + sum(Wallet.withdrawal.fee)
+
+        Returns:
+        --------
+        return: Price
+            Total fee charged for all deposit and withdrawal
+        """
+        depot_fee = self._get_depot_transactions().sum().get(Map.fee)
+        withdrawal_fee = self._get_withdrawal_transactions().sum().get(Map.fee)
+        return depot_fee + withdrawal_fee
+
+    def trade_fee(self) -> Price:
+        """
+        To get total fee charged for all buy and sell
+        NOTE: trade_fee = sum(Wallet.buy.fee) + sum(Wallet.sell.fee)
+
+        Returns:
+        --------
+        return: Price
+            Total fee charged for all buy and sell
+        """
+        buy_fee = self._get_buy_transactions().sum().get(Map.fee)
+        sell_fee = self._get_sell_transactions().sum().get(Map.fee)
+        return buy_fee + sell_fee
+
     def _json_encode_prepare(self) -> None:
         self.reset_marketprices()
+
     # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER DOWN ——————————————————————————————————————————
 
