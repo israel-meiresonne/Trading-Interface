@@ -10,6 +10,7 @@ from model.tools.FileManager import FileManager
 
 class MyJson(ABC):
     _TOKEN_CLASS_NAME = '@class_name'
+    _TOKEN_ITERABLE = '@'
     _REGEX_REPLACE_ATTRIBUTE = f'^.+{_TOKEN_CLASS_NAME}'
     _EXECUTABLE_json_instantiate = None
     _EXECUTABLE_test_json_encode_decode = None
@@ -65,7 +66,8 @@ class MyJson(ABC):
         if iter_type == dict:
             value_encoded = {}
             for key, value in iterable_value.items():
-                json_key = f"{key}@{key.__class__.__name__}"
+                iter_token = MyJson._TOKEN_ITERABLE
+                json_key = f"{key.__class__.__name__}{iter_token}{key}"
                 value_encoded[json_key] = MyJson.__root_encoding(value)
         elif (iter_type == list) or (iter_type == tuple):
             iter_name = iter_type.__name__
@@ -205,7 +207,8 @@ class MyJson(ABC):
         if iter_type == dict:
             value_decoded = {}
             for json_key, value in iterable_value_copy.items():
-                str_key, key_type = json_key.split('@')
+                iter_token = MyJson._TOKEN_ITERABLE
+                key_type, str_key = json_key.split(iter_token)
                 key = eval(f"{key_type}(str_key)")
                 value_decoded[key] = MyJson._root_decoding(value)
         elif iter_type == list:
