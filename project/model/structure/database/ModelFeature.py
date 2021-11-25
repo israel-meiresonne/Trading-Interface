@@ -431,7 +431,6 @@ class ModelFeature(ModelAccess):
     def delta_time(starttime: int, endtime: int) -> datetime.timedelta:
         return datetime.timedelta(seconds=endtime-starttime)
 
-    
     @staticmethod
     def loop_progression(starttime: int, turn: int, n_turn: int, message: str) -> str:
         _back_cyan = '\033[46m' + '\033[30m'
