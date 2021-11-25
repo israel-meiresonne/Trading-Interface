@@ -8,6 +8,7 @@ from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Predictor import Predictor
 from model.tools.Price import Price
+from model.tools.Wallet import Wallet
 
 
 class Icarus(TraderClass):
@@ -16,7 +17,7 @@ class Icarus(TraderClass):
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 2/100
-    _PREDICTION_OCCUPATION_RATE = 100/100
+    _PREDICTION_OCCUPATION_RATE = 1
     _PREDICTION_OCCUPATION_SECURE_TRIGGER = 50/100
     _PREDICTION_OCCUPATION_REDUCE = 30/100
     _MIN_PERIOD = 60
@@ -172,10 +173,10 @@ class Icarus(TraderClass):
     def _reset_max_price_id(self) -> None:
         self.__max_price_id = None
 
-    def _set_max_price_id(self, max_price_id: int) -> None:
+    def _set_max_price_id(self, max_price_id: str) -> None:
         self.__max_price_id = max_price_id
 
-    def _get_max_price_id(self) -> int:
+    def _get_max_price_id(self) -> str:
         return self.__max_price_id
 
     def _reset_max_prices(self) -> None:
@@ -279,7 +280,7 @@ class Icarus(TraderClass):
             roi_floor = max_roi - max_roi * floors['20%']
         return roi_floor + self._ROI_FLOOR_FIXE
 
-    def get_roi_position(self, market_price: MarketPrice) -> float:
+    def get_roi_position(self) -> float:
         """
         To get actual merged capital since last position taken\n
         Parameters
@@ -291,13 +292,16 @@ class Icarus(TraderClass):
         roi: float|None
             Actual merged capital if has position else None
         """
-        market_price.get_pair().are_same(self.get_pair())
         roi = None
         if self._has_position():
+            bkr = self.get_broker()
             last_order = self._get_orders().get_last_execution()
-            amount = last_order.get_amount()
-            actual_capital = self.get_actual_capital_merged(market_price)
-            roi = actual_capital / amount - 1
+            buy_amount = last_order.get_executed_amount()
+            pos = self.get_wallet().get_all_position_value(bkr)
+            added_pos = self.get_wallet().get_all_position_value(bkr, Wallet.ATTR_ADDED_POSIIONS)
+            removed_pos = self.get_wallet().get_all_position_value(bkr, Wallet.ATTR_REMOVED_POSIIONS)
+            real_position = pos - added_pos + removed_pos
+            roi = real_position / buy_amount - 1
         return roi
 
     def _reset_floor_secure_order(self) -> None:
@@ -356,8 +360,8 @@ class Icarus(TraderClass):
         can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
         return can_sell
     
-    def _can_sell_roi(self, marketprice: MarketPrice) -> bool:
-        roi_pos = self.get_roi_position(marketprice)
+    def _can_sell_roi(self) -> bool:
+        roi_pos = self.get_roi_position()
         max_loss = self.get_max_loss()
         can_sell = roi_pos <= max_loss
         return can_sell
@@ -384,16 +388,19 @@ class Icarus(TraderClass):
             psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
             var_psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
             return var_psar_dropping
+
         def is_prediction_reached() -> bool:
             max_roi = self.max_roi(marketprice)
             max_roi_pred = self.max_roi_predicted()
             return max_roi >= max_roi_pred
+
         def is_market_dropping() -> Tuple[bool, float]:
             close = marketprice.get_close()
             func_new_max_close_pred = get_new_max_close_pred()
             new_max_roi_pred = _MF.progress_rate(func_new_max_close_pred, close)
             func_market_dropping = new_max_roi_pred < self.get_min_roi_predicted()
             return func_market_dropping, func_new_max_close_pred
+
         def get_new_max_close_pred() -> float:
             predictor = self.get_predictor()
             return self._predict_max_high(predictor_marketprice, predictor)
@@ -571,7 +578,6 @@ class Icarus(TraderClass):
 
     @staticmethod
     def _can_buy_indicator(child_marketprice: MarketPrice) -> bool:
-        can_buy_indicator = False
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
@@ -643,15 +649,16 @@ class Icarus(TraderClass):
     def save_move(self, **agrs) -> None:
         args_map = Map(agrs)
         market_price = agrs['market_price']
+        bkr = self.get_broker()
         predictor_marketprice = agrs['predictor_marketprice']
-        # pair = self.get_pair()
+        roi = self.get_wallet().get_roi(bkr)
         has_position = self._has_position()
         closes = list(market_price.get_closes())
         closes.reverse()
         rsis = list(market_price.get_rsis())
         rsis.reverse()
         secure_odr = self._get_secure_order()
-        roi_position = self.get_roi_position(market_price)
+        roi_position = self.get_roi_position()
         max_roi = self.max_roi(market_price)
         max_price_id = self._get_max_price_id()
         max_price = self.get_max_price(market_price)
@@ -728,7 +735,7 @@ class Icarus(TraderClass):
             'max_rsi': self.get_max_rsi(market_price),
             'max_occupation': _MF.rate_to_str(max_occupation) if has_position else None,
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
-            Map.roi: _MF.rate_to_str(self.get_roi(market_price)),
+            Map.roi: _MF.rate_to_str(roi),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
             'max_roi_predicted': _MF.rate_to_str(max_roi_predicted) if max_roi_predicted is not None else max_roi_predicted,
             'max_roi_predicted_max': _MF.rate_to_str(max_roi_predicted_max) if max_roi_predicted_max is not None else max_roi_predicted_max,
@@ -738,10 +745,10 @@ class Icarus(TraderClass):
             'prediction_occupation_rate': _MF.rate_to_str(prediction_occupation_rate),
             'supertrends[-1]': supertrends[-1],
             'supertrends[-2]': supertrends[-2],
-            'supertrends[-2]': supertrends[-3],
+            'supertrends[-3]': supertrends[-3],
             'psars[-1]': psars[-1],
             'psars[-2]': psars[-2],
-            'psars[-2]': psars[-3],
+            'psars[-3]': psars[-3],
             'klc_highs[-1]': klc_highs[-1],
             'klc_highs[-2]': klc_highs[-2],
             'klc_highs[-3]': klc_highs[-3],
@@ -758,8 +765,7 @@ class Icarus(TraderClass):
             "new_prediction_higher": args_map.get('new_prediction_higher'),
             "occup_trigger_reached": args_map.get('occup_trigger_reached'),
             "secure_is_max_loss": args_map.get('secure_is_max_loss'),
-            "max_price_higher": args_map.get('max_price_higher'),
-            "occup_trigger_reached": args_map.get('occup_trigger_reached')
+            "max_price_higher": args_map.get('max_price_higher')
         })
         self._print_move(params_map)
 
