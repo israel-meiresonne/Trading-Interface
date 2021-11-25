@@ -1,6 +1,6 @@
 import time
 from abc import ABC, abstractmethod
-from threading import Thread, active_count as threading_active_count
+from threading import Thread
 from typing import List
 
 from config.Config import Config
@@ -14,6 +14,7 @@ from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Price import Price
+from model.tools.Wallet import Wallet
 
 
 class StalkerClass(Strategy, MyJson, ABC):
@@ -22,6 +23,7 @@ class StalkerClass(Strategy, MyJson, ABC):
     _CONST_MAX_STRATEGY = 20
     _BLACKLIST_TIME = 60 * 3  # in second
     _PAIR_MANAGER_NB_PERIOD = 100
+    _REGEX_PAIR = r'\?\/[A-z\d]+'
     _THREAD_NAME_MARKET_STALKING = 'market_stalking'
     _THREAD_NAME_MARKET_ANALYSE = 'market_analysing'
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
@@ -40,31 +42,48 @@ class StalkerClass(Strategy, MyJson, ABC):
         Constructor\n
         :param params: params
                params[*]:               {Strategy.__init__()}   # Same structure
-               params[Map.strategy]:    {str}                   # Class name of Strategy to use
-               params[Map.param]:       {dict}                  # Params for Strategy  to use
                params[Map.period]:      {dict}                  # The period to stalk
+               params[Map.strategy]:    {str}                   # Class name of Strategy to use
+               params[Map.param]:       {dict}                  # Params for child Strategy to use
         """
-        ks = [Map.strategy, Map.param]
+        ks = [Map.period, Map.strategy, Map.param]
         rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required")
         super().__init__(params)
-        right_symbol = self.get_pair().get_right().get_symbol()
-        self._set_pair(Pair(f'?/{right_symbol}'))
         self.__next_stalk = None
-        self.__transactions = None
-        self.__max_strategy = self._CONST_MAX_STRATEGY
-        self.__strategy_class = params.get(Map.strategy)
-        child_stg_params = params.get(Map.param)
-        self._set_strategy_params(Map(child_stg_params))
+        self.__max_strategy = None
+        self.__strategy_class = None
+        self.__strategy_params = None
         self.__active_strategies = None
         self._next_blacklist_clean = None
         self.__blacklist = None
         self.__stalk_thread = None
         self.__analyse_thread = None
         self.__market_analyse = None
-        self.__fees = None
         self._allowed_pairs = None
+        # Prepare
+        pair = self.get_pair()
+        max_stg = self._CONST_MAX_STRATEGY
+        stg_class = params.get(Map.strategy)
+        child_stg_params = params.get(Map.param)
+        # Set
+        self._set_pair(pair)
+        self._set_max_strategy(max_stg)
+        self._set_strategy_class(stg_class)
+        self._set_strategy_params(Map(child_stg_params))
+
+    def _set_pair(self, pair: Pair) -> None:
+        regex = self.get_regex_pair()
+        pair_str = pair.format(Pair.FORMAT_SLASH)
+        if not _MF.regex_match(regex, pair_str):
+            raise ValueError(f"Pair must match regex '{regex}', instead '{pair_str}'")
+        super()._set_pair(pair)
+    
+    def _set_max_strategy(self, max_strategy: int) -> None:
+        if max_strategy <= 0:
+            raise ValueError(f"Max active Strategy must be > 0, instead '{max_strategy}'")
+        self.__max_strategy = max_strategy
 
     def get_max_strategy(self) -> int:
         return self.__max_strategy
@@ -78,98 +97,76 @@ class StalkerClass(Strategy, MyJson, ABC):
     def get_next_stalk(self) -> int:
         return self.__next_stalk
 
-    def get_transactions(self) -> Map:
+    def get_children_total(self, bkr: Broker) -> Price:
         """
-        To get transaction historic\n
-        Note: trace historic of final capital of Strategy added (negative transaction)
-        and deleted (positive transaction)\n
-        :return: transaction historic
-                 Map[time_stamps{int}]: {List[Price]}   # List of transaction add in the same time in millisecond
-        """
-        if self.__transactions is None:
-            unix_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
-            init_capital = self._get_capital()
-            self.__transactions = Map({unix_time: [init_capital]})
-        return self.__transactions
+        To get sum of children Strategy's total value
+        NOTE: children_total = sum(children.wallet.get_total())
 
-    def _add_transaction(self, amount: Price) -> None:
+        Returns:
+        --------
+        return: Price
+            Children Strategy's total value
         """
-        To add a new transaction to the transaction historic\n
-        :param amount: Amount of the new transaction to add
-        """
-        if amount.get_asset() != self.get_pair().get_right():
-            stg_asset_str = self.get_pair().get_right().__str__().upper()
-            amount_asset_str = amount.get_asset().__str__().upper()
-            raise ValueError(f"The amount to add in as transaction must be in the same Asset than the Strategy's "
-                             f"'{stg_asset_str}', instead '{amount_asset_str}'.")
-        transacts = self.get_transactions()
-        unix_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
-        transact_list = transacts.get(unix_time)
-        transacts.put([amount], unix_time) if transact_list is None else transact_list.append(amount)
+        r_asset = self.get_pair().get_right()
+        stgs = self.get_active_strategies()
+        stg_total = Price.sum([stg.get_wallet().get_total(bkr) for pair_str, stg in stgs.get_map().items()])
+        return stg_total if stg_total is not None else Price(0, r_asset)
 
-    def get_fees(self) -> Map:
+    def get_total(self, bkr: Broker) -> Price:
         """
-        To get all fees charged on closed strategies\n
-        Returns
-        -------
-        fees: Map
-            All fees charged on closed strategies
+        To get Strategy's total value
+        NOTE: total = Stalker.wallet.get_total() + sum(children.wallet.get_total())
+
+        Returns:
+        --------
+        return: Price
+            Strategy's total value
         """
-        if self.__fees is None:
-            self.__fees = Map()
-        return self.__fees
+        stk_total = self.get_wallet().get_total(bkr)
+        stg_total = self.get_children_total(bkr)
+        total = stk_total + stg_total
+        return total
 
     def get_fee(self) -> Price:
-        fees = self.get_fees()
-        fees_list = [Price.sum(fee_list) for add_time, fee_list in fees.get_map().items()]
-        sum_closed_fee = Price.sum(fees_list)
+        """
+        To get all fee charged on active and closed Strategy
+        NOTE: fee is on StalkerClass.pair's right Asset
+
+        Returns:
+        --------
+        return: Price
+            All fee charged on active and closed Strategy
+        """
+        stk_fee = self.get_wallet().spot_fee()
         stgs = self.get_active_strategies()
-        stg_fees = [stg.get_fee() for pair_str, stg in stgs.get_map().items()]
-        sum_active_stg = Price.sum(stg_fees)
-        if (sum_closed_fee is not None) and (sum_active_stg is not None):
-            fee = sum_closed_fee + sum_active_stg
-        elif sum_closed_fee is not None:
-            fee = sum_closed_fee
-        elif sum_active_stg is not None:
-            fee = sum_active_stg
-        else:
-            fee = Price(0, self.get_pair().get_right().get_symbol())
+        stg_fee = Price.sum([stg.get_wallet().trade_fee() for pair_str, stg in stgs.get_map().items()])
+        fee = stk_fee + stg_fee if stg_fee is not None else stk_fee
         return fee
-
-    def _add_fee(self, fee: Price) -> None:
-        if fee.get_asset() != self.get_pair().get_right():
-            right_asset = self.get_pair().get_right()
-            raise ValueError(f"Fee must be in StalkerClass's '{right_asset}' right asset, instead '{fee}'")
-        fees = self.get_fees()
-        unix_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
-        fee_list = fees.get(unix_time)
-        fees.put([fee], unix_time) if fee_list is None else fee_list.append(fee)
-
-    def _get_total_capital(self) -> Price:
-        """
-        To get total capital available to trade\n
-        NOTE: this capital will be split  between Strategy
-        :return: total capital available
-        """
-        transacts = self.get_transactions()
-        amounts = []
-        for unix_time, transact_list in transacts.get_map().items():
-            amounts.append(Price.sum(transact_list))
-        total_capital = Price.sum(amounts)
-        return total_capital
-
+    
     def _get_strategy_capital(self) -> Price:
         """
-        To get initial capital for new Strategy\n
-        :return: initial capital for new Strategy
+        To get initial capital for new child Strategy
+
+        Returns:
+        --------
+        return: Price
+            The initial capital for new Strategy
         """
-        total_capital = self._get_total_capital()
-        right_symbol = total_capital.get_asset().get_symbol()
+        buy_capital = self.get_wallet().buy_capital()
+        r_asset = buy_capital.get_asset()
         max_stg = self.get_max_strategy()
         stgs = self.get_active_strategies()
-        max_new_stg = max_stg - len(stgs.get_map())
-        stg_capital = Price(total_capital / max_new_stg, right_symbol)
+        remaining = max_stg - len(stgs.get_map())
+        if remaining <= 0:
+            raise ValueError(f"Max active Strategy reached, (remaining place='{remaining}')")
+        stg_capital = Price(buy_capital / remaining, r_asset)
         return stg_capital
+    
+    def _set_strategy_class(self, strategy_class: str) -> None:
+        stgs_class = self.list_strategies()
+        if strategy_class not in stgs_class:
+            raise ValueError(f"This Strategy '{strategy_class}' don't exist")
+        self.__strategy_class = strategy_class
 
     def get_strategy_class(self) -> str:
         """
@@ -185,7 +182,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         del params.get_map()[Map.capital]
         params.put(None, Map.maximum)
         del params.get_map()[Map.maximum]
-        params.put(1, Map.rate)
+        params.put(None, Map.rate)
+        del params.get_map()[Map.rate]
         self.__strategy_params = params
 
     def get_strategy_params(self) -> Map:
@@ -210,6 +208,24 @@ class StalkerClass(Strategy, MyJson, ABC):
         return stgs.get(pair.__str__())
 
     def _add_active_strategy(self, pair: Pair) -> None:
+        def prepare_stg_param(params: Map) -> None:
+            params.put(pair, Map.pair)
+            stg_capital = self._get_strategy_capital()
+            params.put(stg_capital.get_value(), Map.capital)
+
+        def add_stg(stg: Strategy) -> None:
+            stk_wallet = self.get_wallet()
+            child_wallet = stg.get_wallet()
+            child_pair = stg.get_pair()
+            child_initial = child_wallet.get_initial()
+            # Add residue
+            l_asset = child_pair.get_left()
+            residue = stk_wallet.get_position(l_asset)
+            child_wallet.add_position(residue)
+            # Withdraw from Stalker
+            stk_wallet.withdraw(child_initial)
+            stk_wallet.remove_position(residue)
+
         max_strategy = self.get_max_strategy()
         active_strategies = self.get_active_strategies()
         if len(active_strategies.get_map()) >= max_strategy:
@@ -219,38 +235,40 @@ class StalkerClass(Strategy, MyJson, ABC):
         pair_str = pair.__str__()
         if pair_str in pair_strs:
             raise ValueError(f"There's already an active Strategy for this pair '{pair_str.upper()}'.")
-        # Get new Strategy's class name
-        stg_class = self.get_strategy_class()
-        # Update new Strategy's params
-        stg_params = self.get_strategy_params()
-        stg_params.put(pair, Map.pair)
-        stg_capital = self._get_strategy_capital()
-        stg_params.put(stg_capital.get_value(), Map.capital)
-        # Add new transaction
-        self._add_transaction(-stg_capital)
         # Generate new Strategy
+        stg_class = self.get_strategy_class()
+        stg_params = self.get_strategy_params()
+        prepare_stg_param(stg_params)
         exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
         new_stg = eval(f"{stg_class}.generate_strategy(stg_class, stg_params)")
+        # Add Strategy
+        add_stg(new_stg)
         active_strategies.put(new_stg, pair_str)
 
-    def _delete_active_strategy(self, bkr: Broker, pair: Pair, marketprice: MarketPrice) -> None:
+    def _delete_active_strategy(self, bkr: Broker, pair: Pair) -> None:
+        def delete_stg(stg: Strategy) -> None:
+            stk_wallet = self.get_wallet()
+            stg_wallet = stg.get_wallet()
+            l_asset = stg.get_pair().get_left()
+            # Update StalkerClass.wallet
+            stg_spot = stg_wallet.get_spot()
+            residue = stg_wallet.get_position(l_asset)
+            fee = stg_wallet.trade_fee()
+            stk_wallet.deposit(stg_spot, fee)
+            stk_wallet.add_position(residue)
+            # Update TraderClass.wallet
+            stg_wallet.withdraw(stg_spot)
+            stg_wallet.remove_position(residue)
+
         active_stgs = self.get_active_strategies()
         pair_str = pair.__str__()
         if pair_str not in active_stgs.get_keys():
             raise ValueError(f"There's no active Strategy with this pair '{pair_str.upper()}' to delete.")
-        stg = active_stgs.get(pair_str)
+        active_stg = active_stgs.get(pair_str)
         # Sell all positions
-        stg.stop_trading(bkr)
-        # Add new transaction
-        # actual_capital = stg.get_actual_capital()
-        # final_capital = actual_capital.get(Map.right)
-        # self._add_transaction(final_capital)
-        final_capital = stg.get_actual_capital_merged(marketprice)
-        self._add_transaction(final_capital)
-        # Add new fee
-        fee = stg.get_fee()
-        self._add_fee(fee)
+        active_stg.stop_trading(bkr) if active_stg._has_position() else None
         # Delete active Strategy
+        delete_stg(active_stg)
         del active_stgs.get_map()[pair_str]
 
     def _reset_next_blacklist_clean(self) -> None:
@@ -305,10 +323,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         blacklist = self.get_blacklist()
         no_active_pairs = [pair for pair in allowed_pairs
                            if (pair.__str__() not in pair_strs) and (pair not in blacklist)]
-        # no_active_pairs = [no_active_pairs[i] for i in range(len(no_active_pairs)) if i < 10]   # ❌
-        # no_active_pairs.append(Pair('SUSD/USDT'))                                               # ❌
-        # no_active_pairs.append(Pair('TRXDOWN/USDT'))                                            # ❌
-        # no_active_pairs = [Pair('DOGE/USDT')]                                                   # ❌
         return no_active_pairs
 
     def is_stalking(self) -> bool:
@@ -406,7 +420,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         stalk_period = self.get_period()
         market_params = Map({
             Map.pair: None,
-            # Map.period: 60 * 60,
             Map.period: stalk_period,
             Map.begin_time: None,
             Map.end_time: None,
@@ -500,10 +513,13 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def trade(self, bkr: Broker) -> int:
         self._update_nb_trade()
+        self._set_broker(bkr)
+        self.get_wallet().reset_marketprices()
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self._manage_trades(bkr)
+        self._reset_broker()
         return self._get_sleep_time()
 
     @abstractmethod
@@ -570,7 +586,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         return [
             MarketPrice.get_period_market_analyse(),
             self.get_period(),
-            self.get_strategy_params().get(Map.period)
+            self.get_strategy_params().get(Map.period),
+            Wallet.get_period()
         ]
 
     def stop_trading(self, bkr: Broker) -> None:
@@ -592,6 +609,10 @@ class StalkerClass(Strategy, MyJson, ABC):
     @staticmethod
     def get_blacklist_time() -> float:
         return StalkerClass._BLACKLIST_TIME
+    
+    @staticmethod
+    def get_regex_pair() -> str:
+        return StalkerClass._REGEX_PAIR
 
     def _get_market_price(self, bkr: Broker, pair: Pair, period: int = None, nb_period: int = _PAIR_MANAGER_NB_PERIOD) \
             -> MarketPrice:
@@ -710,37 +731,29 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     # ——————————————— SAVE DOWN ———————————————
 
-    def _save_state(self, pair_to_closes: Map, to_delete_pairs: List[str], market_trend: str, market_analyse: Map) \
-            -> None:
-        def rate_to_str(rate: float) -> str:
-            return f"{round(rate * 100, 2)}%"
-
-        path = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
+    def _save_global(self, to_delete_pairs: List[str], market_trend: str, market_analyse: Map) -> None:
         pair = self.get_pair()
-        right_symbol = pair.get_right().get_symbol()
+        bkr = self.get_broker()
+        stk_wallet = self.get_wallet()
         active_stgs = self.get_active_strategies()
+        #
         next_stalk = self.get_next_stalk()
         next_stalk_date = _MF.unix_to_date(next_stalk) \
             if (self._get_stage() != Config.STAGE_1) and (next_stalk is not None) else next_stalk
-        lefts = []
-        rights = []
-        for pair_str, active_stg in active_stgs.get_map().items():
-            closes = pair_to_closes.get(pair_str)
-            if closes is not None:
-                actual_capital = active_stg.get_actual_capital()
-                actual_left = actual_capital.get(Map.left)
-                left = Price(actual_left * closes[-1], right_symbol)
-                right = actual_capital.get(Map.right)
-                lefts.append(left)
-                rights.append(right)
-        initial_capital = self._get_capital()
-        total_left = Price.sum(lefts) if len(lefts) > 0 else Price(0, right_symbol)
-        total_right = Price.sum(rights) if len(rights) > 0 else Price(0, right_symbol)
-        total_capital_available = self._get_total_capital()
-        total_capital = total_capital_available + total_right + total_left
-        capital_allocation_size = self._get_strategy_capital() \
-            if not self.max_active_strategies_reached() else total_capital_available
+        #
+        initial_capital = stk_wallet.get_initial()
+        stk_spot = stk_wallet.get_spot()
+        stk_residue = stk_wallet.get_all_position_value(bkr)
+        total_capital = self.get_total(bkr)
+        childs_total_capital = self.get_children_total(bkr)
+        child_initial_capital = self._get_strategy_capital()
+        # Roi
         roi = (total_capital / initial_capital - 1)
+        settime = int(self.get_settime()/1000)
+        unix_time = _MF.get_timestamp()
+        roi_day = (roi/(unix_time-settime)) * 60 * 60 * 24
+        run_time = _MF.delta_time(settime, unix_time)
+        #
         next_clean = self.get_next_blacklist_clean()
         analyse_empty = len(market_analyse.get_map()) == 0
         rise = f"{round(market_analyse.get(MarketPrice.MARKET_TREND_RISING)*100, 2)}%" if not analyse_empty else '—'
@@ -751,7 +764,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         fee_total_capital_rate = total_fee / total_capital
         # Print
         row = {
-            Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+            Map.id: self.get_id(),
+            Map.date: _MF.unix_to_date(unix_time),
             Map.pair: pair,
             Map.strategy: self.get_strategy_class(),
             'next_stalk': next_stalk_date if next_stalk_date is not None else '—',
@@ -763,15 +777,16 @@ class StalkerClass(Strategy, MyJson, ABC):
             'dropping': drop,
             'initial_capital': initial_capital,
             'total_capital': total_capital,
+            'stk_spot': stk_spot,
+            'stk_residue': stk_residue,
             'total_fee': total_fee,
-            'fee_init_capital_rate': rate_to_str(fee_init_capital_rate),
-            'fee_total_capital_rate': rate_to_str(fee_total_capital_rate),
-            'total_capital_available': total_capital_available,
-            'capital_allocation_size': capital_allocation_size,
-            'allocated_capital': total_right + total_left,
-            'allocated_left': total_left,
-            'allocated_right': total_right,
-            Map.roi: f"{round(roi * 100, 2)}%",
+            'fee_init_capital_rate': _MF.rate_to_str(fee_init_capital_rate),
+            'fee_total_capital_rate': _MF.rate_to_str(fee_total_capital_rate),
+            'childs_total_capital': childs_total_capital,
+            'child_initial_capital': child_initial_capital,
+            Map.roi: _MF.rate_to_str(roi),
+            'roi_day': _MF.rate_to_str(roi_day),
+            'run_time': run_time,
             'nb_active_strategies': len(active_stgs.get_map()),
             'max_strategy': self.get_max_strategy(),
             'active_strategies': _MF.json_encode(active_stgs.get_keys()),
@@ -781,6 +796,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         }
         rows = [row]
         fields = list(row.keys())
+        path = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
