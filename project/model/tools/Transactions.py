@@ -14,6 +14,7 @@ class Transactions(MyJson):
         self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
         self.__pair = pair
         self.__transactions = None
+        self.__sum = None
     
     def get_id(self) -> str:
         return self.__id
@@ -42,6 +43,19 @@ class Transactions(MyJson):
         if transac_id not in transacs.get_keys():
             raise IndexError(f"This Transaction id don't exist: '{transac_id}'")
         return transacs.get(transac_id)
+
+    def _reset_sum(self) -> None:
+        self.__sum = None
+
+    def _set_sum(self, transacions_sum: Map) -> None:
+        ks = [Map.left, Map.right, Map.fee]
+        rtn = _MF.keys_exist(ks, transacions_sum.get_map())
+        if rtn is not None:
+            raise ValueError(f"This param '{rtn}' is required")
+        self.__sum = transacions_sum
+
+    def _get_sum(self) -> Map:
+        return self.__sum
     
     def ids(self) -> list[str]:
         """
@@ -55,12 +69,14 @@ class Transactions(MyJson):
         return self._get_transactions().get_keys()
     
     def add(self, transaction: Transaction) -> None:
+        self._reset_sum()
         transaction.get_pair().are_same(self.get_pair())
         transacs = self._get_transactions()
         transacs.put(transaction, transaction.get_id())
         self._sort()
     
     def remove(self, transac_id: str) -> None:
+        self._reset_sum()
         transacs = self._get_transactions()
         transacs.get_map().pop(transac_id, None)
     
@@ -79,20 +95,23 @@ class Transactions(MyJson):
             [Map.right]: sum of Transaction's right amount
             [Map.fee]: sum of Transaction's fee amount
         """
-        transacs = self._get_transactions()
-        pair = self.get_pair()
-        rights = [Price(0, pair.get_right())]
-        lefts = [Price(0, pair.get_left())]
-        fees = [Price(0, pair.get_right())]
-        for transac_id, transac in transacs.get_map().items():
-            rights.append(transac.get_right())
-            lefts.append(transac.get_left())
-            fees.append(transac.get_transaction_fee())
-        transac_sum = Map({
-            Map.left: Price.sum(lefts),
-            Map.right: Price.sum(rights),
-            Map.fee: Price.sum(fees)
-        })
+        transac_sum = self._get_sum()
+        if transac_sum is None:
+            transacs = self._get_transactions()
+            pair = self.get_pair()
+            rights = [Price(0, pair.get_right())]
+            lefts = [Price(0, pair.get_left())]
+            fees = [Price(0, pair.get_right())]
+            for transac_id, transac in transacs.get_map().items():
+                rights.append(transac.get_right())
+                lefts.append(transac.get_left())
+                fees.append(transac.get_transaction_fee())
+            transac_sum = Map({
+                Map.left: Price.sum(lefts),
+                Map.right: Price.sum(rights),
+                Map.fee: Price.sum(fees)
+            })
+            self._set_sum(transac_sum)
         return transac_sum
 
     @staticmethod
