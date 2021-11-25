@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from typing import List
 
 from config.Config import Config
@@ -12,14 +12,15 @@ from model.tools.Order import Order
 from model.tools.Orders import Orders
 from model.tools.Pair import Pair
 from model.tools.Price import Price
+from model.tools.Wallet import Wallet
 
 
 class Strategy(ABC):
+    PREFIX_ID = 'stg_'
     _CONST_BOT_SLEEP_TIME = 60
     _PERFORMANCE_INIT_CAPITAL = 100
     _TOP_ASSET = None
     _TOP_ASSET_MAX = 25
-    PREFIX_ID = 'stg_'
 
     @abstractmethod
     def __init__(self, params: Map):
@@ -27,38 +28,66 @@ class Strategy(ABC):
         Constructor\n
         :param params: params
                      params[Map.pair]:       {Pair}
-                     params[Map.period]:     {int|None}     # ]0,1]
+                     params[Map.period]:     {int|None}
                      params[Map.capital]:    {Price}        # Initial capital
                      params[Map.maximum]:    {Price|None}   # Maximum of capital to use (if set, maximum > 0)
                      params[Map.rate]:       {float|None}   # ]0,1]
-        :Note : Map.maximum and Map.rate can't both be None
         """
-        super().__init__()
-        self.__id = self.PREFIX_ID + _MF.new_code()
-        ks = [Map.pair, Map.maximum, Map.capital, Map.rate]
+        ks = [Map.pair, Map.capital]
         rtn = _MF.keys_exist(ks, params.get_map())
         if rtn is not None:
             raise ValueError(f"This param '{rtn}' is required")
+        super().__init__()
+        self.__id = None
+        self.__settime = None
+        self.__period = None
+        self.__nb_trade = None
+        self.__broker = None
+        self.__orders = None
+        self.__wallet = None
+        period = params.get(Map.period)
         pair = params.get(Map.pair)
         max_cap = params.get(Map.maximum)
-        rate = params.get(Map.rate)
-        self._check_max_capital(max_cap, rate)
+        cap_rate = params.get(Map.rate)
+        capital = params.get(Map.capital)
+        self._set_id()
+        self._set_settime()
         self._set_pair(pair)
-        self.__period = params.get(Map.period)
-        self.__nb_trade = None
-        self.__capital = params.get(Map.capital)
-        self.__max_capital = max_cap
-        self.__rate = None if rate is None else rate
-        self.__orders = Orders()
+        self._set_period(period)
+        self._set_wallet(capital)
+        self._set_max_capital(max_cap) if max_cap is not None else None
+        self._set_capital_rate(cap_rate) if cap_rate is not None else None
+
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN ——————————————————————————————————————————
+
+    def _set_id(self) -> None:
+        self.__id = self.PREFIX_ID + _MF.new_code()
 
     def get_id(self) -> str:
         return self.__id
+
+    def _set_settime(self) -> None:
+        self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+
+    def get_settime(self) -> int:
+        """
+        To get the creation time in millisecond
+
+        Returns:
+        --------
+        return: int
+            The creation time in millisecond
+        """
+        return self.__settime
 
     def _set_pair(self, pair: Pair) -> None:
         self.__pair = pair
 
     def get_pair(self) -> Pair:
         return self.__pair
+
+    def _set_period(self, period) -> None:
+        self.__period = period
 
     def get_period(self) -> int:
         """
@@ -82,134 +111,67 @@ class Strategy(ABC):
         if self.__nb_trade is None:
             self.__nb_trade = 0
         return self.__nb_trade
-    
+
+    def _reset_broker(self) -> None:
+        self.__broker = None
+
+    def _set_broker(self, bkr: Broker) -> None:
+        self.__broker = bkr
+
+    def get_broker(self) -> Broker:
+        return self.__broker
+
+    def _get_orders(self) -> Orders:
+        if self.__orders is None:
+            self.__orders = Orders()
+        return self.__orders
+
+    def _set_wallet(self, capital: Price) -> None:
+        self.__wallet = Wallet(capital)
+
+    def get_wallet(self) -> Wallet:
+        return self.__wallet
+
+    def _set_max_capital(self, max_capital: Price) -> None:
+        self.get_wallet().set_max_buy(max_capital)
+
+    def _set_capital_rate(self, capital_rate: float) -> None:
+        self.get_wallet().set_buy_rate(capital_rate)
+
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
+
     def _update_nb_trade(self) -> None:
         """
         To increase the number of trade done\n
         """
         self.__nb_trade = self.get_nb_trade() + 1
 
-    def get_initial_capital(self) -> Price:
-        return self.__capital
-
-    def _set_capital(self, capital: Price) -> None:
-        self.__capital = capital
-
-    def _get_capital(self) -> Price:
-        capital = self.__capital
-        if capital is None:
-            raise Exception("The capital available is not set")
-        max_cap = self.get_max_capital()
-        rate = self.get_rate()
-        return self._generate_real_capital(capital, max_cap, rate)
-
-    @staticmethod
-    def _generate_real_capital(cap: Price, max_cap: Price, rate: float) -> Price:
-        """
-        To generate the real capital available to trade by using the max capital and the capital rate\n
-        :param cap: the capital available in account
-        :param max_cap: the max capital available to trade
-        :param rate: the rate of the capital available in account to trade  with
-        :return: the real capital available to trade
-        """
-        if (rate is not None) and (max_cap is not None):
-            real_cap = cap.get_value() * rate
-            real_cap = max_cap.get_value() if real_cap > max_cap.get_value() else real_cap
-        elif max_cap is not None:
-            real_cap = max_cap.get_value() if cap.get_value() > max_cap.get_value() else cap.get_value()
-        elif rate is not None:
-            real_cap = cap.get_value() * rate
-        else:
-            raise Exception(f"Unknown state for max capital '{max_cap}' and rate '{rate}'")
-        return Price(real_cap, cap.get_asset().get_symbol())
-
-    def get_actual_capital(self) -> Map:
-        """
-        To get actual capital available to trade\n
-        :return: actual capital available to trade
-                 Map[Map.left]:     {Price} # Quantity of left Asset available
-                 Map[Map.right]:    {Price} # Quantity of right Asset available
-        """
-        init_capital = self._get_capital()
-        right_capital = init_capital
-        left_capital = Price(0, self.get_pair().get_left().get_symbol())
-        odrs = self._get_orders()
-        if odrs.get_size() > 0:
-            odrs_sum = odrs.get_sum()
-            right_capital += odrs_sum.get(Map.right)
-            left_capital += odrs_sum.get(Map.left)
-        actual_capital = Map({
-            Map.left: left_capital,
-            Map.right: right_capital
-        })
-        return actual_capital
-
-    def get_actual_capital_merged(self, market_price: MarketPrice) -> Price:
-        """
-        To get sum of left and right capital in right asset\n
-        :param market_price: Most recent market prices
-        :return: sum of left ad right capital in right asset
-        """
-        pair = self.get_pair()
-        if pair != market_price.get_pair():
-            raise ValueError(f"MarketPrice's pair '{market_price.get_pair().__str__().upper()}' "
-                             f"must match Strategy's '{pair.__str__().upper()}'")
-        close = market_price.get_close()
-        actual_capital = self.get_actual_capital()
-        left_capital = actual_capital.get(Map.left)
-        left_capital_converted = Price(left_capital * close, pair.get_right().get_symbol())
-        right_capital = actual_capital.get(Map.right)
-        actual_capital_merged = right_capital + left_capital_converted
-        return actual_capital_merged
-
-    def get_roi(self, market_price: MarketPrice) -> float:
-        """
-        To get Strategy's return on invest (ROI)\n
-        NOTE: roi is in decimal (not in percent)
-        :param market_price: Most recent market prices
-        :return: Strategy's roi
-        """
-        initial_capital = self.get_initial_capital()
-        actual_capital = self.get_actual_capital_merged(market_price)
-        roi = actual_capital / initial_capital - 1
-        return roi
-
-    def get_fee(self) -> Price:
-        """
-        To get total fees charged in right asset\n
-        Returns
-        -------
-        fees: Price
-            Total fees charged in right asset
-        """
-        orders = self._get_orders()
-        orders.get_size()
-        fee = orders.get_sum().get(Map.fee) \
-            if orders.get_size() > 0 else Price(0, self.get_pair().get_right().get_symbol())
-        return fee
-
-    def get_max_capital(self) -> Price:
-        return self.__max_capital
-
-    def get_rate(self) -> float:
-        return self.__rate
-
-    def _set_orders(self, orders: Orders) -> None:
-        self.__orders = orders
-
-    def _get_orders(self) -> Orders:
-        return self.__orders
-
     def _add_order(self, odr: Order) -> None:
         self._get_orders().add_order(odr)
 
-    def _update_orders(self, bkr: Broker, mkt: MarketPrice) -> None:
+    def _update_orders(self, bkr: Broker) -> None:
         """
         To update Orders\n
-        :param bkr: access to a Broker's API
-        :param mkt: market's prices
+        NOTE: Also push new Order executed in Wallet
+
+        Parameters:
+        -----------
+        bkr: Broker
+            Access to a Broker's API
         """
-        self._get_orders().update(bkr, mkt)
+        odrs = self._get_orders()
+        executed = odrs.update(bkr)
+        wallet = self.get_wallet()
+        for odr_id in executed:
+            odr = odrs.get_order(odr_id=odr_id)
+            move = odr.get_move()
+            if move == Order.MOVE_BUY:
+                wallet.buy(odr)
+            elif move == Order.MOVE_SELL:
+                wallet.sell(odr)
+            else:
+                raise ValueError(f"This Order move '{move}' is not supported")
 
     def _has_position(self) -> bool:
         """
@@ -218,15 +180,6 @@ class Strategy(ABC):
         """
         odrs = self._get_orders()
         return odrs.has_position()
-
-    @staticmethod
-    def get_performance_init_capital() -> float:
-        return Strategy._PERFORMANCE_INIT_CAPITAL
-
-    @staticmethod
-    @abstractmethod
-    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
-        pass
 
     @abstractmethod
     def trade(self, bkr: Broker) -> int:
@@ -244,6 +197,18 @@ class Strategy(ABC):
         :param bkr: access to a Broker's API
         """
         pass
+
+    # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION STATIC DOWN —————————————————————————————————————————————————
+
+    @staticmethod
+    @abstractmethod
+    def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
+        pass
+
+    @staticmethod
+    def get_performance_init_capital() -> float:
+        return Strategy._PERFORMANCE_INIT_CAPITAL
 
     @staticmethod
     @abstractmethod
@@ -382,20 +347,6 @@ class Strategy(ABC):
         })
         return perf
 
-    '''
-    @staticmethod
-    @abstractmethod
-    def _performance_get_transactions(initial_capital: float, rates: List[float], fees: Map) -> List[dict]:
-        """
-        To get a simulation of multiple trade for each rate give including Order fee\n
-        :param initial_capital: Initial capital to use for simulation
-        :param rates: Rate from Strategy.performance_get_rates()
-        :param fees: Order fee rate charged for taker and maker
-        :return: transaction historic for each rate given
-        """
-        pass
-    '''
-
     @staticmethod   # Strategy
     def _performance_get_transactions(initial_capital: float, rates: List[float], fees: Map) -> List[dict]:
         """
@@ -435,20 +386,6 @@ class Strategy(ABC):
             sell_transact.put(buy_fee, Map.fee)
             transactions.append(sell_transact.get_map())
         return transactions
-
-    @staticmethod
-    def _check_max_capital(max_cap: Price, rate: float) -> None:
-        """
-        To check if the max capital available and the rate is correct\n
-        :param max_cap: the max capital available to invest
-        :param rate: the rate of the capital to invest
-        """
-        if (max_cap is None) and (rate is None):
-            raise ValueError(f"The max capital and the capital rate can't both be null")
-        if (max_cap is not None) and (max_cap.get_value() <= 0):
-            raise ValueError(f"The max capital must be greater than zero")
-        if (rate is not None) and (rate <= 0 or rate > 1):
-            raise ValueError(f"The capital rate '{rate}' must be between 0 and 1 (]0,1])")
 
     @staticmethod
     def list_strategies() -> list:
@@ -671,8 +608,6 @@ class Strategy(ABC):
                          )
         return top_volume
 
-    # ——————————————— SAVE DOWN ———————————————
-
     @staticmethod
     def _save_top_asset(stg_class: str, top_asset: Map) -> None:
         rows = []
@@ -699,3 +634,5 @@ class Strategy(ABC):
         path = Config.get(Config.DIR_SAVE_TOP_ASSET)
         fields = list(rows[0].keys())
         FileManager.write_csv(path, fields, rows, overwrite=False)
+
+    # ——————————————————————————————————————————— FUNCTION STATIC UP ———————————————————————————————————————————————————
