@@ -32,6 +32,15 @@ class Orders(Order, MyJson):
         ids_to_indexes.put(idx, odr_id)
 
     def _get_orders(self) -> Map:
+        """
+        To get the collection of Order
+
+        Returns:
+        --------
+        return: Map
+            The collection of Order
+            orders[index{int}]: {Order} # index from 0 to n
+        """
         return self.__orders
 
     def get_order(self, idx=None, odr_id: str = None) -> Order:
@@ -115,21 +124,33 @@ class Orders(Order, MyJson):
         self.__sum = None
         self.__has_position = None
 
-    def update(self, bkr: Broker, market: MarketPrice) -> None:
+    def update(self, bkr: Broker) -> list:
         """
-        To update Orders\n
-        :param bkr: access to a Broker's API  | Used in stage 3
-        :param market: market's prices        | Used in stage 1 & 2
+        To update Orders
+
+        Parameters:
+        -----------
+        bkr: Broker
+            Access to a Broker's API
+        market: MarketPrice
+            Market's prices
+
+        Returns:
+        --------
+        return: list
+            The id of all Order updated from SUBMITTED|PROCESSING to EXECUTED
         """
         self._reset()
-        """
-        _stage = Config.get(Config.STAGE_MODE)
-        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            self._update_stage_1_2(market)
-        elif _stage == Config.STAGE_3:
-            self._update_stage_3(bkr)
-        """
+        odrs = self._get_orders()
+        # Get pending
+        pending = [odr.get_id() for idx, odr in odrs.get_map().items()
+                   if (odr.get_status() == Order.STATUS_SUBMITTED) or (odr.get_status() == Order.STATUS_PROCESSING)]
+        # Update
         self._update_stage_3(bkr)
+        # Get new execution
+        executed = [odr_id for odr_id in pending if self.get_order(odr_id=odr_id).get_status() == Order.STATUS_COMPLETED]
+        # End
+        return executed
 
     def _update_stage_1_2(self, market: MarketPrice):
         close_val = market.get_close()
