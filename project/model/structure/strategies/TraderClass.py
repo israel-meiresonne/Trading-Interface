@@ -34,7 +34,6 @@ class TraderClass(Strategy, MyJson, ABC):
         self.__marketprices = None
         self.__buy_order = None
         self.__secure_order = None
-        self.__broker = None
 
     def _reset_marketprices(self) -> None:
         self.__marketprices = None
@@ -84,54 +83,15 @@ class TraderClass(Strategy, MyJson, ABC):
 
     def _get_secure_order(self) -> Order:
         return self.__secure_order
-    
-    def _reset_broker(self) -> None:
-        self.__broker = None
-
-    def _set_broker(self, bkr: Broker) -> None:
-        self.__broker = bkr
-
-    def get_broker(self) -> Broker:
-        return self.__broker
-
-    def _get_buy_capital(self) -> Price:
-        """
-        To get the capital available to make a buy Order\n
-        :return: the capital available to make a buy Order
-        :Note : the capital is in right asset of Strategy's pair
-        """
-        init_cap = self._get_capital()
-        odrs = self._get_orders()
-        b_cpt = init_cap.get_value()
-        if odrs.get_size() > 0:
-            odrs_sum = odrs.get_sum()
-            b_cpt += odrs_sum.get(Map.right).get_value()
-        r_sbl = self.get_pair().get_right().get_symbol()
-        return Price(b_cpt, r_sbl)
-
-    def _get_sell_quantity(self) -> Price:
-        """
-        To get the capital available to make a sell Order\n
-        :return: the capital available to make a sell Order
-        :Note : the capital is in left asset of Strategy's pair
-        """
-        odrs = self._get_orders()
-        s_qty = 0
-        if odrs.get_size() > 0:
-            odr_sum = odrs.get_sum()
-            s_qty += odr_sum.get(Map.left).get_value()
-        l_sbl = self.get_pair().get_left().get_symbol()
-        return Price(s_qty, l_sbl)
 
     def _new_buy_order(self, bkr: Broker) -> Order:
         _bkr_cls = bkr.__class__.__name__
         pair = self.get_pair()
-        pr_right = pair.get_right()
-        b_cpt = self._get_buy_capital()
+        amount = self.get_wallet().buy_capital()
         odr_params = Map({
             Map.pair: pair,
             Map.move: Order.MOVE_BUY,
-            Map.amount: Price(b_cpt.get_value(), pr_right.get_symbol())
+            Map.amount: amount
         })
         odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_MARKET, odr_params)
         self._add_order(odr)
@@ -140,12 +100,12 @@ class TraderClass(Strategy, MyJson, ABC):
     def _new_sell_order(self, bkr: Broker) -> Order:
         _bkr_cls = bkr.__class__.__name__
         pair = self.get_pair()
-        pr_left = pair.get_left()
-        s_cpt = self._get_sell_quantity()
+        l_asset = pair.get_left()
+        quantity = self.get_wallet().get_position(l_asset)
         odr_params = Map({
             Map.pair: pair,
             Map.move: Order.MOVE_SELL,
-            Map.quantity: Price(s_cpt.get_value(), pr_left.get_symbol())
+            Map.quantity: quantity
         })
         odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_MARKET, odr_params)
         self._add_order(odr)
@@ -153,7 +113,7 @@ class TraderClass(Strategy, MyJson, ABC):
     
     def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
         """
-        To get Price at witch place secure Order
+        To get secure Order's Price
 
         NOTE: by default use get_max_loss() with buy Price as reference
 
@@ -227,11 +187,14 @@ class TraderClass(Strategy, MyJson, ABC):
         self._update_nb_trade()
         # Set Broker
         self._set_broker(bkr)
-        # Get Market
+        # Reset Wallet
+        self.get_wallet().reset_marketprices()
+        # Get MarketPrice
+        self._reset_marketprices()
         period = self.get_period()
         marketprice = self.get_marketprice(period)
         # Update Orders
-        self._update_orders(bkr, marketprice)
+        self._update_orders(bkr)
         # Get And Execute Orders
         if self._has_position():
             executions = self._try_sell(marketprice, bkr)
@@ -243,7 +206,6 @@ class TraderClass(Strategy, MyJson, ABC):
         # Backup Capital
         self._save_capital(close=marketprice.get_close(), time=marketprice.get_time())
         # Reset
-        self._reset_marketprices()
         self._reset_broker()
         return Strategy.get_bot_sleep_time()
 
@@ -253,7 +215,7 @@ class TraderClass(Strategy, MyJson, ABC):
             self._sell(executions)
             self.execute(bkr, executions)
         marketprice = self.get_marketprice(self.get_period(), bkr=bkr)
-        self._update_orders(bkr, marketprice)
+        self._update_orders(bkr)
         self._save_capital(close=marketprice.get_close(), time=marketprice.get_time())
 
     def execute(self, bkr: Broker, executions: Map, mkt_prc: MarketPrice = None) -> None:
@@ -268,12 +230,15 @@ class TraderClass(Strategy, MyJson, ABC):
                 buy_order = self._new_buy_order(bkr)
                 bkr.execute(buy_order)
                 self._set_buy_order(buy_order)
+                self.get_wallet().buy(buy_order)
             elif execution == self._EXEC_PLACE_SECURE:
                 secure_order = self._new_secure_order(bkr, mkt_prc)
                 bkr.execute(secure_order)
+                self.get_wallet().sell(secure_order) if secure_order.get_status() == Order.STATUS_COMPLETED else None
             elif execution == self._EXEC_SELL:
                 sell_order = self._new_sell_order(bkr)
                 bkr.execute(sell_order)
+                self.get_wallet().sell(sell_order)
             elif execution == self._EXEC_CANCEL_SECURE:
                 old_secure_order = self._get_secure_order()
                 secure_odr_status = old_secure_order.get_status()
@@ -303,8 +268,6 @@ class TraderClass(Strategy, MyJson, ABC):
         """
         # Buy Order
         executions.put(self._EXEC_BUY, len(executions.get_map()))
-        # Place Secure order
-        # executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
     def _secure_position(self, executions: Map) -> None:
         # Place Secure order
@@ -377,8 +340,6 @@ class TraderClass(Strategy, MyJson, ABC):
     def json_instantiate(object_dic: dict) -> object:
         pass
 
-   # ——————————————— SAVE DOWN ———————————————
-
     @abstractmethod
     def save_move(self, **agrs):
         pass
@@ -401,20 +362,17 @@ class TraderClass(Strategy, MyJson, ABC):
         FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
     def _save_capital(self, close: float, time: int) -> None:
-        p = Config.get(Config.DIR_SAVE_CAPITAL)
-        p = p.replace('$pair', self.get_pair().__str__().replace('/', '_').upper())
-        cap = self._get_capital()
-        r_symbol = cap.get_asset().get_symbol()
-        sell_qty = self._get_sell_quantity()
-        buy_amount = self._get_buy_capital()
-        odrs = self._get_orders()
-        positions_value = sell_qty.get_value() * close
-        current_capital_val = positions_value + buy_amount.get_value() if sell_qty.get_value() > 0 else buy_amount.get_value()
-        roi = current_capital_val / cap.get_value() - 1
-        sum_odr = odrs.get_sum() if odrs.get_size() > 0 else None
-        fees = sum_odr.get(Map.fee) if sum_odr is not None else Price(0, r_symbol)
-        fee_init_capital_rate = fees / cap
-        current_capital_obj = Price(current_capital_val, r_symbol)
+        bkr = self.get_broker()
+        wallet = self.get_wallet()
+        initial_cap = wallet.get_initial()
+        l_asset = self.get_pair().get_left()
+        sell_qty = wallet.get_position(l_asset)
+        buy_amount = wallet.buy_capital()
+        positions_value = wallet.get_all_position_value(bkr)
+        total_capital = wallet.get_total(bkr)
+        roi = wallet.get_roi(bkr)
+        fees = wallet.trade_fee()
+        fee_init_capital_rate = fees / initial_cap
         rows = [{
             'nb_trade': self.get_nb_trade(),
             "class": self.__class__.__name__,
@@ -422,8 +380,8 @@ class TraderClass(Strategy, MyJson, ABC):
             Map.time: _MF.unix_to_date(time, _MF.FORMAT_D_H_M_S),
             Map.period: int(self.get_period()) / 60,
             'close': close,
-            'initial': cap,
-            'current_capital': current_capital_obj,
+            'initial': initial_cap,
+            'current_capital': total_capital,
             'fees': fees,
             'fee_init_capital_rate': _MF.rate_to_str(fee_init_capital_rate),
             'left': sell_qty,
@@ -431,9 +389,12 @@ class TraderClass(Strategy, MyJson, ABC):
             'positions_value': positions_value,
             Map.roi: _MF.rate_to_str(roi)
         }]
+        # Print
+        path = Config.get(Config.DIR_SAVE_CAPITAL)
+        path = path.replace('$pair', self.get_pair().__str__().replace('/', '_').upper())
         fields = list(rows[0].keys())
         overwrite = False
-        FileManager.write_csv(p, fields, rows, overwrite, make_dir=True)
+        FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
     @staticmethod
     def _save_period_ranking(ranking: Map) -> None:
