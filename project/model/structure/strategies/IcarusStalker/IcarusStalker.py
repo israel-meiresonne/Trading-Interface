@@ -10,6 +10,7 @@ from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Predictor import Predictor
 from model.tools.Price import Price
+from model.tools.Wallet import Wallet
 
 
 class IcarusStalker(StalkerClass):
@@ -19,11 +20,14 @@ class IcarusStalker(StalkerClass):
         """
         Constructor\n
         :param params: params
-               params[*]:               {Stalker.__init__()}    # Same structure
+               params[*]:   {Stalker.__init__()}    # Same structure
         """
         super().__init__(params)
 
     def _manage_trades(self, bkr: Broker) -> None:
+        def to_stg(child_stg) -> Icarus:
+            return child_stg
+
         _cls = self
         _normal = _cls._TO_REMOVE_STYLE_NORMAL
         _color_black = _cls._TO_REMOVE_STYLE_BLACK
@@ -36,7 +40,6 @@ class IcarusStalker(StalkerClass):
         #
         active_stgs_copy = Map(self.get_active_strategies().get_map())
         pairs_to_delete = []  # ❌
-        pair_closes = Map()  # ❌
         rows = []  # ❌
         print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
                                                               f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
@@ -47,23 +50,19 @@ class IcarusStalker(StalkerClass):
         for pair_str, active_stg in active_stgs_copy.get_map().items():
             print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
             # Prepare active Strategy
+            active_stg = to_stg(active_stg)
+            stg_wallet = active_stg.get_wallet()
             pair = active_stg.get_pair()
             stg_period = active_stg.get_period()
-            market_price = self._get_market_price(bkr, pair, stg_period)
-            # Prepare closes
-            closes = list(market_price.get_closes())
-            closes.reverse()
-            pair_closes.put(closes, pair_str)
-            # Prepare capital
-            stg_roi = active_stg.get_roi(market_price)
-            # Fee
-            fee = active_stg.get_fee()
-            initial_capital = active_stg._get_capital()
-            actual_capital = active_stg.get_actual_capital_merged(market_price)
+            # Before trade
+            stg_roi = stg_wallet.get_roi(bkr)
+            fee = stg_wallet.trade_fee()
+            initial_capital = stg_wallet.get_initial()
             fee_initial_capital_rate = fee / initial_capital
-            fee_actual_capital = fee / actual_capital
+            actual_capital = stg_wallet.get_total(bkr)
+            fee_actual_capital_rate = fee / actual_capital
             # Trade
-            active_stg._update_orders(bkr, market_price)
+            active_stg._update_orders(bkr)
             has_position_before = active_stg._has_position()
             keep_stg = (active_stg.get_nb_trade() == 0) or has_position_before
             active_stg.trade(bkr) if keep_stg else None
@@ -71,17 +70,21 @@ class IcarusStalker(StalkerClass):
             if keep_stg and has_position_after:
                 print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
             else:
-                active_stg.stop_trading(bkr)
-                self._delete_active_strategy(bkr, pair, market_price)
+                self._delete_active_strategy(bkr, pair)
                 last_exec_order = active_stg._get_orders().get_last_execution()
                 self._blacklist_pair(pair, stg_period) \
                     if (stg_roi < 0) or ((last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET)) else None
                 pairs_to_delete.append(pair_str)
                 print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
-            # Print
-            stg_roi_after = active_stg.get_roi(market_price)
-            fee_after = active_stg.get_fee()
+            # After trade
+            stg_roi_after = stg_wallet.get_roi(bkr)
+            fee_after = stg_wallet.trade_fee()
             fee_initial_capital_rate_after = fee_after / initial_capital
+            # Prepare closes
+            market_price = active_stg.get_marketprice(stg_period, bkr=bkr)
+            closes = list(market_price.get_closes())
+            closes.reverse()
+            # Print
             row = {
                 Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                 'child_id': active_stg.get_id(),
@@ -94,7 +97,7 @@ class IcarusStalker(StalkerClass):
                 'actual_capital': actual_capital,
                 'fee_initial_capital_rate': _MF.rate_to_str(fee_initial_capital_rate),
                 'fee_initial_capital_rate_after': _MF.rate_to_str(fee_initial_capital_rate_after),
-                'fee_actual_capital': _MF.rate_to_str(fee_actual_capital),
+                'fee_actual_capital_rate': _MF.rate_to_str(fee_actual_capital_rate),
                 'has_position_before': has_position_before,
                 'keep_stg': keep_stg,
                 'has_position_after': has_position_after,
@@ -102,7 +105,7 @@ class IcarusStalker(StalkerClass):
                 Map.close: closes[-1]
             }
             rows.append(row)
-        self._save_state(pair_closes, pairs_to_delete, market_trend, market_analyse)
+        self._save_global(pairs_to_delete, market_trend, market_analyse)
         self._save_moves(rows) if len(rows) > 0 else None
 
     def _add_streams_periods(self) -> list:
@@ -110,6 +113,7 @@ class IcarusStalker(StalkerClass):
             MarketPrice.get_period_market_analyse(),
             self.get_period(),
             self.get_strategy_params().get(Map.period),
+            Wallet.get_period(),
             *Predictor.get_learn_periods(),
             *Icarus.get_periods_required(),
             Icarus.get_predictor_period()
