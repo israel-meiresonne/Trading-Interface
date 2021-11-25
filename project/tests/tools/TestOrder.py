@@ -235,7 +235,7 @@ class TestOrder(unittest.TestCase, Order):
             self.assertEqual(state['spot'], wallet.get_spot())
             self.assertEqual(state['buy'], wallet.get_buy())
             self.assertEqual(state['sell'], wallet.get_sell())
-            self.assertEqual(state['positions'], wallet.get_all_position_value(bkr, Wallet.ATTR_POSIIONS))
+            self.assertEqual(state['positions'], wallet.get_all_position_value(bkr, Wallet.ATTR_POSITONS))
             self.assertEqual(state['roi'], wallet.get_roi(bkr))
             self.assertEqual(state['total'], wallet.get_total(bkr))
         
