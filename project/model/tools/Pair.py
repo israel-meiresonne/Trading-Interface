@@ -8,8 +8,9 @@ class Pair(MyJson):
     UNDERSCORE = '_'
     LEFT = '$left'
     RIGHT = '$right'
-    _FORMAT_MERGED = LEFT + RIGHT
+    FORMAT_MERGED = LEFT + RIGHT
     FORMAT_UNDERSCORE = LEFT + UNDERSCORE + RIGHT
+    FORMAT_SLASH = LEFT + SEPARATOR + RIGHT
 
     def __init__(self, *agrs):
         nb = len(agrs)
@@ -45,7 +46,7 @@ class Pair(MyJson):
     def get_merged_symbols(self) -> str:
         return self.get_left().get_symbol() + self.get_right().get_symbol()
     
-    def format(self, format: str = _FORMAT_MERGED) -> str:
+    def format(self, format: str = FORMAT_MERGED) -> str:
         """
         To format Pair into a string in the given format
 
