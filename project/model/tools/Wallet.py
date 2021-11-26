@@ -18,16 +18,20 @@ class Wallet(MyJson):
     ATTR_POSITONS = 'POSITIONS'                 # Pair(left/right)
     ATTR_ADDED_POSIIONS = 'ADDED_POSIIONS'      # Pair(left/left)
     ATTR_REMOVED_POSIIONS = 'REMOVED_POSIIONS'  # Pair(left/left)
+    _BUY_CAPITAL_N_DECIMAL = 3
+    SUM_LEFT = Map.left
+    SUM_RIGHT = Map.right
+    SUM_FEE = Map.fee
 
     def __init__(self, initial: Price) -> None:
         self.__id = self.PREFIX_ID + _MF.new_code()
         self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+        self.__max_buy = None
+        self.__buy_rate = None
         self.__initial = None
         self.__depot = None
         self.__withdrawal = None
         self.__spot = None
-        self.__max_buy = None
-        self.__buy_rate = None
         self.__buy = None
         self.__sell = None
         self.__positions = None
@@ -54,7 +58,47 @@ class Wallet(MyJson):
             The creation time in millisecond
         """
         return self.__settime
-    
+
+    def reset_max_buy(self) -> None:
+        self.__max_buy = None
+
+    def set_max_buy(self, max_buy: Price) -> None:
+        if max_buy.get_value() <= 0:
+            raise ValueError(f"The max buy capital must be > 0")
+        r_asset = self.get_initial().get_asset()
+        if max_buy.get_asset() != self.get_initial().get_asset():
+            raise ValueError(f"The max buy capital's Asset must be '{r_asset}', instead '{max_buy.get_asset()}'")
+        n_decimal = self.get_n_decimal()
+        self.__max_buy = Price(max_buy.get_value(), r_asset, n_decimal=n_decimal)
+
+    def get_max_buy(self) -> Price:
+        """
+        To get the max amount of Wallet.spot that can be used to buy
+
+        Return:
+        -------
+        return: Price
+            The max amount of Wallet.spot that can be used to buy
+        """
+        return self.__max_buy
+
+    def set_buy_rate(self, buy_rate: float) -> None:
+        if not (0 < buy_rate <= 1):
+            raise ValueError(f"The Wallet.buy_rate must respect domain ]0,1]")
+        self.__buy_rate = buy_rate
+
+    def get_buy_rate(self) -> float:
+        """
+        To get the max rate of Wallet.spot that can be used to buy
+        
+        Returns:
+        --------
+        return: float
+            The max rate of Wallet.spot that can be used to buy
+        """
+        buy_rate = self.__buy_rate
+        return buy_rate if buy_rate is not None else self.get_default_buy_rate()
+
     def _set_initial(self, initial: Price) -> None:
         # Check
         if not isinstance(initial, Price):
@@ -85,47 +129,8 @@ class Wallet(MyJson):
             self.__depot = Transactions(pair)
         return self.__depot
     
-    def get_depot(self) -> Price:
-        return self._get_depot_transactions().sum().get(Map.right)
-
-    def reset_max_buy(self) -> None:
-        self.__max_buy = None
-
-    def set_max_buy(self, max_buy: Price) -> None:
-        if max_buy.get_value() <= 0:
-            raise ValueError(f"The max buy capital must be > 0")
-        if max_buy.get_asset() != self.get_initial().get_asset():
-            r_asset = self.get_initial().get_asset()
-            raise ValueError(f"The max buy capital's Asset must be '{r_asset}', instead '{max_buy.get_asset()}'")
-        self.__max_buy = max_buy
-
-    def get_max_buy(self) -> Price:
-        """
-        To get the max amount of Wallet.spot that can be used to buy
-
-        Return:
-        -------
-        return: Price
-            The max amount of Wallet.spot that can be used to buy
-        """
-        return self.__max_buy
-
-    def set_buy_rate(self, buy_rate: float) -> None:
-        if not (0 < buy_rate <= 1):
-            raise ValueError(f"The Wallet.buy_rate must respect domain ]0,1]")
-        self.__buy_rate = buy_rate
-
-    def get_buy_rate(self) -> float:
-        """
-        To get the max rate of Wallet.spot that can be used to buy
-        
-        Returns:
-        --------
-        return: float
-            The max rate of Wallet.spot that can be used to buy
-        """
-        buy_rate = self.__buy_rate
-        return buy_rate if buy_rate is not None else self.get_default_buy_rate()
+    def get_depot(self, sum_key: str = SUM_RIGHT) -> Price:
+        return self._get_depot_transactions().sum().get(sum_key)
 
     def _get_withdrawal_transactions(self) -> Transactions:
         if self.__withdrawal is None:
@@ -133,8 +138,8 @@ class Wallet(MyJson):
             self.__withdrawal = Transactions(pair)
         return self.__withdrawal
     
-    def get_withdrawal(self) -> Price:
-        return self._get_withdrawal_transactions().sum().get(Map.right)
+    def get_withdrawal(self, sum_key: str = SUM_RIGHT) -> Price:
+        return self._get_withdrawal_transactions().sum().get(sum_key)
         
     def _get_spot_transactions(self) -> Transactions:
         if self.__spot is None:
@@ -142,8 +147,8 @@ class Wallet(MyJson):
             self.__spot = Transactions(pair)
         return self.__spot
     
-    def get_spot(self) -> Price:
-        return self._get_spot_transactions().sum().get(Map.right)
+    def get_spot(self, sum_key: str = SUM_RIGHT) -> Price:
+        return self._get_spot_transactions().sum().get(sum_key)
         
     def _get_buy_transactions(self) -> Transactions:
         if self.__buy is None:
@@ -151,7 +156,7 @@ class Wallet(MyJson):
             self.__buy = Transactions(pair)
         return self.__buy
     
-    def get_buy(self) -> Price:
+    def get_buy(self, sum_key: str = SUM_RIGHT) -> Price:
         """
         To get Amount spend
 
@@ -160,7 +165,7 @@ class Wallet(MyJson):
         return: Price
             The Amount of sells
         """
-        return self._get_buy_transactions().sum().get(Map.right)
+        return self._get_buy_transactions().sum().get(sum_key)
         
     def _get_sell_transactions(self) -> Transactions:
         if self.__sell is None:
@@ -168,7 +173,7 @@ class Wallet(MyJson):
             self.__sell = Transactions(pair)
         return self.__sell
     
-    def get_sell(self) -> Price:
+    def get_sell(self, sum_key: str = SUM_RIGHT) -> Price:
         """
         To get Amount of sells
 
@@ -177,7 +182,7 @@ class Wallet(MyJson):
         return: Price
             The Amount of sells
         """
-        return self._get_sell_transactions().sum().get(Map.right)
+        return self._get_sell_transactions().sum().get(sum_key)
 
     def _get_positions(self, attribute: str = ATTR_POSITONS) -> Map:
         """
@@ -347,10 +352,11 @@ class Wallet(MyJson):
             buy = self.get_buy()
             if buy.get_value() != 0:
                 sell = self.get_sell()
+                buy_fee = self.get_buy(sum_key=self.SUM_FEE)
                 position = self.get_all_position_value(bkr, self.ATTR_POSITONS)
                 add_position = self.get_all_position_value(bkr, self.ATTR_ADDED_POSIIONS)
                 removed_position = self.get_all_position_value(bkr, self.ATTR_REMOVED_POSIIONS)
-                roi = (position + sell - add_position + removed_position) / buy - 1
+                roi = (position + sell - add_position + removed_position) / (buy + buy_fee) - 1
             return roi
         self.__roi = func_roi()
 
@@ -644,13 +650,14 @@ class Wallet(MyJson):
         return: Price
             The amount of Wallet.spot available to buy
         """
+        n_decimal = self.get_n_decimal()
         max_buy = self.get_max_buy()
         buy_rate = self.get_buy_rate()
         spot = self.get_spot()
         r_asset = self.get_initial().get_asset()
-        buy_capital = spot * buy_rate
-        buy_capital = max_buy \
-            if (max_buy is not None) and (buy_capital > max_buy.get_value()) else Price(buy_capital, r_asset)
+        buy_capital = Price(spot * buy_rate, r_asset, n_decimal=n_decimal)
+        max_reached = (max_buy is not None) and (buy_capital.get_value() > max_buy.get_value())
+        buy_capital = max_buy if max_reached else buy_capital
         return buy_capital
 
     def spot_fee(self) -> Price:
@@ -722,6 +729,10 @@ class Wallet(MyJson):
             The default buy rate
         """
         return Wallet._DEFAULT_BUY_RATE
+
+    @staticmethod
+    def get_n_decimal() -> int:
+        return Wallet._BUY_CAPITAL_N_DECIMAL
 
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
