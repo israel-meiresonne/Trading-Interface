@@ -5,13 +5,17 @@ from model.tools.MyJson import MyJson
 
 
 class Price(MyJson):
-    def __init__(self, value: Union[int, float], asset: Union[str, Asset]):
-        self.__value = round(float(value), 8)
+    _N_DECIMAL = 8
+
+    def __init__(self, value: Union[int, float], asset: Union[str, Asset], n_decimal: int = None, cut_exceed: bool = True) -> None:
+        self.__value = None
         self.__asset = None
         self._set_asset(asset)
+        self._set_value(value, cut_exceed=cut_exceed) if n_decimal is None else self._set_value(value, n_decimal=n_decimal, cut_exceed=cut_exceed)
 
-    def _set_value(self, value: float) -> None:
-        self.__value = value
+    def _set_value(self, value: float, n_decimal: int = _N_DECIMAL, cut_exceed: bool = True) -> None:
+        rounded_value = round(float(value), n_decimal) if not cut_exceed else int(float(value) * 10**(n_decimal))/10**(n_decimal)
+        self.__value = rounded_value
 
     def get_value(self) -> float:
         return self.__value

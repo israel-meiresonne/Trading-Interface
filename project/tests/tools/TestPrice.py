@@ -13,6 +13,27 @@ class TestPrice(unittest.TestCase, Price):
         self.price3 = Price(3, self.symbol2)
         self.price4 = Price(4, self.symbol2)
     
+    def test_set_value(self) -> None:
+        value = 12345.1234567891011
+        n_decimal = 5
+        asset = Asset('USDT')
+        # Default n_decimal && cut_exceed == True
+        exp1 = 12345.12345678
+        result1 = Price(value, asset)
+        self.assertEqual(exp1, result1.get_value())
+        # Default n_decimal && cut_exceed == False
+        exp2 = 12345.12345679
+        result2 = Price(value, asset, cut_exceed=False)
+        self.assertEqual(exp2, result2.get_value())
+        # new n_decimal && cut_exceed == True
+        exp3 = 12345.12345
+        result3 = Price(value, asset, n_decimal=n_decimal)
+        self.assertEqual(exp3, result3.get_value())
+        # new n_decimal && cut_exceed == False
+        exp4 = 12345.12346
+        result4 = Price(value, asset, n_decimal=n_decimal, cut_exceed=False)
+        self.assertEqual(exp4, result4.get_value())
+    
     def test_set_asset(self) -> None:
         # asset is string
         symbol = self.symbol1
