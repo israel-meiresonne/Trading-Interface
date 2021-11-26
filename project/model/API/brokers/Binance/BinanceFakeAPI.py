@@ -225,7 +225,8 @@ class BinanceFakeAPI(BinanceAPI):
     def _execute_order(order: dict) -> None:
         _cls = BinanceFakeAPI
         if order[Map.status] != _cls.STATUS_ORDER_NEW:
-            raise ValueError(f"Order's status must be '{_cls.STATUS_ORDER_NEW}', instead '{order[Map.status]}'")
+            # raise ValueError(f"Order's status must be '{_cls.STATUS_ORDER_NEW}', instead '{order[Map.status]}'")
+            return None
         # Extract from order
         order_type = order[Map.type]
         pair_merged = order[Map.symbol]
@@ -241,11 +242,12 @@ class BinanceFakeAPI(BinanceAPI):
         fees_rates = _cls.get_trade_fee(pair)
         # Treat order type
         if order_type == _cls.TYPE_MARKET:
-            trade_rate = fees_rates.get(Map.taker)
+            fee_rate = fees_rates.get(Map.taker)
             is_maker = False
             # Get exec prices
             exec_price = actual_close
-            exec_qty = order[Map.origQty]
+            quantity = order[Map.origQty]
+            exec_qty = quantity * (1-fee_rate)
             exec_amount = actual_close * exec_qty
         elif order_type == _cls.TYPE_STOP_LOSS_LIMIT:
             stop_price = order[Map.stopPrice]
@@ -257,12 +259,13 @@ class BinanceFakeAPI(BinanceAPI):
                 raise Exception(f"For move side '{_cls.SIDE_SELL}' and order type '{order_type}'"
                                 f" the actual close must be bellow or equal to the the stop price,"
                                 f" instead actual_close='{actual_close}' stop_price='{stop_price}'")
-            trade_rate = fees_rates.get(Map.maker)
+            fee_rate = fees_rates.get(Map.maker)
             is_maker = True
             # Get exec prices
             exec_price = limit_price = order[Map.price]
-            quantity = exec_qty = order[Map.origQty]
-            exec_amount = limit_price * quantity
+            quantity = order[Map.origQty]
+            exec_qty = quantity * (1-fee_rate)
+            exec_amount = limit_price * exec_qty
         else:
             raise Exception(f"This order type '{order_type}' is not supported")
         # Update order
@@ -272,9 +275,9 @@ class BinanceFakeAPI(BinanceAPI):
         order[Map.updateTime] = actual_time_milli
         # Generate fees
         if fee_asset == asset_right:
-            fees = exec_amount * trade_rate
+            fees = (quantity - exec_qty) * exec_price
         elif fee_asset == asset_left:
-            fees = exec_qty * trade_rate
+            fees = quantity - exec_qty
         else:
             raise Exception(f"Unknown fee symbol '{fee_asset}'")
         # Add trade
