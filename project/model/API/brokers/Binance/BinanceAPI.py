@@ -1217,7 +1217,7 @@ class BinanceAPI(ABC):
         _max_price = float(price_filter.get(Map.maxPrice))
         if (_max_price != 0) and (price_val > _max_price):
             raise ValueError(f"For trade pair '{pair.__str__().upper()}', the maximum price"
-                             f" is '{Price(_max_price, price.get_asset().get_symbol())}', instead '{Price}'.")
+                             f" is '{Price(_max_price, price.get_asset().get_symbol())}', instead '{price}'.")
         _tick_size = float(price_filter.get(Map.tickSize))
         if _tick_size != 0:
             new_price_val = BinanceAPI._get_new_price(price_val, _tick_size, _min_price)
@@ -1249,11 +1249,11 @@ class BinanceAPI(ABC):
         _min_qty = float(qty_filter.get(Map.minQty))
         if (_min_qty != 0) and (qty_val < _min_qty):
             raise ValueError(f"For trade pair '{pair.__str__().upper()}', the minimum price"
-                             f" is '{Price(_min_qty, quantity.get_asset().get_symbol())}', instead '{Price}'.")
+                             f" is '{Price(_min_qty, quantity.get_asset().get_symbol())}', instead '{quantity}'.")
         _max_qty = float(qty_filter.get(Map.maxQty))
         if (_max_qty != 0) and (qty_val > _max_qty):
             raise ValueError(f"For trade pair '{pair.__str__().upper()}', the maximum price"
-                             f" is '{Price(_max_qty, quantity.get_asset().get_symbol())}', instead '{Price}'.")
+                             f" is '{Price(_max_qty, quantity.get_asset().get_symbol())}', instead '{quantity}'.")
         _step_size = float(qty_filter.get(Map.stepSize))
         if _step_size != 0:
             new_qty_val = BinanceAPI._get_new_price(qty_val, _step_size, _min_qty)
