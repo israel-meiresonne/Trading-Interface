@@ -62,12 +62,15 @@ class TestWallet(unittest.TestCase, Wallet):
         wallet = self.w1
         initial = self.initial1
         r_asset = initial.get_asset()
+        n_decimal = self.get_n_decimal()
         # max_buy is None
         self.assertIsNone(wallet.get_max_buy())
         # Correct
-        max_buy1 = Price(10, r_asset)
+        max_buy1 = Price(12.1234567891011, r_asset)
         wallet.set_max_buy(max_buy1)
-        self.assertEqual(max_buy1, wallet.get_max_buy())
+        exp1 = Price(max_buy1.get_value(), r_asset, n_decimal=n_decimal)
+        result1 = wallet.get_max_buy()
+        self.assertEqual(exp1, result1)
         # max_buy == 0
         max_buy2 = Price(0, r_asset)
         with self.assertRaises(ValueError):
@@ -475,6 +478,7 @@ class TestWallet(unittest.TestCase, Wallet):
         wallet = self.w1
         initial = self.initial1
         r_asset = initial.get_asset()
+        n_decimal = self.get_n_decimal()
         # buy_capital = Wallet.spot
         exp1 = initial
         result1 = wallet.buy_capital()
@@ -488,7 +492,7 @@ class TestWallet(unittest.TestCase, Wallet):
         # max_buy
         self.setUp()
         wallet = self.w1
-        max_buy3 = Price(initial/3, r_asset)
+        max_buy3 = Price(initial/3, r_asset, n_decimal=n_decimal)
         wallet.set_max_buy(max_buy3)
         exp3 = max_buy3
         result3 = wallet.buy_capital()
@@ -596,9 +600,10 @@ class TestWallet(unittest.TestCase, Wallet):
             self.assertEqual(wallet_stage[cols['buy']], wallet.get_buy())
             self.assertEqual(wallet_stage[cols['sell']], wallet.get_sell())
             self.assertEqual(wallet_stage[cols['added_positions']], wallet.get_all_position_value(bkr, Wallet.ATTR_ADDED_POSIIONS))
-            self.assertEqual(wallet_stage[cols['positions']], wallet.get_all_position_value(bkr, Wallet.ATTR_POSITONS))
+            pos = wallet.get_all_position_value(bkr, Wallet.ATTR_POSITONS)
+            self.assertEqual(wallet_stage[cols['positions']], Price(pos.get_value(), pos.get_asset(), cut_exceed=False, n_decimal=3))
             self.assertEqual(wallet_stage[cols['removed_positions']], wallet.get_all_position_value(bkr, Wallet.ATTR_REMOVED_POSIIONS))
-            self.assertEqual(wallet_stage[cols['roi']], wallet.get_roi(bkr))
+            self.assertEqual(wallet_stage[cols['roi']], round(wallet.get_roi(bkr), 4))
             self.assertEqual(wallet_stage[cols['total']], wallet.get_total(bkr))
             return state_idx + 1
 
@@ -621,7 +626,7 @@ class TestWallet(unittest.TestCase, Wallet):
         pair = Pair('DOGE/USDT')
         initial = Price(100, pair.get_right())
         wallet = Wallet(initial)
-        fee_rate = 0.1/100
+        fee_rate = 1/100
         new_wallet_stages = []
         for row in wallet_stages:
             new_row = {}
@@ -635,7 +640,7 @@ class TestWallet(unittest.TestCase, Wallet):
         close = marketprice.get_close()
         righ1 = Price(90, pair.get_right())
         left1 = Price(righ1/close, pair.get_left())
-        fee1 = Price(righ1 * fee_rate, pair.get_right())
+        fee1 = Price(0, pair.get_right())
         transac1 = Transaction(type=Transaction.TYPE_BUY, pair=pair, right=righ1, left=left1, fee=fee1)
         wallet.buy(transac1)
         state_idx = test_state()
@@ -650,7 +655,7 @@ class TestWallet(unittest.TestCase, Wallet):
         # 4. Sell profit on assets
         righ3 = Price(left2*close, pair.get_right())
         left3 = left2
-        fee3 = Price(righ3*fee_rate, pair.get_right())
+        fee3 = Price(0, pair.get_right())
         transac3 = Transaction(type=Transaction.TYPE_SELL, pair=pair, right=righ3, left=left3, fee=fee3)
         wallet.sell(transac3)
         state_idx = test_state()
