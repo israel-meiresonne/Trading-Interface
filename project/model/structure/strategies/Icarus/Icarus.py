@@ -297,11 +297,13 @@ class Icarus(TraderClass):
             bkr = self.get_broker()
             last_order = self._get_orders().get_last_execution()
             buy_amount = last_order.get_executed_amount()
+            r_asset = buy_amount.get_asset()
+            buy_fee = last_order.get_fee(r_asset)
             pos = self.get_wallet().get_all_position_value(bkr)
             added_pos = self.get_wallet().get_all_position_value(bkr, Wallet.ATTR_ADDED_POSIIONS)
             removed_pos = self.get_wallet().get_all_position_value(bkr, Wallet.ATTR_REMOVED_POSIIONS)
             real_position = pos - added_pos + removed_pos
-            roi = real_position / buy_amount - 1
+            roi = real_position / (buy_amount + buy_fee) - 1
         return roi
 
     def _reset_floor_secure_order(self) -> None:
