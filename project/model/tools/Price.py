@@ -7,7 +7,7 @@ from model.tools.MyJson import MyJson
 class Price(MyJson):
     _N_DECIMAL = 8
 
-    def __init__(self, value: Union[int, float], asset: Union[str, Asset], n_decimal: int = None, cut_exceed: bool = True) -> None:
+    def __init__(self, value: Union[int, float], asset: Union[str, Asset], n_decimal: int = None, cut_exceed: bool = False) -> None:
         self.__value = None
         self.__asset = None
         self._set_asset(asset)
