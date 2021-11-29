@@ -269,7 +269,7 @@ class Order(Request, Transaction, MyJson, ABC):
 
     def get_execution_price(self) -> Price:
         """
-        To get market price at witch Order have been executed
+        To get market price at witch Order has been executed
 
         Returns:
         --------
@@ -287,12 +287,13 @@ class Order(Request, Transaction, MyJson, ABC):
 
     def get_executed_quantity(self) -> Price:
         """
-        To get quantity of left Asset traded
+        To get quantity of left Asset executed
+        NOTE: executed_quantity = received_quantity + fee
 
         Returns:
         --------
         return: Price
-            The quantity of left Asset traded
+            The quantity of left Asset executed
         """
         return self.__executed_quantity
 
@@ -305,12 +306,13 @@ class Order(Request, Transaction, MyJson, ABC):
 
     def get_executed_amount(self) -> Price:
         """
-        To get amount of right Asset traded
+        To get amount of right Asset executed
+        NOTE: executed_amount = received_amount + fee
 
         Returns:
         --------
         return: Price
-            The amount of right Asset traded
+            The amount of right Asset executed
         """
         return self.__executed_amount
 
@@ -337,6 +339,14 @@ class Order(Request, Transaction, MyJson, ABC):
         self._set_transaction_fee(r_fee)
 
     def get_fee(self, asset: Asset) -> Price:
+        """
+        To get fee charged to execute the Order
+
+        Returns:
+        --------
+        return: Price
+            The fee charged to execute the Order
+        """
         pair = self.get_pair()
         if (asset != pair.get_left()) and (asset != pair.get_right()):
             raise ValueError(f"There is not fee with this symbol '{asset}' (Order's pair '{pair}').")
@@ -489,7 +499,7 @@ class Order(Request, Transaction, MyJson, ABC):
         right_symbol = pair.get_right().get_symbol()
         fee = trade.get(Map.fee)
         exec_time = trade.get(Map.time)
-        qty_total = Price(0, pair.get_left().get_symbol())
+        qty_total = Price(0, pair.get_left())
         fees = Price(0, fee.get_asset().get_symbol())
         for trade_id, trade in trades.get_map().items():
             trade_time = trade[Map.time]
@@ -509,10 +519,10 @@ class Order(Request, Transaction, MyJson, ABC):
         price_sum = sum(price_rates)
         nb_decimal = _MF.get_nb_decimal(new_trades[0][Map.price].get_value())
         price_exec = round(price_sum, nb_decimal)
-        exec_price_obj = Price(price_exec, right_symbol)
+        exec_price_avg = Price(price_exec, right_symbol)
         datas = Map({
             Map.time: exec_time,
-            Map.price: exec_price_obj,
+            Map.price: exec_price_avg,
             Map.left: qty_total,
             Map.right: Price(price_exec * qty_total, right_symbol),
             Map.fee: fees

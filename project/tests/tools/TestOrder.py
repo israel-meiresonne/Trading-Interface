@@ -15,8 +15,8 @@ from model.tools.Wallet import Wallet
 
 class TestOrder(unittest.TestCase, Order):
     def setUp(self) -> None:
-        _initial_stage = Config.get(Config.STAGE_MODE)
-        Config.update(Config.STAGE_MODE, Config.STAGE_1)
+        # _initial_stage = Config.get(Config.STAGE_MODE)
+        # Config.update(Config.STAGE_MODE, Config.STAGE_1)
         self.lsbl = "BTC"
         self.rsbl = "USDT"
         self.pr = Pair(self.lsbl, self.rsbl)
@@ -43,34 +43,32 @@ class TestOrder(unittest.TestCase, Order):
     
     def tearDown(self) -> None:
         self.broker_switch(False)
-        print('end')
     
-    def tearClassDown(self) -> None:
-        print('end')
+    INIT_STAGE = None
+    BROKER = None
 
     def broker_switch(self, on: bool = False) -> Broker:
         if on:
-            self.init_stage = Config.get(Config.STAGE_MODE)
+            self.INIT_STAGE = Config.get(Config.STAGE_MODE)
             Config.update(Config.STAGE_MODE, Config.STAGE_2)
-            self.bkr = Binance(Map({
+            self.BROKER = Binance(Map({
                 Map.public: '-',
                 Map.secret: '-',
                 Map.test_mode: False
             }))
         else:
-            init_stage = self.init_stage
-            self.bkr.close()
+            init_stage = self.INIT_STAGE
+            self.BROKER.close() if self.BROKER is not None else None
             Config.update(Config.STAGE_MODE,
                           init_stage) if init_stage is not None else None
-        return self.bkr
-    
+        return self.BROKER
+
     @staticmethod
-    def execute(order: Order, exec_price: Price, amount: Price = None, quantity: Price = None) -> None:
+    def execute(order: Order, exec_price: Price, amount: Price = None, quantity: Price = None, fee_rate: float = 1/100) -> None:
         if (amount is None) and (quantity is None):
             raise ValueError("amount and quantity can't both be None")
         if (not isinstance(amount, Price)) and (not isinstance(quantity, Price)):
             raise ValueError("amount and quantity can't both set")
-        fee_rate = Order.FAKE_FEE
         pair = order.get_pair()
         if amount is not None:
             quantity = Price(amount/exec_price, pair.get_left())
@@ -81,9 +79,9 @@ class TestOrder(unittest.TestCase, Order):
         order._set_broker_id(_MF.new_code())
         order._set_execution_time(_MF.get_timestamp(unit=_MF.TIME_MILLISEC))
         order._set_execution_price(exec_price)
+        order._set_fee(fee)
         order._set_executed_amount(amount)
         order._set_executed_quantity(quantity)
-        order._set_fee(fee)
     
     def _set_market(self) -> None:
         pass
@@ -235,7 +233,7 @@ class TestOrder(unittest.TestCase, Order):
             self.assertEqual(state['spot'], wallet.get_spot())
             self.assertEqual(state['buy'], wallet.get_buy())
             self.assertEqual(state['sell'], wallet.get_sell())
-            self.assertEqual(state['positions'], wallet.get_all_position_value(bkr, Wallet.ATTR_POSITONS))
+            self.assertEqual(state['positions'], wallet.get_all_position_value(bkr))
             self.assertEqual(state['roi'], wallet.get_roi(bkr))
             self.assertEqual(state['total'], wallet.get_total(bkr))
         
@@ -245,6 +243,7 @@ class TestOrder(unittest.TestCase, Order):
         l_asset = pair.get_left()
         r_zero = Price(0, r_asset)
         initial = Price(1000, r_asset)
+        fee_rate = 1/100
         wallet = Wallet(initial)
         marketprice = wallet.get_marketprice(bkr, l_asset)
         close = marketprice.get_close()
@@ -252,31 +251,38 @@ class TestOrder(unittest.TestCase, Order):
         buy = BinanceOrder(self.TYPE_MARKET, Map({
             Map.pair: pair,
             Map.move: self.MOVE_BUY,
-            Map.amount: Price(115, r_asset)
+            # Map.amount: Price(115, r_asset)
+            Map.amount: initial
         }))
-        self.execute(order=buy, exec_price=exec_price, amount=buy.get_amount())
+        self.execute(order=buy, exec_price=exec_price, amount=buy.get_amount(), fee_rate=fee_rate)
+        buy_fee = buy.get_fee(r_asset)
+        sell_qty = buy.get_executed_quantity() - buy.get_fee(l_asset)
         sell = BinanceOrder(self.TYPE_MARKET, Map({
             Map.pair: pair,
             Map.move: self.MOVE_SELL,
-            Map.quantity: Price(50, l_asset)
+            Map.quantity: sell_qty
         }))
-        self.execute(order=sell, exec_price=exec_price, quantity=sell.get_quantity())
+        self.execute(order=sell, exec_price=exec_price, quantity=sell.get_quantity(), fee_rate=fee_rate)
+        sell_fee = sell.get_fee(r_asset)
+        # State
+        buy_value = buy.get_executed_amount()
+        sell_value = sell.get_executed_amount()
         states = [
             {
-                'spot': initial - buy.get_amount(),
-                'buy': buy.get_executed_amount(),
+                'spot': r_zero,
+                'buy': buy_value,
                 'sell': r_zero,
-                'positions': buy.get_executed_amount(),
-                'roi': 0,
-                'total': initial,
+                'positions': buy_value - buy_fee,
+                'roi': (buy_value - buy_fee)/initial-1,
+                'total': initial - buy_fee,
                 },
             {
-                'spot': initial - buy.get_amount() + sell.get_executed_amount(),
-                'buy': buy.get_executed_amount(),
-                'sell': sell.get_executed_amount(),
-                'positions': buy.get_executed_amount() - sell.get_executed_amount(),
-                'roi': 0,
-                'total': initial,
+                'spot': initial - buy_value + sell_value - sell_fee,
+                'buy': buy_value,
+                'sell': sell_value,
+                'positions': buy_value - buy_fee - sell_value,
+                'roi': (initial - (buy_fee + sell_fee))/initial-1,
+                'total': initial - buy_value + sell_value - sell_fee + (buy_value - buy_fee - sell_value)
                 }
             ]
         # Buy
