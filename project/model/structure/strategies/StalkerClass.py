@@ -266,7 +266,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             raise ValueError(f"There's no active Strategy with this pair '{pair_str.upper()}' to delete.")
         active_stg = active_stgs.get(pair_str)
         # Sell all positions
-        active_stg.stop_trading(bkr) if active_stg._has_position() else None
+        active_stg.stop_trading(bkr)
         # Delete active Strategy
         delete_stg(active_stg)
         del active_stgs.get_map()[pair_str]
@@ -753,6 +753,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         unix_time = _MF.get_timestamp()
         roi_day = (roi/(unix_time-settime)) * 60 * 60 * 24
         run_time = _MF.delta_time(settime, unix_time)
+        # Residue
+        residue_init_capital_rate = stk_residue/initial_capital
+        residue_total_capital_rate = stk_residue/total_capital
         #
         next_clean = self.get_next_blacklist_clean()
         analyse_empty = len(market_analyse.get_map()) == 0
@@ -779,6 +782,8 @@ class StalkerClass(Strategy, MyJson, ABC):
             'total_capital': total_capital,
             'stk_spot': stk_spot,
             'stk_residue': stk_residue,
+            'residue_init_capital_rate': _MF.rate_to_str(residue_init_capital_rate),
+            'residue_total_capital_rate': _MF.rate_to_str(residue_total_capital_rate),
             'total_fee': total_fee,
             'fee_init_capital_rate': _MF.rate_to_str(fee_init_capital_rate),
             'fee_total_capital_rate': _MF.rate_to_str(fee_total_capital_rate),
