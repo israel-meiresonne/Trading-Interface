@@ -13,7 +13,7 @@ def dynamic_exec(class_name: str, test_func: str) -> None:
     print(f"Test '{test_func}' of class '{class_name}' exceted!")
     print('\033[0m')
 
-def run_TestWallet() -> None:
+def run_TestWallet(test_func: str = None) -> None:
     a = [
         'test_set_initial',
         'test_get_position_value',
@@ -27,11 +27,12 @@ def run_TestWallet() -> None:
         'test_multiple_transaction',
         'test_json_encode_decode'
     ]
-    [dynamic_exec(class_name='TestWallet', test_func=func) for func in a]
+    [dynamic_exec(class_name='TestWallet', test_func=func) for func in a] \
+        if test_func is None else dynamic_exec(class_name='TestWallet', test_func=test_func)
 
-def run_TestOrder() -> None:
-    dynamic_exec(class_name='TestOrder', test_func='test_inherit_from_transaction')
+def run_TestOrder(test_func: str = None) -> None:
+    dynamic_exec(class_name='TestOrder', test_func=test_func)
 
 if __name__ == '__main__':
     push_path()
-    run_TestOrder()
+    run_TestWallet()
