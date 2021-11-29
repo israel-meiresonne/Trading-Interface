@@ -130,6 +130,15 @@ class Wallet(MyJson):
         return self.__depot
     
     def get_depot(self, sum_key: str = SUM_RIGHT) -> Price:
+        """
+        To get amount added to Wallet
+        NOTE: depot don't include fee charged
+
+        Returns:
+        --------
+        return: Price
+            The amount withdrawn from Wallet
+        """
         return self._get_depot_transactions().sum().get(sum_key)
 
     def _get_withdrawal_transactions(self) -> Transactions:
@@ -139,6 +148,15 @@ class Wallet(MyJson):
         return self.__withdrawal
     
     def get_withdrawal(self, sum_key: str = SUM_RIGHT) -> Price:
+        """
+        To get amount withdrawn from Wallet
+        NOTE: withdrawal don't include fee charged
+
+        Returns:
+        --------
+        return: Price
+            The amount withdrawn from Wallet
+        """
         return self._get_withdrawal_transactions().sum().get(sum_key)
         
     def _get_spot_transactions(self) -> Transactions:
@@ -159,11 +177,12 @@ class Wallet(MyJson):
     def get_buy(self, sum_key: str = SUM_RIGHT) -> Price:
         """
         To get Amount spend
+        NOTE: buy = received + fee (buy include fee charged)
 
         Returns:
         --------
         return: Price
-            The Amount of sells
+            The Amount spend
         """
         return self._get_buy_transactions().sum().get(sum_key)
         
@@ -176,6 +195,7 @@ class Wallet(MyJson):
     def get_sell(self, sum_key: str = SUM_RIGHT) -> Price:
         """
         To get Amount of sells
+        NOTE: sell = received + fee (sell include fee charged)
 
         Returns:
         --------
@@ -221,6 +241,7 @@ class Wallet(MyJson):
     def get_position(self, asset: Asset, attribute: str = ATTR_POSITONS) -> Price:
         """
         To get position on the given Asset
+        NOTE: positions = buy - buy.fee
 
         Parameters:
         -----------
@@ -254,13 +275,13 @@ class Wallet(MyJson):
         return: Price
             The given Asset's value in Wallet.initial's Asset
         """
-        right_asset = self.get_initial().get_asset()
-        pos_value = Price(0, right_asset)
+        r_asset = self.get_initial().get_asset()
+        pos_value = Price(0, r_asset)
         position = self.get_position(asset, attribute)
         if position.get_value() > 0:
             marketprice = self.get_marketprice(bkr, asset)
             close = marketprice.get_close()
-            pos_value = Price(position * close, right_asset)
+            pos_value = Price(position * close, r_asset)
         return pos_value
 
     def get_all_position_value(self, bkr: Broker, attribute: str = ATTR_POSITONS) -> Price:
@@ -348,15 +369,18 @@ class Wallet(MyJson):
 
     def _set_roi(self, bkr: Broker) -> None:
         def func_roi() -> float:
+            """
+            Roi = (positions + sell - sell.fee − added_pos + removed_pos) ÷ buy − 1
+            """
             roi = 0
             buy = self.get_buy()
             if buy.get_value() != 0:
                 sell = self.get_sell()
-                buy_fee = self.get_buy(sum_key=self.SUM_FEE)
+                sell_fee = self.get_sell(sum_key=self.SUM_FEE)
                 position = self.get_all_position_value(bkr, self.ATTR_POSITONS)
-                add_position = self.get_all_position_value(bkr, self.ATTR_ADDED_POSIIONS)
+                added_position = self.get_all_position_value(bkr, self.ATTR_ADDED_POSIIONS)
                 removed_position = self.get_all_position_value(bkr, self.ATTR_REMOVED_POSIIONS)
-                roi = (position + sell - add_position + removed_position) / (buy + buy_fee) - 1
+                roi = (position + sell - sell_fee - added_position + removed_position) / buy - 1
             return roi
         self.__roi = func_roi()
 
@@ -498,9 +522,15 @@ class Wallet(MyJson):
         neg_transac_right = -transac_right
         pos_pair = transaction.get_pair()
         double_pair = self._new_pair(pos_pair.get_right())
+        l_asset = transac_left.get_asset()
+        r_asset = transac_right.get_asset()
+        exec_price = transac_right/transac_left
+        l_fee = Price(transac_fee/exec_price, l_asset)
         # Position
-        position = transaction.clone()
-        self._get_position_transactions(pos_pair.get_left()).add(position)
+        pos_left = transac_left - l_fee
+        r_zero = Price(0, r_asset)
+        position = transaction.clone(right=r_zero, left=pos_left, fee=r_zero)
+        self._get_position_transactions(l_asset).add(position)
         # Buy
         buy = position.clone(pair=double_pair, right=transac_right, left=transac_right, fee=transac_fee)
         self._get_buy_transactions().add(buy)
@@ -508,8 +538,8 @@ class Wallet(MyJson):
         spot = position.clone(pair=double_pair, right=neg_transac_right, left=neg_transac_right, fee=transac_fee)
         self._get_spot_transactions().add(spot)
         # Link
-        position.link(buy)
-        position.link(spot)
+        spot.link(buy)
+        spot.link(position)
         # Reset
         self._reset_total()
         self._reset_roi()
@@ -554,11 +584,12 @@ class Wallet(MyJson):
         sell = transaction.clone(pair=double_pair, right=transac_right, left=transac_right, fee=transac_fee)
         self._get_sell_transactions().add(sell)
         # Spot
-        spot = position.clone(pair=double_pair, right=transac_right, left=transac_right, fee=transac_fee)
+        spot_right = transac_right - transac_fee
+        spot = position.clone(pair=double_pair, right=spot_right, left=spot_right, fee=transac_fee)
         self._get_spot_transactions().add(spot)
         # Link
-        position.link(sell)
-        position.link(spot)
+        spot.link(sell)
+        spot.link(position)
         # Reset
         self._reset_total()
         self._reset_roi()
@@ -655,7 +686,8 @@ class Wallet(MyJson):
         buy_rate = self.get_buy_rate()
         spot = self.get_spot()
         r_asset = self.get_initial().get_asset()
-        buy_capital = Price(spot * buy_rate, r_asset, n_decimal=n_decimal)
+        # buy_capital = Price(spot * buy_rate, r_asset, n_decimal=n_decimal)
+        buy_capital = Price(spot * buy_rate, r_asset)
         max_reached = (max_buy is not None) and (buy_capital.get_value() > max_buy.get_value())
         buy_capital = max_buy if max_reached else buy_capital
         return buy_capital
