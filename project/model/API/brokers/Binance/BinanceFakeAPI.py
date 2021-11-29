@@ -246,8 +246,7 @@ class BinanceFakeAPI(BinanceAPI):
             is_maker = False
             # Get exec prices
             exec_price = actual_close
-            quantity = order[Map.origQty]
-            exec_qty = quantity * (1-fee_rate)
+            exec_qty = order[Map.origQty]
             exec_amount = actual_close * exec_qty
         elif order_type == _cls.TYPE_STOP_LOSS_LIMIT:
             stop_price = order[Map.stopPrice]
@@ -263,8 +262,7 @@ class BinanceFakeAPI(BinanceAPI):
             is_maker = True
             # Get exec prices
             exec_price = limit_price = order[Map.price]
-            quantity = order[Map.origQty]
-            exec_qty = quantity * (1-fee_rate)
+            exec_qty = order[Map.origQty]
             exec_amount = limit_price * exec_qty
         else:
             raise Exception(f"This order type '{order_type}' is not supported")
@@ -275,9 +273,9 @@ class BinanceFakeAPI(BinanceAPI):
         order[Map.updateTime] = actual_time_milli
         # Generate fees
         if fee_asset == asset_right:
-            fees = (quantity - exec_qty) * exec_price
+            fees = exec_amount * fee_rate
         elif fee_asset == asset_left:
-            fees = quantity - exec_qty
+            fees = exec_qty * fee_rate
         else:
             raise Exception(f"Unknown fee symbol '{fee_asset}'")
         # Add trade
