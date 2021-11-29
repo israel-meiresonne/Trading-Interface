@@ -686,8 +686,8 @@ class Wallet(MyJson):
         buy_rate = self.get_buy_rate()
         spot = self.get_spot()
         r_asset = self.get_initial().get_asset()
-        # buy_capital = Price(spot * buy_rate, r_asset, n_decimal=n_decimal)
-        buy_capital = Price(spot * buy_rate, r_asset)
+        buy_capital = Price(spot * buy_rate, r_asset, n_decimal=n_decimal, cut_exceed=True)
+        # buy_capital = Price(spot * buy_rate, r_asset)
         max_reached = (max_buy is not None) and (buy_capital.get_value() > max_buy.get_value())
         buy_capital = max_buy if max_reached else buy_capital
         return buy_capital
