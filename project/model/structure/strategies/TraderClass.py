@@ -307,6 +307,7 @@ class TraderClass(Strategy, MyJson, ABC):
         executions.put(self._EXEC_PLACE_SECURE, len(executions.get_map()))
 
     def _json_encode_prepare(self) -> None:
+        super()._json_encode_prepare()
         self._reset_marketprices()
 
     # ——————————————— STATIC METHOD DOWN ———————————————
