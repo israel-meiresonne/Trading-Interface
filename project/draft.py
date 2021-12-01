@@ -43,9 +43,9 @@ def get_broker() -> Broker:
 def main() -> None:
     bkr = get_broker()
     fiat_asset = Asset('USDT')
-    pairs = Predictor.learned_pairs()
-    hist_periods = [60 * 15, 60 * 30, 60 * 60]
-    learn_periods = [60 * 15]
+    pairs = MarketPrice.get_spot_pairs(bkr.__class__.__name__, fiat_asset)
+    hist_periods = [60 * 60]
+    learn_periods = hist_periods
     Predictor.update_market_histories(bkr, fiat_asset, pairs=pairs, periods=hist_periods)
     Predictor.update_learns(pairs=pairs, periods=learn_periods)
 
