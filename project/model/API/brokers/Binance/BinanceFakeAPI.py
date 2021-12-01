@@ -14,7 +14,6 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
-from model.tools.Price import Price
 
 
 class BinanceFakeAPI(BinanceAPI):
@@ -343,9 +342,7 @@ class BinanceFakeAPI(BinanceAPI):
             actual_close = float(_cls._get_actual_close(pair_merged, period_milli))
             if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
                 # Prepare prices
-                if side_move == _cls.SIDE_BUY:
-                    quantity_price = Price(amount/actual_close, pair.get_left())
-                    quantity = _cls.fixe_quantity(pair, quantity_price, is_market_order=True).get_value()
+                quantity = amount / actual_close if side_move == _cls.SIDE_BUY else quantity
                 # Generate Order
                 order = new_order_canvas(params)
                 order[Map.price] = 0
