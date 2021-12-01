@@ -128,7 +128,7 @@ class IcarusStalker(StalkerClass):
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
         if self._allowed_pairs is None:
-            self._allowed_pairs = Predictor.learned_pairs()
+            self._allowed_pairs = Predictor.learned_pairs(stock_path=False)
         return self._allowed_pairs
 
     @staticmethod
