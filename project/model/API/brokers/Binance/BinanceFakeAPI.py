@@ -1,6 +1,6 @@
 from json import dumps as json_encode
 import re as rgx
-from typing import Any
+from typing import Any, Tuple
 
 from requests.models import Response
 
@@ -14,6 +14,7 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
+from model.tools.Price import Price
 
 
 class BinanceFakeAPI(BinanceAPI):
@@ -223,6 +224,12 @@ class BinanceFakeAPI(BinanceAPI):
 
     @staticmethod
     def _execute_order(order: dict) -> None:
+        def get_execution_values(f_close: float, f_pair: Pair, f_quantity: float) -> Tuple[float, float]:
+            f_amount = Price(f_close*f_quantity, f_pair.get_right(), n_decimal=3, cut_exceed=True)
+            f_exec_amount = f_amount.get_value()
+            f_exec_qty = f_exec_amount/f_close
+            return (f_exec_amount, f_exec_qty)
+
         _cls = BinanceFakeAPI
         if order[Map.status] != _cls.STATUS_ORDER_NEW:
             # raise ValueError(f"Order's status must be '{_cls.STATUS_ORDER_NEW}', instead '{order[Map.status]}'")
@@ -246,8 +253,8 @@ class BinanceFakeAPI(BinanceAPI):
             is_maker = False
             # Get exec prices
             exec_price = actual_close
-            exec_qty = order[Map.origQty]
-            exec_amount = actual_close * exec_qty
+            quantity = order[Map.origQty]
+            exec_amount, exec_qty = get_execution_values(f_close=actual_close, f_pair=pair, f_quantity=quantity)
         elif order_type == _cls.TYPE_STOP_LOSS_LIMIT:
             stop_price = order[Map.stopPrice]
             if (order[Map.side] == _cls.SIDE_BUY) and (actual_close < stop_price):
@@ -260,10 +267,9 @@ class BinanceFakeAPI(BinanceAPI):
                                 f" instead actual_close='{actual_close}' stop_price='{stop_price}'")
             fee_rate = fees_rates.get(Map.maker)
             is_maker = True
-            # Get exec prices
-            exec_price = limit_price = order[Map.price]
-            exec_qty = order[Map.origQty]
-            exec_amount = limit_price * exec_qty
+            exec_price = order[Map.price]
+            quantity = order[Map.origQty]
+            exec_amount, exec_qty = get_execution_values(f_close=exec_price, f_pair=pair, f_quantity=quantity)
         else:
             raise Exception(f"This order type '{order_type}' is not supported")
         # Update order
