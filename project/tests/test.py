@@ -13,26 +13,34 @@ def dynamic_exec(class_name: str, test_func: str) -> None:
     print(f"Test '{test_func}' of class '{class_name}' exceted!")
     print('\033[0m')
 
-def run_TestWallet(test_func: str = None) -> None:
-    a = [
-        'test_set_initial',
-        'test_get_position_value',
-        'test_get_marketprice',
-        'test_deposit',
-        'test_withdraw',
-        'test_buy',
-        'test_sell',
-        'test_add_position',
-        'test_remove_position',
-        'test_multiple_transaction',
-        'test_json_encode_decode'
-    ]
-    [dynamic_exec(class_name='TestWallet', test_func=func) for func in a] \
-        if test_func is None else dynamic_exec(class_name='TestWallet', test_func=test_func)
+def run_Test(class_name: str, test_func: str = None) -> None:
+    if class_name ==  'TestWallet':
+        a = [
+            'test_set_initial',
+            'test_get_position_value',
+            'test_get_marketprice',
+            'test_deposit',
+            'test_withdraw',
+            'test_buy',
+            'test_sell',
+            'test_add_position',
+            'test_remove_position',
+            'test_multiple_transaction',
+            'test_json_encode_decode'
+        ]
+    elif class_name ==  'TestOrder':
+        a = []
+    elif class_name ==  'TestPredictor':
+        a = []
+    elif test_func is not None:
+        pass
+    else:
+        raise ValueError(f"Any test selected (class_name='{class_name}', test_func='{test_func}')")
 
-def run_TestOrder(test_func: str = None) -> None:
-    dynamic_exec(class_name='TestOrder', test_func=test_func)
+    [dynamic_exec(class_name=class_name, test_func=func) for func in a] \
+        if test_func is None else dynamic_exec(class_name=class_name, test_func=test_func)
+
 
 if __name__ == '__main__':
     push_path()
-    run_TestWallet()
+    run_Test(class_name='TestPredictor', test_func='test_get_learn_path')

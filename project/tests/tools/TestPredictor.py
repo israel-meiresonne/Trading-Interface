@@ -16,25 +16,28 @@ class TestPredictor(unittest.TestCase, Predictor):
     def setUp(self) -> None:
         self.init_stage = None
         self.bkr = None
-    
+
     def tearDown(self) -> None:
         self.broker_switch(False)
+    
+    INIT_STAGE = None
+    BROKER = None
 
     def broker_switch(self, on: bool = False) -> Broker:
         if on:
-            self.init_stage = Config.get(Config.STAGE_MODE)
+            self.INIT_STAGE = Config.get(Config.STAGE_MODE)
             Config.update(Config.STAGE_MODE, Config.STAGE_2)
-            self.bkr = Binance(Map({
+            self.BROKER = Binance(Map({
                 Map.public: '-',
                 Map.secret: '-',
                 Map.test_mode: False
             }))
         else:
-            init_stage = self.init_stage
-            self.bkr.close()
+            init_stage = self.INIT_STAGE
+            self.BROKER.close() if self.BROKER is not None else None
             Config.update(Config.STAGE_MODE,
                           init_stage) if init_stage is not None else None
-        return self.bkr
+        return self.BROKER
 
     def test_predict(self) -> None:
         bkr = self.broker_switch(True)
@@ -58,20 +61,20 @@ class TestPredictor(unittest.TestCase, Predictor):
             self.LOW: lows
         }
         rows = []
-        for model_type, prices in mkts.items():
-            model = predictor.get_model(model_type)
+        for price_type, prices in mkts.items():
+            model = predictor.get_model(price_type)
             n_feature = model.n_feature()
             xs, ys = self.generate_dataset(prices, n_feature)
             predictions = model.predict(xs, fixe_offset=True, xs_offset=xs, ys_offset=ys)
             model_coef = model.get_coef_determination()
             market_coef = model.coef_determination(ys, predictions)
-            print(f"{model_type.upper()} Global coef: {model_coef}")
-            print(f"{model_type.upper()} coef: {market_coef}")
-            print_dir = self.plot(ys, predictions, f'{pair.format()}_plot_{model_type}_')
+            print(f"{price_type.upper()} Global coef: {model_coef}")
+            print(f"{price_type.upper()} coef: {market_coef}")
+            print_dir = self.plot(ys, predictions, f'{pair.format()}_plot_{price_type}_')
             row = {
                 Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                 Map.pair: pair,
-                Map.type: model_type,
+                Map.type: price_type,
                 Map.shape: xs.shape,
                 'offset': model.get_offset_mean(),
                 Map.model: _MF.rate_to_str(model_coef),
@@ -82,7 +85,16 @@ class TestPredictor(unittest.TestCase, Predictor):
         fields = list(rows[0].keys())
         FileManager.write_csv(print_file_path, fields, rows, overwrite=True, make_dir=False)
         self.broker_switch(False)
-    
+
+    def test_get_learn_path(self) -> None:
+        exp1 = '$class/learns/active/$pair/$period/$price_type/'
+        result1 = self.get_learn_path(stock_path=False)
+        self.assertEqual(exp1, result1)
+        exp2 = '$class/learns/stock/$pair/$period/$price_type/'
+        result2 = self.get_learn_path(stock_path=True)
+        self.assertEqual(exp2, result2)
+        self.assertEqual(exp2, self.get_learn_path())
+
     def test_add_learns(self) -> None:
         from model.tools.MarketPrice import MarketPrice
         from model.tools.Asset import Asset
@@ -141,13 +153,13 @@ class TestPredictor(unittest.TestCase, Predictor):
         self.assertListEqual(ys_exp1, ys[:,0].tolist())
 
     def test_learned_pairs(self) -> None:
-        pairs = self.learned_pairs()
+        pairs = self.learned_pairs(stock_path)
         self.assertIsInstance(pairs, list)
         self.assertIsInstance(pairs[0], Pair)
 
     def test_learn_dir(self) -> None:
         exp1 = 'content/storage/Predictor/learns/'
-        result1 = self.learn_dir()
+        result1 = self.learn_dir(stock_path)
         self.assertEqual(exp1, result1)
         self.assertIsInstance(FileManager.get_dirs(result1), list)
     

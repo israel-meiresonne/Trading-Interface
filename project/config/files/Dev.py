@@ -45,7 +45,7 @@ class Dev:
     DIR_STORAGE = 'content/storage/'
     # Predictor
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
-    PREDICTOR_PATH_LEARN = '$class/learns/$pair/$period/$model_type/'
+    PREDICTOR_PATH_LEARN = '$class/learns/$stock_path/$pair/$period/$price_type/'
     # Constants
     CONST_STABLECOINS = ['busd', 'dai', 'husd', 'pax', 'susd', 'tusd', 'usdc', 'usdn', 'usdt', 'ust', 'usdsb', 'usds']
     CONST_FIATS = ['aud', 'brl', 'eur', 'gbp', 'ghs', 'hkd', 'kes', 'kzt', 'ngn', 'nok', 'pen', 'rub', 'try', 'uah',

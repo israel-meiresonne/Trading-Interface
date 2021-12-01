@@ -59,17 +59,19 @@ class Predictor(MyJson):
     def get_models(self) -> Map:
         return self.__models
     
-    def get_model(self, model_type: str) -> DeepLearning:
+    def get_model(self, price_type: str) -> DeepLearning:
         models = self.get_models()
-        if model_type not in models.get_keys():
-            raise ValueError(f"This model type '{model_type}' is not supported")
-        model = models.get(model_type)
+        if price_type not in models.get_keys():
+            raise ValueError(f"This price type '{price_type}' is not supported")
+        model = models.get(price_type)
         if model is None:
-            model = self.load_model(self.get_pair(), self.get_period(), model_type=model_type)
-            models.put(model, model_type)
+            pair = self.get_pair()
+            period = self.get_period()
+            model = self.load_model(pair, period, price_type=price_type, stock_path=False)
+            models.put(model, price_type)
         return model
     
-    def predict(self, prices: np.ndarray, model_type: str) -> np.ndarray:
+    def predict(self, prices: np.ndarray, price_type: str) -> np.ndarray:
         """
         To predict next market price
 
@@ -77,7 +79,7 @@ class Predictor(MyJson):
         -----------
         market: MarketPrice
             Market prices with shape=(n_sample, n_feature)
-        model_type: str
+        price_type: str
             Model to use for prediction
         
         Raises:
@@ -90,10 +92,10 @@ class Predictor(MyJson):
             The next market price with shape=(n_sample, 1)
         """
         """
-        prices = list(eval(f"market.get_{model_type}s()"))
+        prices = list(eval(f"market.get_{price_type}s()"))
         prices.reverse()
         """
-        model = self.get_model(model_type)
+        model = self.get_model(price_type)
         predictions = model.predict(prices)
         return predictions
 
@@ -128,8 +130,26 @@ class Predictor(MyJson):
         return Predictor._FILE_LEARN_MODEL
     
     @staticmethod
-    def get_learn_path() -> str:
-        return Predictor._PATH_LEARN
+    def get_learn_path(stock_path: bool = True) -> str:
+        """
+        To get path where models are stored
+            - 'stock' is space to work on model
+            - 'active' is space used by running sessions
+
+        Parameters:
+        -----------
+        stock_path: bool = True
+            Set True to get path to stock of models else False for path to active models
+        
+        Return:
+        -------
+        return: str
+            The path where models are stored
+        """
+        new_str = 'stock' if stock_path else 'active'
+        old_str = Config.TOKEN_PREDICTOR_LEARN_PATH
+        new_path = Predictor._PATH_LEARN.replace(old_str, new_str)
+        return new_path
 
     # ——————————————————————————————————————————— STATIC GETTTER UP ————————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION LEARN DOWN ———————————————————————————————————————————
@@ -138,7 +158,6 @@ class Predictor(MyJson):
     def add_learns(bkr: Broker, pairs: List[Pair]) -> None:
         """
         To learn AI to predict market prices for given pairs
-
         NOTE: Add histories and learns only if history don't exist
 
         Parameters
@@ -296,7 +315,7 @@ class Predictor(MyJson):
                 Predictor.CLOSE: Predictor.model(close, n_feature)
             }
             # Save
-            [Predictor._print_model(pair, period, model_type, model) for model_type, model in models.items()]
+            [Predictor._print_model(pair, period, price_type, model) for price_type, model in models.items()]
 
     @staticmethod
     def model(prices: np.ndarray, n_feature: int) -> DeepLearning:
@@ -342,16 +361,17 @@ class Predictor(MyJson):
                 f"Shape must be '{shape}', instead '{values.shape}'")
 
     @staticmethod
-    def _print_model(pair: Pair, period: int, model_type: str, model: DeepLearning) -> None:
-        json_file_path = Predictor.learn_file_path(pair, period, model_type, Predictor.get_learn_json_file())
-        model_file_path = Predictor.learn_file_path(pair, period, model_type, Predictor.get_learn_model_file())
+    def _print_model(pair: Pair, period: int, price_type: str, model: DeepLearning) -> None:
+        stock_path = True
+        json_file_path = Predictor.learn_file_path(pair, period, price_type, Predictor.get_learn_json_file(), stock_path=stock_path)
+        model_file_path = Predictor.learn_file_path(pair, period, price_type, Predictor.get_learn_model_file(), stock_path=stock_path)
         coef_determ = model.get_coef_determination()
         model.save(json_file_path, model_file_path)
         config = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             Map.pair: pair,
             Map.period: period,
-            Map.type: model_type,
+            Map.type: price_type,
             Map.shape: model.get_xs().shape,
             Map.coefficient: _MF.rate_to_str(coef_determ)
         }]
@@ -360,58 +380,85 @@ class Predictor(MyJson):
         FileManager.write_csv(conf_file_path, fields, config, overwrite=True, make_dir=True)
 
     @staticmethod
-    def load_model(pair: Pair, period: int, model_type: str) -> DeepLearning:
-        model_key = f"{pair.__str__()}_{period}_{model_type}"
+    def load_model(pair: Pair, period: int, price_type: str, stock_path: bool) -> DeepLearning:
+        model_key = f"{pair.__str__()}_{period}_{price_type}_{stock_path}"
         loaded_models = Predictor.get_loaded_models()
         dl = loaded_models.get(model_key)
         if dl is None:
-            json_file_path = Predictor.learn_file_path(pair, period, model_type, Predictor.get_learn_json_file())
+            file_name = Predictor.get_learn_json_file()
+            json_file_path = Predictor.learn_file_path(pair, period, price_type, file_name=file_name, stock_path=stock_path)
             dl = DeepLearning.load(json_file_path)
             loaded_models.put(dl, model_key)
         return dl
 
     @staticmethod
-    def learned_pairs() -> List[Pair]:
+    def learned_pairs(stock_path: bool) -> List[Pair]:
         """
         To get list of Pair with learned model
+
+        Parameters:
+        -----------
+        stock_path: bool = True
+            Set True to get path to stock of models else False for path to active models
 
         Returns:
         --------
         return: List[Pair]
             List of Pair with learned model
         """
-        pair_path = Predictor.learn_dir()
+        pair_path = Predictor.learn_dir(stock_path)
         pairs_str = FileManager.get_dirs(pair_path, make_dir=True)
         pairs = [Pair(pair_str.replace(Pair.UNDERSCORE, Pair.SEPARATOR)) for pair_str in pairs_str]
         return pairs
 
     @staticmethod
-    def learn_dir() -> str:
+    def learn_dir(stock_path: bool) -> str:
         """
-        To get directory where learn of pair are stored
+        To get directory where model of pair are stored
         ie: 'content/storage/Predictor/learns/'
+
+        Parameters:
+        -----------
+        stock_path: bool = True
+            Set True to get path to stock of models else False for path to active models
         """
         learn_path = Config.get(Config.DIR_STORAGE)
-        learn_path += Predictor.get_learn_path()
+        learn_path += Predictor.get_learn_path(stock_path)
         learn_path = learn_path.replace('$class', Predictor.__name__)
         regex = r'\$pair.*'
         learn_path = _MF.regex_replace(regex, '', learn_path)
         return learn_path
 
     @staticmethod
-    def learn_file_path(pair: Pair, period: int, model_type: str, file_name: str) -> str:
+    def learn_file_path(pair: Pair, period: int, price_type: str, file_name: str, stock_path: bool) -> str:
+        """
+        To get path to file that contain model for a given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            The Pair of the model to get
+        period: int
+            The period interval of the model to get
+        price_type: str
+            Predictor.[HIGHT, LOW, CLOSE]
+        file_name: str
+            Predictor.[_FILE_LEARN_JSON, _FILE_LEARN_MODEL]
+        stock_path: bool
+            Set True to get path to stock of models else False for path to active models
+        """
         files = [Predictor.get_learn_json_file(), Predictor.get_learn_model_file()]
         if file_name not in files:
             raise ValueError(f"This file '{file_name}' is not a learn file")
         hist_types = [Predictor.CLOSE, Predictor.HIGH, Predictor.LOW]
-        if model_type not in hist_types:
+        if price_type not in hist_types:
             raise ValueError(f"This history type '{file_name}' is not supported")
         file_path = Config.get(Config.DIR_STORAGE)
-        file_path += Predictor.get_learn_path()
+        file_path += Predictor.get_learn_path(stock_path)
         file_path += file_name
         pair_str = pair.format(Pair.FORMAT_UNDERSCORE).upper()
         file_path = file_path.replace('$class', Predictor.__name__)
-        file_path = file_path.replace('$model_type', model_type)
+        file_path = file_path.replace('$price_type', price_type)
         file_path = file_path.replace('$pair', pair_str)
         file_path = file_path.replace('$period', str(period))
         return file_path
@@ -435,7 +482,7 @@ class Predictor(MyJson):
         return pairs
 
     @staticmethod
-    def market_price_to_np(marketprice: MarketPrice, model_type: str, n_feature: int) -> np.ndarray:
+    def market_price_to_np(marketprice: MarketPrice, price_type: str, n_feature: int) -> np.ndarray:
         """
         To prepare list of MarketPrice to be predicted
 
@@ -443,7 +490,7 @@ class Predictor(MyJson):
         -----------
         marketprice: MarketPrice
             MarketPrice
-        model_type: str
+        price_type: str
             The list or MarketPrice to convert
         n_feature: int
             The number of feature neccessary to predict
@@ -453,7 +500,7 @@ class Predictor(MyJson):
         return: np.ndarray
             list of MarketPrice prepared to be predicted shape=(1, n_feature)
         """
-        prices = list(eval(f"marketprice.get_{model_type}s()"))
+        prices = list(eval(f"marketprice.get_{price_type}s()"))
         prices.reverse()
         return np.array(prices[-n_feature:]).reshape((1, n_feature))
 
