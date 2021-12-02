@@ -43,4 +43,4 @@ def run_Test(class_name: str, test_func: str = None) -> None:
 
 if __name__ == '__main__':
     push_path()
-    run_Test(class_name='TestPredictor', test_func='test_get_learn_path')
+    run_Test(class_name='TestOrder', test_func='test_resume_subexecution')
