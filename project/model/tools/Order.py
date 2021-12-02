@@ -496,35 +496,39 @@ class Order(Request, Transaction, MyJson, ABC):
         trade_ids = trades.get_keys()
         trade = Map(trades.get(trade_ids[0]))
         pair = trade.get(Map.pair)
-        right_symbol = pair.get_right().get_symbol()
+        r_asset = pair.get_right()
         fee = trade.get(Map.fee)
         exec_time = trade.get(Map.time)
-        qty_total = Price(0, pair.get_left())
-        fees = Price(0, fee.get_asset().get_symbol())
+        total_quantity = Price(0, pair.get_left())
+        fees = Price(0, fee.get_asset())
+        price_min_decimal = 10**(5)
         for trade_id, trade in trades.get_map().items():
             trade_time = trade[Map.time]
             exec_time = trade_time if trade_time < exec_time else exec_time
             price = trade[Map.price]
-            qty = trade[Map.quantity]
-            qty_total += qty
+            # Quantity
+            quantity = trade[Map.quantity]
+            total_quantity += quantity
+            # Fee
             fee = trade[Map.fee]
             fees += fee
+            # Decimal
+            n_decimal = _MF.get_nb_decimal(price.get_value())
+            price_min_decimal = n_decimal if n_decimal < price_min_decimal else price_min_decimal
             new_trade = {
                 Map.price: price,
-                Map.qty: qty,
+                Map.quantity: quantity,
                 Map.commission: fee
             }
             new_trades.append(new_trade)
-        price_rates = [(row[Map.qty] / qty_total) * row[Map.price] for row in new_trades]
+        price_rates = [(row[Map.quantity] / total_quantity) * row[Map.price] for row in new_trades]
         price_sum = sum(price_rates)
-        nb_decimal = _MF.get_nb_decimal(new_trades[0][Map.price].get_value())
-        price_exec = round(price_sum, nb_decimal)
-        exec_price_avg = Price(price_exec, right_symbol)
+        exec_price_avg = Price(price_sum, r_asset, n_decimal=price_min_decimal, cut_exceed=True)
         datas = Map({
             Map.time: exec_time,
             Map.price: exec_price_avg,
-            Map.left: qty_total,
-            Map.right: Price(price_exec * qty_total, right_symbol),
+            Map.left: total_quantity,
+            Map.right: Price(exec_price_avg * total_quantity, r_asset, n_decimal=price_min_decimal, cut_exceed=True),
             Map.fee: fees
         })
         return datas
