@@ -88,7 +88,7 @@ class DeepLearning(MyJson):
         self.__model_file_path = model_file_path
     
     def get_model_file_path(self) -> None:
-        return self.__model_file_path.replace('learns/', 'learns/active/')
+        return self.__model_file_path
     
     def _freeze_class(self) -> None:
         """
