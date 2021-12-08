@@ -40,8 +40,10 @@ class Predictor(MyJson):
     CLOSE = Map.close
     HIGH = Map.high
     LOW = Map.low
+    _HIGH_OCCUP_N_MEAN = 50
+    _HIGH_OCCUP_N_SCORE = 3
 
-    def __init__(self, pair: Pair, period: int) -> None:
+    def __init__(self, pair: Pair, period: int, active_model: bool = True) -> None:
         self.__pair = pair
         self.__period = period
         self.__models = Map({
@@ -49,6 +51,7 @@ class Predictor(MyJson):
             Predictor.HIGH: None,
             Predictor.LOW: None
         })
+        self.__active_model = active_model
     
     def get_pair(self) -> Pair:
         return self.__pair
@@ -67,10 +70,14 @@ class Predictor(MyJson):
         if model is None:
             pair = self.get_pair()
             period = self.get_period()
-            model = self.load_model(pair, period, price_type=price_type, stock_path=False)
+            stock_path = not self.is_active_model()
+            model = self.load_model(pair, period, price_type=price_type, stock_path=stock_path)
             models.put(model, price_type)
         return model
-    
+
+    def is_active_model(self) -> bool:
+        return self.__active_model
+
     def predict(self, prices: np.ndarray, price_type: str) -> np.ndarray:
         """
         To predict next market price
@@ -99,10 +106,41 @@ class Predictor(MyJson):
         predictions = model.predict(prices)
         return predictions
 
+    def score_high_occupation(self, marketprice: MarketPrice, n_score: int = _HIGH_OCCUP_N_SCORE, n_mean: int = _HIGH_OCCUP_N_MEAN) -> float:
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        highs = list(marketprice.get_highs())
+        highs.reverse()
+        model = self.get_model(self.HIGH)
+        n_feature = model.n_feature()
+        x_highs, y_highs = self.generate_dataset(highs, n_feature)
+        pred_y_highs = model.predict(x_highs, fixe_offset=True, xs_offset=x_highs, ys_offset=y_highs)
+        x_closes, _ = self.generate_dataset(closes, n_feature)
+        last_closes = x_closes[:,-1]
+        pred_y_highs = pred_y_highs.ravel()
+        y_highs = y_highs.ravel()
+        occups = (y_highs - last_closes)/(pred_y_highs - last_closes)
+        occups = [1 if c > 1 else c for c in occups]
+        occups = np.array([0 if c < 0 else c for c in occups])
+        times = []
+        n_occup = occups.shape[0]
+        max_idx = n_occup - n_score
+        for i in range(max_idx):
+            reached_highs = y_highs[i:i+n_score]
+            max_high = max(reached_highs)
+            idx = np.where(reached_highs == max_high)[0][0]
+            period_coef = idx + 1
+            times.append(period_coef)
+        times = np.array(times)
+        scores = occups[:max_idx]/times
+        mean_score = sum(scores[-n_mean:])/n_mean
+        return mean_score
+
     def _json_encode_prepare(self) -> None:
         models = self.get_models()
         keys = models.get_keys()
         [models.put(None, key) for key in keys]
+    
     # ——————————————————————————————————————————— STATIC GETTTER DOWN ——————————————————————————————————————————————————
 
     @staticmethod
@@ -398,7 +436,7 @@ class Predictor(MyJson):
 
         Parameters:
         -----------
-        stock_path: bool = True
+        stock_path: bool
             Set True to get path to stock of models else False for path to active models
 
         Returns:
@@ -419,7 +457,7 @@ class Predictor(MyJson):
 
         Parameters:
         -----------
-        stock_path: bool = True
+        stock_path: bool
             Set True to get path to stock of models else False for path to active models
         """
         learn_path = Config.get(Config.DIR_STORAGE)
