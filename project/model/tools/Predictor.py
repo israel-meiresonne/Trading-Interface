@@ -25,11 +25,6 @@ class Predictor(MyJson):
     _FILE_LEARN_MODEL = 'keras_model.xyz'
     _FILE_LEARN_CONFIG = 'config.csv'
     _LEARN_PERIODS = [
-        # 60 * 1,
-        # 60 * 3,
-        # 60 * 5,
-        # 60 * 15,
-        # 60 * 30,
         60 * 60
     ]
     _DATASET_SIZES = {
@@ -43,7 +38,7 @@ class Predictor(MyJson):
     _HIGH_OCCUP_N_MEAN = 50
     _HIGH_OCCUP_N_SCORE = 3
 
-    def __init__(self, pair: Pair, period: int, active_model: bool = True) -> None:
+    def __init__(self, pair: Pair, period: int) -> None:
         self.__pair = pair
         self.__period = period
         self.__models = Map({
@@ -51,7 +46,6 @@ class Predictor(MyJson):
             Predictor.HIGH: None,
             Predictor.LOW: None
         })
-        self.__active_model = active_model
     
     def get_pair(self) -> Pair:
         return self.__pair
@@ -70,13 +64,9 @@ class Predictor(MyJson):
         if model is None:
             pair = self.get_pair()
             period = self.get_period()
-            stock_path = not self.is_active_model()
-            model = self.load_model(pair, period, price_type=price_type, stock_path=stock_path)
+            model = self.load_model(pair, period, price_type=price_type)
             models.put(model, price_type)
         return model
-
-    def is_active_model(self) -> bool:
-        return self.__active_model
 
     def predict(self, prices: np.ndarray, price_type: str) -> np.ndarray:
         """
@@ -418,13 +408,13 @@ class Predictor(MyJson):
         FileManager.write_csv(conf_file_path, fields, config, overwrite=True, make_dir=True)
 
     @staticmethod
-    def load_model(pair: Pair, period: int, price_type: str, stock_path: bool) -> DeepLearning:
-        model_key = f"{pair.__str__()}_{period}_{price_type}_{stock_path}"
+    def load_model(pair: Pair, period: int, price_type: str) -> DeepLearning:
+        model_key = f"{pair.__str__()}_{period}_{price_type}"
         loaded_models = Predictor.get_loaded_models()
         dl = loaded_models.get(model_key)
         if dl is None:
             file_name = Predictor.get_learn_json_file()
-            json_file_path = Predictor.learn_file_path(pair, period, price_type, file_name=file_name, stock_path=stock_path)
+            json_file_path = Predictor.learn_file_path(pair, period, price_type, file_name=file_name, stock_path=True)
             dl = DeepLearning.load(json_file_path)
             loaded_models.put(dl, model_key)
         return dl
