@@ -6,7 +6,11 @@ __pycache__*/
 *.pyc
 .pytest_cache
 project/content/v0.01/
-project/content/storage/
+
+project/content/storage/Predictor/learns/stock/
+project/content/storage/Predictor/market-histories/
+project/content/storage/Predictor/analyse/
+
 project/content/market-historic/
 project/content/sessions/
 project/content/analyse/
