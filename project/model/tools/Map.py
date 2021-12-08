@@ -40,6 +40,7 @@ class Map(MyJson):
     coefficient = "coefficient"
     model = "model"
     shape = "shape"
+    score = "score"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
