@@ -1,3 +1,4 @@
+from typing import List
 import unittest
 
 import numpy as np
@@ -7,6 +8,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Predictor import Predictor
@@ -14,8 +16,7 @@ from model.tools.Predictor import Predictor
 
 class TestPredictor(unittest.TestCase, Predictor):
     def setUp(self) -> None:
-        self.init_stage = None
-        self.bkr = None
+        pass
 
     def tearDown(self) -> None:
         self.broker_switch(False)
@@ -84,6 +85,17 @@ class TestPredictor(unittest.TestCase, Predictor):
         print_file_path = print_dir + 'config.csv'
         fields = list(rows[0].keys())
         FileManager.write_csv(print_file_path, fields, rows, overwrite=True, make_dir=False)
+        self.broker_switch(False)
+
+    def test_score_high_occupation(self) -> None:
+        bkr = self.broker_switch(True)
+        pair = Pair('DOGE/USDT')
+        period = 60 * 60
+        predictor = Predictor(pair, period)
+        marketprice = MarketPrice.marketprice(bkr, pair, period, 1000)
+        coef = predictor.score_high_occupation(marketprice, n_mean=50)
+        print(coef)
+        # end
         self.broker_switch(False)
 
     def test_get_learn_path(self) -> None:
@@ -297,3 +309,41 @@ class TestPredictor(unittest.TestCase, Predictor):
             print(_MF.prefix() + _back_cyan + f"Start learning '{pair.__str__().upper()}'..." + _normal)
             self._learn(pair)
             print(_MF.prefix() + _back_cyan + f"End learning '{pair.__str__().upper()}'" + _normal)
+
+    def print_coef_high_occupation(self) -> None:
+        def print_row(f_path: str, f_rows: List[dict]) -> None:
+            f_fields = list(f_rows[0].keys())
+            f_overwrite = False
+            FileManager.write_csv(f_path, f_fields, rows, f_overwrite, make_dir=True)
+
+        date = _MF.unix_to_date(_MF.get_timestamp())
+        path = f'content/storage/Predictor/analyse/score_high_occupation/{date}_score_high_occupation.csv'
+        bkr = self.broker_switch(True)
+        period = 60 * 60
+        pairs = self.learned_pairs(stock_path=True)
+        streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
+        bkr.add_streams(streams)
+        starttime = _MF.get_timestamp()
+        turn = 1
+        n_turn = len(pairs)
+        for pair in pairs:
+            print(_MF.loop_progression(starttime, turn, n_turn, pair.__str__().upper())) if Predictor._DEBUG else None
+            turn += 1
+            marketprice = MarketPrice.marketprice(bkr, pair, period, 1000)
+            predictor = Predictor(pair, period, active_model=False)
+            score = predictor.score_high_occupation(marketprice)
+            coef = predictor.get_model(self.HIGH).get_coef_determination()
+            rows = [{
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.pair: pair,
+                Map.period: period,
+                Map.close: marketprice.get_close(),
+                Map.high : marketprice.get_highs()[0],
+                'n_score': self._HIGH_OCCUP_N_SCORE,
+                'n_mean': self._HIGH_OCCUP_N_MEAN,
+                Map.coefficient: _MF.rate_to_str(coef),
+                Map.score: _MF.rate_to_str(score)
+            }]
+            print_row(f_path=path, f_rows=rows)
+        # end
+        self.broker_switch(False)
