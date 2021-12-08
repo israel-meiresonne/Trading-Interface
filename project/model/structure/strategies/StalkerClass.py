@@ -543,30 +543,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
         print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
-        pairs = self._get_allowed_pairs(broker)
-        stg_pairs = [Pair(pair_str) for pair_str in self.get_active_strategies().get_keys()]
-        pairs = [
-            *pairs,
-            *[stg_pair for stg_pair in stg_pairs if stg_pair not in pairs]            
-        ]
-        periods = self._add_streams_periods()
-        periods = list(dict.fromkeys(periods))
-        periods.sort()
-        streams = []
-        for period in periods:
-            streams = [
-                *streams,
-                *[broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
-            ]
-        # Add streams for market analyse
-        market_analyse_period = MarketPrice.get_period_market_analyse()
-        spot_pairs = MarketPrice.get_spot_pairs(broker.__class__.__name__, self.get_pair().get_right())
-        spot_pairs = [spot_pair for spot_pair in spot_pairs if spot_pair not in pairs]
-        for spot_pair in spot_pairs:
-            spot_stream = broker.generate_stream(Map({Map.pair: spot_pair, Map.period: market_analyse_period}))
-            streams.append(spot_stream)
         # Add streams
-        streams = list(dict.fromkeys(streams))
+        streams = self._add_streams_get_streams(broker)
         nb_stream = len(streams)
         start_time = _MF.get_timestamp()
         duration_time = start_time + nb_stream
@@ -589,6 +567,39 @@ class StalkerClass(Strategy, MyJson, ABC):
             self.get_strategy_params().get(Map.period),
             Wallet.get_period()
         ]
+
+    def _add_streams_get_streams(self, broker: Broker) -> List[str]:
+        """
+        To get list of stream to request to Broker
+        """
+        pairs = self._get_allowed_pairs(broker)
+        stg_pairs = [Pair(pair_str) for pair_str in self.get_active_strategies().get_keys()]
+        pairs = [
+            *pairs,
+            *[stg_pair for stg_pair in stg_pairs if stg_pair not in pairs]            
+        ]
+        periods = self._add_streams_periods()
+        periods = list(dict.fromkeys(periods))
+        periods.sort()
+        streams = []
+        for period in periods:
+            streams = [
+                *streams,
+                *[broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
+            ]
+        # Add streams for market analyse
+        market_analyse_period = MarketPrice.get_period_market_analyse()
+        wallet_period = Wallet.get_period()
+        spot_pairs = MarketPrice.get_spot_pairs(broker.__class__.__name__, self.get_pair().get_right())
+        spot_pairs = [spot_pair for spot_pair in spot_pairs if spot_pair not in pairs]
+        for spot_pair in spot_pairs:
+            wallet_stream = broker.generate_stream(Map({Map.pair: spot_pair, Map.period: wallet_period}))
+            spot_stream = broker.generate_stream(Map({Map.pair: spot_pair, Map.period: market_analyse_period}))
+            streams.append(wallet_stream)
+            streams.append(spot_stream)
+        streams = list(dict.fromkeys(streams))
+        streams.sort()
+        return streams
 
     def stop_trading(self, bkr: Broker) -> None:
         pass
