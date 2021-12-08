@@ -440,7 +440,7 @@ class Icarus(TraderClass):
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
-            self._secure_position(executions)
+            # self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -478,6 +478,7 @@ class Icarus(TraderClass):
         can_sell = self.can_sell(predictor_marketprice, market_price)
         if can_sell:
             self._sell(executions)
+        """
         else:
             new_max_close_pred = self.get_max_close_predicted()
             new_prediction_higher = is_new_prediction_higher(max_close_pred, new_max_close_pred)
@@ -493,6 +494,7 @@ class Icarus(TraderClass):
             elif occup_trigger_reached and max_price_higher:
                 # Move up occupation secure
                 self._move_up_secure_order(executions)
+        """
         # Save
         var_param = vars().copy()
         del var_param['self']
