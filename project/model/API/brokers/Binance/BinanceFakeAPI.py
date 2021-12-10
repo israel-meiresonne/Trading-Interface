@@ -88,7 +88,7 @@ class BinanceFakeAPI(BinanceAPI):
         """
         cls_vars = BinanceFakeAPI._get_vars()
         cls_vars.put(market, Map.market, pair_merged.upper(), int(period_milli))
-        BinanceFakeAPI._update_orders()
+        # BinanceFakeAPI._update_orders()
 
     @staticmethod
     def _get_market_historic(pair_merged: str, period_milli: int) -> list:
