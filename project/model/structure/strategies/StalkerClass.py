@@ -146,6 +146,7 @@ class StalkerClass(Strategy, MyJson, ABC):
     def _get_strategy_capital(self) -> Price:
         """
         To get initial capital for new child Strategy
+        NOTE: if max active Strategy is reached: strategy_capital == 0
 
         Returns:
         --------
@@ -157,9 +158,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         max_stg = self.get_max_strategy()
         stgs = self.get_active_strategies()
         remaining = max_stg - len(stgs.get_map())
-        if remaining <= 0:
-            raise ValueError(f"Max active Strategy reached, (remaining place='{remaining}')")
-        stg_capital = Price(buy_capital / remaining, r_asset)
+        price_value = buy_capital/remaining if remaining > 0 else 0
+        stg_capital = Price(price_value, r_asset)
         return stg_capital
     
     def _set_strategy_class(self, strategy_class: str) -> None:
@@ -230,7 +230,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         active_strategies = self.get_active_strategies()
         if len(active_strategies.get_map()) >= max_strategy:
             nb_active = len(active_strategies.get_map())
-            raise Exception(f"The active strategy is already reached ({nb_active}/{max_strategy}).")
+            raise Exception(f"The max active strategy is already reached ({nb_active}/{max_strategy}).")
         pair_strs = active_strategies.get_keys()
         pair_str = pair.__str__()
         if pair_str in pair_strs:
