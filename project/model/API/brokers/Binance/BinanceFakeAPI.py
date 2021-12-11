@@ -227,7 +227,6 @@ class BinanceFakeAPI(BinanceAPI):
     def _execute_order(order: dict) -> None:
         _cls = BinanceFakeAPI
         if order[Map.status] != _cls.STATUS_ORDER_NEW:
-            # raise ValueError(f"Order's status must be '{_cls.STATUS_ORDER_NEW}', instead '{order[Map.status]}'")
             return None
         # Extract from order
         order_type = order[Map.type]
@@ -246,10 +245,20 @@ class BinanceFakeAPI(BinanceAPI):
         if order_type == _cls.TYPE_MARKET:
             fee_rate = fees_rates.get(Map.taker)
             is_maker = False
-            # Get exec prices
+            # Extract values
+            amount = order[Map.cummulativeQuoteQty]
+            quantity = order[Map.origQty]
+            # Generate exec prices
             exec_price = actual_close
-            exec_qty = order[Map.origQty]
-            exec_amount = actual_close * exec_qty
+            if amount is not None:
+                exec_amount = amount
+                exec_qty = exec_amount/exec_price
+                order[Map.origQty] = exec_qty
+            elif quantity is not None:
+                exec_qty = quantity
+                exec_amount = exec_price * exec_qty
+            else:
+                raise ValueError(f"The amount or quantity to buy|sell must be set, instead amount='{amount}', quantity='{quantity}'")
         elif order_type == _cls.TYPE_STOP_LOSS_LIMIT:
             stop_price = order[Map.stopPrice]
             if (order[Map.side] == _cls.SIDE_BUY) and (actual_close < stop_price):
@@ -336,7 +345,6 @@ class BinanceFakeAPI(BinanceAPI):
 
         def generate_order(rq: str, params: Map) -> dict:
             # Extract from params
-            side_move = params.get(Map.side)
             quantity = params.get(Map.quantity)
             amount = params.get(Map.quoteOrderQty)
             # Get from class
@@ -344,11 +352,11 @@ class BinanceFakeAPI(BinanceAPI):
             actual_close = float(_cls._get_actual_close(pair_merged, period_milli))
             if (rq == _cls.RQ_ORDER_MARKET_qty) or (rq == _cls.RQ_ORDER_MARKET_amount):
                 # Prepare prices
-                quantity = amount / actual_close if side_move == _cls.SIDE_BUY else quantity
                 # Generate Order
                 order = new_order_canvas(params)
                 order[Map.price] = 0
                 order[Map.origQty] = quantity
+                order[Map.cummulativeQuoteQty] = amount
                 # Execute order
                 _cls._execute_order(order)
             elif rq == _cls.RQ_ORDER_STOP_LOSS_LIMIT:
