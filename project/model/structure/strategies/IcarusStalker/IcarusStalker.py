@@ -152,7 +152,7 @@ class IcarusStalker(StalkerClass):
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
         instance = IcarusStalker(Map({
-            Map.pair: Pair('@json/@json'),
+            Map.pair: Pair('?/@json'),
             Map.maximum: None,
             Map.capital: 0,
             Map.rate: 1,
