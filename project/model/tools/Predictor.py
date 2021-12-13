@@ -35,7 +35,7 @@ class Predictor(MyJson):
     CLOSE = Map.close
     HIGH = Map.high
     LOW = Map.low
-    _HIGH_OCCUP_N_MEAN = 50
+    _HIGH_OCCUP_N_MEAN = 1000
     _HIGH_OCCUP_N_SCORE = 3
 
     def __init__(self, pair: Pair, period: int) -> None:
