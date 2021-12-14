@@ -96,8 +96,7 @@ class BinanceFakeAPI(BinanceAPI):
 
     @staticmethod
     def _get_lower_market_historic(pair_merged: str) -> list:
-        def update_market_historic(f_pair_merged: str) -> None:
-            f_period_str = _cls.INTERVAL_1MIN
+        def update_market_historic(f_pair_merged: str, f_period_str: str) -> None:
             f_rsp = BinanceAPI._send_market_historics_request(False, _cls.RQ_KLINES, Map({
                 Map.symbol: f_pair_merged.upper(),
                 Map.interval: f_period_str,
@@ -107,7 +106,16 @@ class BinanceFakeAPI(BinanceAPI):
             _cls.add_market_historic(f_pair_merged, f_period_milli, f_rsp.get_content())
 
         _cls = BinanceFakeAPI
-        update_market_historic(pair_merged)
+        market_historics = Map(_cls._get_var(Map.market, pair_merged.upper()))
+        period_millis = market_historics.get_keys()
+        if len(period_millis) == 0:
+            period_str = _cls.INTERVAL_1MIN
+        else:
+            period_millis.sort()
+            period_sec = int(period_millis[0]/1000)
+            period_str = _cls.convert_interval(period_sec)
+        update_market_historic(pair_merged, period_str)
+        # Get martket updated
         market_historics = Map(_cls._get_var(Map.market, pair_merged.upper()))
         period_millis = market_historics.get_keys()
         period_millis.sort()

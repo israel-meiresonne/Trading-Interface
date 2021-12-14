@@ -28,14 +28,14 @@ class Predictor(MyJson):
         60 * 60
     ]
     _DATASET_SIZES = {
-        Map.minimum: 1*10**(4),
+        Map.minimum: 10**(3),
         Map.maximum: 1.6*10**(4)
     }
     _LOADED_MODELS = Map()
     CLOSE = Map.close
     HIGH = Map.high
     LOW = Map.low
-    _HIGH_OCCUP_N_MEAN = 50
+    _HIGH_OCCUP_N_MEAN = 1000
     _HIGH_OCCUP_N_SCORE = 3
 
     def __init__(self, pair: Pair, period: int) -> None:

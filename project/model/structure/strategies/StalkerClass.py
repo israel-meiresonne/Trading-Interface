@@ -18,8 +18,9 @@ from model.tools.Wallet import Wallet
 
 
 class StalkerClass(Strategy, MyJson, ABC):
-    _CONST_STALK_FREQUENCY = 60         # in second
-    _CONST_STALKER_BOT_SLEEP_TIME = 10  # in second
+    _CONST_STALK_FREQUENCY = 60             # in second
+    _STALKER_BOT_DELFAULT_SLEEP_TIME = 10
+    _STALKER_BOT_SLEEP_TIME = 10            # in second
     _CONST_MAX_STRATEGY = 20
     _BLACKLIST_TIME = 60 * 3  # in second
     _PAIR_MANAGER_NB_PERIOD = 100
@@ -504,7 +505,8 @@ class StalkerClass(Strategy, MyJson, ABC):
     # ——————————————————————————————————————————————— ANALYSE MARKET UP ————————————————————————————————————————————————
 
     def _get_sleep_time(self) -> int:
-        sleep_interval = self.get_bot_sleep_time()
+        n_stg = len(self.get_active_strategies().get_map())
+        sleep_interval = self.get_bot_sleep_time() if n_stg != 0 else StalkerClass._STALKER_BOT_DELFAULT_SLEEP_TIME
         unix_time = _MF.get_timestamp()
         time_rounded = _MF.round_time(unix_time, sleep_interval)
         next_rounded_time = time_rounded + sleep_interval
@@ -704,7 +706,7 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     @staticmethod
     def get_bot_sleep_time() -> int:
-        return StalkerClass._CONST_STALKER_BOT_SLEEP_TIME
+        return StalkerClass._STALKER_BOT_SLEEP_TIME
 
     @staticmethod
     @abstractmethod
