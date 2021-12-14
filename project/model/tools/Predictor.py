@@ -28,7 +28,7 @@ class Predictor(MyJson):
         60 * 60
     ]
     _DATASET_SIZES = {
-        Map.minimum: 1*10**(4),
+        Map.minimum: 10**(3),
         Map.maximum: 1.6*10**(4)
     }
     _LOADED_MODELS = Map()
