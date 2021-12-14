@@ -6,6 +6,7 @@ from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
@@ -316,10 +317,11 @@ class TestPredictor(unittest.TestCase, Predictor):
             f_overwrite = False
             FileManager.write_csv(f_path, f_fields, rows, f_overwrite, make_dir=True)
 
-        date = _MF.unix_to_date(_MF.get_timestamp())
-        path = f'content/storage/Predictor/analyse/score_high_occupation/{date}_score_high_occupation.csv'
         bkr = self.broker_switch(True)
+        date = _MF.unix_to_date(_MF.get_timestamp(), form=_MF.FORMAT_D_H_M_S_FOR_FILE)
+        path = f'content/storage/Predictor/learns/print/stock_high_occupation_score/{date}_high_occupation_score.csv'
         period = 60 * 60
+        n_period = 1000
         pairs = self.learned_pairs(stock_path=True)
         streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
         bkr.add_streams(streams)
@@ -329,8 +331,8 @@ class TestPredictor(unittest.TestCase, Predictor):
         for pair in pairs:
             print(_MF.loop_progression(starttime, turn, n_turn, pair.__str__().upper())) if Predictor._DEBUG else None
             turn += 1
-            marketprice = MarketPrice.marketprice(bkr, pair, period, 1000)
-            predictor = Predictor(pair, period, active_model=False)
+            marketprice = MarketPrice.marketprice(bkr, pair, period, n_period)
+            predictor = Predictor(pair, period)
             score = predictor.score_high_occupation(marketprice)
             coef = predictor.get_model(self.HIGH).get_coef_determination()
             rows = [{
@@ -346,4 +348,61 @@ class TestPredictor(unittest.TestCase, Predictor):
             }]
             print_row(f_path=path, f_rows=rows)
         # end
+        self.broker_switch(False)
+
+    def print_ho_score_missing_pairs(self) -> None:
+        def prepate_path(f_path: str, pair: Pair) -> str:
+            return f_path.replace('$pair', pair.format(format=Pair.FORMAT_UNDERSCORE))
+
+        def print_row(f_path: str, f_rows: List[dict]) -> None:
+            f_fields = list(f_rows[0].keys())
+            f_overwrite = False
+            FileManager.write_csv(f_path, f_fields, rows, f_overwrite, make_dir=True)
+
+        bkr = self.broker_switch(True)
+        file_date = _MF.unix_to_date(_MF.get_timestamp(), form=_MF.FORMAT_D_H_M_S_FOR_FILE)
+        path = f'content/storage/Predictor/learns/print/duplic_high_occupation_score/{file_date}/$pair/{file_date}_$pair_ho_score.csv'
+        broker_class = bkr.__class__.__name__
+        r_asset = Asset('USDT')
+        period = 60 * 60
+        n_period = 1000
+        all_pairs = MarketPrice.get_spot_pairs(broker_class, r_asset)
+        active_model_pairs = self.learned_pairs(stock_path=True)
+        miss_pairs = [pair for pair in all_pairs if pair not in active_model_pairs]
+        # 
+        starttime = _MF.get_timestamp()
+        turn = 1
+        n_turn = len(miss_pairs)
+        for miss_pair in miss_pairs:
+            msg1 = miss_pair.__str__().upper()
+            print(_MF.loop_progression(starttime, turn, n_turn, msg1)) if Predictor._DEBUG else None
+            turn += 1
+            marketprice = MarketPrice.marketprice(bkr, miss_pair, period, n_period)
+            # 
+            starttime2 = _MF.get_timestamp()
+            turn2 = 1
+            n_turn2 = len(active_model_pairs)
+            for active_model_pair in active_model_pairs:
+                msg2 = f"{msg1} — {active_model_pair.__str__().upper()}"
+                print(_MF.loop_progression(starttime2, turn2, n_turn2, msg2)) if Predictor._DEBUG else None
+                turn2 += 1
+                predictor = Predictor(active_model_pair, period)
+                score = predictor.score_high_occupation(marketprice)
+                coef = predictor.get_model(self.HIGH).get_coef_determination()
+                rows = [{
+                    Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                    Map.pair: miss_pair,
+                    Map.model: active_model_pair,
+                    Map.period: period,
+                    Map.close: marketprice.get_close(),
+                    Map.high : marketprice.get_highs()[0],
+                    'n_score': self._HIGH_OCCUP_N_SCORE,
+                    'n_mean': self._HIGH_OCCUP_N_MEAN,
+                    Map.coefficient: _MF.rate_to_str(coef),
+                    Map.score: _MF.rate_to_str(score)
+                    }]
+                pair_path = prepate_path(path, miss_pair)
+                print_row(pair_path, rows)
+                # break
+            break
         self.broker_switch(False)
