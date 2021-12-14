@@ -377,7 +377,22 @@ class Icarus(TraderClass):
         supertrend.reverse()
         supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
         supertrend_dropping = supertrend_trend == MarketPrice.SUPERTREND_DROPPING
-        return supertrend_dropping
+        # Keltner
+        klc = marketprice.get_keltnerchannel()
+        klc_highs = list(klc.get(Map.high))
+        klc_highs.reverse()
+        klc_dropping = closes[-2] < klc_highs[-2]
+        # Rsi
+        rsi = list(marketprice.get_rsis())
+        rsi.reverse()
+        # Psar(Rsi)
+        psar_rsi = list(marketprice.get_psar_rsis())
+        psar_rsi.reverse()
+        psar_rsi_trend = MarketPrice.get_psar_trend(rsi, psar_rsi, -2)
+        psar_rsi_dropping = psar_rsi_trend == MarketPrice.PSAR_DROPPING
+        # Check
+        can_sell = supertrend_dropping or klc_dropping or psar_rsi_dropping
+        return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         def is_psar_dropping() -> bool:
@@ -593,11 +608,24 @@ class Icarus(TraderClass):
         psar.reverse()
         now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
         prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -3)
+        # Keltner
+        klc = child_marketprice.get_keltnerchannel()
+        klc_highs = list(klc.get(Map.high))
+        klc_highs.reverse()
+        klc_rising = closes[-2] > klc_highs[-2]
+        # Rsi
+        rsi = list(child_marketprice.get_rsis())
+        rsi.reverse()
+        # Psar(Rsi)
+        psar_rsi = list(child_marketprice.get_psar_rsis())
+        psar_rsi.reverse()
+        psar_rsi_trend = MarketPrice.get_psar_trend(rsi, psar_rsi, -2)
+        psar_rsi_rising = psar_rsi_trend == MarketPrice.PSAR_RISING
         # Check
         supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
         supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
         psar_switch_up = (now_psar_trend == MarketPrice.PSAR_RISING) and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
-        can_buy_indicator = (psar_switch_up and supertrend_rising) or supertrend_switch_up
+        can_buy_indicator = (psar_switch_up and supertrend_rising and klc_rising and psar_rsi_rising) or (supertrend_switch_up and klc_rising and psar_rsi_rising)
         return can_buy_indicator
 
     @staticmethod
