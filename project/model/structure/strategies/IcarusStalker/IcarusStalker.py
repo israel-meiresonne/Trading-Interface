@@ -15,6 +15,7 @@ from model.tools.Wallet import Wallet
 
 class IcarusStalker(StalkerClass):
     _CONST_MAX_STRATEGY = 10
+    _STALKER_BOT_SLEEP_TIME = 1  # in second
 
     def __init__(self, params: Map):
         """
@@ -130,6 +131,10 @@ class IcarusStalker(StalkerClass):
         if self._allowed_pairs is None:
             self._allowed_pairs = Predictor.learned_pairs(stock_path=False)
         return self._allowed_pairs
+
+    @staticmethod
+    def get_bot_sleep_time() -> int:
+        return IcarusStalker._STALKER_BOT_SLEEP_TIME
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
