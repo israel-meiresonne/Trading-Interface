@@ -156,18 +156,19 @@ class IcarusStalker(StalkerClass):
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
+        pair = Pair('?/json')
         instance = IcarusStalker(Map({
-            Map.pair: Pair('?/@json'),
+            Map.pair: pair,
             Map.maximum: None,
-            Map.capital: 0,
+            Map.capital: Price(1, pair.get_right()),
             Map.rate: 1,
-            Map.strategy: '@json',
+            Map.strategy: 'IcarusStalker',
             Map.period: 0,
             Map.param: {
                 Map.maximum: None,
                 Map.capital: 0,
                 Map.rate: 1,
-                Map.period: 0,
+                Map.period: 0
             }
         }))
         exec(MyJson.get_executable())
