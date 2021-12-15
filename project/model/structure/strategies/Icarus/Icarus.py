@@ -641,7 +641,7 @@ class Icarus(TraderClass):
         instance = Icarus(Map({
             Map.pair: Pair('@json/@json'),
             Map.maximum: None,
-            Map.capital: 1,
+            Map.capital: Price(1, '@json'),
             Map.rate: 1,
             Map.period: 0
         }))
