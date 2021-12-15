@@ -514,9 +514,11 @@ class BinanceFakeAPI(BinanceAPI):
         actual_time = int(actual_time_milli/1000)
         binance_symbol = params.get(Map.symbol)
         binance_move = params.get(Map.side)
+        order_id = params.get(Map.orderId)
+        order_id = params.get(Map.newClientOrderId) if order_id is None else order_id
         rows = [{
             Map.date: _MF.unix_to_date(actual_time),
-            Map.orderId: params.get(Map.orderId),
+            Map.orderId: order_id,
             Map.request: rq,
             Map.symbol: binance_symbol,
             Map.market: actual_close,
