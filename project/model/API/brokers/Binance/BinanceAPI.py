@@ -644,10 +644,12 @@ class BinanceAPI(ABC):
         """
         return BinanceAPI._TEST_MODE
 
+    # ——————————————————————————————————————————— SOCKET DOWN
+
     @staticmethod
     def _set_socket(streams: List[str]) -> None:
         from model.API.brokers.Binance.BinanceSocket import BinanceSocket
-        socket = BinanceSocket(streams, run_forever=True)
+        socket = BinanceSocket(streams)
         BinanceAPI._SOCKET = socket
 
     @staticmethod
@@ -655,8 +657,11 @@ class BinanceAPI(ABC):
         socket = BinanceAPI._SOCKET
         if socket is None:
             BinanceAPI._set_socket(new_streams)
+        elif not socket.is_running():
+            socket.add_new_streams(new_streams)
+            socket.run()
         else:
-            socket.add_streams(new_streams)
+            socket.add_new_streams(new_streams)
         return BinanceAPI._SOCKET
 
     @staticmethod
@@ -680,12 +685,8 @@ class BinanceAPI(ABC):
         stream: str
             Binance stream
         """
-        if rq != BinanceAPI.RQ_KLINES:
-            raise ValueError(f"Can't generate stream for this request '{rq}'.")
         from model.API.brokers.Binance.BinanceSocket import BinanceSocket
-        stream_format = BinanceSocket.get_stream_format_kline()
-        symbol = symbol.lower()
-        stream = stream_format.replace(f'${Map.symbol}', symbol).replace(f'${Map.interval}', period_str)
+        stream = BinanceSocket.generate_stream(rq, symbol, period_str)
         return stream
 
     @staticmethod
@@ -693,11 +694,14 @@ class BinanceAPI(ABC):
         """
         To close Binance's websocket\n
         """
-        BinanceAPI._SOCKET.close() if BinanceAPI._SOCKET is not None else None
+        socket = BinanceAPI._SOCKET
+        socket if socket is not None else None
+
+    # ——————————————————————————————————————————— SOCKET UP
 
     @staticmethod
     def _generate_headers(api_keys: Map) -> dict:
-        """"
+        """
         To generate a headers for a request to the API\n
         Parameters
         ----------
@@ -803,7 +807,7 @@ class BinanceAPI(ABC):
         if (_stage == Config.STAGE_2) and (rq not in rq_excluded):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             if (rq == BinanceAPI.RQ_KLINES) and (not rq_kline_time_set):
-                rsp = BinanceAPI._send_market_historics_request(test_mode, rq, params)
+                rsp = BinanceAPI._socket_market_history(test_mode, rq, params)
                 pair_merged = params.get(Map.symbol)
                 period_str = params.get(Map.interval)
                 period_milli = int(BinanceAPI.get_interval(period_str) * 1000)
@@ -817,7 +821,7 @@ class BinanceAPI(ABC):
         start_time = params.get(Map.startTime)
         end_time = params.get(Map.endTime)
         if (rq == BinanceAPI.RQ_KLINES) and (end_time is None) and (start_time is None):
-            rsp = BinanceAPI._send_market_historics_request(test_mode, rq, params)
+            rsp = BinanceAPI._socket_market_history(test_mode, rq, params)
         else:
             rsp = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
         return rsp
@@ -1048,29 +1052,29 @@ class BinanceAPI(ABC):
         return bkr_rsp
 
     @staticmethod
-    def _send_market_historics_request(test_mode: bool, rq: str, params: Map) -> BrokerResponse:
+    def _socket_market_history(test_mode: bool, rq: str, params: Map) -> BrokerResponse:
         BinanceAPI._set_test_mode(test_mode)
         symbol = params.get(Map.symbol)
         period_str = params.get(Map.interval)
         stream = BinanceAPI.generate_stream(rq, symbol, period_str)
-        bnc_socket = BinanceAPI._get_socket([stream])
-        market_historic = bnc_socket.get_market_historic(stream)
+        socket = BinanceAPI._get_socket([stream])
+        market_historic = socket.get_market_history(stream)
         rsp = Response()
         rsp.request = {
             Map.method: Map.websocket,
-            'headers': bnc_socket.get_socket().header
+            'headers': []
         }
         if isinstance(market_historic, list):
             limit = params.get(Map.limit)
             if limit is not None:
-                new_market_historic = market_historic[-limit:len(market_historic)]
+                new_market_historic = market_historic[-limit:]
             else:
                 limit = BinanceAPI._CONSTANT_KLINES_DEFAULT_NB_PERIOD
-                new_market_historic = market_historic[-limit:len(market_historic)]
+                new_market_historic = market_historic[-limit:]
             rsp.status_code = 200
             rsp.reason = 'OK'
             rsp._content = _MF.json_encode(new_market_historic).encode()
-            rsp.url = bnc_socket.get_url()
+            rsp.url = socket.url(stream)
         else:
             rsp.status_code = 0000
             rsp.reason = 'BinanceSocket fail'
@@ -1324,7 +1328,7 @@ class BinanceAPI(ABC):
             Map.method: request_method,
             "status_code": rsp.status_code,
             "reason": rsp.reason,
-            'elapsed': _MF.float_to_str(rsp.elapsed.total_seconds()) if rsp.elapsed is not None else '—',
+            'elapsed': rsp.elapsed.total_seconds() if rsp.elapsed is not None else '—',
             'request_weight': request_weight,
             'order_instant_weight': order_instant_weight,
             'order_daily_weight': order_daily_weight,
