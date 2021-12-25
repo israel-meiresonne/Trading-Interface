@@ -650,6 +650,7 @@ class BinanceAPI(ABC):
     def _set_socket(streams: List[str]) -> None:
         from model.API.brokers.Binance.BinanceSocket import BinanceSocket
         socket = BinanceSocket(streams)
+        socket.run()
         BinanceAPI._SOCKET = socket
 
     @staticmethod
