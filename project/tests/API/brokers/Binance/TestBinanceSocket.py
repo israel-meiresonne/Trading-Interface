@@ -117,7 +117,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         exp1 = Map()
         result1 = bws.urls()
         self.assertEqual(exp1, result1)
-        # 
+        #
         self.assertIsNone(bws.url(streams[0]))
         # WebSocket running
         bws.run()
@@ -128,7 +128,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         exp3 = Map({ws_id: ws_url})
         result3 = bws.urls()
         self.assertEqual(exp3, result3)
-        # 
+        #
         exp4 = ws_url
         result4 = bws.url(streams[0])
         self.assertEqual(exp4, result4)
@@ -286,7 +286,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
     def test_update_market_history(self) -> None:
         bws = self.bws_multi
         streams = bws.get_streams()
-        market_room = bws._get_market_update_room()
+        market_room = bws._get_room_market_update()
         # When thread don't exist AND stream not in queu
         bws._update_market_history(streams[0])
         th1 = bws._get_thread_market_update()
@@ -322,7 +322,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
             self.assertListEqual([], market_room.get_tickets())
 
         bws = self.bws_multi
-        market_room = bws._get_market_update_room()
+        market_room = bws._get_room_market_update()
         # When history reseted
         streams = bws.get_streams()
         test(streams)
@@ -334,16 +334,6 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
             a = [self.assertIsNone(bws.get_market_history(fake_stream), list) for fake_stream in fake_streams]
 
     def test_run_close(self) -> None:
-        def console(bws: BinanceSocket) -> None:
-            end = False
-            while not end:
-                cmd = input("Enter code:\n")
-                end = cmd == 'quit'
-                try:
-                    exec(cmd) if not end else None
-                except Exception as e:
-                    print(e)
-
         def test_run(f_bws: BinanceSocket) -> None:
             new_streams1 = bws.get_new_streams()
             f_bws.run()
@@ -382,7 +372,6 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         wss1 = Map(bws._get_websockets().get_map().copy())
         bws.add_new_streams(new_streams)
         time.sleep(5)
-        # console(bws)
         #
         exp1 = [*self.streams, *new_streams]
         exp1.sort()

@@ -41,8 +41,9 @@ class BinanceSocket(BinanceAPI):
         self.__new_streams = None
         self.__websockets = None
         self.__market_histories = None
-        self.__market_update_room = None
+        self.__room_market_update = None
         self.__thread_market_update = None
+        self.__room_call_market_update = None
         self.__market_reset_times = None
         self.__thread_run_manager = None
         self._set_streams(streams)
@@ -288,25 +289,45 @@ class BinanceSocket(BinanceAPI):
         market_history = market_histories.get(stream)
         return market_history.tolist()
 
-    def _reset_market_update_room(self) -> None:
-        market_room = self.__market_update_room
+    def _reset_room_market_update(self) -> None:
+        market_room = self.__room_market_update
         streams = market_room.get_tickets()
         [market_room.quit_room(stream) for stream in streams]
-        self.__market_update_room = None
+        self.__room_market_update = None
         del market_room
 
-    def _get_market_update_room(self) -> WaitingRoom:
+    def _get_room_market_update(self) -> WaitingRoom:
         """
-        To get list of stream asking to update their market history
+        To get queue of stream asking to update their market history
         NOTE: tickets for room are streams matching stream forrmat\n
         Returns:
         --------
         return: WaitingRoom
             List of stream asking to update their market history
         """
-        if self.__market_update_room is None:
-            self.__market_update_room = WaitingRoom('update-market-history')
-        return self.__market_update_room
+        if self.__room_market_update is None:
+            self.__room_market_update = WaitingRoom('update-market-history')
+        return self.__room_market_update
+
+    def _reset_room_call_market_update(self) -> None:
+        call_room = self.__room_call_market_update
+        tickets = call_room.get_tickets()
+        [call_room.quit_room(ticket) for ticket in tickets]
+        self.__room_call_market_update = None
+        del call_room
+
+    def _get_room_call_market_update(self) -> WaitingRoom:
+        """
+        To get queue of call of function that create and start thread that manage update of market histories
+
+        Returns:
+        --------
+        reeturn: WaitingRoom
+            Queue of call of function that create and start thread that manage update of market histories
+        """
+        if self.__room_call_market_update is None:
+            self.__room_call_market_update = WaitingRoom('function-call-update-market-history')
+        return self.__room_call_market_update
 
     def _reset_thread_market_update(self) -> None:
         self.__thread_market_update = None
@@ -515,7 +536,7 @@ class BinanceSocket(BinanceAPI):
                 period_str = pay_load['k']['i']
                 stream = self.generate_stream(rq, symbol, period_str)
                 if self._can_update_market_history(stream) \
-                    and (stream not in self._get_market_update_room().get_tickets()):
+                    and (stream not in self._get_room_market_update().get_tickets()):
                     self._update_market_history(stream)
                 else:
                     new_row = [
@@ -625,20 +646,25 @@ class BinanceSocket(BinanceAPI):
         stream: str
             Stream to update market history for
         """
+        call_room = self._get_room_call_market_update()
+        ticket = call_room.join_room()
+        while not call_room.my_turn(ticket):
+            time.sleep(0.1)
         if self._can_update_market_history(stream):
             thread_market = self._get_thread_market_update()
-            market_room = self._get_market_update_room()
+            market_room = self._get_room_market_update()
             if thread_market.is_alive():
                 market_room.join_room(stream) if stream not in market_room.get_tickets() else None
             else:
                 market_room.join_room(stream)
                 thread_market.start()
+        call_room.treat_ticket(ticket) if ticket in call_room.get_tickets() else None
 
     def _manage_update_market_histories(self) -> None:
         """
         To manage update of market histories
         """
-        market_room = self._get_market_update_room()
+        market_room = self._get_room_market_update()
         while market_room.next() is not None:
             stream = market_room.next()
             is_success = self._set_market_history(stream, raise_error=False)
@@ -668,6 +694,7 @@ class BinanceSocket(BinanceAPI):
         max_wait_time = self.get_run_restart_interval()
         while not self._websocket_are_running():
             if (wait_time == 0) or (wait_time % max_wait_time == 0):
+                self._reset_thread_run_manager()
                 thread_run = self._get_thread_run_manager()
                 thread_run.start()
             else:
@@ -679,7 +706,8 @@ class BinanceSocket(BinanceAPI):
         To close WebSocket connections
         """
         self._turn_off()
-        self._reset_market_update_room()
+        self._reset_room_call_market_update()
+        self._reset_room_market_update()
         self._reset_market_histories()
         self._reset_market_reset_times()
         # self._reset_streams()
@@ -692,11 +720,15 @@ class BinanceSocket(BinanceAPI):
             if key ==  "A":
                 print(f"{pfx()}" + '\033[35m' + _MF.thread_infos() + '\033[0m') if BinanceSocket._DEBUG else None
             elif key == "B":
+                # WebSocket
                 wss = self._get_websockets()
                 n_wss = len(wss.get_map())
                 n_running = len([1 for _, ws in wss.get_map().items() if ws.is_running()])
-                n_market_reset = len(self._get_market_update_room().get_tickets())
-                msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Market_Room: ({n_market_reset})"
+                # Market Call Room
+                n_call = len(self._get_room_call_market_update().get_tickets())
+                # Market Room
+                n_market_reset = len(self._get_room_market_update().get_tickets())
+                msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Call_Room: ({n_call}) == Update_Room: ({n_market_reset})"
                 print(f"{pfx()}" + '\033[35m' + msg + '\033[0m') if BinanceSocket._DEBUG else None
 
         def thread_websocket_manager(f_websocket: WebSocket) -> threading.Thread:
@@ -963,10 +995,17 @@ class BinanceSocket(BinanceAPI):
 
     @staticmethod
     def _generate_thread(target, base_name: str, output: bool = False) -> threading.Thread:
+        _cls = BinanceSocket
         thread_name = _MF.generate_thread_name(base_name, 5)
-        new_thread = threading.Thread(target=target, name=thread_name)
+        wrap = _MF.wrap_exception
+        kwargs = {
+            'callback': target,
+            'call_class': _cls.__name__,
+            'repport': True
+            }
+        new_thread = threading.Thread(target=wrap, name=thread_name, kwargs=kwargs)
         print(f"{_MF.prefix()}New Thread '{thread_name}'!"
-              ) if output and BinanceSocket._DEBUG else None
+              ) if output and _cls._DEBUG else None
         return new_thread
 
     @staticmethod
