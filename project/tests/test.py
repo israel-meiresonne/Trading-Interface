@@ -49,25 +49,25 @@ def run_Test(class_name: str, test_func: str = None) -> None:
         a = []
     elif class_name ==  'TestBinanceSocket':
         a = [
-            "test_urls_url",
-            "test_add_delete_streams",
-            "test_add_new_streams",
-            "test_add_delete_websocket",
-            "test_set_get_market_history",
-            "test_websocket_are_running",
-            "test_new_websocket",
-            "test_new_websockets",
-            "test_can_update_market_history",
-            "test_update_market_history",
-            "test_manage_update_market_histories",
-            "test_run_close",
-            "test_surcharge_run",
-            "test_check_stream",
-            "test_generate_stream",
-            "test_split_stream",
-            "test_group_streams",
-            "test_generate_url",
-            "test_url_to_streams"
+            'test_urls_url',
+            'test_add_delete_streams',
+            'test_add_new_streams',
+            'test_add_delete_websocket',
+            'test_set_get_market_history',
+            'test_websocket_are_running',
+            'test_new_websocket',
+            'test_new_websockets',
+            'test_can_update_market_history',
+            'test_update_market_history',
+            'test_manage_update_market_histories',
+            'test_run_close',
+            'test_surcharge_run',
+            'test_check_stream',
+            'test_generate_stream',
+            'test_split_stream',
+            'test_group_streams',
+            'test_generate_url',
+            'test_url_to_streams',
         ]
     elif test_func is not None:
         pass
@@ -80,4 +80,4 @@ def run_Test(class_name: str, test_func: str = None) -> None:
 
 if __name__ == '__main__':
     push_path()
-    run_Test(class_name='TestBinanceSocket', test_func='test_urls_url')
+    run_Test(class_name='TestBinanceSocket', test_func='test_run_close')
