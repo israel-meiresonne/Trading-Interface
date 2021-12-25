@@ -228,28 +228,29 @@ class Icarus(TraderClass):
         buy_order = self.get_buy_order()
         buy_time = int(buy_order.get_execution_time() / 1000)
         min_period = self.get_min_period()
-        buy_period_time = _MF.round_time(buy_time, min_period)
+        round_buy_time = _MF.round_time(buy_time, min_period)
         min_marketprice = self.get_marketprice(min_period)
         min_times = list(min_marketprice.get_times())
         min_times.reverse()
-        if buy_period_time in min_times:
+        if round_buy_time in min_times:
             buy_price = buy_order.get_execution_price()
             min_highs = list(min_marketprice.get_highs())
             min_highs.reverse()
             # Replace high with buy price
-            buy_time_idx = min_times.index(buy_period_time)
+            buy_time_idx = min_times.index(round_buy_time)
             min_highs[buy_time_idx] = buy_price.get_value()
             # Get and Update max high since buy
             max_price = max(min_highs[buy_time_idx:])
         else:
             stg_period = self.get_period()
-            buy_period_time = _MF.round_time(buy_time, stg_period)
+            round_buy_time = _MF.round_time(buy_time, stg_period)
             stg_times =  list(marketprice.get_times())
             stg_times.reverse()
             stg_highs = list(marketprice.get_highs())
             stg_highs.reverse()
-            if buy_period_time in stg_times:
-                buy_time_idx = stg_times.index(buy_period_time)
+            stg_highs = [stg_highs[i] for i in range(len(stg_times)) if stg_times[i] >= round_buy_time]
+            if round_buy_time in stg_times:
+                buy_time_idx = stg_times.index(round_buy_time)
                 stg_highs = stg_highs[buy_time_idx+1:]
             max_price = max(stg_highs)
         self._set_max_price(max_price)
