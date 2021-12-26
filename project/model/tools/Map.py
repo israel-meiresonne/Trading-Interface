@@ -165,6 +165,18 @@ class Map(MyJson):
     correlation = "correlation"
     pvalue = "pvalue"
     stderr = "stderr"
+    # WebSocket
+    on_open = "on_open"
+    on_message = "on_message"
+    on_error = "on_error"
+    on_close = "on_close"
+    on_ping = "on_ping"
+    on_pong = "on_pong"
+    on_cont_message = "on_cont_message"
+    get_mask_key = "get_mask_key"
+    on_data = "on_data"
+    header = "header"
+    stream = "stream"
 
     def __init__(self, my_map: dict = None):
         my_map = {} if my_map is None else dict(my_map)
