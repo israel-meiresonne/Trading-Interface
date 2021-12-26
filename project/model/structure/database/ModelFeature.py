@@ -6,6 +6,7 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 from time import time as time_time
+from types import FunctionType
 from typing import Any, Union
 
 import dill
@@ -441,3 +442,27 @@ class ModelFeature(ModelAccess):
         enddate = ModelFeature.unix_to_date(endtime) if endtime is not None else '?'
         status = prefix_str + f"[{turn}/{n_turn}] {message} == '{enddate}' == '{endtime_str}'" + _normal
         return status
+
+
+    @staticmethod
+    def wrap_exception(callback: FunctionType, call_class: str, repport: bool = True, **kwargs) -> None:
+        """
+        To wrap function in try-catch and execute it
+
+        Parameters:
+        -----------
+        callback: FunctionType
+            Function to wrap and execute
+        call_class: str
+            Name of the class raising the execption
+        repport: bool = True
+            Set True to repport exception else False
+        **kwargs
+            Parameters for function to execute
+        """
+        try:
+            callback(**kwargs)
+        except Exception as e:
+            if repport:
+                from model.structure.Bot import Bot
+                Bot.save_error(e, call_class)
