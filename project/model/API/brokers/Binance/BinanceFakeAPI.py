@@ -97,7 +97,7 @@ class BinanceFakeAPI(BinanceAPI):
     @staticmethod
     def _get_lower_market_historic(pair_merged: str) -> list:
         def update_market_historic(f_pair_merged: str, f_period_str: str) -> None:
-            f_rsp = BinanceAPI._send_market_historics_request(False, _cls.RQ_KLINES, Map({
+            f_rsp = BinanceAPI._socket_market_history(False, _cls.RQ_KLINES, Map({
                 Map.symbol: f_pair_merged.upper(),
                 Map.interval: f_period_str,
                 Map.limit: _cls.CONSTRAINT_KLINES_MAX_PERIOD
