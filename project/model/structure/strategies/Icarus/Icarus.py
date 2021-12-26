@@ -197,8 +197,7 @@ class Icarus(TraderClass):
     
     def _set_max_price(self, new_max_price: float) -> None:
         max_prices = self.get_max_prices()
-        max_price = max_prices[-1]
-        max_prices.append(new_max_price) if new_max_price > max_price else None
+        max_prices.append(new_max_price) if new_max_price > max(max_prices) else None
         
     def get_max_price(self, marketprice: MarketPrice) -> float:
         """
@@ -252,7 +251,9 @@ class Icarus(TraderClass):
             if round_buy_time in stg_times:
                 buy_time_idx = stg_times.index(round_buy_time)
                 stg_highs = stg_highs[buy_time_idx+1:]
-            max_price = max(stg_highs)
+                max_price = max(stg_highs)
+            else:
+                max_price = marketprice.get_close()
         self._set_max_price(max_price)
 
     # ——————————————————————————————————————————— FUNCTION MAX PRICE UP ————————————————————————————————————————————————

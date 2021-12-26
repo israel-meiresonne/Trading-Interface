@@ -147,6 +147,8 @@ class Bot(MyJson):
               f"{error.__str__()} {normal}")
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+            "thread": _MF.prefix(),
+            "thread_infos": _MF.thread_infos(),
             'nb_error': nb_error,
             'from_class': from_class,
             "error_type": error.__class__.__name__,
