@@ -23,7 +23,7 @@ class BinanceSocket(BinanceAPI):
     _URL_PATH_MULTIPLE_STREAM = '/stream?streams='
     _URL_STREAM_SEPARATOR = '/'
     # Class CONSTRAINTS
-    _MARKET_RESET_INTEVAL = 60 * 10
+    _MARKET_RESET_INTEVAL = 60 * 15
     _RESTART_INTERVAL_RUN_MANAGER = 60
     _THREAD_NAME_UPDATE_MARKET = 'market_update_manager'
     _THREAD_NAME_RUN_MANGER = 'run_manager'
