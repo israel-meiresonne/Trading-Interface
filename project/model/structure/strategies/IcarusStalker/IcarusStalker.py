@@ -3,6 +3,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Icarus.Icarus import Icarus
 from model.structure.strategies.StalkerClass import StalkerClass
+from model.structure.strategies.TraderClass import TraderClass
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
@@ -25,10 +26,8 @@ class IcarusStalker(StalkerClass):
         """
         super().__init__(params)
 
-    def _manage_trades(self, bkr: Broker) -> None:
-        def to_stg(child_stg) -> Icarus:
-            return child_stg
-
+    def _manage_trade(self, bkr: Broker, child: TraderClass) -> None:
+        starttime = _MF.get_timestamp()
         _cls = self
         _normal = _cls._TO_REMOVE_STYLE_NORMAL
         _color_black = _cls._TO_REMOVE_STYLE_BLACK
@@ -38,76 +37,70 @@ class IcarusStalker(StalkerClass):
         _color_red = _cls._TO_REMOVE_STYLE_RED
         _color_yellow = _cls._TO_REMOVE_STYLE_YELLOW
         _back_cyan = _cls._TO_REMOVE_STYLE_BACK_CYAN
-        #
-        active_stgs_copy = Map(self.get_active_strategies().get_map())
-        pairs_to_delete = []  # ❌
-        rows = []  # ❌
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
-                                                              f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
-        self._manage_trades_add_streams(bkr, active_stgs_copy)
-        market_analyse = self.get_market_analyse()
-        market_trend = MarketPrice.get_market_trend(bkr, analyse=market_analyse) if market_analyse is not None else '—'
-        market_analyse = Map() if market_analyse is None else market_analyse
-        for pair_str, active_stg in active_stgs_copy.get_map().items():
-            print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
-            # Prepare active Strategy
-            active_stg = to_stg(active_stg)
-            stg_wallet = active_stg.get_wallet()
-            pair = active_stg.get_pair()
-            stg_period = active_stg.get_period()
-            # Before trade
-            stg_roi = stg_wallet.get_roi(bkr)
-            fee = stg_wallet.trade_fee()
-            initial_capital = stg_wallet.get_initial()
-            fee_initial_capital_rate = fee / initial_capital
-            actual_capital = stg_wallet.get_total(bkr)
-            fee_actual_capital_rate = fee / actual_capital
-            # Trade
-            active_stg._update_orders(bkr)
-            has_position_before = active_stg._has_position()
-            keep_stg = (active_stg.get_nb_trade() == 0) or has_position_before
-            active_stg.trade(bkr) if keep_stg else None
-            has_position_after = active_stg._has_position() if keep_stg else None
-            if keep_stg and has_position_after:
-                print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
-            else:
-                self._delete_active_strategy(bkr, pair)
-                last_exec_order = active_stg._get_orders().get_last_execution()
-                self._blacklist_pair(pair, stg_period) \
-                    if (stg_roi < 0) or ((last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET)) else None
-                pairs_to_delete.append(pair_str)
-                print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
-            # After trade
-            stg_roi_after = stg_wallet.get_roi(bkr)
-            fee_after = stg_wallet.trade_fee()
-            fee_initial_capital_rate_after = fee_after / initial_capital
-            # Prepare closes
-            market_price = active_stg.get_marketprice(stg_period, bkr=bkr)
-            closes = list(market_price.get_closes())
-            closes.reverse()
-            # Print
-            row = {
-                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
-                'child_id': active_stg.get_id(),
-                Map.pair: pair,
-                Map.roi: _MF.rate_to_str(stg_roi),
-                'roi_after': _MF.rate_to_str(stg_roi_after),
-                'fee': fee,
-                'fee_after': fee_after,
-                'initial_capital': initial_capital,
-                'actual_capital': actual_capital,
-                'fee_initial_capital_rate': _MF.rate_to_str(fee_initial_capital_rate),
-                'fee_initial_capital_rate_after': _MF.rate_to_str(fee_initial_capital_rate_after),
-                'fee_actual_capital_rate': _MF.rate_to_str(fee_actual_capital_rate),
-                'has_position_before': has_position_before,
-                'keep_stg': keep_stg,
-                'has_position_after': has_position_after,
-                'market_trend': market_trend,
-                Map.close: closes[-1]
-            }
-            rows.append(row)
-        self._save_global(pairs_to_delete, market_trend, market_analyse)
-        self._save_moves(rows) if len(rows) > 0 else None
+
+        pair = child.get_pair()
+        pair_str = pair.__str__()
+        print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
+        # Prepare active Strategy
+        stg_wallet = child.get_wallet()
+        pair = child.get_pair()
+        stg_period = child.get_period()
+        # Before trade
+        stg_roi = stg_wallet.get_roi(bkr)
+        fee = stg_wallet.trade_fee()
+        initial_capital = stg_wallet.get_initial()
+        fee_initial_capital_rate = fee / initial_capital
+        actual_capital = stg_wallet.get_total(bkr)
+        fee_actual_capital_rate = fee / actual_capital
+        # Trade
+        child._update_orders(bkr)
+        has_position_before = child._has_position()
+        keep_stg = (child.get_nb_trade() == 0) or has_position_before
+        child.trade(bkr) if keep_stg else None
+        has_position_after = child._has_position() if keep_stg else None
+        if keep_stg and has_position_after:
+            print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
+        else:
+            self._delete_active_strategy(bkr, pair)
+            last_exec_order = child._get_orders().get_last_execution()
+            blacklist = (stg_roi < 0) or ((last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET)) 
+            self._blacklist_pair(pair, stg_period) if blacklist else None
+            print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
+        # After trade
+        stg_roi_after = stg_wallet.get_roi(bkr)
+        fee_after = stg_wallet.trade_fee()
+        fee_initial_capital_rate_after = fee_after / initial_capital
+        # Prepare closes
+        market_price = child.get_marketprice(stg_period, bkr=bkr)
+        closes = list(market_price.get_closes())
+        closes.reverse()
+        # Print
+        endtime = _MF.get_timestamp()
+        interval = _MF.delta_time(starttime, endtime)
+        rows = [{
+            Map.date: _MF.unix_to_date(endtime),
+            Map.start: _MF.unix_to_date(starttime),
+            Map.interval: interval,
+            Map.id: self.get_id(),
+            'child_id': child.get_id(),
+            'nb_trade': self.get_nb_trade(),
+            Map.pair: pair,
+            Map.roi: _MF.rate_to_str(stg_roi),
+            'roi_after': _MF.rate_to_str(stg_roi_after),
+            'fee': fee,
+            'fee_after': fee_after,
+            'initial_capital': initial_capital,
+            'actual_capital': actual_capital,
+            'fee_initial_capital_rate': _MF.rate_to_str(fee_initial_capital_rate),
+            'fee_initial_capital_rate_after': _MF.rate_to_str(fee_initial_capital_rate_after),
+            'fee_actual_capital_rate': _MF.rate_to_str(fee_actual_capital_rate),
+            'has_position_before': has_position_before,
+            'keep_stg': keep_stg,
+            'has_position_after': has_position_after,
+            Map.close: closes[-1]
+            }]
+        self._save_moves(rows)
+        self._reset_thread_manage_trade(pair)
 
     def _add_streams_periods(self) -> list:
         return [
