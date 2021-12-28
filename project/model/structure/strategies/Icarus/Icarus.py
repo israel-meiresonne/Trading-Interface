@@ -197,7 +197,7 @@ class Icarus(TraderClass):
     
     def _set_max_price(self, new_max_price: float) -> None:
         max_prices = self.get_max_prices()
-        max_prices.append(new_max_price) if new_max_price > max(max_prices) else None
+        max_prices.append(new_max_price) if (len(max_prices) == 0) or (new_max_price > max(max_prices)) else None
         
     def get_max_price(self, marketprice: MarketPrice) -> float:
         """
@@ -248,10 +248,11 @@ class Icarus(TraderClass):
             stg_highs = list(marketprice.get_highs())
             stg_highs.reverse()
             stg_highs = [stg_highs[i] for i in range(len(stg_times)) if stg_times[i] >= round_buy_time]
+            max_price = None
             if round_buy_time in stg_times:
                 buy_time_idx = stg_times.index(round_buy_time)
                 stg_highs = stg_highs[buy_time_idx+1:]
-                max_price = max(stg_highs)
+                max_price = max(stg_highs) if len(stg_highs) > 0 else marketprice.get_close()
             else:
                 max_price = marketprice.get_close()
         self._set_max_price(max_price)

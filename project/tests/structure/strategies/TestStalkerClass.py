@@ -6,6 +6,7 @@ from model.structure.Broker import Broker
 from model.structure.strategies.Icarus.Icarus import Icarus
 from model.structure.strategies.IcarusStalker.IcarusStalker import IcarusStalker
 from model.structure.strategies.StalkerClass import StalkerClass
+from model.structure.strategies.TraderClass import TraderClass
 from model.tools.Asset import Asset
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
@@ -314,10 +315,23 @@ class TestStalkerClass(unittest.TestCase, StalkerClass):
         # End
         self.broker_switch(False)
 
+    def test_trade(self) -> None:
+        bkr = self.broker_switch(True)
+        stk = self.stk1
+        pair = Pair('BTC/USDT')
+        pair_formated = pair.format().lower()
+        streams = stk._add_streams_get_streams(bkr)
+        streams = [stream for stream in streams if pair_formated in stream]
+        bkr.add_streams(streams)
+        stk._set_broker(bkr)
+        stk._add_active_strategy(pair)
+        stk._manage_trades(bkr)
+        self.broker_switch(False)
+
     # ——————————————————————————————————————————— FUNCTION TEST UP —————————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION INHERITANCE DOWN ————————————————————————————————————————————
 
-    def _manage_trades(self, bkr: Broker) -> None:
+    def _manage_trade(self, bkr: Broker, child: TraderClass) -> None:
         pass
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
