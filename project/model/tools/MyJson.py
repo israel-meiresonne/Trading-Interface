@@ -27,13 +27,10 @@ class MyJson(ABC):
         self._json_encode_prepare()
         _class_token = MyJson.get_class_name_token()
         class_name = self.__class__.__name__
-        attrs = self.__dict__
+        attrs = self._json_encode_to_dict()
         json_dict = {_class_token: class_name}
         for attr, value in attrs.items():
-            if value.__class__.__name__ == 'Thread':
-                value_serialized = None
-            else:
-                value_serialized = MyJson.__root_encoding(value)
+            value_serialized = MyJson.__root_encoding(value)
             json_dict[attr] = value_serialized
         json_str = _MF.json_encode(json_dict)
         return json_str
@@ -44,6 +41,12 @@ class MyJson(ABC):
         NOTE: first function called in function MyJson.json_encode()
         """
         pass
+    
+    def _json_encode_to_dict(self) -> dict:
+        """
+        To convert Object to dict
+        """
+        return self.__dict__
 
     def copy(self) -> object:
         obj_copy = MyJson.json_decode(self.json_encode())
@@ -52,7 +55,10 @@ class MyJson(ABC):
     @staticmethod
     def __root_encoding(value: Any) -> Any:
         serializables = MyJson.get_imports().get_keys()
-        if value.__class__.__name__ in serializables:
+        class_name = value.__class__.__name__
+        if class_name == 'Thread':
+            value_serialized = None
+        elif class_name in serializables:
             value_serialized = _MF.json_decode(value.json_encode())
         elif isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray)):
             value_serialized = MyJson.__encode_iterable(value)
