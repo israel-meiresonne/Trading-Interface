@@ -5,8 +5,9 @@ from typing import List
 
 from config.Config import Config
 from model.structure.Broker import Broker
-from model.structure.Strategy import Strategy
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.structure.strategies.TraderClass import TraderClass
+from model.structure.Strategy import Strategy
 from model.tools.BrokerRequest import BrokerRequest
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -22,11 +23,14 @@ class StalkerClass(Strategy, MyJson, ABC):
     _STALKER_BOT_DELFAULT_SLEEP_TIME = 10
     _STALKER_BOT_SLEEP_TIME = 10            # in second
     _CONST_MAX_STRATEGY = 20
-    _BLACKLIST_TIME = 60 * 3  # in second
+    _BLACKLIST_TIME = 60 * 3                # in second
     _PAIR_MANAGER_NB_PERIOD = 100
     _REGEX_PAIR = r'\?\/[A-z\d]+'
     _THREAD_NAME_MARKET_STALKING = 'market_stalking'
     _THREAD_NAME_MARKET_ANALYSE = 'market_analysing'
+    _THREAD_NAME_MANAGE_TRADE = 'manage_trade_$pair'
+    _GLOBAL_SAVE_INTERVAL = 10              # in second
+    # Color
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
     _TO_REMOVE_STYLE_BLACK = '\033[30m'
@@ -63,6 +67,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         self.__analyse_thread = None
         self.__market_analyse = None
         self._allowed_pairs = None
+        self.__thread_manage_trade = None
+        self.__deleted_childs = None
+        self.__last_global_save = None
         # Prepare
         pair = self.get_pair()
         max_stg = self._CONST_MAX_STRATEGY
@@ -271,6 +278,24 @@ class StalkerClass(Strategy, MyJson, ABC):
         # Delete active Strategy
         delete_stg(active_stg)
         del active_stgs.get_map()[pair_str]
+        self.get_deleted_childs().append(pair_str)
+
+    def _reset_deleted_childs(self) -> None:
+        self.__deleted_childs = None
+
+    def get_deleted_childs(self) -> List[Pair]:
+        """
+        To get list of pair deleted since last save
+        NOTE: list if reset when deletes are saved in database
+
+        Returns:
+        --------
+        return: List[Pair]
+            List of pair deleted since last save
+        """
+        if self.__deleted_childs is None:
+            self.__deleted_childs = []
+        return self.__deleted_childs
 
     def _reset_next_blacklist_clean(self) -> None:
         self._next_blacklist_clean = None
@@ -316,6 +341,92 @@ class StalkerClass(Strategy, MyJson, ABC):
             raise ValueError(f"This pair '{pair.__str__().upper()}' already exist in blacklist.")
         blacklist.append(pair)
         self._set_next_blacklist_clean(blacklist_time)
+
+    def _set_global_save_time(self) -> None:
+        self.__last_global_save = _MF.get_timestamp()
+
+    def _get_global_save_time(self) -> None:
+        if self.__last_global_save is None:
+            self.__last_global_save = 0
+        return self.__last_global_save
+
+    def _can_save_global(self) -> bool:
+        last_save = self._get_global_save_time()
+        interval = self._GLOBAL_SAVE_INTERVAL
+        next_save = _MF.round_time(last_save, interval) + interval
+        unix_time = _MF.get_timestamp()
+        return unix_time >= next_save
+
+
+    # —————————————————————————————————————————————— THREAD TRADE DOWN
+
+    def _get_threads_manage_trade(self) -> Map:
+        """
+        To get collection of thread managing trade of child Strategy
+
+        Returns:
+        --------
+        return: Map
+            Collection of thread managing trade of child Strategy
+            Map[Pair{str}]: {TraderClass}
+        """
+        if self.__thread_manage_trade is None:
+            self.__thread_manage_trade = Map()
+        return self.__thread_manage_trade
+
+    def _reset_thread_manage_trade(self, pair: Pair) -> None:
+        """
+        To reset thread that manage trade of child Strategy
+
+        Parameters:
+        -----------
+        pair: Pair
+            Child Strategy's trading Pair
+        """
+        child_threads = self._get_threads_manage_trade()
+        pair_str = pair.__str__()
+        if pair_str in child_threads.get_keys():
+            del child_threads.get_map()[pair_str]
+
+    def _get_thread_manage_trade(self, pair: Pair) -> Thread:
+        """
+        To get thread that manage trade of child Strategy
+
+        Parameters:
+        -----------
+        pair: Pair
+            Child Strategy's trading Pair
+
+        Returrns:
+        ---------
+        return: Thread
+            Thread that manage trade of child Strategy
+        """
+        def new_thread(f_pair: Pair) -> Thread:
+            f_child = self.get_active_strategy(f_pair)
+            f_wrap = _MF.wrap_exception
+            f_wrap_kwargs = {
+                'callback': self._manage_trade,
+                'call_class': self.__class__.__name__,
+                'repport': True,
+                'bkr': self.get_broker(),
+                'child': f_child
+                }
+            f_base_name = self._THREAD_NAME_MANAGE_TRADE.replace('$pair', f_pair.format(Pair.FORMAT_MERGED).upper())
+            thread, output = _MF.generate_thread(target=f_wrap, base_name=f_base_name, **f_wrap_kwargs)
+            print(f"{_MF.prefix()}{output}")
+            return thread
+
+        threads = self._get_threads_manage_trade()
+        pair_str = pair.__str__()
+        thread = threads.get(pair_str)
+        if (thread is None) or (not thread.is_alive()):
+            thread = new_thread(pair)
+            threads.put(thread, pair_str)
+        return thread
+    
+    # —————————————————————————————————————————————— THREAD TRADE UP
+    # —————————————————————————————————————————————— STALK MARKET DOWN
 
     def _get_no_active_pairs(self, bkr: Broker) -> List[Pair]:
         allowed_pairs = self._get_allowed_pairs(bkr)
@@ -460,7 +571,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         # Backup
         # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
 
-    # —————————————————————————————————————————————— ANALYSE MARKET DOWN ———————————————————————————————————————————————
+    # —————————————————————————————————————————————— STALK MARKET UP
+    # —————————————————————————————————————————————— ANALYSE MARKET DOWN
 
     def _set_market_analyse(self, market_analyse: Map) -> None:
         self.__market_analyse = market_analyse
@@ -502,7 +614,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         self._set_market_analyse(market_analyse)
         print(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
 
-    # ——————————————————————————————————————————————— ANALYSE MARKET UP ————————————————————————————————————————————————
+    # ——————————————————————————————————————————————— ANALYSE MARKET UP
 
     def _get_sleep_time(self) -> int:
         n_stg = len(self.get_active_strategies().get_map())
@@ -515,17 +627,41 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def trade(self, bkr: Broker) -> int:
         self._update_nb_trade()
-        self._set_broker(bkr)
+        self._set_broker(bkr) if self.get_broker() is None else None
         self.get_wallet().reset_marketprices()
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self._manage_trades(bkr)
-        self._reset_broker()
         return self._get_sleep_time()
 
-    @abstractmethod
     def _manage_trades(self, bkr: Broker) -> None:
+        _cls = self
+        _normal = _cls._TO_REMOVE_STYLE_NORMAL
+        _color_black = _cls._TO_REMOVE_STYLE_BLACK
+        _color_cyan = _cls._TO_REMOVE_STYLE_CYAN
+        _color_green = _cls._TO_REMOVE_STYLE_GREEN
+        _color_purple = _cls._TO_REMOVE_STYLE_PURPLE
+        _color_red = _cls._TO_REMOVE_STYLE_RED
+        _color_yellow = _cls._TO_REMOVE_STYLE_YELLOW
+        _back_cyan = _cls._TO_REMOVE_STYLE_BACK_CYAN
+        #
+        active_stgs_copy = Map(self.get_active_strategies().get_map())
+        pairs_to_delete = self.get_deleted_childs()
+        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
+                                                              f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
+        self._manage_trades_add_streams(bkr, active_stgs_copy)
+        market_analyse = self.get_market_analyse()
+        market_trend = MarketPrice.get_market_trend(bkr, analyse=market_analyse) if market_analyse is not None else '—'
+        market_analyse = Map() if market_analyse is None else market_analyse
+        for _, child in active_stgs_copy.get_map().items():
+            child_pair = child.get_pair()
+            child_thread = self._get_thread_manage_trade(child_pair)
+            child_thread.start() if not child_thread.is_alive() else None
+        self._save_global(pairs_to_delete, market_trend, market_analyse) if self._can_save_global() else None
+
+    @abstractmethod
+    def _manage_trade(self, bkr: Broker, child: TraderClass) -> None:
         pass
 
     def _manage_trades_add_streams(self, bkr: Broker, active_stgs_copy: Map) -> None:
@@ -817,6 +953,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         path = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
+        self._reset_deleted_childs()
+        self._set_global_save_time()
 
     def _save_market_stalk(self, perfs: Map, market_prices: Map) -> None:
         path = Config.get(Config.DIR_SAVE_MARKET_STALK)
