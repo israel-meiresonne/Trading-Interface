@@ -5,9 +5,10 @@ def push_path() -> None:
 
 def dynamic_exec(class_name: str, test_func: str) -> None:
     imports = [
-        f'from tests.tools.{class_name} import {class_name}',
+        f'from tests.API.brokers.Binance.{class_name} import {class_name}',
         f'from tests.structure.database.{class_name} import {class_name}',
-        f'from tests.API.brokers.Binance.{class_name} import {class_name}'
+        f'from tests.structure.strategies.{class_name} import {class_name}',
+        f'from tests.tools.{class_name} import {class_name}'
     ]
     found = None
     i = 0
@@ -80,4 +81,4 @@ def run_Test(class_name: str, test_func: str = None) -> None:
 
 if __name__ == '__main__':
     push_path()
-    run_Test(class_name='TestBinanceSocket', test_func='test_run_close')
+    run_Test(class_name='TestStalkerClass', test_func='test_trade')

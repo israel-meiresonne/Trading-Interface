@@ -198,8 +198,12 @@ class Strategy(ABC):
         """
         pass
 
-    def _json_encode_prepare(self) -> None:
-        self._reset_broker()
+    def _json_encode_to_dict(self) -> dict:
+        attrs = self.__dict__.copy()
+        for attr, value in attrs.items():
+            if isinstance(value, Broker):
+                attrs[attr] = None
+        return attrs
 
     # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION STATIC DOWN —————————————————————————————————————————————————

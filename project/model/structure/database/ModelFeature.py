@@ -7,7 +7,7 @@ from json import loads as json_decode
 from random import shuffle
 from time import time as time_time
 from types import FunctionType
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 import dill
 import numpy as np
@@ -457,7 +457,7 @@ class ModelFeature(ModelAccess):
             Name of the class raising the execption
         repport: bool = True
             Set True to repport exception else False
-        **kwargs
+        **kwargs: dict[str, Any]
             Parameters for function to execute
         """
         try:
@@ -466,3 +466,23 @@ class ModelFeature(ModelAccess):
             if repport:
                 from model.structure.Bot import Bot
                 Bot.save_error(e, call_class)
+
+    @staticmethod
+    def generate_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
+        """
+        To generate a new thread
+
+        Parameters:
+        -----------
+        target: FunctionType
+            Function to execute i thread
+        base_name: str
+            Name of the new thread
+        **kwargs: dict[str, Any]
+            Parameters for function to execute
+        """
+        _cls = ModelFeature
+        thread_name = _cls.generate_thread_name(base_name, n_code)
+        new_thread = threading.Thread(target=target, name=thread_name, kwargs=kwargs)
+        output = f"New Thread '{thread_name}'!"
+        return new_thread, output
