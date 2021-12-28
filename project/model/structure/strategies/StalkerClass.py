@@ -1,6 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from threading import Thread
+from types import FunctionType
 from typing import List
 
 from config.Config import Config
@@ -461,15 +462,37 @@ class StalkerClass(Strategy, MyJson, ABC):
         """
         return self.__stalk_thread
 
+    @staticmethod
+    def _wrap_thread(target: FunctionType, base_name: str, call_class: str, repport: bool = True, target_params: dict = {}) -> Thread:
+        wrap = _MF.wrap_exception
+        wrap_kwargs = {
+            'callback': target,
+            'call_class': call_class,
+            'repport': repport,
+            **target_params
+            }
+        thread, output = _MF.generate_thread(target=wrap, base_name=base_name, **wrap_kwargs)
+        print(f"{_MF.prefix()}{output}")
+        return thread
+
     def _launch_stalking(self, bkr: Broker) -> None:
         """
         To launch market stalking in its own Thread\n
         """
+        def new_stalk_thread() -> Thread:
+            f_params = {
+                'target': self._manage_stalking,
+                'base_name': self._THREAD_NAME_MARKET_STALKING,
+                'call_class': self.__class__.__name__,
+                'repport': True,
+                'target_params': {Map.broker: bkr}
+            }
+            return self._wrap_thread(**f_params)
+
         last_stalk_thread = self.get_stalk_thread()
         if (last_stalk_thread is not None) and last_stalk_thread.is_alive():
             raise Exception("Can start a stalk thread while an other is working.")
-        thread_name = _MF.generate_thread_name(self._THREAD_NAME_MARKET_STALKING, 5)
-        stalk_thread = Thread(target=self._manage_stalking, kwargs={Map.broker: bkr}, name=thread_name)
+        stalk_thread = new_stalk_thread()
         self._set_stalk_thread(stalk_thread)
         stalk_thread.start()
 
@@ -594,11 +617,20 @@ class StalkerClass(Strategy, MyJson, ABC):
         """
         To launch market analyse on its own Thread\n
         """
+        def new_analyse_thread() -> Thread:
+            f_params = {
+                'target': self._analyse_market,
+                'base_name': self._THREAD_NAME_MARKET_ANALYSE,
+                'call_class': self.__class__.__name__,
+                'repport': True,
+                'target_params': {Map.broker: broker}
+            }
+            return self._wrap_thread(**f_params)
+
         last_analyse_thread = self.get_analyse_thread()
         if (last_analyse_thread is not None) and last_analyse_thread.is_alive():
             raise Exception("Can start an analyse thread while an other is working.")
-        thread_name = _MF.generate_thread_name(self._THREAD_NAME_MARKET_ANALYSE, 5)
-        analyse_thread = Thread(target=self._analyse_market, kwargs={Map.broker: broker}, name=thread_name)
+        analyse_thread = new_analyse_thread()
         self._set_analyse_thread(analyse_thread)
         analyse_thread.start()
 
