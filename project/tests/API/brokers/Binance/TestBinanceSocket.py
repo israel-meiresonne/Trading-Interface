@@ -497,3 +497,17 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
             self.url_to_streams(url=15)
 
     # ——————————————————————————————————————————— TEST STATIC FUNCTION UP ——————————————————————————————————————————————
+    # ——————————————————————————————————————————— DEBUG DOWN ———————————————————————————————————————————————————————————
+
+    def test_debug_kline_event(self) -> None:
+        def get_close(pair_str, period) -> float:
+            mkt = MarketPrice.marketprice(bkr, Pair(pair_str), period, n_period=1000)
+            return mkt.get_close()
+
+        bkr = self.broker_switch(True)
+        pair = Pair('hard/usdt')
+        period = 60
+        stream = bkr.generate_stream(Map({Map.pair: pair, Map.period: period}))
+        bkr.add_streams([stream])
+        _MF.console(**vars())
+        self.broker_switch(False)
