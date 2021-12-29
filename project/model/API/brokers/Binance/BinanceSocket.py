@@ -531,6 +531,18 @@ class BinanceSocket(BinanceAPI):
 
         def on_message(socket: WebSocketApp, message: str) -> None:
             def kline(pay_load: dict) -> None:
+                def milli_to_date(milli) -> str:
+                    return _MF.unix_to_date(int(milli/1000))
+                
+                def compare_time() -> str:
+                    equal = new_row[-1][0] == market_hist[-1][0]
+                    return f"new_row(Time) == market_hist(Time) ('{equal}'): '{milli_to_date(new_row[-1][0])}' == '{milli_to_date(market_hist[-1][0])}'"
+                
+                def print_end() -> None:
+                    print(f"{_MF.prefix()}kline: new close[-1] '{new_row[-1, 4]}'.") if BinanceSocket._VERBOSE else None
+                    print(f"{_MF.prefix()}kline: history close[-1] '{market_hists.get(stream)[-1, 4]}'.") if BinanceSocket._VERBOSE else None
+                    print(f"{_MF.prefix()}kline: history close[-2] '{market_hists.get(stream)[-2, 4]}'.") if BinanceSocket._VERBOSE else None
+
                 rq = BinanceAPI.RQ_KLINES
                 symbol = pay_load['s']
                 period_str = pay_load['k']['i']
@@ -553,14 +565,19 @@ class BinanceSocket(BinanceAPI):
                         pay_load['k']['Q'],    # 10. Taker buy quote asset volume
                         pay_load['k']['B'],    # 11. Ignore
                         ]
+                    market_hists = self._get_market_histories()
+                    market_hist = market_hists.get(stream)
                     new_row = np.array(new_row, dtype=np.float64)
-                    market_hist = self._get_market_histories().get(stream)
-                    last_row = market_hist[-1]
-                    if new_row[0] == last_row[0]:   # compare open time
+                    new_row = new_row.reshape((1, market_hist.shape[1]))
+                    print(_MF.prefix() + compare_time()) if BinanceSocket._VERBOSE else None
+                    if new_row[-1][0] == market_hist[-1][0]:   # compare open time
+                        print(_MF.prefix() + f"REPLACE LAST") if BinanceSocket._VERBOSE else None
                         market_hist[-1] = new_row
                     else:
-                        new_row = new_row.reshape((1, market_hist.shape[1]))
-                        np.vstack((market_hist, new_row))
+                        print(_MF.prefix() + f"RESET ALL") if BinanceSocket._VERBOSE else None
+                        new_market_hist = np.vstack((market_hist, new_row))
+                        market_hists.put(new_market_hist, stream)
+                    print_end() if BinanceSocket._VERBOSE else None
 
             def root_event(event: str, pay_load: dict) -> None:
                 if event == 'kline':
@@ -716,9 +733,14 @@ class BinanceSocket(BinanceAPI):
         """
         To manage to connection to Binance's websocket API
         """
-        def output(key: str) -> str:
+        _normal = '\033[0m'
+        _purple = '\033[35m'
+        _yellow = '\033[33m'
+        _green = '\033[32m'
+        _red = '\033[31m'
+        def output(key: str, **kwargs) -> str:
             if key ==  "A":
-                print(f"{pfx()}" + '\033[35m' + _MF.thread_infos() + '\033[0m') if BinanceSocket._DEBUG else None
+                print(f"{pfx()}" + _purple + _MF.thread_infos() + _normal) if BinanceSocket._DEBUG else None
             elif key == "B":
                 # WebSocket
                 wss = self._get_websockets()
@@ -729,7 +751,35 @@ class BinanceSocket(BinanceAPI):
                 # Market Room
                 n_market_reset = len(self._get_room_market_update().get_tickets())
                 msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Call_Room: ({n_call}) == Update_Room: ({n_market_reset})"
-                print(f"{pfx()}" + '\033[35m' + msg + '\033[0m') if BinanceSocket._DEBUG else None
+                print(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "C0":
+                n_closed = kwargs[Map.close]
+                msg = f"Maintaining connection of '{n_closed}' closed WebSocket..."
+                print(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "C1":
+                msg = "End maintain of connection"
+                print(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "D0":
+                streams = kwargs[Map.stream]
+                n_stream = len(streams)
+                msg = f"Adding '{n_stream}' new stream: {streams}"
+                print(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "D1":
+                streams = kwargs[Map.stream]
+                n_stream = len(streams)
+                failed = kwargs[Map.market]
+                run_stopped = kwargs[Map.stop]
+                msg = f"Failed to add '{n_stream}' new stream: reason (failed={failed}, stop_signal='{run_stopped}')"
+                print(f"{pfx()}" + _red + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "D2":
+                streams = kwargs[Map.stream]
+                n_stream = len(streams)
+                msg = f"End add of '{n_stream}' new stream: {streams}"
+                print(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "E0":
+                n_socket = kwargs[Map.close]
+                msg = f"Closed '{n_socket}' sockets"
+                print(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
 
         def thread_websocket_manager(f_websocket: WebSocket) -> threading.Thread:
             base_name = self._THREAD_NAME_WEBSOCKET_MANGER
@@ -773,8 +823,10 @@ class BinanceSocket(BinanceAPI):
                 return [f_ws for _, f_ws in f_wss.get_map().items() if not f_ws.is_running()]
 
             ws_closeds = get_closeds()
+            output("C0", **{Map.close: len(ws_closeds)})
             [ws.close() for ws in ws_closeds]
             run_websockets(ws_closeds)
+            output("C1")
 
         def add_streams() -> None:
             """
@@ -787,10 +839,17 @@ class BinanceSocket(BinanceAPI):
                 return f_last_ws
 
             new_streams = self.get_new_streams().copy()
+            output('D0', **{Map.stream: new_streams})
             self._load_streams()
             # Load market histories
             faileds = [new_stream for new_stream in new_streams if (not self.is_running()) or (not self._set_market_history(new_stream, raise_error=False))]
-            if (len(faileds) > 0) or (not self.is_running()):
+            failed = (len(faileds) > 0)
+            run_stopped = (not self.is_running())
+            if failed or run_stopped:
+                output('D1', **{Map.stream: new_streams,
+                                Map.market: failed,
+                                Map.stop: run_stopped
+                                })
                 self._delete_streams(new_streams)
                 return None
             # Close last WebSocket
@@ -798,11 +857,12 @@ class BinanceSocket(BinanceAPI):
             url_streams = self.url_to_streams(last_ws.get_url())
             self._delete_websocket(last_ws.get_id())
             # Run new WebSocket
-            new_streams = _MF.remove_duplicates([*url_streams, *new_streams])
-            new_streams.sort()
-            new_wss = self._new_websockets(new_streams)
+            real_new_streams = _MF.remove_duplicates([*url_streams, *new_streams])
+            real_new_streams.sort()
+            new_wss = self._new_websockets(real_new_streams)
             run_websockets(new_wss)
             thd_add_streams = None
+            output('D2', **{Map.stream: real_new_streams})
 
         def close_connection() -> None:
             """
@@ -810,7 +870,8 @@ class BinanceSocket(BinanceAPI):
             """
             wss = self._get_websockets()
             ws_ids = wss.get_keys()
-            [self._delete_websocket(ws_id) for ws_id in ws_ids if wss.get(ws_id).is_running()]
+            n_closed = len([self._delete_websocket(ws_id) for ws_id in ws_ids if wss.get(ws_id).is_running()])
+            output("E0", **{Map.close: n_closed})
 
         pfx = _MF.prefix
         thd_add_streams = None
@@ -997,7 +1058,7 @@ class BinanceSocket(BinanceAPI):
     def _generate_thread(target, base_name: str, output: bool = False) -> threading.Thread:
         _cls = BinanceSocket
         thread_name = _MF.generate_thread_name(base_name, 5)
-        wrap = _MF.wrap_exception
+        wrap = _MF.catch_exception
         kwargs = {
             'callback': target,
             'call_class': _cls.__name__,
