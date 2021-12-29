@@ -405,7 +405,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         """
         def new_thread(f_pair: Pair) -> Thread:
             f_child = self.get_active_strategy(f_pair)
-            f_wrap = _MF.wrap_exception
+            f_wrap = _MF.catch_exception
             f_wrap_kwargs = {
                 'callback': self._manage_trade,
                 'call_class': self.__class__.__name__,
@@ -464,7 +464,7 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     @staticmethod
     def _wrap_thread(target: FunctionType, base_name: str, call_class: str, repport: bool = True, target_params: dict = {}) -> Thread:
-        wrap = _MF.wrap_exception
+        wrap = _MF.catch_exception
         wrap_kwargs = {
             'callback': target,
             'call_class': call_class,

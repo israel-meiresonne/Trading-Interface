@@ -32,15 +32,12 @@ from model.tools.Predictor import Predictor
 from model.tools.Price import Price
 
 _PRINT_SUCCESS = '🖨 File printed ✅'
+_BROKER = Binance(Map({Map.public: "-", Map.secret: "-", Map.test_mode: False}))
 
 def get_broker() -> Broker:
-    bnc = Binance(Map({Map.public: "-",
-                    Map.secret: "-",
-                    Map.test_mode: False
-                    }))
-    return bnc
+    return _BROKER
 
-def main() -> None:
+def predictor() -> None:
     bkr = get_broker()
     fiat_asset = Asset('USDT')
     all_pairs = MarketPrice.get_spot_pairs(bkr.__class__.__name__, fiat_asset)
@@ -51,7 +48,14 @@ def main() -> None:
     Predictor.update_market_histories(bkr, fiat_asset, pairs=miss_pairs, periods=hist_periods)
     Predictor.update_learns(pairs=miss_pairs, periods=learn_periods)
 
+def main() -> None:
+    pass
+
 if __name__ == '__main__':
+    starttime = _MF.get_timestamp()
     Config.update(Config.STAGE_MODE, Config.STAGE_3)
+    print(_MF.prefix() + '\033[46m' +f"Start execution:" + '\033[0m')
     main()
     get_broker().close()
+    endtime = _MF.get_timestamp()
+    print(_MF.prefix() + '\033[46m' + f"End execution: {_MF.delta_time(starttime, endtime)}" + '\033[0m')

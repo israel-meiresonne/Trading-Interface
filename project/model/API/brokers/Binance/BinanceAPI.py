@@ -696,7 +696,7 @@ class BinanceAPI(ABC):
         To close Binance's websocket\n
         """
         socket = BinanceAPI._SOCKET
-        socket if socket is not None else None
+        socket.close() if socket is not None else None
 
     # ——————————————————————————————————————————— SOCKET UP
 

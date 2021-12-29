@@ -445,7 +445,7 @@ class ModelFeature(ModelAccess):
 
 
     @staticmethod
-    def wrap_exception(callback: FunctionType, call_class: str, repport: bool = True, **kwargs) -> None:
+    def catch_exception(callback: FunctionType, call_class: str, repport: bool = True, **kwargs) -> None:
         """
         To wrap function in try-catch and execute it
 
@@ -486,3 +486,25 @@ class ModelFeature(ModelAccess):
         new_thread = threading.Thread(target=target, name=thread_name, kwargs=kwargs)
         output = f"New Thread '{thread_name}'!"
         return new_thread, output
+
+    @staticmethod
+    def console(**kwargs) -> None:
+        """
+        To execute code in caller's context
+        """
+        _cls = ModelFeature
+        pfx = _cls.prefix
+        _normal = '\033[0m'
+        _yellow = '\033[33m'
+        locals().update(kwargs) if len(kwargs) > 0 else None
+        end = False
+        ex = f"{_yellow}>>>{_normal} "
+        while not end:
+            cmd = input(pfx() + _yellow + "Enter code:\n" + _normal)
+            print(pfx() + ex + f"{cmd}")
+            end = cmd == 'quit'
+            try:
+                rtn = eval(cmd) if not end else None
+                print(pfx() + ex + f"{rtn}") if rtn is not None else None
+            except Exception as e:
+                print(e)
