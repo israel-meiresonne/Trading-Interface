@@ -23,13 +23,14 @@ class BinanceAPI(ABC):
     # Const
     ORDER_TEST_PATH = "/api/v3/order/test"
     ORDER_REAL_PATH = "/api/v3/order"
-    # Requests
+    # Requests Infos (VIP)
     RQ_SYS_STATUS = "RQ_SYS_STATUS"
     RQ_EXCHANGE_INFOS = "RQ_EXCHANGE_INFOS"
-    RQ_KLINES = "RQ_KLINES"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
     RQ_TRADE_FEE = "RQ_TRADE_FEE"
     RQ_24H_STATISTICS = "RQ_24H_STATISTICS"
+    # Requests Infos (not VIP)
+    RQ_KLINES = "RQ_KLINES"
     # Orders
     RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
     RQ_ALL_TRADES = "RQ_ALL_TRADES"
@@ -42,7 +43,13 @@ class BinanceAPI(ABC):
     RQ_ORDER_TAKE_PROFIT = "RQ_ORDER_TAKE_PROFIT"
     RQ_ORDER_TAKE_PROFIT_LIMIT = "RQ_ORDER_TAKE_PROFIT_LIMIT"
     RQ_ORDER_LIMIT_MAKER = "RQ_ORDER_LIMIT_MAKER"
-    _NOT_VIP_REQUESTS = [RQ_KLINES]
+    _VIP_REQUESTS = [
+        RQ_SYS_STATUS,
+        RQ_EXCHANGE_INFOS, 
+        RQ_ACCOUNT_SNAP,
+        RQ_TRADE_FEE,
+        RQ_24H_STATISTICS
+        ]
     # Configs
     __PATH_ORDER = None
     _RQ_CONF = {
@@ -951,22 +958,27 @@ class BinanceAPI(ABC):
     @staticmethod
     def _waitingroom(test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
         _cls = BinanceAPI
-        is_vip = rq not in _cls._NOT_VIP_REQUESTS
+        def new_ticket() -> str:
+            return f"{rq}_{_MF.new_code()}"
+
+        def time_to_str(time: int) -> str:
+            return f"{int(time / 60)}min.{time % 60}sec."
+
+        def room_size(waitingroom: WaitingRoom) -> int:
+            return len(waitingroom.get_tickets())
+
+        is_vip = rq in _cls._VIP_REQUESTS
         if is_vip:
             response = _cls._send_request(test_mode, api_keys, rq, params)
         else:
-            def time_to_str(time: int) -> str:
-                return f"{int(time / 60)}min.{time % 60}sec."
-            def room_size(waitingroom: WaitingRoom) -> int:
-                return len(waitingroom.get_tickets())
+            room_sleep_time = _cls._WAITINGROOM_SLEEP_TIME
             waitingroom = _cls.get_waitingroom()
-            ticket = waitingroom.join_room()
+            ticket = waitingroom.join_room(new_ticket())
             join_unix_time = _MF.get_timestamp()
             print(f"{_MF.prefix()}Join room"
-                  f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
+                f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
                 if _cls._DEBUG else None
             try:
-                room_sleep_time = _cls._WAITINGROOM_SLEEP_TIME
                 while not waitingroom.my_turn(ticket):
                     sleep(room_sleep_time)
                 while not _cls.can_send_request(rq):
@@ -977,8 +989,8 @@ class BinanceAPI(ABC):
                         wakeup_date = _MF.unix_to_date(unix_time + limits_sleep_time)
                         limits_sleep_time_str = time_to_str(limits_sleep_time)
                         print(f"{_MF.prefix()}\033[33mCan't send request, sleep for '{limits_sleep_time_str}'"
-                              f" from '{unix_date}'->'{wakeup_date}'"
-                              f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
+                            f" from '{unix_date}'->'{wakeup_date}'"
+                            f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
                             if _cls._DEBUG else None
                     sleep(limits_sleep_time) if isinstance(limits_sleep_time, int) else None
                 response = _cls._send_request(test_mode, api_keys, rq, params)
@@ -990,12 +1002,12 @@ class BinanceAPI(ABC):
                 waitingroom.quit_room(ticket)
                 wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
                 print(f"{_MF.prefix()}\033[31mQuit room with error in '{wait_time_str}'"
-                      f" (size='{room_size(waitingroom)}', ticket='{ticket}')\n error: « {error} »" + '\033[0m') if _cls._DEBUG else None
+                    f" (size='{room_size(waitingroom)}', ticket='{ticket}')\n error: « {error} »" + '\033[0m') if _cls._DEBUG else None
                 raise error
             waitingroom.treat_ticket(ticket)
             wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
             print(f"{_MF.prefix()}\033[32mTicket treated in '{wait_time_str}'"
-                  f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
+                f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
                 if _cls._DEBUG else None
         return response
 
