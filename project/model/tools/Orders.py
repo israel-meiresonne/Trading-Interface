@@ -34,6 +34,7 @@ class Orders(Order, MyJson):
     def _get_orders(self) -> Map:
         """
         To get the collection of Order
+        NOTE: Order  are sorted from older (index=0) to most recent (index=n)
 
         Returns:
         --------
@@ -241,6 +242,19 @@ class Orders(Order, MyJson):
 
     @staticmethod
     def _update_stage_3_get_starttime(odrs: Map) -> int:
+        """
+        To get creation time of older Order submited or processing its execution
+
+        Parameters:
+        -----------
+        odrs: Map[Order]
+            List of Order
+
+        Returns:
+        --------
+        return: int
+            The creation time of older Order submited and not executed
+        """
         starttime = None
         for idx, odr in odrs.get_map().items():
             status = odr.get_status()
