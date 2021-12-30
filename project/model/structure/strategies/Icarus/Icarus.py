@@ -359,8 +359,6 @@ class Icarus(TraderClass):
     def can_sell(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         # indicator
         indicator_ok = self._can_sell_indicator(marketprice)
-        # Roi
-        # roi_ok = self._can_sell_roi(marketprice)
         # Check
         can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
         return can_sell
@@ -372,53 +370,33 @@ class Icarus(TraderClass):
         return can_sell
     
     def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
-        # Close
-        closes = list(marketprice.get_closes())
-        closes.reverse()
-        # Psar
-        supertrend = list(marketprice.get_super_trend())
-        supertrend.reverse()
-        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
-        supertrend_dropping = supertrend_trend == MarketPrice.SUPERTREND_DROPPING
-        return supertrend_dropping
-
-    def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
+        def is_supertrend_dropping() -> bool:
+            supertrend = list(marketprice.get_super_trend())
+            supertrend.reverse()
+            supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+            return supertrend_trend == MarketPrice.SUPERTREND_DROPPING
+        
         def is_psar_dropping() -> bool:
-            # Close
-            closes = list(marketprice.get_closes())
-            closes.reverse()
-            # Psar
             psar = list(marketprice.get_psar())
             psar.reverse()
             psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
-            var_psar_dropping = psar_trend == MarketPrice.PSAR_DROPPING
-            return var_psar_dropping
+            return psar_trend == MarketPrice.PSAR_DROPPING
 
+        can_sell = False
+        # Close
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        # Check
+        can_sell = is_psar_dropping() or is_supertrend_dropping()
+        return can_sell
+
+    def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         def is_prediction_reached() -> bool:
             max_roi = self.max_roi(marketprice)
             max_roi_pred = self.max_roi_predicted()
             return max_roi >= max_roi_pred
 
-        def is_market_dropping() -> Tuple[bool, float]:
-            close = marketprice.get_close()
-            func_new_max_close_pred = get_new_max_close_pred()
-            new_max_roi_pred = _MF.progress_rate(func_new_max_close_pred, close)
-            func_market_dropping = new_max_roi_pred < self.get_min_roi_predicted()
-            return func_market_dropping, func_new_max_close_pred
-
-        def get_new_max_close_pred() -> float:
-            predictor = self.get_predictor()
-            return self._predict_max_high(predictor_marketprice, predictor)
-
-        can_sell = False
-        prediction_reached = is_prediction_reached()
-        psar_dropping = is_psar_dropping()
-        if prediction_reached or psar_dropping:
-            market_dropping, new_max_close_pred = is_market_dropping()
-            can_sell = (prediction_reached or psar_dropping) and market_dropping
-            market_will_rise = prediction_reached and (not market_dropping)
-            if can_sell or market_will_rise:
-                 self._set_max_close_predicted(max_close_predicted=new_max_close_pred)
+        can_sell = is_prediction_reached()
         return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
