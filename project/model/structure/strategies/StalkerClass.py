@@ -417,7 +417,7 @@ class StalkerClass(Strategy, MyJson, ABC):
                 }
             f_base_name = self._THREAD_NAME_MANAGE_TRADE.replace('$pair', f_pair.format(Pair.FORMAT_MERGED).upper())
             thread, output = _MF.generate_thread(target=f_wrap, base_name=f_base_name, **f_wrap_kwargs)
-            print(f"{_MF.prefix()}{output}")
+            _MF.output(f"{_MF.prefix()}{output}")
             return thread
 
         threads = self._get_threads_manage_trade()
@@ -474,7 +474,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             **target_params
             }
         thread, output = _MF.generate_thread(target=wrap, base_name=base_name, **wrap_kwargs)
-        print(f"{_MF.prefix()}{output}")
+        _MF.output(f"{_MF.prefix()}{output}")
         return thread
 
     def _launch_stalking(self, bkr: Broker) -> None:
@@ -518,10 +518,10 @@ class StalkerClass(Strategy, MyJson, ABC):
         return (not max_reached) and self.is_stalking()
 
     def _manage_stalking(self, broker: Broker) -> None:
-        print(f"{_MF.prefix()}Start Managing Stalking.")
+        _MF.output(f"{_MF.prefix()}Start Managing Stalking.")
         while self._keep_stalkig():
-            print(f"{_MF.prefix()}Managing Stalking...")
-            print(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
+            _MF.output(f"{_MF.prefix()}Managing Stalking...")
+            _MF.output(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
             start_time = _MF.get_timestamp()
             self._set_next_stalk(start_time)
             self._stalk_market(broker)
@@ -532,9 +532,9 @@ class StalkerClass(Strategy, MyJson, ABC):
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
                 start_sleep = _MF.unix_to_date(end_time)
                 end_sleep = _MF.unix_to_date(next_stalk)
-                print(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
+                _MF.output(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
                 time.sleep(sleep_time)
-        print(f"{_MF.prefix()}End Managing Stalking.")
+        _MF.output(f"{_MF.prefix()}End Managing Stalking.")
 
     def _stalk_market(self, broker: Broker) -> None:
         """
@@ -577,14 +577,14 @@ class StalkerClass(Strategy, MyJson, ABC):
                     groups[mod] = [next_pair]
             return list(groups.values())
 
-        print(pfx() + _back_cyan + _black + "Star stalking:".upper() + _normal)
+        _MF.output(pfx() + _back_cyan + _black + "Star stalking:".upper() + _normal)
         pairs = self._get_no_active_pairs(broker)
         stalk_period = self.get_period()
         add_streams()
         pair_groups = group_pairs(pairs)
         threads = []
         starttime = _MF.get_timestamp()
-        print(pfx() + _purple + f"Stalk '{len(pairs)}' pairs in '{len(pair_groups)}' groups" + _normal)
+        _MF.output(pfx() + _purple + f"Stalk '{len(pairs)}' pairs in '{len(pair_groups)}' groups" + _normal)
         for pair_group in pair_groups:
             thread = new_thread(pair_group)
             thread.start()
@@ -592,7 +592,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         [thread.join() for thread in threads]
         endtime = _MF.get_timestamp()
         delta_time = _MF.delta_time(starttime, endtime)
-        print(pfx() + _purple + f"End stalking in '{delta_time}'" + _normal)
+        _MF.output(pfx() + _purple + f"End stalking in '{delta_time}'" + _normal)
 
     def _stalk_merket_thread(self, broker: Broker, pairs: List[Pair]) -> None:
         _normal = self._TO_REMOVE_STYLE_NORMAL
@@ -611,10 +611,10 @@ class StalkerClass(Strategy, MyJson, ABC):
             if max_not_reached:
                 eligible, repport = self._eligible(marketprice, broker)
                 repports.append(repport)
-            print(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible: {eligible}" + _normal)
+            _MF.output(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible: {eligible}" + _normal)
             if max_not_reached and eligible:
                 self._add_active_strategy(pair)
-                print(pfx() + _green + f"Add new Strategy: '{pair.__str__().upper()}'" + _normal)
+                _MF.output(pfx() + _green + f"Add new Strategy: '{pair.__str__().upper()}'" + _normal)
             if self.max_active_strategies_reached():
                 break
             i += 1
@@ -666,11 +666,11 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_green = self._TO_REMOVE_STYLE_GREEN
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market:" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market:" + _normal)
         market_analyse = MarketPrice.analyse_market_trend(broker)
-        print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
         self._set_market_analyse(market_analyse)
-        print(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
 
     # ——————————————————————————————————————————————— ANALYSE MARKET UP
 
@@ -706,7 +706,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         #
         active_stgs_copy = Map(self.get_active_strategies().get_map())
         pairs_to_delete = self.get_deleted_childs()
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
+        _MF.output(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
                                                               f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
         self._manage_trades_add_streams(bkr, active_stgs_copy)
         market_analyse = self.get_market_analyse()
@@ -738,7 +738,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_green = self._TO_REMOVE_STYLE_GREEN
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
         # Add streams
         streams = self._add_streams_get_streams(broker)
         nb_stream = len(streams)
@@ -747,13 +747,13 @@ class StalkerClass(Strategy, MyJson, ABC):
         start_date = _MF.unix_to_date(start_time)
         duration_date = _MF.unix_to_date(duration_time)
         duration_str = f"{int(nb_stream / 60)}min.{nb_stream % 60}sec."
-        print(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
+        _MF.output(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
                                                 f" '{start_date}'->'{duration_date}'" + _normal)
         broker.add_streams(streams)
         end_time = _MF.get_timestamp()
         duration = end_time - start_time
         real_duration_str = f"{int(duration / 60)}min.{duration % 60}sec."
-        print(f"{_MF.prefix()}" + _color_green + f"End adding '{nb_stream}' streams for '{real_duration_str}'"
+        _MF.output(f"{_MF.prefix()}" + _color_green + f"End adding '{nb_stream}' streams for '{real_duration_str}'"
                                                  f" (estimated:'{duration_str}')" + _normal)
 
     def _add_streams_periods(self) -> list:
