@@ -24,7 +24,7 @@ class TestStalkerClass(unittest.TestCase, StalkerClass):
             Map.capital: Price(1000, r_asset),
             Map.maximum: None,
             Map.rate: None,
-            Map.period: 60 * 15,
+            Map.period: 60 * 5,
             Map.strategy: Icarus.__name__,
             Map.param: {
                 Map.period: 60 * 5
@@ -313,6 +313,19 @@ class TestStalkerClass(unittest.TestCase, StalkerClass):
         result8 = stk.get_fee()
         self.assertEqual(exp8, result8)
         # End
+        self.broker_switch(False)
+
+    def test_stalk_market(self) -> None:
+        bkr = self.broker_switch(True)
+        stk = self.stk1
+        pairs = stk._get_no_active_pairs(bkr)
+        stk_period = stk.get_period()
+        streams = [
+            *[bkr.generate_stream(Map({Map.pair: pair, Map.period: stk_period})) for pair in pairs],
+            *[bkr.generate_stream(Map({Map.pair: pair, Map.period: 60*60})) for pair in pairs]
+            ]
+        bkr.add_streams(streams)
+        stk._stalk_market(bkr)
         self.broker_switch(False)
 
     def test_trade(self) -> None:
