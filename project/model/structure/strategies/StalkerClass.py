@@ -2,7 +2,7 @@ import time
 from abc import ABC, abstractmethod
 from threading import Thread
 from types import FunctionType
-from typing import List
+from typing import List, Tuple
 
 from config.Config import Config
 from model.structure.Broker import Broker
@@ -20,17 +20,19 @@ from model.tools.Wallet import Wallet
 
 
 class StalkerClass(Strategy, MyJson, ABC):
-    _CONST_STALK_FREQUENCY = 60             # in second
+    _CONST_STALK_FREQUENCY = 30             # in second
     _STALKER_BOT_DELFAULT_SLEEP_TIME = 10
     _STALKER_BOT_SLEEP_TIME = 10            # in second
     _CONST_MAX_STRATEGY = 20
     _BLACKLIST_TIME = 60 * 3                # in second
     _PAIR_MANAGER_NB_PERIOD = 100
     _REGEX_PAIR = r'\?\/[A-z\d]+'
-    _THREAD_NAME_MARKET_STALKING = 'market_stalking'
+    _THREAD_NAME_STALK_PARENT = 'stalk_parent'
+    _THREAD_NAME_STALK_CHILD = 'stalk_child'
     _THREAD_NAME_MARKET_ANALYSE = 'market_analysing'
     _THREAD_NAME_MANAGE_TRADE = 'manage_trade_$pair'
     _GLOBAL_SAVE_INTERVAL = 10              # in second
+    _STALK_N_THREAD = 15
     # Color
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
@@ -482,7 +484,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         def new_stalk_thread() -> Thread:
             f_params = {
                 'target': self._manage_stalking,
-                'base_name': self._THREAD_NAME_MARKET_STALKING,
+                'base_name': self._THREAD_NAME_STALK_PARENT,
                 'call_class': self.__class__.__name__,
                 'repport': True,
                 'target_params': {Map.broker: bkr}
@@ -517,82 +519,106 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def _manage_stalking(self, broker: Broker) -> None:
         print(f"{_MF.prefix()}Start Managing Stalking.")
-        try:
-            while self._keep_stalkig():
-                print(f"{_MF.prefix()}Managing Stalking...")
-                print(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
-                start_time = _MF.get_timestamp()
-                self._set_next_stalk(start_time)
-                self._stalk_market(broker)
-                next_stalk = self.get_next_stalk()
-                end_time = _MF.get_timestamp()
-                sleep_time = (next_stalk - end_time) if end_time < next_stalk else None
-                if sleep_time is not None:
-                    sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-                    start_sleep = _MF.unix_to_date(end_time)
-                    end_sleep = _MF.unix_to_date(next_stalk)
-                    print(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
-                    time.sleep(sleep_time)
-            print(f"{_MF.prefix()}End Managing Stalking.")
-        except Exception as e:
-            from model.structure.Bot import Bot
-            Bot.save_error(e, self.__class__.__name__)
+        while self._keep_stalkig():
+            print(f"{_MF.prefix()}Managing Stalking...")
+            print(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
+            start_time = _MF.get_timestamp()
+            self._set_next_stalk(start_time)
+            self._stalk_market(broker)
+            next_stalk = self.get_next_stalk()
+            end_time = _MF.get_timestamp()
+            sleep_time = (next_stalk - end_time) if end_time < next_stalk else None
+            if sleep_time is not None:
+                sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
+                start_sleep = _MF.unix_to_date(end_time)
+                end_sleep = _MF.unix_to_date(next_stalk)
+                print(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
+                time.sleep(sleep_time)
+        print(f"{_MF.prefix()}End Managing Stalking.")
 
-    def _stalk_market(self, bkr: Broker) -> None:
+    def _stalk_market(self, broker: Broker) -> None:
         """
-        To stalk the market\n
-        :param bkr: Access to a Broker's  API
+        To stalk the market
+
+        Parameters:
+        -----------
+        broker: Broker
+            Access to a Broker's API
         """
-        _cls = self
-        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + "Star stalking:".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
-        _stg_cls = self.__class__.__name__
-        _bkr_cls = bkr.__class__.__name__
-        pairs = self._get_no_active_pairs(bkr)
-        nb_pair = len(pairs)    # ❌
-        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Stalk of '{nb_pair}' unused pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
-        perfs = Map()
-        market_prices = Map()
+        _normal = self._TO_REMOVE_STYLE_NORMAL
+        _black = self._TO_REMOVE_STYLE_BLACK
+        _purple = self._TO_REMOVE_STYLE_PURPLE
+        _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
+        pfx = _MF.prefix
+        def new_thread(f_pair_group: List[Pair]) -> Thread:
+            f_params = {
+                'target': self._stalk_merket_thread,
+                'base_name': self._THREAD_NAME_STALK_CHILD,
+                'call_class': self.__class__.__name__,
+                'repport': True,
+                'target_params': {Map.broker: broker, 'pairs': f_pair_group}
+            }
+            return self._wrap_thread(**f_params)
+
+        def add_streams()  -> None:
+            streams = [broker.generate_stream(Map({Map.pair: pair, Map.period: stalk_period})) for pair in pairs]
+            broker.add_streams(streams)
+
+        def group_pairs(pairs: List[Pair]) -> List[List[Pair]]:
+            n_thread = self.get_stalk_n_thread()
+            groups = {}
+            n_pair = len(pairs)
+            for i in range(1, n_pair+1):
+                mod = i%n_thread
+                next_pair = pairs[i-1]
+                if mod in groups:
+                    groups[mod].append(next_pair)
+                else:
+                    groups[mod] = [next_pair]
+            return list(groups.values())
+
+        print(pfx() + _back_cyan + _black + "Star stalking:".upper() + _normal)
+        pairs = self._get_no_active_pairs(broker)
         stalk_period = self.get_period()
-        market_params = Map({
-            Map.pair: None,
-            Map.period: stalk_period,
-            Map.begin_time: None,
-            Map.end_time: None,
-            Map.number: 1000
-        })
-        # Get performance
-        streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: stalk_period})) for pair in pairs]
-        bkr.add_streams(streams)
-        cpt = 1     # ❌
+        add_streams()
+        pair_groups = group_pairs(pairs)
+        threads = []
+        starttime = _MF.get_timestamp()
+        print(pfx() + _purple + f"Stalk '{len(pairs)}' pairs in '{len(pair_groups)}' groups" + _normal)
+        for pair_group in pair_groups:
+            thread = new_thread(pair_group)
+            thread.start()
+            threads.append(thread)
+        [thread.join() for thread in threads]
+        endtime = _MF.get_timestamp()
+        delta_time = _MF.delta_time(starttime, endtime)
+        print(pfx() + _purple + f"End stalking in '{delta_time}'" + _normal)
+
+    def _stalk_merket_thread(self, broker: Broker, pairs: List[Pair]) -> None:
+        _normal = self._TO_REMOVE_STYLE_NORMAL
+        _cyan = self._TO_REMOVE_STYLE_CYAN
+        _green = self._TO_REMOVE_STYLE_GREEN
+        pfx = _MF.prefix
+        n_period = broker.get_max_n_period()
+        stalk_period = self.get_period()
+        n_pair = len(pairs)
+        repports = []
+        i = 1
         for pair in pairs:
-            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN
-                  + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of {int(stalk_period/60)}min."
-                  + _cls._TO_REMOVE_STYLE_NORMAL)
-            cpt += 1
-            pair_str = pair.__str__()
-            market_params.put(pair, Map.pair)
-            market_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, market_params)
-            bkr.request(market_rq)
-            market_price = market_rq.get_market_price()
-            perf = Strategy.get_performance(bkr, _stg_cls, market_price)
-            perfs.put(perf.get_map(), pair_str)
-            market_prices.put(market_price, pair_str)
-        # Sort performances
-        perfs_sorted = dict(sorted(perfs.get_map().items(), key=lambda row: row[1][Map.roi], reverse=True))
-        # Add new active Strategy
-        cpt = 1
-        for pair_str, perf in perfs_sorted.items():
-            market_price = market_prices.get(pair_str)
-            eligible = self._eligible(market_price, bkr)
-            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}]Pair '{pair_str.upper()}' eligible: {eligible}" + _cls._TO_REMOVE_STYLE_NORMAL)
-            if eligible:
-                print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
-                self._add_active_strategy(Pair(pair_str))
-                if self.max_active_strategies_reached():
-                    break
-            cpt += 1
-        # Backup
-        # self._save_market_stalk(Map(perfs_sorted), market_prices) if len(perfs_sorted) > 0 else None
+            marketprice = MarketPrice.marketprice(broker, pair, stalk_period, n_period)
+            max_not_reached = not self.max_active_strategies_reached()
+            eligible = False
+            if max_not_reached:
+                eligible, repport = self._eligible(marketprice, broker)
+                repports.append(repport)
+            print(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible: {eligible}" + _normal)
+            if max_not_reached and eligible:
+                self._add_active_strategy(pair)
+                print(pfx() + _green + f"Add new Strategy: '{pair.__str__().upper()}'" + _normal)
+            if self.max_active_strategies_reached():
+                break
+            i += 1
+        self._save_market_stalk(repports)
 
     # —————————————————————————————————————————————— STALK MARKET UP
     # —————————————————————————————————————————————— ANALYSE MARKET DOWN
@@ -855,7 +881,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         return self._allowed_pairs
 
     @abstractmethod
-    def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
+    def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         """
         To check if a pair is interesting to trade\n
         
@@ -905,6 +931,18 @@ class StalkerClass(Strategy, MyJson, ABC):
                 rate = sell_close / buy_close - 1
                 rates.append(rate)
         return rates
+
+    @staticmethod
+    def get_stalk_n_thread() -> int:
+        """
+        To get number of thread through which to stalk market
+
+        Returns:
+        --------
+        return: int
+            Number of thread through which to stalk market
+        """
+        return StalkerClass._STALK_N_THREAD
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
@@ -988,23 +1026,19 @@ class StalkerClass(Strategy, MyJson, ABC):
         self._reset_deleted_childs()
         self._set_global_save_time()
 
-    def _save_market_stalk(self, perfs: Map, market_prices: Map) -> None:
-        path = Config.get(Config.DIR_SAVE_MARKET_STALK)
-        rows = []
+    def _save_market_stalk(self, datas: List[dict]) -> None:
         date = _MF.unix_to_date(_MF.get_timestamp())
-        for pair_str, perf in perfs.get_map().items():
-            market_price = market_prices.get(pair_str)
-            eligible = self._eligible(market_price)
+        thread_name = _MF.thread_name()
+        rows = []
+        for data in datas:
             row = {
                 Map.date: date,
-                Map.pair: pair_str.upper(),
-                'eligible': eligible,
-                **perf
+                Map.thread: thread_name,
+                **data
             }
             rows.append(row)
+        path = Config.get(Config.DIR_SAVE_MARKET_STALK)
         fields = list(rows[0].keys())
-        separator = {fields[0]: date, **{field: '⬇️ ——— ⬇️' for field in fields if field != fields[0]}}
-        rows.insert(0, separator)
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
