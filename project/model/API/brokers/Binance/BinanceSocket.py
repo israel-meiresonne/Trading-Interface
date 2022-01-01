@@ -261,7 +261,7 @@ class BinanceSocket(BinanceAPI):
             status_code = bkr_rsp.get_status_code()
             is_success = (status_code is not None) and (status_code == 200)
         except Exception as error:
-            print(_MF.prefix() + '\033[31m' +
+            _MF.output(_MF.prefix() + '\033[31m' +
                   "Network error when getting market history" + '\033[0m')
             from model.structure.Bot import Bot
             Bot.save_error(error, BinanceSocket.__name__)
@@ -517,17 +517,17 @@ class BinanceSocket(BinanceAPI):
         from websocket import WebSocketApp
 
         def on_open(socket: WebSocketApp) -> None:
-            print(f"{_MF.prefix()}on_open: connection established...") if BinanceSocket._DEBUG else None
+            _MF.output(f"{_MF.prefix()}on_open: connection established...") if BinanceSocket._DEBUG else None
 
         def on_error(socket: WebSocketApp, error: Exception) -> None:
-            print(f"{_MF.prefix()}on_error: {error}") if BinanceSocket._DEBUG else None
+            _MF.output(f"{_MF.prefix()}on_error: {error}") if BinanceSocket._DEBUG else None
 
         def on_close(socket: WebSocketApp, status_code: int, close_msg: str) -> None:
-            print(f"{_MF.prefix()}on_close: connection closed.") if BinanceSocket._DEBUG else None
+            _MF.output(f"{_MF.prefix()}on_close: connection closed.") if BinanceSocket._DEBUG else None
 
         def on_data(socket: WebSocketApp, message: str, data_type: str, flag: int) -> None:
             unix_date = _MF.unix_to_date(_MF.get_timestamp())
-            print(f"{_MF.prefix()}on_data: last response '{unix_date}'.") if BinanceSocket._VERBOSE else None
+            _MF.output(f"{_MF.prefix()}on_data: last response '{unix_date}'.") if BinanceSocket._VERBOSE else None
 
         def on_message(socket: WebSocketApp, message: str) -> None:
             def kline(pay_load: dict) -> None:
@@ -539,9 +539,9 @@ class BinanceSocket(BinanceAPI):
                     return f"new_row(Time) == market_hist(Time) ('{equal}'): '{milli_to_date(new_row[-1][0])}' == '{milli_to_date(market_hist[-1][0])}'"
                 
                 def print_end() -> None:
-                    print(f"{_MF.prefix()}kline: new close[-1] '{new_row[-1, 4]}'.") if BinanceSocket._VERBOSE else None
-                    print(f"{_MF.prefix()}kline: history close[-1] '{market_hists.get(stream)[-1, 4]}'.") if BinanceSocket._VERBOSE else None
-                    print(f"{_MF.prefix()}kline: history close[-2] '{market_hists.get(stream)[-2, 4]}'.") if BinanceSocket._VERBOSE else None
+                    _MF.output(f"{_MF.prefix()}kline: new close[-1] '{new_row[-1, 4]}'.") if BinanceSocket._VERBOSE else None
+                    _MF.output(f"{_MF.prefix()}kline: history close[-1] '{market_hists.get(stream)[-1, 4]}'.") if BinanceSocket._VERBOSE else None
+                    _MF.output(f"{_MF.prefix()}kline: history close[-2] '{market_hists.get(stream)[-2, 4]}'.") if BinanceSocket._VERBOSE else None
 
                 rq = BinanceAPI.RQ_KLINES
                 symbol = pay_load['s']
@@ -740,7 +740,7 @@ class BinanceSocket(BinanceAPI):
         _red = '\033[31m'
         def output(key: str, **kwargs) -> str:
             if key ==  "A":
-                print(f"{pfx()}" + _purple + _MF.thread_infos() + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _purple + _MF.thread_infos() + _normal) if BinanceSocket._DEBUG else None
             elif key == "B":
                 # WebSocket
                 wss = self._get_websockets()
@@ -751,35 +751,35 @@ class BinanceSocket(BinanceAPI):
                 # Market Room
                 n_market_reset = len(self._get_room_market_update().get_tickets())
                 msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Call_Room: ({n_call}) == Update_Room: ({n_market_reset})"
-                print(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "C0":
                 n_closed = kwargs[Map.close]
                 msg = f"Maintaining connection of '{n_closed}' closed WebSocket..."
-                print(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "C1":
                 msg = "End maintain of connection"
-                print(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "D0":
                 streams = kwargs[Map.stream]
                 n_stream = len(streams)
                 msg = f"Adding '{n_stream}' new stream: {streams}"
-                print(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "D1":
                 streams = kwargs[Map.stream]
                 n_stream = len(streams)
                 failed = kwargs[Map.market]
                 run_stopped = kwargs[Map.stop]
                 msg = f"Failed to add '{n_stream}' new stream: reason (failed={failed}, stop_signal='{run_stopped}')"
-                print(f"{pfx()}" + _red + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _red + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "D2":
                 streams = kwargs[Map.stream]
                 n_stream = len(streams)
                 msg = f"End add of '{n_stream}' new stream: {streams}"
-                print(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "E0":
                 n_socket = kwargs[Map.close]
                 msg = f"Closed '{n_socket}' sockets"
-                print(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
+                _MF.output(f"{pfx()}" + _green + msg + _normal) if BinanceSocket._DEBUG else None
 
         def thread_websocket_manager(f_websocket: WebSocket) -> threading.Thread:
             base_name = self._THREAD_NAME_WEBSOCKET_MANGER
@@ -1065,7 +1065,7 @@ class BinanceSocket(BinanceAPI):
             'repport': True
             }
         new_thread = threading.Thread(target=wrap, name=thread_name, kwargs=kwargs)
-        print(f"{_MF.prefix()}New Thread '{thread_name}'!"
+        _MF.output(f"{_MF.prefix()}New Thread '{thread_name}'!"
               ) if output and _cls._DEBUG else None
         return new_thread
 

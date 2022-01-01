@@ -81,11 +81,11 @@ class Bot(MyJson):
         nb_error = 0
         limit_error = 60
         stop_index = Bot.get_index_stop()
-        print(f"{_MF.prefix()}Bot started to trade...")
+        _MF.output(f"{_MF.prefix()}Bot started to trade...")
         bot_id = self.get_id()
         while not end:
             Bot._set_trade_index(trade_index)
-            print(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
+            _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
             # Trade
             try:
                 sleep_time = stg.trade(bkr)
@@ -112,7 +112,7 @@ class Bot(MyJson):
                 start_date = _MF.unix_to_date(unix_time)
                 end_date = _MF.unix_to_date(unix_time + sleep_time)
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-                print(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
+                _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
                 sleep_time = None
             end = self._still_active()
@@ -123,7 +123,7 @@ class Bot(MyJson):
 
     @staticmethod
     def _still_active() -> bool:
-        print(f"{_MF.prefix()}still trading...")
+        _MF.output(f"{_MF.prefix()}still trading...")
         return False
 
     @staticmethod
@@ -143,7 +143,7 @@ class Bot(MyJson):
         from traceback import format_exc
         red = "\033[31m"
         normal = "\033[0m"
-        print(f"{_MF.prefix()}{red}Error fromm the '{from_class}' class (nb_error='{nb_error}'): "
+        _MF.output(f"{_MF.prefix()}{red}Error fromm the '{from_class}' class (nb_error='{nb_error}'): "
               f"{error.__str__()} {normal}")
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
@@ -170,7 +170,7 @@ class Bot(MyJson):
         self._set_last_backup(_MF.get_timestamp())
         json_str = self.json_encode()
         FileManager.write(backup_path, json_str, binary=False, overwrite=True, make_dir=True)
-        print(f"{_MF.prefix()}💾 Bot saved! ✅")
+        _MF.output(f"{_MF.prefix()}💾 Bot saved! ✅")
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
