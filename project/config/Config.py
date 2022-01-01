@@ -24,6 +24,7 @@ class Config(ABC):
     FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE = 'FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE'
     FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE = 'FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE'
     FILE_BINANCE_FAKE_API_ORDERS = 'FILE_BINANCE_FAKE_API_ORDERS'
+    FILE_OUTPUT = "FILE_OUTPUT"
     # Configuration
     DIR_BROKERS = "DIR_BROKERS"
     DIR_STRATEGIES = "DIR_STRATEGIES"
@@ -70,16 +71,6 @@ class Config(ABC):
     def get(key: str):
         env = Config.get_environment()
         value = eval(f"{env}.{key}")
-        """
-        if env == Config.__ENV_DEV:
-            exec("from config.files.Dev import " + k)
-            value = eval(k)
-        elif env == Config.__ENV_PROD:
-            exec("from config.files.prod import " + k)
-            value = eval(k)
-        else:
-            raise Exception(f"Unknown environment '{env}'")
-        """
         return value
 
     @staticmethod
@@ -93,14 +84,4 @@ class Config(ABC):
         _env_cls = eval(env)
         old_value = Config.get(key)
         exec(f"{env}.{key} = new_value")
-        """
-        if env == Config.__ENV_DEV:
-            import config.files.dev as CONF_FILE
-            exec(f"CONF_FILE.{key} = new_value")
-        elif env == Config.__ENV_PROD:
-            import config.files.prod as CONF_FILE
-            exec(f"CONF_FILE.{key} = new_value")
-        else:
-            raise Exception(f"Unknown environment '{env}'")
-        """
         _env_cls.update(old_value, new_value) if old_value is not None else None
