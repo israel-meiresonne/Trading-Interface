@@ -88,6 +88,19 @@ class Broker(ABC):
 
     @staticmethod
     @abstractmethod
+    def get_max_n_period() -> int:
+        """
+        To get max number of period that can be request to Broker's API
+
+        Returns:
+        --------
+        return: int
+            Max number of period that can be request to Broker's API
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
     def generate_stream(params: Map) -> str:
         """
         To generate a Broker stream\n
