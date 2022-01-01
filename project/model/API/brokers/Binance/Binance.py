@@ -121,6 +121,10 @@ class Binance(Broker, MyJson):
         return BinanceAPI.get_pairs(match=match, no_match=no_match)
 
     @staticmethod
+    def get_max_n_period() -> int:
+        return BinanceAPI.CONSTRAINT_KLINES_MAX_PERIOD
+
+    @staticmethod
     def list_paires() -> list:
         prs = [
             '?/USDT',
