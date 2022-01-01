@@ -47,7 +47,7 @@ class FileManager(ABC):
         return content
 
     @staticmethod
-    def write(path: str, content: Any, binary: bool = False, overwrite: bool = True, make_dir: bool = False) -> None:
+    def write(path: str, content: Any, binary: bool = False, overwrite: bool = True, make_dir: bool = False, line_return=True) -> None:
         """
         To write in a file\n
         :param path: The path to the file
@@ -55,10 +55,13 @@ class FileManager(ABC):
         :param binary: Set True to write in binary else False
         :param overwrite: Set True to overwrite the file's content else False to add new line at file's end
         :param make_dir: Set True create missing directory else False to raise error if miss directory
+        :param line_return: Set True to end with new line else False
         """
         full_path = FileManager.get_project_directory() + path
         bin_mode = 'b' if binary else ''
         write_mode = 'w' if overwrite else 'a'
+        if line_return:
+            content = f'{content}\r\n'
         if make_dir:
             file_dir = FileManager.extract_dir_from_file(path)
             FileManager.make_directory(file_dir)
