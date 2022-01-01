@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Icarus.Icarus import Icarus
@@ -113,12 +113,94 @@ class IcarusStalker(StalkerClass):
             Icarus.get_predictor_period()
         ]
 
-    def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> bool:
+    def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
         child_period = self.get_strategy_params().get(Map.period)
         child_marketprice = self._get_market_price(broker, pair, child_period)
         predictor_marketprice = Icarus.predictor_market_price(broker, pair)
-        return Icarus.stalker_can_add(predictor_marketprice) and Icarus.can_buy(predictor_marketprice, child_marketprice)
+        # Stalker
+        stalker_ok, stalker_datas = Icarus.stalker_can_add(predictor_marketprice)
+        # Child
+        child_datas = {}
+        child_ok = False
+        if stalker_ok:
+            child_ok, child_datas = Icarus.can_buy(predictor_marketprice, child_marketprice)
+        eligible = stalker_ok and child_ok
+        # Repport
+        key = IcarusStalker._eligible.__name__
+        repport = {
+            f'{key}.pair': pair,
+            f'{key}.eligible': eligible,
+            f'{key}.stalker_ok': stalker_ok,
+            f'{key}.child_ok': child_ok,
+            f'{key}.stalker_period': self.get_period(),
+            f'{key}.child_period': child_period,
+            f'{key}.predictor_period': predictor_marketprice.get_period_time(),
+            **stalker_datas,
+            **child_datas
+        }
+        repport_formated = self._format_stalk(Map(repport))
+        return eligible, repport_formated
+
+    def _format_stalk(self, repport: Map) -> dict:
+        # Repport
+        key = Icarus._can_buy_indicator.__name__
+        indicator_datas = {
+            f'{key}.can_buy_indicator': None,
+            f'{key}.supertrend_rising': None,
+            f'{key}.supertrend_switch_up': None,
+            f'{key}.psar_switch_up': None,
+            f'{key}.closes[-1]': None,
+            f'{key}.closes[-2]': None,
+            f'{key}.supertrend[-1]': None,
+            f'{key}.supertrend[-2]': None,
+            f'{key}.supertrend[-3]': None,
+            f'{key}.psar[-1]': None,
+            f'{key}.psar[-2]': None,
+            f'{key}.psar[-3]': None
+        }
+        # Repport
+        key = Icarus._can_buy_prediction.__name__
+        pred_repport = {
+            f'{key}.max_roi_ok': None,
+            f'{key}.pred_period': None,
+            f'{key}.closes[-1]': None,
+            f'{key}.max_close_pred': None,
+            f'{key}.max_roi_pred': None,
+            f'{key}.pred_trigger': None
+        }
+        # Repport
+        key = Icarus.can_buy.__name__
+        child_datas = {
+            f'{key}.indicator': None,
+            f'{key}.prediction': None,
+            **indicator_datas,
+            **pred_repport
+        }
+        # Repport
+        key = Icarus.stalker_can_add.__name__
+        stalker_datas  = {
+            f'{key}.psar_rising[-2]': None,
+            f'{key}.closes[-1]': None,
+            f'{key}.closes[-2]': None,
+            f'{key}.psars[-1]': None,
+            f'{key}.psars[-2]': None
+            }
+        # Repport
+        key = IcarusStalker._eligible.__name__
+        canvas = {
+            f'{key}.pair': None,
+            f'{key}.eligible': None,
+            f'{key}.stalker_ok': None,
+            f'{key}.child_ok': None,
+            f'{key}.stalker_period': None,
+            f'{key}.child_period': None,
+            f'{key}.predictor_period': None,
+            **stalker_datas,
+            **child_datas
+        }
+        content = {key: repport.get(key) for key in canvas}
+        return content
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
         if self._allowed_pairs is None:

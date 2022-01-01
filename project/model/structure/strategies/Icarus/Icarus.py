@@ -556,7 +556,7 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
 
     @staticmethod
-    def stalker_can_add(market_price: MarketPrice) -> bool:
+    def stalker_can_add(market_price: MarketPrice) -> Tuple[bool, dict]:
         # Close
         closes = list(market_price.get_closes())
         closes.reverse()
@@ -567,22 +567,45 @@ class Icarus(TraderClass):
         psar_rising = psar_trend == MarketPrice.PSAR_RISING
         # Check
         can_add = psar_rising
-        return can_add
+        # Repport
+        key_str = Icarus.stalker_can_add.__name__
+        repport  = {
+            f'{key_str}.psar_rising[-2]': psar_rising,
+            f'{key_str}.closes[-1]': closes[-1],
+            f'{key_str}.closes[-2]': closes[-2],
+            f'{key_str}.psars[-1]': psars[-1],
+            f'{key_str}.psars[-2]': psars[-2]
+            }
+        return can_add, repport
 
     @staticmethod
     def can_buy(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> bool:
-        if predictor_marketprice.get_period_time() != Icarus.get_predictor_period():
+        pred_period = Icarus.get_predictor_period()
+        if predictor_marketprice.get_period_time() != pred_period:
             predictor_period = Icarus.get_predictor_period()
             period = predictor_marketprice.get_period_time()
             raise ValueError(f"Predictor's MarketPrice must have period '{predictor_period}', instead '{period}'")
         # indicator
-        indicator_ok = Icarus._can_buy_indicator(child_marketprice)
+        indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice)
+        # Prediction
+        pred_ok = False
+        pred_repport = {}
+        if indicator_ok:
+            pred_ok, pred_repport = Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
         # Check
-        can_buy = indicator_ok and Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
-        return can_buy
+        can_buy = indicator_ok and pred_ok
+        # Repport
+        key = Icarus.can_buy.__name__
+        repport = {
+            f'{key}.indicator': indicator_ok,
+            f'{key}.prediction': pred_ok,
+            **indicator_datas,
+            **pred_repport
+        }
+        return can_buy, repport
 
     @staticmethod
-    def _can_buy_indicator(child_marketprice: MarketPrice) -> bool:
+    def _can_buy_indicator(child_marketprice: MarketPrice) -> Tuple[bool, dict]:
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
@@ -601,18 +624,45 @@ class Icarus(TraderClass):
         supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
         psar_switch_up = (now_psar_trend == MarketPrice.PSAR_RISING) and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
         can_buy_indicator = (psar_switch_up and supertrend_rising) or supertrend_switch_up
-        return can_buy_indicator
+        # Repport
+        key = Icarus._can_buy_indicator.__name__
+        repport = {
+            f'{key}.can_buy_indicator': can_buy_indicator,
+            f'{key}.supertrend_rising': supertrend_rising,
+            f'{key}.supertrend_switch_up': supertrend_switch_up,
+            f'{key}.psar_switch_up': psar_switch_up,
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.closes[-2]': closes[-2],
+            f'{key}.supertrend[-1]': supertrend[-1],
+            f'{key}.supertrend[-2]': supertrend[-2],
+            f'{key}.supertrend[-3]': supertrend[-3],
+            f'{key}.psar[-1]': psar[-1],
+            f'{key}.psar[-2]': psar[-2],
+            f'{key}.psar[-3]': psar[-3]
+        }
+        return can_buy_indicator, repport
 
     @staticmethod
-    def _can_buy_prediction(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> bool:
+    def _can_buy_prediction(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
         close = child_marketprice.get_close()
         pair = child_marketprice.get_pair()
-        period = Icarus.get_predictor_period()
-        predictor = Predictor(pair, period)
+        pred_period = Icarus.get_predictor_period()
+        predictor = Predictor(pair, pred_period)
         max_close_pred = Icarus._predict_max_high(predictor_marketprice, predictor)
         max_roi_pred = _MF.progress_rate(max_close_pred, close)
-        max_roi_ok = max_roi_pred >= Icarus.get_min_roi_predicted()
-        return max_roi_ok
+        pred_trigger = Icarus.get_min_roi_predicted()
+        max_roi_ok = max_roi_pred >= pred_trigger
+        # Repport
+        key = Icarus._can_buy_prediction.__name__
+        repport = {
+            f'{key}.max_roi_ok': max_roi_ok,
+            f'{key}.pred_period': pred_period,
+            f'{key}.closes[-1]': close,
+            f'{key}.max_close_pred': max_close_pred,
+            f'{key}.max_roi_pred': max_roi_pred,
+            f'{key}.pred_trigger': pred_trigger
+        }
+        return max_roi_ok, repport
     
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR DOWN ——————————————————————————————————————
