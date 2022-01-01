@@ -40,7 +40,7 @@ class IcarusStalker(StalkerClass):
 
         pair = child.get_pair()
         pair_str = pair.__str__()
-        print(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
+        _MF.output(f"{_MF.prefix()}" + _color_cyan + f"Managing pair '{pair_str.upper()}'..." + _normal)
         # Prepare active Strategy
         stg_wallet = child.get_wallet()
         pair = child.get_pair()
@@ -59,13 +59,13 @@ class IcarusStalker(StalkerClass):
         child.trade(bkr) if keep_stg else None
         has_position_after = child._has_position() if keep_stg else None
         if keep_stg and has_position_after:
-            print(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
+            _MF.output(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
         else:
             self._delete_active_strategy(bkr, pair)
             last_exec_order = child._get_orders().get_last_execution()
             blacklist = (stg_roi < 0) or ((last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET)) 
             self._blacklist_pair(pair, stg_period) if blacklist else None
-            print(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
+            _MF.output(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
         # After trade
         stg_roi_after = stg_wallet.get_roi(bkr)
         fee_after = stg_wallet.trade_fee()
