@@ -23,6 +23,7 @@ class Dev:
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_MARKET_HISTORICS = 'content/market-historic/Active/$broker/$pair/'
     DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
+    FILE_OUTPUT = f'{DIR_ACTUAL_SESSION}/outs/{START_DATE}_output.txt'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_BINANCE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/BinanceFakeAPI/orders/{SESSION_ID}_orders.json'
@@ -68,6 +69,7 @@ class Dev:
     def update(old: str, new: str) -> None:
         """
         To replace occurence of old word with new word in some constants
+        NOTE: need to update only constant that contain other constant
 
         Parameters
         ----------
@@ -76,6 +78,8 @@ class Dev:
         new: str
             New word to replace old occurences
         """
+        Dev.SESSION_ID =                    Dev.SESSION_ID.replace(old, new)
+        Dev.FILE_OUTPUT =                   Dev.FILE_OUTPUT.replace(old, new, 1)
         Dev.DIR_SAVE_DATAS =                Dev.DIR_SAVE_DATAS.replace(old, new)
         Dev.DIR_ACTUAL_SESSION =            Dev.DIR_ACTUAL_SESSION.replace(old, new)
         Dev.FILE_BINANCE_FAKE_API_ORDERS =  Dev.FILE_BINANCE_FAKE_API_ORDERS.replace(old, new)
