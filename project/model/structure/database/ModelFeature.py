@@ -519,3 +519,18 @@ class ModelFeature(ModelAccess):
                 print(pfx() + ex + f"{rtn}") if rtn is not None else None
             except Exception as e:
                 print(e)
+
+    @staticmethod
+    def output(text: str) -> None:
+        """
+        To output messages
+
+        Parameters:
+        -----------
+        text: str
+            Message to output
+        """
+        from config.Config import Config
+        from model.tools.FileManager import FileManager
+        path = Config.get(Config.FILE_OUTPUT)
+        FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
