@@ -415,7 +415,7 @@ class StalkerClass(Strategy, MyJson, ABC):
                 }
             f_base_name = self._THREAD_NAME_MANAGE_TRADE.replace('$pair', f_pair.format(Pair.FORMAT_MERGED).upper())
             thread, output = _MF.generate_thread(target=f_wrap, base_name=f_base_name, **f_wrap_kwargs)
-            print(f"{_MF.prefix()}{output}")
+            _MF.output(f"{_MF.prefix()}{output}")
             return thread
 
         threads = self._get_threads_manage_trade()
@@ -472,7 +472,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             **target_params
             }
         thread, output = _MF.generate_thread(target=wrap, base_name=base_name, **wrap_kwargs)
-        print(f"{_MF.prefix()}{output}")
+        _MF.output(f"{_MF.prefix()}{output}")
         return thread
 
     def _launch_stalking(self, bkr: Broker) -> None:
@@ -516,11 +516,11 @@ class StalkerClass(Strategy, MyJson, ABC):
         return (not max_reached) and self.is_stalking()
 
     def _manage_stalking(self, broker: Broker) -> None:
-        print(f"{_MF.prefix()}Start Managing Stalking.")
+        _MF.output(f"{_MF.prefix()}Start Managing Stalking.")
         try:
             while self._keep_stalkig():
-                print(f"{_MF.prefix()}Managing Stalking...")
-                print(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
+                _MF.output(f"{_MF.prefix()}Managing Stalking...")
+                _MF.output(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
                 start_time = _MF.get_timestamp()
                 self._set_next_stalk(start_time)
                 self._stalk_market(broker)
@@ -531,9 +531,9 @@ class StalkerClass(Strategy, MyJson, ABC):
                     sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
                     start_sleep = _MF.unix_to_date(end_time)
                     end_sleep = _MF.unix_to_date(next_stalk)
-                    print(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
+                    _MF.output(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
                     time.sleep(sleep_time)
-            print(f"{_MF.prefix()}End Managing Stalking.")
+            _MF.output(f"{_MF.prefix()}End Managing Stalking.")
         except Exception as e:
             from model.structure.Bot import Bot
             Bot.save_error(e, self.__class__.__name__)
@@ -544,12 +544,12 @@ class StalkerClass(Strategy, MyJson, ABC):
         :param bkr: Access to a Broker's  API
         """
         _cls = self
-        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + "Star stalking:".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
+        _MF.output(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_BACK_CYAN + _cls._TO_REMOVE_STYLE_BLACK + "Star stalking:".upper() + _cls._TO_REMOVE_STYLE_NORMAL)
         _stg_cls = self.__class__.__name__
         _bkr_cls = bkr.__class__.__name__
         pairs = self._get_no_active_pairs(bkr)
         nb_pair = len(pairs)    # ❌
-        print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Stalk of '{nb_pair}' unused pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
+        _MF.output(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Stalk of '{nb_pair}' unused pairs:" + _cls._TO_REMOVE_STYLE_NORMAL)
         perfs = Map()
         market_prices = Map()
         stalk_period = self.get_period()
@@ -565,7 +565,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         bkr.add_streams(streams)
         cpt = 1     # ❌
         for pair in pairs:
-            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN
+            _MF.output(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN
                   + f"[{cpt}/{nb_pair}].Getting {pair.__str__().upper()}'s performance for 1000 intervals of {int(stalk_period/60)}min."
                   + _cls._TO_REMOVE_STYLE_NORMAL)
             cpt += 1
@@ -584,9 +584,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         for pair_str, perf in perfs_sorted.items():
             market_price = market_prices.get(pair_str)
             eligible = self._eligible(market_price, bkr)
-            print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}]Pair '{pair_str.upper()}' eligible: {eligible}" + _cls._TO_REMOVE_STYLE_NORMAL)
+            _MF.output(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_CYAN + f"[{cpt}/{nb_pair}]Pair '{pair_str.upper()}' eligible: {eligible}" + _cls._TO_REMOVE_STYLE_NORMAL)
             if eligible:
-                print(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
+                _MF.output(f"{_MF.prefix()}" + _cls._TO_REMOVE_STYLE_PURPLE + f"Add new active Strategy: '{pair_str.upper()}'" + _cls._TO_REMOVE_STYLE_NORMAL)
                 self._add_active_strategy(Pair(pair_str))
                 if self.max_active_strategies_reached():
                     break
@@ -640,11 +640,11 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_green = self._TO_REMOVE_STYLE_GREEN
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market:" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start analyse of market:" + _normal)
         market_analyse = MarketPrice.analyse_market_trend(broker)
-        print(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _color_cyan + f"End analyse of market" + _normal)
         self._set_market_analyse(market_analyse)
-        print(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _color_green + f"Market analyse updated!" + _normal)
 
     # ——————————————————————————————————————————————— ANALYSE MARKET UP
 
@@ -680,7 +680,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         #
         active_stgs_copy = Map(self.get_active_strategies().get_map())
         pairs_to_delete = self.get_deleted_childs()
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
+        _MF.output(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Star manage strategies "
                                                               f"({len(active_stgs_copy.get_map())}):".upper() + _normal)
         self._manage_trades_add_streams(bkr, active_stgs_copy)
         market_analyse = self.get_market_analyse()
@@ -712,7 +712,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         _color_green = self._TO_REMOVE_STYLE_GREEN
         _color_black = self._TO_REMOVE_STYLE_BLACK
         _back_cyan = self._TO_REMOVE_STYLE_BACK_CYAN
-        print(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
+        _MF.output(f"{_MF.prefix()}" + _back_cyan + _color_black + f"Start Adding streams to socket:" + _normal)
         # Add streams
         streams = self._add_streams_get_streams(broker)
         nb_stream = len(streams)
@@ -721,13 +721,13 @@ class StalkerClass(Strategy, MyJson, ABC):
         start_date = _MF.unix_to_date(start_time)
         duration_date = _MF.unix_to_date(duration_time)
         duration_str = f"{int(nb_stream / 60)}min.{nb_stream % 60}sec."
-        print(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
+        _MF.output(f"{_MF.prefix()}" + _color_cyan + f"Adding '{nb_stream}' streams for '{duration_str}' till"
                                                 f" '{start_date}'->'{duration_date}'" + _normal)
         broker.add_streams(streams)
         end_time = _MF.get_timestamp()
         duration = end_time - start_time
         real_duration_str = f"{int(duration / 60)}min.{duration % 60}sec."
-        print(f"{_MF.prefix()}" + _color_green + f"End adding '{nb_stream}' streams for '{real_duration_str}'"
+        _MF.output(f"{_MF.prefix()}" + _color_green + f"End adding '{nb_stream}' streams for '{real_duration_str}'"
                                                  f" (estimated:'{duration_str}')" + _normal)
 
     def _add_streams_periods(self) -> list:
