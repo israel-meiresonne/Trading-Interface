@@ -975,7 +975,7 @@ class BinanceAPI(ABC):
             waitingroom = _cls.get_waitingroom()
             ticket = waitingroom.join_room(new_ticket())
             join_unix_time = _MF.get_timestamp()
-            print(f"{_MF.prefix()}Join room"
+            _MF.output(f"{_MF.prefix()}Join room"
                 f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
                 if _cls._DEBUG else None
             try:
@@ -988,7 +988,7 @@ class BinanceAPI(ABC):
                         unix_date = _MF.unix_to_date(unix_time)
                         wakeup_date = _MF.unix_to_date(unix_time + limits_sleep_time)
                         limits_sleep_time_str = time_to_str(limits_sleep_time)
-                        print(f"{_MF.prefix()}\033[33mCan't send request, sleep for '{limits_sleep_time_str}'"
+                        _MF.output(f"{_MF.prefix()}\033[33mCan't send request, sleep for '{limits_sleep_time_str}'"
                             f" from '{unix_date}'->'{wakeup_date}'"
                             f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
                             if _cls._DEBUG else None
@@ -1001,12 +1001,12 @@ class BinanceAPI(ABC):
                 # Quit room
                 waitingroom.quit_room(ticket)
                 wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
-                print(f"{_MF.prefix()}\033[31mQuit room with error in '{wait_time_str}'"
+                _MF.output(f"{_MF.prefix()}\033[31mQuit room with error in '{wait_time_str}'"
                     f" (size='{room_size(waitingroom)}', ticket='{ticket}')\n error: « {error} »" + '\033[0m') if _cls._DEBUG else None
                 raise error
             waitingroom.treat_ticket(ticket)
             wait_time_str = time_to_str(_MF.get_timestamp() - join_unix_time)
-            print(f"{_MF.prefix()}\033[32mTicket treated in '{wait_time_str}'"
+            _MF.output(f"{_MF.prefix()}\033[32mTicket treated in '{wait_time_str}'"
                 f" (size='{room_size(waitingroom)}', ticket=" + '\033[34m' + f"'{ticket}'" + '\033[0m') \
                 if _cls._DEBUG else None
         return response

@@ -41,6 +41,7 @@ class Map(MyJson):
     model = "model"
     shape = "shape"
     score = "score"
+    thread = "thread"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI

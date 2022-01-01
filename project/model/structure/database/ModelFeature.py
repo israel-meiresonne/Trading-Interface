@@ -316,17 +316,28 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def prefix() -> str:
         date = ModelFeature.unix_to_date(ModelFeature.get_timestamp())
-        thread_name = threading.current_thread().name
+        thread_name = ModelFeature.thread_name()
         return f"{date}| |{thread_name}| |"
 
     @staticmethod
     def thread_infos() -> str:
-        import threading
         threads = threading.enumerate()
         thread_names = [thread.name for thread in threads]
         nb = threading.active_count()
         thread_infos = f"Threads ('{nb}'): '{thread_names}'"
         return thread_infos
+
+    @staticmethod
+    def thread_name() -> str:
+        """
+        To get name of the current Thread
+
+        Returns:
+        --------
+        returrn: str
+            Name of the current Thread
+        """
+        return threading.current_thread().name
 
     @staticmethod
     def generate_thread_name(thread_base_name: str, code_size: int = None) -> str:
@@ -508,3 +519,18 @@ class ModelFeature(ModelAccess):
                 print(pfx() + ex + f"{rtn}") if rtn is not None else None
             except Exception as e:
                 print(e)
+
+    @staticmethod
+    def output(text: str) -> None:
+        """
+        To output messages
+
+        Parameters:
+        -----------
+        text: str
+            Message to output
+        """
+        from config.Config import Config
+        from model.tools.FileManager import FileManager
+        path = Config.get(Config.FILE_OUTPUT)
+        FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
