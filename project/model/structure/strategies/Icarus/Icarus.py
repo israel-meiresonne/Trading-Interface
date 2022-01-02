@@ -382,18 +382,26 @@ class Icarus(TraderClass):
             psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
             return psar_trend == MarketPrice.PSAR_DROPPING
         
-        def macd_ok() -> bool:
-            macd_map = marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            return macd[-1] <= macd[-2]
+        def is_macd_dropping() -> bool:
+            macd_ok = False
+            period = self.get_period()
+            buy_time = int(self.get_buy_order().get_execution_time() / 1000)
+            buy_time_rounded = _MF.round_time(buy_time, period)
+            next_open_time = buy_time_rounded + period
+            open_time = marketprice.get_time()
+            if open_time >= next_open_time:
+                macd_map = marketprice.get_macd()
+                macd = list(macd_map.get(Map.macd))
+                macd.reverse()
+                macd_ok = macd[-1] <= macd[-2]
+            return macd_ok
 
         can_sell = False
         # Close
         closes = list(marketprice.get_closes())
         closes.reverse()
         # Check
-        can_sell = macd_ok() or is_psar_dropping() or is_supertrend_dropping()
+        can_sell = is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping()
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -766,7 +774,7 @@ class Icarus(TraderClass):
             'can_buy': args_map.get('can_buy'),
             'can_sell': args_map.get('can_sell'),
             'indicator_buy': self._can_buy_indicator(market_price)[0],
-            'indicator_sell': self._can_sell_indicator(market_price),
+            'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
             Map.rsi: rsis[-1],
             'rsis[-2]': rsis[-2],
             'rsis[-3]': rsis[-3],
