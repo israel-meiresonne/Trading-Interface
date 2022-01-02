@@ -439,7 +439,7 @@ class Icarus(TraderClass):
         self._reset_max_close_predicted()
         # Evaluate Buy
         predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
-        can_buy = self.can_buy(predictor_marketprice, market_price)
+        can_buy, _ = self.can_buy(predictor_marketprice, market_price)
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
@@ -579,7 +579,7 @@ class Icarus(TraderClass):
         return can_add, repport
 
     @staticmethod
-    def can_buy(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> bool:
+    def can_buy(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
         pred_period = Icarus.get_predictor_period()
         if predictor_marketprice.get_period_time() != pred_period:
             predictor_period = Icarus.get_predictor_period()
@@ -779,7 +779,9 @@ class Icarus(TraderClass):
             'occup_trigger': _MF.rate_to_str(occup_trigger),
             'occup_reduce_rate': _MF.rate_to_str(occup_reduce_rate),
             'has_position': has_position,
-            'indicator_buy': self._can_buy_indicator(market_price),
+            'can_buy': args_map.get('can_buy'),
+            'can_sell': args_map.get('can_sell'),
+            'indicator_buy': self._can_buy_indicator(market_price)[0],
             'indicator_sell': self._can_sell_indicator(market_price),
             Map.rsi: rsis[-1],
             'rsis[-2]': rsis[-2],
