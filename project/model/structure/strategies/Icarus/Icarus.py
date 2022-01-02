@@ -381,13 +381,19 @@ class Icarus(TraderClass):
             psar.reverse()
             psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
             return psar_trend == MarketPrice.PSAR_DROPPING
+        
+        def macd_ok() -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            return macd[-1] <= macd[-2]
 
         can_sell = False
         # Close
         closes = list(marketprice.get_closes())
         closes.reverse()
         # Check
-        can_sell = is_psar_dropping() or is_supertrend_dropping()
+        can_sell = macd_ok() or is_psar_dropping() or is_supertrend_dropping()
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
