@@ -454,7 +454,6 @@ class ModelFeature(ModelAccess):
         status = prefix_str + f"[{turn}/{n_turn}] {message} == '{enddate}' == '{endtime_str}'" + _normal
         return status
 
-
     @staticmethod
     def catch_exception(callback: FunctionType, call_class: str, repport: bool = True, **kwargs) -> None:
         """
@@ -469,7 +468,7 @@ class ModelFeature(ModelAccess):
         repport: bool = True
             Set True to repport exception else False
         **kwargs: dict[str, Any]
-            Parameters for function to execute
+            Parameters for callback function to execute
         """
         try:
             callback(**kwargs)
@@ -490,13 +489,41 @@ class ModelFeature(ModelAccess):
         base_name: str
             Name of the new thread
         **kwargs: dict[str, Any]
-            Parameters for function to execute
+            Parameters for callback function to execute
         """
         _cls = ModelFeature
         thread_name = _cls.generate_thread_name(base_name, n_code)
         new_thread = threading.Thread(target=target, name=thread_name, kwargs=kwargs)
         output = f"New Thread '{thread_name}'!"
         return new_thread, output
+
+    def wrap_thread(callback: FunctionType, call_class: str, base_name: str, repport: bool = True, **kwargs) -> Tuple[threading.Thread, str]:
+        """
+        To to generate a new thread wrapped in try-catch
+
+        Parameters:
+        -----------
+        callback: FunctionType
+            Function to wrap and execute
+        base_name: str
+            Name of the new thread
+        call_class: str
+            Name of the class raising the execption
+        repport: bool = True
+            Set True to repport exception else False
+        **kwargs: dict[str, Any]
+            Parameters for callback function to execute
+        """
+        _cls = ModelFeature
+        wrap = _cls.catch_exception
+        wrap_kwargs = {
+            'callback': callback,
+            'call_class': call_class,
+            'repport': repport,
+            **kwargs
+            }
+        thread, output = _cls.generate_thread(target=wrap, base_name=base_name, **wrap_kwargs)
+        return thread, output
 
     @staticmethod
     def console(**kwargs) -> None:
