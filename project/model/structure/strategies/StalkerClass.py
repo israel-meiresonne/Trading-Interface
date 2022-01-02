@@ -32,7 +32,7 @@ class StalkerClass(Strategy, MyJson, ABC):
     _THREAD_NAME_MARKET_ANALYSE = 'market_analysing'
     _THREAD_NAME_MANAGE_TRADE = 'manage_trade_$pair'
     _GLOBAL_SAVE_INTERVAL = 10              # in second
-    _STALK_N_THREAD = 5
+    _STALK_N_THREAD = 15
     # Color
     _TO_REMOVE_STYLE_UNDERLINE = '\033[4m'
     _TO_REMOVE_STYLE_NORMAL = '\033[0m'
