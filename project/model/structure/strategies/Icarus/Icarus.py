@@ -370,30 +370,31 @@ class Icarus(TraderClass):
         return can_sell
     
     def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
+        def is_buy_period() -> bool:
+            period = self.get_period()
+            buy_time = int(self.get_buy_order().get_execution_time() / 1000)
+            buy_time_rounded = _MF.round_time(buy_time, period)
+            first_open_time = buy_time_rounded + period
+            open_time = marketprice.get_time()
+            return open_time < first_open_time
+
         def is_supertrend_dropping() -> bool:
             supertrend = list(marketprice.get_super_trend())
             supertrend.reverse()
-            supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+            supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -1)
             return supertrend_trend == MarketPrice.SUPERTREND_DROPPING
         
         def is_psar_dropping() -> bool:
             psar = list(marketprice.get_psar())
             psar.reverse()
-            psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+            psar_trend = MarketPrice.get_psar_trend(closes, psar, -1)
             return psar_trend == MarketPrice.PSAR_DROPPING
         
         def is_macd_dropping() -> bool:
-            macd_ok = False
-            period = self.get_period()
-            buy_time = int(self.get_buy_order().get_execution_time() / 1000)
-            buy_time_rounded = _MF.round_time(buy_time, period)
-            next_open_time = buy_time_rounded + period
-            open_time = marketprice.get_time()
-            if open_time >= next_open_time:
-                macd_map = marketprice.get_macd()
-                macd = list(macd_map.get(Map.macd))
-                macd.reverse()
-                macd_ok = macd[-1] <= macd[-2]
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            macd_ok = macd[-1] <= macd[-2]
             return macd_ok
 
         can_sell = False
@@ -401,7 +402,7 @@ class Icarus(TraderClass):
         closes = list(marketprice.get_closes())
         closes.reverse()
         # Check
-        can_sell = is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping()
+        can_sell = (not is_buy_period()) and (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -555,18 +556,18 @@ class Icarus(TraderClass):
         # Psar
         psars = list(market_price.get_psar())
         psars.reverse()
-        psar_trend = MarketPrice.get_psar_trend(closes, psars, -2)
+        psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
         psar_rising = psar_trend == MarketPrice.PSAR_RISING
         # Check
         can_add = psar_rising
         # Repport
-        key_str = Icarus.stalker_can_add.__name__
-        repport  = {
-            f'{key_str}.psar_rising[-2]': psar_rising,
-            f'{key_str}.closes[-1]': closes[-1],
-            f'{key_str}.closes[-2]': closes[-2],
-            f'{key_str}.psars[-1]': psars[-1],
-            f'{key_str}.psars[-2]': psars[-2]
+        key = Icarus.stalker_can_add.__name__
+        repport = {
+            f'{key}.psar_rising[-1]': psar_rising,
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.closes[-2]': closes[-2],
+            f'{key}.psars[-1]': psars[-1],
+            f'{key}.psars[-2]': psars[-2]
             }
         return can_add, repport
 
@@ -604,13 +605,13 @@ class Icarus(TraderClass):
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
-        now_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
-        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -3)
+        now_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -1)
+        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
         # Psar
         psar = list(child_marketprice.get_psar())
         psar.reverse()
-        now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
-        prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -3)
+        now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -1)
+        prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
         # Check
         supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
         supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
