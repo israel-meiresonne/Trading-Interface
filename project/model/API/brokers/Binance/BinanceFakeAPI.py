@@ -158,7 +158,8 @@ class BinanceFakeAPI(BinanceAPI):
             market_hist = _cls._get_market_historic(merged_pairs[0], _cls._CONST_MIN_PERIOD_MILLI)
             time = market_hist[index][0]
         else:
-            time = _MF.get_timestamp(_MF.TIME_MILLISEC)
+            market_hist = _cls._get_lower_market_historic(pair_merged)
+            time = market_hist[-1][0]
         return time
 
     @staticmethod
