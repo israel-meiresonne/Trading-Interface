@@ -77,6 +77,8 @@ class BinanceSocket(BinanceAPI):
         self.__streams = None
 
     def _set_streams(self, streams: list) -> None:
+        if not isinstance(streams, list):
+            raise TypeError(f"Streams must of type list, instead type='{type(streams)}'")
         if len(streams) == 0:
             raise ValueError("The list of stream can't be empty")
         streams = [stream for stream in streams if self.check_stream(stream)]
@@ -573,10 +575,15 @@ class BinanceSocket(BinanceAPI):
                     if new_row[-1][0] == market_hist[-1][0]:   # compare open time
                         print(_MF.prefix() + f"REPLACE LAST") if BinanceSocket._VERBOSE else None
                         market_hist[-1] = new_row
-                    else:
+                    elif new_row[-1][0] > market_hist[-1][0]:
                         print(_MF.prefix() + f"RESET ALL") if BinanceSocket._VERBOSE else None
                         new_market_hist = np.vstack((market_hist, new_row))
                         market_hists.put(new_market_hist, stream)
+                    else:
+                        new_date = _MF.unix_to_date(int(new_row[-1][0]/1000))
+                        market_date = _MF.unix_to_date(int(market_hist[-1][0]/1000))
+                        error = f"Stream event '{stream}' is older than market's newest row (market='{market_date}', new_date='{new_date}')"
+                        raise Exception(error)
                     print_end() if BinanceSocket._VERBOSE else None
 
             def root_event(event: str, pay_load: dict) -> None:
