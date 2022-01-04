@@ -145,7 +145,7 @@ class BinanceFakeAPI(BinanceAPI):
         return index
 
     @staticmethod
-    def _get_time(pair_merged: str = None, period_milli: int = None) -> int:
+    def _get_time(pair_merged: str, period_milli: int = None) -> int:
         """
         To get current time following the index\n
         :param pair_merged: Merged pair's symbol, i.e.: 'DOGEUSDT'
@@ -243,7 +243,7 @@ class BinanceFakeAPI(BinanceAPI):
         pair = _cls.merged_to_pair(pair_merged)
         # Extract from class
         actual_close = float(_cls._get_actual_close(pair_merged))
-        actual_time_milli = _cls._get_time()
+        actual_time_milli = _cls._get_time(pair_merged)
         # Prepare Fees
         asset_right = pair.get_right()
         asset_left = pair.get_left()
