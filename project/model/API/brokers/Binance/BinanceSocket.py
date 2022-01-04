@@ -464,15 +464,21 @@ class BinanceSocket(BinanceAPI):
                 raise Exception(f"There's no URL with this stream '{stream}'")
         return found
 
-    def _load_streams(self) -> None:
+    def _load_streams(self) -> list:
         """
         To prepare streams to add in WebSocket
         1. push this.new_streams in this.streams
         2. reset this.new_streams
+
+        Returns:
+        --------
+        return: list
+            List of new streams pushed in this.new_streams
         """
         new_streams = self.get_new_streams().copy()
         self._reset_new_streams()
         self._add_streams(new_streams)
+        return new_streams
 
     def all_streams(self) -> list:
         """
@@ -748,7 +754,6 @@ class BinanceSocket(BinanceAPI):
         def output(key: str, **kwargs) -> str:
             if key ==  "A":
                 _MF.output(f"{pfx()}" + _purple + _MF.thread_infos() + _normal) if BinanceSocket._DEBUG else None
-            elif key == "B":
                 # WebSocket
                 wss = self._get_websockets()
                 n_wss = len(wss.get_map())
@@ -759,6 +764,11 @@ class BinanceSocket(BinanceAPI):
                 n_market_reset = len(self._get_room_market_update().get_tickets())
                 msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Call_Room: ({n_call}) == Update_Room: ({n_market_reset})"
                 _MF.output(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
+            elif key == "B":
+                n_socket = kwargs[Map.websocket]
+                n_stream = kwargs[Map.stream]
+                msg = f"Establishing connection to '{n_stream}' streams with '{n_socket}' sockets"
+                _MF.output(f"{pfx()}" + _yellow + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "C0":
                 n_closed = kwargs[Map.close]
                 msg = f"Maintaining connection of '{n_closed}' closed WebSocket..."
@@ -819,6 +829,7 @@ class BinanceSocket(BinanceAPI):
             # self._load_streams()
             streams  = self.get_streams()
             wss = self._new_websockets(streams)
+            output("B", **{Map.websocket: len(wss), Map.stream: len(streams)})
             run_websockets(wss)
 
         def maintain_connection() -> None:
@@ -845,9 +856,8 @@ class BinanceSocket(BinanceAPI):
                 f_last_ws = f_wss.get(f_ws_ids[-1])
                 return f_last_ws
 
-            new_streams = self.get_new_streams().copy()
+            new_streams = self._load_streams()
             output('D0', **{Map.stream: new_streams})
-            self._load_streams()
             # Load market histories
             faileds = [new_stream for new_stream in new_streams if (not self.is_running()) or (not self._set_market_history(new_stream, raise_error=False))]
             failed = (len(faileds) > 0)
@@ -869,7 +879,7 @@ class BinanceSocket(BinanceAPI):
             new_wss = self._new_websockets(real_new_streams)
             run_websockets(new_wss)
             thd_add_streams = None
-            output('D2', **{Map.stream: real_new_streams})
+            output('D2', **{Map.stream: new_streams})
 
         def close_connection() -> None:
             """
@@ -884,8 +894,7 @@ class BinanceSocket(BinanceAPI):
         thd_add_streams = None
         while self.is_running():
             output("A")
-            output("B")
-            if not self._websocket_are_running():
+            if (thd_add_streams is None) and (not self._websocket_are_running()):
                 establish_connection() if (len(self._get_websockets().get_map()) == 0) else maintain_connection()
             if (len(self.get_new_streams()) > 0) and ((thd_add_streams is None) or (not thd_add_streams.is_alive())):
                 thd_add_streams = thread_add_streams()
