@@ -179,8 +179,8 @@ class IcarusStalker(StalkerClass):
         }
         # Repport
         key = Icarus.stalker_can_add.__name__
-        stalker_datas  = {
-            f'{key}.psar_rising[-2]': None,
+        stalker_datas = {
+            f'{key}.psar_rising[-1]': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
             f'{key}.psars[-1]': None,
