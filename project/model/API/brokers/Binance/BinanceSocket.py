@@ -589,7 +589,7 @@ class BinanceSocket(BinanceAPI):
                         new_date = _MF.unix_to_date(int(new_row[-1][0]/1000))
                         market_date = _MF.unix_to_date(int(market_hist[-1][0]/1000))
                         error = f"Stream event '{stream}' is older than market's newest row (market='{market_date}', new_date='{new_date}')"
-                        raise Exception(error)
+                        _MF.output(_MF.prefix() + _red + error + _normal)
                     print_end() if BinanceSocket._VERBOSE else None
 
             def root_event(event: str, pay_load: dict) -> None:
@@ -614,6 +614,8 @@ class BinanceSocket(BinanceAPI):
             self._generate_thread(handle_event, base_name, output=False).start()
 
         # Create WebSocket
+        _normal = '\033[0m'
+        _red = '\033[31m'
         url = self._generate_url(streams)
         handlers = {
             Map.on_open: on_open,
