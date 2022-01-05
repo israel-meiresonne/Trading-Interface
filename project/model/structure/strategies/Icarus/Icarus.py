@@ -360,11 +360,7 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION CAN SELL DOWN ———————————————————————————————————————————————
 
     def can_sell(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
-        # indicator
-        indicator_ok = self._can_sell_indicator(marketprice)
-        # Check
-        can_sell = indicator_ok or self._can_sell_prediction(predictor_marketprice, marketprice)
-        return can_sell
+        return self._can_sell_indicator(marketprice)
     
     def _can_sell_roi(self) -> bool:
         roi_pos = self.get_roi_position()
@@ -621,18 +617,32 @@ class Icarus(TraderClass):
         psar.reverse()
         now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -1)
         prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+        # MACD
+        macd_map = child_marketprice.get_macd()
+        macd = list(macd_map.get(Map.macd))
+        histogram = list(macd_map.get(Map.histogram))
+        histogram.reverse()
+        macd.reverse()
+        histogram_ok = histogram[-1] > 0
+        macd_ok = macd[-1] > macd[-2]
+        macd_rising = macd_ok and histogram_ok
         # Check
         supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
         supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
-        psar_switch_up = (now_psar_trend == MarketPrice.PSAR_RISING) and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
-        can_buy_indicator = (psar_switch_up and supertrend_rising) or supertrend_switch_up
+        psar_rising = now_psar_trend == MarketPrice.PSAR_RISING
+        psar_switch_up = psar_rising and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
+        can_buy_indicator = macd_rising and ((psar_switch_up and supertrend_rising) or (supertrend_switch_up and psar_rising))
         # Repport
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.supertrend_rising': supertrend_rising,
             f'{key}.supertrend_switch_up': supertrend_switch_up,
+            f'{key}.psar_rising': psar_rising,
             f'{key}.psar_switch_up': psar_switch_up,
+            f'{key}.macd_rising': macd_rising,
+            f'{key}.macd_ok': macd_ok,
+            f'{key}.histogram_ok': histogram_ok,
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.supertrend[-1]': supertrend[-1],
@@ -640,7 +650,10 @@ class Icarus(TraderClass):
             f'{key}.supertrend[-3]': supertrend[-3],
             f'{key}.psar[-1]': psar[-1],
             f'{key}.psar[-2]': psar[-2],
-            f'{key}.psar[-3]': psar[-3]
+            f'{key}.psar[-3]': psar[-3],
+            f'{key}.macd[-1]': macd[-1],
+            f'{key}.macd[-2]': macd[-2],
+            f'{key}.histogram[-1]': histogram[-1]
         }
         return can_buy_indicator, repport
 
