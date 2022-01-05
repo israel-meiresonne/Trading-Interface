@@ -81,4 +81,4 @@ def run_Test(class_name: str, test_func: str = None) -> None:
 
 if __name__ == '__main__':
     push_path()
-    run_Test(class_name='TestBinanceFakeAPI', test_func='test_get_time')
+    run_Test(class_name='TestBinance', test_func='test_get_pairs')
