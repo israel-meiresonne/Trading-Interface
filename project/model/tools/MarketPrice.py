@@ -1092,8 +1092,7 @@ class MarketPrice(ABC):
             r'^(bear|bull)/\w+$',
             r'^\w*inch\w*/\w+$',
             fiat_rgx,
-            stablecoin_rgx,
-            r'BCHSV/\w+$'
+            stablecoin_rgx
         ]
         match = [rf'^.+\/{fiat_asset.__str__()}']
         # Add streams
