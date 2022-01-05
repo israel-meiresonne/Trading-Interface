@@ -149,7 +149,11 @@ class IcarusStalker(StalkerClass):
             f'{key}.can_buy_indicator': None,
             f'{key}.supertrend_rising': None,
             f'{key}.supertrend_switch_up': None,
+            f'{key}.psar_rising': None,
             f'{key}.psar_switch_up': None,
+            f'{key}.macd_rising': None,
+            f'{key}.macd_ok': None,
+            f'{key}.histogram_ok': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
             f'{key}.supertrend[-1]': None,
@@ -157,7 +161,10 @@ class IcarusStalker(StalkerClass):
             f'{key}.supertrend[-3]': None,
             f'{key}.psar[-1]': None,
             f'{key}.psar[-2]': None,
-            f'{key}.psar[-3]': None
+            f'{key}.psar[-3]': None,
+            f'{key}.macd[-1]': None,
+            f'{key}.macd[-2]': None,
+            f'{key}.histogram[-1]': None
         }
         # Repport
         key = Icarus._can_buy_prediction.__name__
