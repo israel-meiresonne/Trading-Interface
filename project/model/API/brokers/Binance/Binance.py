@@ -118,6 +118,10 @@ class Binance(Broker, MyJson):
 
     @staticmethod
     def get_pairs(match: List[str] = None, no_match: List[str] = None) -> List[str]:
+        excludes = BinanceAPI.get_exclude_assets()
+        if len(excludes) > 0:
+            regex_exclude = [f'{exclude}/\w+$'for exclude in excludes]
+            no_match = [*no_match, *regex_exclude] if isinstance(no_match, list) else regex_exclude
         return BinanceAPI.get_pairs(match=match, no_match=no_match)
 
     @staticmethod

@@ -438,6 +438,7 @@ class BinanceAPI(ABC):
     _TRADE_FEES[symbol{str}][Map.maker]:      {float}
     """
     _SYMBOL_TO_PAIR = None
+    _EXCLUDE_ASSET = ['bchsv']
     # Variables
     _ORDER_RQ_REGEX = r'^RQ_ORDER.*$'
     _TEST_MODE = None
@@ -1134,6 +1135,10 @@ class BinanceAPI(ABC):
             regex_no_match = '|'.join(no_match)
             pair_strs = [pair_str for pair_str in pair_strs if not _MF.regex_match(regex_no_match, pair_str)]
         return pair_strs
+
+    @staticmethod
+    def get_exclude_assets() -> list:
+        return BinanceAPI._EXCLUDE_ASSET
 
     @staticmethod
     def _get_request_configs() -> dict:
