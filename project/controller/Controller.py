@@ -157,7 +157,7 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 5
+                        Map.period: 60 * 15
                     }
                 })
             elif stg == 'IcarusStalker':
@@ -172,14 +172,14 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 5,
+                        Map.period: 60 * 15,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
                                                                no_selected_stgs)],
                         Map.param: {
                             Map.maximum: None,
                             Map.capital: -1,
                             Map.rate: 1,
-                            Map.period: 60 * 5,
+                            Map.period: 60 * 15,
                         }
                     }
                 })
@@ -227,14 +227,14 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: vw.input(message="Enter initial capital to use:", type_func="float"),
                         Map.rate: 1,
-                        Map.period: 60 * 5,
+                        Map.period: 60 * 15,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
                                                                no_selected_stgs)],
                         Map.param: {
                             Map.maximum: None,
                             Map.capital: -1,
                             Map.rate: 1,
-                            Map.period: 60 * 5,
+                            Map.period: 60 * 15,
                         }
                     }
             else:
@@ -247,27 +247,6 @@ class Controller:
         configs.put(pair_code, stg, Map.pair)
         bot = md.create_bot(bkr, stg, pair_code, configs)
         vw.output(View.FILE_MESSAGE, f"✅ new Bot created (Bot's id: '{bot.get_id()}')")
-        """
-        if (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
-            # Select period
-            bots = md.get_bots()
-            bt_ids = list(bots.keys())
-            bot = bots[bt_ids[0]]
-            period_ranking = bot.get_period_ranking()
-            options = []
-            best_periods = []
-            for rank, struc in period_ranking.get(Map.period).items():
-                period = struc[Map.period]
-                best_periods.append(period)
-                roi = round(struc[Map.roi]*100, 2)
-                roi_per_day = round(struc[Map.day]*100, 2)
-                option = f"rank:{rank} | minutes:{period / 60} | " \
-                         f"roi:{roi}% | day:{roi_per_day}%"
-                options.append(option)
-            best_period = best_periods[vw.menu(f"Select a trading interval for your pair '{pair_code.upper()}':", options)]
-            bot.set_best_period(best_period)
-            vw.output(View.FILE_MESSAGE, "✅ Trading interval set!")
-        """
 
     def start_bot(self):
         md = self._get_model()
