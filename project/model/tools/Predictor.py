@@ -97,19 +97,7 @@ class Predictor(MyJson):
         return predictions
 
     def score_high_occupation(self, marketprice: MarketPrice, n_score: int = _HIGH_OCCUP_N_SCORE, n_mean: int = _HIGH_OCCUP_N_MEAN) -> float:
-        closes = list(marketprice.get_closes())
-        closes.reverse()
-        highs = list(marketprice.get_highs())
-        highs.reverse()
-        model = self.get_model(self.HIGH)
-        n_feature = model.n_feature()
-        x_highs, y_highs = self.generate_dataset(highs, n_feature)
-        pred_y_highs = model.predict(x_highs, fixe_offset=True, xs_offset=x_highs, ys_offset=y_highs)
-        x_closes, _ = self.generate_dataset(closes, n_feature)
-        last_closes = x_closes[:,-1]
-        pred_y_highs = pred_y_highs.ravel()
-        y_highs = y_highs.ravel()
-        occups = (y_highs - last_closes)/(pred_y_highs - last_closes)
+        occups, _, y_highs, _, _  = self.occupation_rate(marketprice)
         occups = [1 if c > 1 else c for c in occups]
         occups = np.array([0 if c < 0 else c for c in occups])
         times = []
@@ -125,6 +113,25 @@ class Predictor(MyJson):
         scores = occups[:max_idx]/times
         mean_score = sum(scores[-n_mean:])/n_mean
         return mean_score
+
+    def occupation_rate(self, marketprice: MarketPrice) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        """
+        _cls = Predictor
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        highs = list(marketprice.get_highs())
+        highs.reverse()
+        model = self.get_model(self.HIGH)
+        n_feature = model.n_feature()
+        x_highs, y_highs = _cls.generate_dataset(highs, n_feature)
+        pred_y_highs = model.predict(x_highs, fixe_offset=True, xs_offset=x_highs, ys_offset=y_highs)
+        x_closes, _ = _cls.generate_dataset(closes, n_feature)
+        last_closes = x_closes[:,-1]
+        pred_y_highs = pred_y_highs.ravel()
+        y_highs = y_highs.ravel()
+        occups = (y_highs - last_closes)/(pred_y_highs - last_closes)
+        return occups, x_highs, y_highs, x_closes, pred_y_highs
 
     def _json_encode_prepare(self) -> None:
         models = self.get_models()
