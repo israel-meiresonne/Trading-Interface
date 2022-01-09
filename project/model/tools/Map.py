@@ -12,6 +12,7 @@ class Map(MyJson):
     response = "response"
     minimum = "minimum"
     maximum = "maximum"
+    mean = "mean"
     GET = "GET"
     POST = "POST"
     real = "real"
