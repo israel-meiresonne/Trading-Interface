@@ -396,12 +396,19 @@ class Icarus(TraderClass):
             macd_ok = macd[-1] <= macd[-2]
             return macd_ok
 
+        def is_price_dropping() -> bool:
+            opens = list(marketprice.get_opens())
+            opens.reverse()
+            price_dropping_2 = _MF.progress_rate(closes[-2], opens[-2])
+            price_dropping_3 = _MF.progress_rate(closes[-3], opens[-3])
+            return (price_dropping_2 < 0) and (price_dropping_3 < 0)
+
         can_sell = False
         # Close
         closes = list(marketprice.get_closes())
         closes.reverse()
         # Check
-        can_sell = (not is_buy_period()) and (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+        can_sell = (not is_buy_period()) and (is_price_dropping() or is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
