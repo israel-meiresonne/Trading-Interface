@@ -129,12 +129,24 @@ class FileManager(ABC):
     @staticmethod
     def get_files(path: str, extension: bool = True, special: bool = False, make_dir: bool = False) -> list:
         """
-        To list files of a directory\n
-        :param path: the path of the directory
-        :param extension: set True to get files with their extension else False
-        :param special: set True to get special files (.ignore, .DS_Store, etc...) else False to exclude them
-        :param make_dir: Set True create missing directory else False to raise error if miss directory
-        :return: list of files
+        To list files of a directory
+        NOTE: files are sorted low to hight following their name
+
+        Parameters:
+        -----------
+        path: str
+            The path to the directory
+        extension: bool = True
+            Set True to get files with their extension else False
+        special: bool = False
+            Set True to get special files (.ignore, .DS_Store, etc...) else False to exclude them
+        make_dir: bool = False
+            Set True create missing directory else False to raise error if miss directory
+
+        Returns:
+        --------
+        return: list
+            List files name in the given directory
         """
         project_dir = FileManager.get_project_directory()
         FileManager.make_directory(path) if make_dir else None
