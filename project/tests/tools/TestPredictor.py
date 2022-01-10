@@ -2,6 +2,7 @@ from typing import List
 import unittest
 
 import numpy as np
+import pandas as pd
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
@@ -18,7 +19,7 @@ from model.tools.Predictor import Predictor
 
 class TestPredictor(unittest.TestCase, Predictor):
     def setUp(self) -> None:
-        pass
+        _MF.OUTPUT = True
 
     def tearDown(self) -> None:
         self.broker_switch(False)
@@ -98,6 +99,11 @@ class TestPredictor(unittest.TestCase, Predictor):
         coef = predictor.score_high_occupation(marketprice, n_mean=50)
         print(coef)
         # end
+        self.broker_switch(False)
+
+    def test_save_occupation_rate(self) -> None:
+        bkr = self.broker_switch(True)
+        Predictor.save_occupation_rate(bkr)
         self.broker_switch(False)
 
     def test_get_learn_path(self) -> None:
@@ -267,7 +273,38 @@ class TestPredictor(unittest.TestCase, Predictor):
         exp2 = f'content/storage/Predictor/learns/DOGE_USDT/900/{hist_type}/model.xyz'
         result2 = Predictor.learn_file_path(pair, period, hist_type, Predictor.get_learn_model_file())
         self.assertEqual(exp2, result2)
-    
+
+    def test_occupation_rate_path(self) -> None:
+        unix_time = _MF.get_timestamp()
+        unix_date = _MF.unix_to_date(unix_time, _MF.FORMAT_D_H_M_S_FOR_FILE)
+        occup_file = "$date_occupation_rate.csv"
+        # Check file: no replaced
+        exp1 = occup_file
+        result1 = Predictor.get_occupation_rate_file()
+        self.assertEqual(exp1, result1)
+        # Check file: replaced
+        exp2 = f"{unix_date}_occupation_rate.csv"
+        result2 = Predictor.get_occupation_rate_file(unix_time)
+        self.assertEqual(exp2, result2)
+        # Check dir
+        exp3 = f"content/storage/{Predictor.__name__}/learns/print/occupation_rate/"
+        result3 = Predictor.get_occupation_rate_dir()
+        self.assertEqual(exp3, result3)
+        # Check file path
+        exp4 = f"content/storage/{Predictor.__name__}/learns/print/occupation_rate/{unix_date}_occupation_rate.csv"
+        result4 = Predictor.get_occupation_rate_file_path(unix_time)
+        self.assertEqual(exp4, result4)
+
+    def test_load_occupation_rate(self) -> None:
+        unix_date = _MF.unix_to_date(_MF.get_timestamp())
+        test_file_path = Predictor.get_occupation_rate_dir() + 'test_load_occupation_rate.csv'
+        rows = [{Map.date: unix_date}]
+        FileManager.write_csv(test_file_path, list(rows[0].keys()), rows)
+        df = Predictor.load_occupation_rate()
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertDictEqual(rows[0], df.to_dict(orient='records')[0])
+        FileManager.remove_file(test_file_path)
+
     def test_json_encode_decode(self) -> None:
         pair = Pair("DOGE/USDT")
         period = 60 * 60
