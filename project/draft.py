@@ -48,8 +48,17 @@ def predictor() -> None:
     Predictor.update_market_histories(bkr, fiat_asset, pairs=miss_pairs, periods=hist_periods)
     Predictor.update_learns(pairs=miss_pairs, periods=learn_periods)
 
+def load_icarus_pairs() -> None:
+    stock_pairs = Predictor.learned_pairs(stock_path=True)
+    occup_df = Predictor.load_occupation_rate()
+    df = occup_df[occup_df[Map.mean] >= 40/100]
+    df = df[df[">= 100"] >= 20/100]
+    filtered_pair = df[Map.pair].to_list()
+    allowed_pairs = [stock_pair for stock_pair in stock_pairs if stock_pair.__str__() in filtered_pair]
+    print(allowed_pairs)
+
 def main() -> None:
-    pass
+    load_icarus_pairs()
 
 if __name__ == '__main__':
     starttime = _MF.get_timestamp()
