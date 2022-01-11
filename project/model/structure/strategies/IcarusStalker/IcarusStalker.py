@@ -17,6 +17,8 @@ from model.tools.Wallet import Wallet
 class IcarusStalker(StalkerClass):
     _CONST_MAX_STRATEGY = 5
     _STALKER_BOT_SLEEP_TIME = 1  # in second
+    _PAIR_FILTER_MEAN = 40/100
+    _PAIR_FILTER_100 = 20/100
 
     def __init__(self, params: Map):
         """
@@ -25,6 +27,7 @@ class IcarusStalker(StalkerClass):
                params[*]:   {Stalker.__init__()}    # Same structure
         """
         super().__init__(params)
+        self.__last_reset_allowed_pair = None
 
     def _manage_trade(self, bkr: Broker, child: TraderClass) -> None:
         starttime = _MF.get_timestamp()
@@ -209,9 +212,36 @@ class IcarusStalker(StalkerClass):
         content = {key: repport.get(key) for key in canvas}
         return content
 
+    def _reset_last_reset_allowed_pair(self) -> int:
+        interval = Icarus.get_predictor_period()
+        unix_time = _MF.get_timestamp()
+        self.__last_reset_allowed_pair = _MF.round_time(unix_time, interval)
+
+    def get_last_reset_allowed_pair(self) -> int:
+        """
+        To get last time that the pair to stalk have been reseted
+        """
+        return self.__last_reset_allowed_pair
+
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
-        if self._allowed_pairs is None:
-            self._allowed_pairs = Predictor.learned_pairs(stock_path=False)
+        def can_reset() -> bool:
+            f_last_reset = self.get_last_reset_allowed_pair()
+            _can_reset = f_last_reset is None
+            if not _can_reset:
+                interval = Icarus.get_predictor_period()
+                unix_time = _MF.get_timestamp()
+                _can_reset = unix_time >= (f_last_reset + interval)
+            return _can_reset
+
+        if (self._allowed_pairs is None) or can_reset():
+            stock_pairs = Predictor.learned_pairs(stock_path=True)
+            occup_df = Predictor.load_occupation_rate()
+            df = occup_df[occup_df[Map.mean] >= self._PAIR_FILTER_MEAN]
+            df = df[df[">= 100"] >= self._PAIR_FILTER_100]
+            filtered_pair = df[Map.pair].to_list()
+            allowed_pairs = [stock_pair for stock_pair in stock_pairs if stock_pair.__str__() in filtered_pair]
+            self._allowed_pairs = allowed_pairs
+            self._reset_last_reset_allowed_pair()
         return self._allowed_pairs
 
     @staticmethod
