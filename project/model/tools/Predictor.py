@@ -24,6 +24,7 @@ class Predictor(MyJson):
     _FILE_LEARN_JSON = f'{DeepLearning.__name__}.json'
     _FILE_LEARN_MODEL = 'keras_model.xyz'
     _FILE_LEARN_CONFIG = 'config.csv'
+    _PATH_FILE_OCCUPATION_RATE = '$class/learns/print/occupation_rate/$date_occupation_rate.csv'
     _LEARN_PERIODS = [
         60 * 60
     ]
@@ -97,19 +98,7 @@ class Predictor(MyJson):
         return predictions
 
     def score_high_occupation(self, marketprice: MarketPrice, n_score: int = _HIGH_OCCUP_N_SCORE, n_mean: int = _HIGH_OCCUP_N_MEAN) -> float:
-        closes = list(marketprice.get_closes())
-        closes.reverse()
-        highs = list(marketprice.get_highs())
-        highs.reverse()
-        model = self.get_model(self.HIGH)
-        n_feature = model.n_feature()
-        x_highs, y_highs = self.generate_dataset(highs, n_feature)
-        pred_y_highs = model.predict(x_highs, fixe_offset=True, xs_offset=x_highs, ys_offset=y_highs)
-        x_closes, _ = self.generate_dataset(closes, n_feature)
-        last_closes = x_closes[:,-1]
-        pred_y_highs = pred_y_highs.ravel()
-        y_highs = y_highs.ravel()
-        occups = (y_highs - last_closes)/(pred_y_highs - last_closes)
+        occups, _, y_highs, _, _  = self.occupation_rate(marketprice)
         occups = [1 if c > 1 else c for c in occups]
         occups = np.array([0 if c < 0 else c for c in occups])
         times = []
@@ -125,6 +114,25 @@ class Predictor(MyJson):
         scores = occups[:max_idx]/times
         mean_score = sum(scores[-n_mean:])/n_mean
         return mean_score
+
+    def occupation_rate(self, marketprice: MarketPrice) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        """
+        _cls = Predictor
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        highs = list(marketprice.get_highs())
+        highs.reverse()
+        model = self.get_model(self.HIGH)
+        n_feature = model.n_feature()
+        x_highs, y_highs = _cls.generate_dataset(highs, n_feature)
+        pred_y_highs = model.predict(x_highs, fixe_offset=True, xs_offset=x_highs, ys_offset=y_highs)
+        x_closes, _ = _cls.generate_dataset(closes, n_feature)
+        last_closes = x_closes[:,-1]
+        pred_y_highs = pred_y_highs.ravel()
+        y_highs = y_highs.ravel()
+        occups = (y_highs - last_closes)/(pred_y_highs - last_closes)
+        return occups, x_highs, y_highs, x_closes, pred_y_highs
 
     def _json_encode_prepare(self) -> None:
         models = self.get_models()
@@ -178,6 +186,63 @@ class Predictor(MyJson):
         old_str = Config.TOKEN_PREDICTOR_LEARN_PATH
         new_path = Predictor._PATH_LEARN.replace(old_str, new_str)
         return new_path
+
+    @staticmethod
+    def get_occupation_rate_file(unix_time: int = None) -> str:
+        """
+        To get name of the file where to store analyse of the occupation rate
+
+        Parameters:
+        -----------
+        unix_time: int = None
+            Date to place in file's name
+
+        Returns:
+        --------
+        return: str
+            File where to store analyse of the occupation rate
+        """
+        occup_file  = Predictor._PATH_FILE_OCCUPATION_RATE.split('/')[-1]
+        if unix_time is not None:
+            unix_date = _MF.unix_to_date(unix_time, _MF.FORMAT_D_H_M_S_FOR_FILE)
+            occup_file = occup_file.replace('$date', unix_date)
+        return occup_file
+
+    @staticmethod
+    def get_occupation_rate_dir() -> str:
+        """
+        To get path to directory where analyses of the occupation rate are stored
+
+        Returns:
+        --------
+        return: str
+            Path to directory where analyses of the occupation rate are stored
+        """
+        _cls = Predictor
+        storage_path = Config.get(Config.DIR_STORAGE)
+        occup_split = _cls._PATH_FILE_OCCUPATION_RATE.split('/')
+        occup_dir = '/'.join(occup_split[:-1]) + '/'
+        occup_dir = occup_dir.replace('$class', _cls.__name__)
+        return storage_path + occup_dir
+
+    @staticmethod
+    def get_occupation_rate_file_path(unix_time: int) -> str:
+        """
+        To get path to the file where to store analyse of the occupation rate
+
+        Parameters:
+        -----------
+        unix_time: int
+            Date to place in file's name
+
+        Returns:
+        --------
+        return: str
+            Path to the file where to store analyse of the occupation rate
+        """
+        _cls = Predictor
+        occup_path_file = _cls.get_occupation_rate_dir() + _cls.get_occupation_rate_file(unix_time)
+        return occup_path_file
 
     # ——————————————————————————————————————————— STATIC GETTTER UP ————————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION LEARN DOWN ———————————————————————————————————————————
@@ -693,8 +758,6 @@ class Predictor(MyJson):
 
     @staticmethod
     def _print_market_history(pair: Pair, period: int, marketprices: pd.DataFrame, overwrite: bool) -> None:
-        # if period not in Predictor.get_learn_periods():
-        #     raise Exception(f"This period '{period}' is not supported")
         file_path = Predictor.history_file_path(pair, period)
         content = marketprices.to_csv(index=False, header=overwrite)
         FileManager.write(file_path, content,
@@ -748,6 +811,78 @@ class Predictor(MyJson):
 
     # ——————————————————————————————————————————— STATIC FUNCTION MARKET DOWN ——————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
+
+    @staticmethod
+    def save_occupation_rate(broker: Broker) -> None:
+        def print_row(f_path: str, f_rows: List[dict]) -> None:
+            f_fields = list(f_rows[0].keys())
+            f_overwrite = False
+            FileManager.write_csv(f_path, f_fields, f_rows, f_overwrite, make_dir=True)
+
+        def distribution(f_occupations: np.ndarray) -> dict:
+            f_cols = ["< 0", "== 0", "> 0", ">= 10", ">= 20", ">= 30", ">= 40", ">= 50", ">= 60", ">= 70", ">= 80", ">= 90", ">= 100"]
+            f_n = f_occupations.shape[0]
+            f_row = {f_col: f_occupations[eval(f"f_occupations {f_col}/100")].shape[0]/f_n for f_col in f_cols}
+            return f_row
+        
+        def filter_rates(f_rates: np.ndarray) -> np.ndarray:
+            f_new_rates = [1 if c > 1 else c for c in f_rates]
+            f_new_rates = np.array([0 if c < 0 else c for c in f_new_rates])
+            return f_new_rates
+
+        _cls = Predictor
+        path = _cls.get_occupation_rate_file_path(_MF.get_timestamp())
+        period = 60 * 60
+        n_period = broker.get_max_n_period()
+        pairs = _cls.learned_pairs(stock_path=True)
+        streams = [broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
+        broker.add_streams(streams)
+        if _cls._DEBUG:
+            starttime = _MF.get_timestamp()
+            turn = 1
+            n_turn = len(pairs)
+        for pair in pairs:
+            if _cls._DEBUG:
+                print(_MF.loop_progression(starttime, turn, n_turn, pair.__str__().upper()))
+                turn += 1
+            marketprice = MarketPrice.marketprice(broker, pair, period, n_period)
+            predictor = Predictor(pair, period)
+            occups = predictor.occupation_rate(marketprice)[0]
+            occups = filter_rates(occups)
+            times = list(marketprice.get_times())
+            times.reverse()
+            start_date = _MF.unix_to_date(times[0])
+            end_date = _MF.unix_to_date(times[-1])
+            delta_time = _MF.delta_time(times[0], times[-1])
+            coef = predictor.get_model(_cls.HIGH).get_coef_determination()
+            rows = [{
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.pair: pair,
+                Map.period: period,
+                'start_date': start_date,
+                'end_date': end_date,
+                Map.time: delta_time,
+                'n_period': len(times),
+                'n_occupation': occups.shape[0],
+                Map.minimum: occups.min(),
+                Map.mean: occups.mean(),
+                Map.maximum: occups.max(),
+                Map.coefficient: coef,
+                **distribution(occups)
+            }]
+            print_row(f_path=path, f_rows=rows)
+
+    @staticmethod
+    def load_occupation_rate() -> pd.DataFrame:
+        """
+        To load analyse of occupation rate
+        """
+        path_dir = Predictor.get_occupation_rate_dir()
+        occup_files = FileManager.get_files(path_dir)
+        occup_file_path = path_dir + occup_files[-1]
+        project_dir = FileManager.get_project_directory()
+        occup_rates = pd.read_csv(project_dir + occup_file_path)
+        return occup_rates
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
