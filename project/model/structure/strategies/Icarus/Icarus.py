@@ -360,7 +360,7 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION CAN SELL DOWN ———————————————————————————————————————————————
 
     def can_sell(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
-        return self._can_sell_indicator(marketprice)
+        return self._can_sell_indicator(marketprice) or self._can_sell_prediction(predictor_marketprice, marketprice)
     
     def _can_sell_roi(self) -> bool:
         roi_pos = self.get_roi_position()
@@ -410,7 +410,19 @@ class Icarus(TraderClass):
             max_roi_pred = self.max_roi_predicted()
             return max_roi >= max_roi_pred
 
-        can_sell = is_prediction_reached()
+        def get_new_max_close_pred() -> float:
+            predictor = self.get_predictor()
+            return self._predict_max_high(predictor_marketprice, predictor)
+
+        def is_new_prediction_better() -> bool:
+            max_close_pred = get_new_max_close_pred()
+            close = marketprice.get_close()
+            max_roi_pred = _MF.progress_rate(max_close_pred, close)
+            pred_trigger = self.get_min_roi_predicted()
+            self._set_max_close_predicted(max_close_predicted=max_close_pred)
+            return max_roi_pred >= pred_trigger
+
+        can_sell = is_prediction_reached() and is_new_prediction_better()
         return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
