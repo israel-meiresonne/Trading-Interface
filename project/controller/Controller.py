@@ -157,7 +157,7 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 15
+                        Map.period: 60 * 5
                     }
                 })
             elif stg == 'IcarusStalker':
@@ -172,14 +172,14 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: 1000,
                         Map.rate: 1,
-                        Map.period: 60 * 15,
+                        Map.period: 60 * 5,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
                                                                no_selected_stgs)],
                         Map.param: {
                             Map.maximum: None,
                             Map.capital: -1,
                             Map.rate: 1,
-                            Map.period: 60 * 15,
+                            Map.period: 60 * 5,
                         }
                     }
                 })
@@ -227,14 +227,14 @@ class Controller:
                         Map.maximum: None,
                         Map.capital: vw.input(message="Enter initial capital to use:", type_func="float"),
                         Map.rate: 1,
-                        Map.period: 60 * 15,
+                        Map.period: 60 * 5,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
                                                                no_selected_stgs)],
                         Map.param: {
                             Map.maximum: None,
                             Map.capital: -1,
                             Map.rate: 1,
-                            Map.period: 60 * 15,
+                            Map.period: 60 * 5,
                         }
                     }
             else:
