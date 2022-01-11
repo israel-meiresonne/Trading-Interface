@@ -19,6 +19,7 @@ from scipy.stats import linregress
 
 
 class ModelFeature(ModelAccess):
+    OUTPUT = False
     TIME_SEC = "time_sec"
     TIME_MILLISEC = "time_millisec"
     FORMAT_D_H_M_S_MS = '%Y-%m-%d %H:%M:%S.%f'
@@ -557,7 +558,10 @@ class ModelFeature(ModelAccess):
         text: str
             Message to output
         """
-        from config.Config import Config
-        from model.tools.FileManager import FileManager
-        path = Config.get(Config.FILE_OUTPUT)
-        FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
+        if not ModelFeature.OUTPUT:
+            from config.Config import Config
+            from model.tools.FileManager import FileManager
+            path = Config.get(Config.FILE_OUTPUT)
+            FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
+        else:
+            print(text)

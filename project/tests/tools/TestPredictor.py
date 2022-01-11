@@ -2,8 +2,10 @@ from typing import List
 import unittest
 
 import numpy as np
+import pandas as pd
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
+from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
@@ -17,7 +19,7 @@ from model.tools.Predictor import Predictor
 
 class TestPredictor(unittest.TestCase, Predictor):
     def setUp(self) -> None:
-        pass
+        _MF.OUTPUT = True
 
     def tearDown(self) -> None:
         self.broker_switch(False)
@@ -97,6 +99,11 @@ class TestPredictor(unittest.TestCase, Predictor):
         coef = predictor.score_high_occupation(marketprice, n_mean=50)
         print(coef)
         # end
+        self.broker_switch(False)
+
+    def test_save_occupation_rate(self) -> None:
+        bkr = self.broker_switch(True)
+        Predictor.save_occupation_rate(bkr)
         self.broker_switch(False)
 
     def test_get_learn_path(self) -> None:
@@ -266,7 +273,38 @@ class TestPredictor(unittest.TestCase, Predictor):
         exp2 = f'content/storage/Predictor/learns/DOGE_USDT/900/{hist_type}/model.xyz'
         result2 = Predictor.learn_file_path(pair, period, hist_type, Predictor.get_learn_model_file())
         self.assertEqual(exp2, result2)
-    
+
+    def test_occupation_rate_path(self) -> None:
+        unix_time = _MF.get_timestamp()
+        unix_date = _MF.unix_to_date(unix_time, _MF.FORMAT_D_H_M_S_FOR_FILE)
+        occup_file = "$date_occupation_rate.csv"
+        # Check file: no replaced
+        exp1 = occup_file
+        result1 = Predictor.get_occupation_rate_file()
+        self.assertEqual(exp1, result1)
+        # Check file: replaced
+        exp2 = f"{unix_date}_occupation_rate.csv"
+        result2 = Predictor.get_occupation_rate_file(unix_time)
+        self.assertEqual(exp2, result2)
+        # Check dir
+        exp3 = f"content/storage/{Predictor.__name__}/learns/print/occupation_rate/"
+        result3 = Predictor.get_occupation_rate_dir()
+        self.assertEqual(exp3, result3)
+        # Check file path
+        exp4 = f"content/storage/{Predictor.__name__}/learns/print/occupation_rate/{unix_date}_occupation_rate.csv"
+        result4 = Predictor.get_occupation_rate_file_path(unix_time)
+        self.assertEqual(exp4, result4)
+
+    def test_load_occupation_rate(self) -> None:
+        unix_date = _MF.unix_to_date(_MF.get_timestamp())
+        test_file_path = Predictor.get_occupation_rate_dir() + 'test_load_occupation_rate.csv'
+        rows = [{Map.date: unix_date}]
+        FileManager.write_csv(test_file_path, list(rows[0].keys()), rows)
+        df = Predictor.load_occupation_rate()
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertDictEqual(rows[0], df.to_dict(orient='records')[0])
+        FileManager.remove_file(test_file_path)
+
     def test_json_encode_decode(self) -> None:
         pair = Pair("DOGE/USDT")
         period = 60 * 60
@@ -310,6 +348,57 @@ class TestPredictor(unittest.TestCase, Predictor):
             print(_MF.prefix() + _back_cyan + f"Start learning '{pair.__str__().upper()}'..." + _normal)
             self._learn(pair)
             print(_MF.prefix() + _back_cyan + f"End learning '{pair.__str__().upper()}'" + _normal)
+
+    def print_occupation_rate(self) -> None:
+        def print_row(f_path: str, f_rows: List[dict]) -> None:
+            f_fields = list(f_rows[0].keys())
+            f_overwrite = False
+            FileManager.write_csv(f_path, f_fields, f_rows, f_overwrite, make_dir=True)
+
+        def distribution(f_occupations: np.ndarray) -> dict:
+            f_cols = ["< 0", "== 0", "> 0", ">= 10", ">= 20", ">= 30", ">= 40", ">= 50", ">= 60", ">= 70", ">= 80", ">= 90", ">= 100"]
+            f_n = f_occupations.shape[0]
+            f_row = {f_col: f_occupations[eval(f"f_occupations {f_col}/100")].shape[0]/f_n for f_col in f_cols}
+            return f_row
+
+        date = _MF.unix_to_date(_MF.get_timestamp(), form=_MF.FORMAT_D_H_M_S_FOR_FILE)
+        path = f'content/storage/Predictor/learns/print/occupation_rate/{date}_occupation_rate.csv'
+        period = 60 * 60
+        pairs = self.learned_pairs(stock_path=True)
+        starttime = _MF.get_timestamp()
+        turn = 1
+        n_turn = len(pairs)
+        for pair in pairs:
+            print(_MF.loop_progression(starttime, turn, n_turn, pair.__str__().upper()))
+            turn += 1
+            marketprice_pd = self.load_market_history(pair, period)
+            marketprice = BinanceMarketPrice(marketprice_pd.to_numpy().tolist(), '1h', pair)
+            predictor = Predictor(pair, period)
+            occups = predictor.occupation_rate(marketprice)[0]
+            occups = [1 if c > 1 else c for c in occups]
+            occups = np.array([0 if c < 0 else c for c in occups])
+            times = list(marketprice.get_times())
+            times.reverse()
+            start_date = _MF.unix_to_date(times[0])
+            end_date = _MF.unix_to_date(times[-1])
+            delta_time = _MF.delta_time(times[0], times[-1])
+            coef = predictor.get_model(self.HIGH).get_coef_determination()
+            rows = [{
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.pair: pair,
+                Map.period: period,
+                'start_date': start_date,
+                'end_date': end_date,
+                Map.time: delta_time,
+                'n_period': len(times),
+                'n_occupation': occups.shape[0],
+                Map.minimum: occups.min(),
+                Map.mean: occups.mean(),
+                Map.maximum: occups.max(),
+                Map.coefficient: _MF.rate_to_str(coef),
+                **distribution(occups)
+            }]
+            print_row(f_path=path, f_rows=rows)
 
     def print_coef_high_occupation(self) -> None:
         def print_row(f_path: str, f_rows: List[dict]) -> None:
