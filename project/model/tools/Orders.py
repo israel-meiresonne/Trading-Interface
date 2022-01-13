@@ -201,11 +201,11 @@ class Orders(Order, MyJson):
             exec_amount_obj = amount_obj
             exec_qty_obj = Price(exec_amount_obj / stop_price, l_symbol)
         odr._set_execution_price(stop_price)
-        odr._set_status(Order.STATUS_COMPLETED)
         odr._set_execution_time(market.get_time())
         odr._set_executed_quantity(exec_qty_obj)
         odr._set_executed_amount(exec_amount_obj)
         odr._set_fee(fee_obj)
+        odr._set_status(Order.STATUS_COMPLETED)
 
     def _update_stage_3(self, bkr: Broker) -> None:
         odrs = self._get_orders()
@@ -287,11 +287,11 @@ class Orders(Order, MyJson):
         # Get api Order's properties
         new_status = odr_datas.get(Map.status)
         # Update
-        odr._set_status(new_status)
         if (new_status == Order.STATUS_PROCESSING) or (new_status == Order.STATUS_COMPLETED):
             odr_bkr_id = odr.get_broker_id()
             odr_trades = Map(trade_datas.get(odr_bkr_id))
             odr._set_trades(odr_trades)
+        odr._set_status(new_status)
 
     @staticmethod
     def _sum_orders(odrs: Map) -> Map:
