@@ -5,7 +5,7 @@ import datetime
 from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
-from time import time as time_time
+import time
 from types import FunctionType
 from typing import Any, Tuple, Union
 
@@ -39,9 +39,9 @@ class ModelFeature(ModelAccess):
         :return: the timestamp in the given unit
         """
         if unit == ModelFeature.TIME_MILLISEC:
-            ts = int(time_time() * 1000)
+            ts = int(time.time() * 1000)
         elif unit == ModelFeature.TIME_SEC:
-            ts = int(time_time())
+            ts = int(time.time())
         else:
             raise Exception(f"This time unit '{unit}' is not supported")
         return ts
@@ -565,3 +565,35 @@ class ModelFeature(ModelAccess):
             FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
         else:
             print(text)
+
+    @staticmethod
+    def wait_while(callback: FunctionType, value: Any, timeout: int, to_raise: Exception = None, **kwargs) -> None:
+        """
+        To wait until timeout for the callback to return the given value
+        NOTE: Raise given exception if time is out
+
+        Parameters:
+        -----------
+        callback: FunctionType
+            Funtion to call
+        value: Any
+            Value to compare with calback's return
+        timeout: int
+            Time to wait for calback to match the given value
+        to_raise: Exception = None
+            Exception to raise if time is out
+        **kwargs: dict[str, Any]
+            Parameters for callback function
+        """
+        if not isinstance(callback, FunctionType):
+            raise TypeError(f"The callback must be of type '{FunctionType}', instead '{type(callback)}'")
+        if not isinstance(timeout, int):
+            raise TypeError(f"The timeout must be of type '{int}', instead '{type(timeout)}'")
+        if (to_raise is not None) and (not isinstance(to_raise, Exception)):
+            raise TypeError(f"The exception to raise must be of type '{Exception}', instead '{type(to_raise)}'")
+        i = 0
+        while (callback(**kwargs) != value) and (i < timeout):
+            i += 1
+            time.sleep(1)
+        if (to_raise is not None) and (i >= timeout):
+            raise to_raise()
