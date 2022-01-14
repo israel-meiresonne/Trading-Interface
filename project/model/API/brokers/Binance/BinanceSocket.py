@@ -30,7 +30,8 @@ class BinanceSocket(BinanceAPI):
     _THREAD_NAME_RUN_ADD_STREAM = 'run_add_stream'
     _THREAD_NAME_WEBSOCKET_MANGER = 'websocket_manager'
     _THREAD_NAME_WEBSOCKET_EVENT_HANDLER = 'websocket_event_handler'
-    _WEBSOCKET_RUN_TIMEOUT = 10
+    _TIMEOUT_RUN_WEBSOCKET = 10
+    _TIMEOUT_CLOSE_WEBSOCKET = 10
 
     def __init__(self, streams: list):
         if BinanceSocket._NB_INSTANCE is not None:
@@ -817,7 +818,7 @@ class BinanceSocket(BinanceAPI):
                 ws_thread = thread_websocket_manager(ws)
                 ws_thread.start()
             i = 0
-            timeout = self.get_websocket_run_timeout()
+            timeout = self.get_timeout_run_websocket()
             while (not are_running(f_wss, n_wss)) and (i <= timeout):
                 time.sleep(1)
                 i += 1
@@ -828,7 +829,6 @@ class BinanceSocket(BinanceAPI):
             """
             To Create new WebSocket and run them
             """
-            # self._load_streams()
             streams  = self.get_streams()
             wss = self._new_websockets(streams)
             output("B", **{Map.websocket: len(wss), Map.stream: len(streams)})
@@ -887,21 +887,39 @@ class BinanceSocket(BinanceAPI):
             """
             To close WebSocket
             """
-            wss = self._get_websockets()
+            def wss_are_closed(f_wss: Map) -> bool:
+                f_ws_ids = wss.get_keys()
+                f_n_closed = sum([1 for f_ws_id in f_ws_ids if not wss.get(f_ws_id).is_running()])
+                are_closed = f_n_closed == len(f_ws_ids)
+                return are_closed
+            
+            def wait_for_close(f_wss: Map) -> None:
+                timeout = self.get_timeout_close_websocket()
+                e = Exception(f"Can't close websockets")
+                _MF.wait_while(wss_are_closed, True, timeout, e, f_wss=f_wss)
+
+            wss = Map(self._get_websockets().get_map().copy())
             ws_ids = wss.get_keys()
             n_closed = len([self._delete_websocket(ws_id) for ws_id in ws_ids if wss.get(ws_id).is_running()])
+            wait_for_close(wss)
             output("E0", **{Map.close: n_closed})
 
         pfx = _MF.prefix
         thd_add_streams = None
+        i = 0
         while self.is_running():
-            output("A")
-            if (thd_add_streams is None) and (not self._websocket_are_running()):
-                establish_connection() if (len(self._get_websockets().get_map()) == 0) else maintain_connection()
-            if (len(self.get_new_streams()) > 0) and ((thd_add_streams is None) or (not thd_add_streams.is_alive())):
-                thd_add_streams = thread_add_streams()
-                thd_add_streams.start()
-            time.sleep(1)
+            try:
+                output("A")
+                if (thd_add_streams is None) and (not self._websocket_are_running()):
+                    establish_connection() if (len(self._get_websockets().get_map()) == 0) else maintain_connection()
+                if (len(self.get_new_streams()) > 0) and ((thd_add_streams is None) or (not thd_add_streams.is_alive())):
+                    thd_add_streams = thread_add_streams()
+                    thd_add_streams.start()
+                time.sleep(1)
+            except Exception as e:
+                close_connection()
+                from model.structure.Bot import Bot
+                Bot.save_error(e, self.__class__.__name__)
         # End
         close_connection()
         self._reset_thread_run_manager()
@@ -954,16 +972,28 @@ class BinanceSocket(BinanceAPI):
         return BinanceSocket._WEBSOCKET_MAX_STREAM
 
     @staticmethod
-    def get_websocket_run_timeout() -> int:
+    def get_timeout_run_websocket() -> int:
         """
-        TO get time to wait for WebSocket to run
+        To get time to wait for WebSocket to run
 
         Returns:
         --------
         return: int
             Time to wait for WebSocket to run
         """
-        return BinanceSocket._WEBSOCKET_RUN_TIMEOUT
+        return BinanceSocket._TIMEOUT_RUN_WEBSOCKET
+
+    @staticmethod
+    def get_timeout_close_websocket() -> int:
+        """
+        To get time to wait for closures of all socket
+
+        Returns:
+        --------
+        return: int
+            Time to wait
+        """
+        return BinanceSocket._TIMEOUT_CLOSE_WEBSOCKET
 
     @staticmethod
     def get_url_base() -> str:
