@@ -163,9 +163,8 @@ class TraderClass(Strategy, MyJson, ABC):
         _bkr_cls = bkr.__class__.__name__
         pair = self.get_pair()
         # Get Quantity
-        sum_odr = self._get_orders().get_sum()
-        qty = sum_odr.get(Map.left)
-        qty = Price(qty.get_value(), qty.get_asset().get_symbol())
+        l_asset = pair.get_left()
+        quantity = self.get_wallet().get_position(l_asset)
         #  Generate Order
         stop = self._secure_order_price(bkr, marketprice)
         if stop.get_asset() != pair.get_right():
@@ -175,7 +174,7 @@ class TraderClass(Strategy, MyJson, ABC):
             Map.move: Order.MOVE_SELL,
             Map.stop: stop,
             Map.limit: stop,
-            Map.quantity: qty
+            Map.quantity: quantity
         })
         odr = Order.generate_broker_order(_bkr_cls, Order.TYPE_STOP_LIMIT, odr_params)
         self._add_order(odr)
