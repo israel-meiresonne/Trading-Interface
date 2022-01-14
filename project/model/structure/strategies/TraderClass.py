@@ -186,7 +186,7 @@ class TraderClass(Strategy, MyJson, ABC):
         # Update nb trade done
         self._update_nb_trade()
         # Set Broker
-        self._set_broker(bkr)
+        self._set_broker(bkr) if self.get_broker() is None else None
         # Reset Wallet
         self.get_wallet().reset_marketprices()
         # Get MarketPrice
@@ -205,8 +205,6 @@ class TraderClass(Strategy, MyJson, ABC):
         self.execute(bkr, executions, marketprice)
         # Backup Capital
         self._save_capital(close=marketprice.get_close(), time=marketprice.get_time())
-        # Reset
-        self._reset_broker()
         return Strategy.get_bot_sleep_time()
 
     def stop_trading(self, bkr: Broker) -> None:
