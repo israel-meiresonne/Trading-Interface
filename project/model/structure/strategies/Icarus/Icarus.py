@@ -21,9 +21,11 @@ class Icarus(TraderClass):
     _PREDICTION_OCCUPATION_RATE = 1
     _PREDICTION_OCCUPATION_SECURE_TRIGGER = 30/100
     _PREDICTION_OCCUPATION_REDUCE = 30/100
+    _PREDICTION_OCCUPATION_REACHED_TRIGGER = 50/100
     _MIN_PERIOD = 60
     _PERIODS_REQUIRRED = [_MIN_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
+    EMA_N_PERIOD = 200
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -565,6 +567,10 @@ class Icarus(TraderClass):
 
     @staticmethod
     def stalker_can_add(market_price: MarketPrice) -> Tuple[bool, dict]:
+        period = market_price.get_period_time()
+        filetr_period = 60 * 60
+        if period != filetr_period:
+            raise ValueError(f"MarketPrice's period must be '{filetr_period}', instead '{period}'")
         # Close
         closes = list(market_price.get_closes())
         closes.reverse()
@@ -573,16 +579,23 @@ class Icarus(TraderClass):
         psars.reverse()
         psar_trend = MarketPrice.get_psar_trend(closes, psars, -1)
         psar_rising = psar_trend == MarketPrice.PSAR_RISING
+        # EMA
+        ema = list(market_price.get_ema(Icarus.EMA_N_PERIOD))
+        ema.reverse()
+        ema_rising = closes[-1] > ema[-1]
         # Check
-        can_add = psar_rising
+        can_add = psar_rising and ema_rising
         # Repport
         key = Icarus.stalker_can_add.__name__
         repport = {
             f'{key}.psar_rising[-1]': psar_rising,
+            f'{key}.ema_rising[-1]': ema_rising,
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.psars[-1]': psars[-1],
-            f'{key}.psars[-2]': psars[-2]
+            f'{key}.psars[-2]': psars[-2],
+            f'{key}.ema[-1]': ema[-1],
+            f'{key}.ema[-2]': ema[-2]
             }
         return can_add, repport
 
@@ -669,25 +682,41 @@ class Icarus(TraderClass):
 
     @staticmethod
     def _can_buy_prediction(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        close = child_marketprice.get_close()
+        child_closes = child_marketprice.get_close()
+        # Prediction
         pair = child_marketprice.get_pair()
         pred_period = Icarus.get_predictor_period()
         predictor = Predictor(pair, pred_period)
         max_close_pred = Icarus._predict_max_high(predictor_marketprice, predictor)
-        max_roi_pred = _MF.progress_rate(max_close_pred, close)
+        max_roi_pred = _MF.progress_rate(max_close_pred, child_closes)
         pred_trigger = Icarus.get_min_roi_predicted()
-        max_roi_ok = max_roi_pred >= pred_trigger
+        prediction_ok = max_roi_pred >= pred_trigger
+        # Occupation
+        predictor_highs = list(predictor_marketprice.get_highs())
+        predictor_highs.reverse()
+        occup_rate = None
+        occup_trigger = Icarus._PREDICTION_OCCUPATION_REACHED_TRIGGER
+        occup_rate_ok = False
+        if prediction_ok:
+            occup_rate = Predictor.occupation_rate(max_close_pred, predictor_highs[-1], child_closes)
+            occup_rate_ok = occup_rate < occup_trigger
+        # Check
+        can_buy = prediction_ok and occup_rate_ok
         # Repport
         key = Icarus._can_buy_prediction.__name__
         repport = {
-            f'{key}.max_roi_ok': max_roi_ok,
+            f'{key}.prediction_ok': prediction_ok,
+            f'{key}.occup_rate_ok': occup_rate_ok,
             f'{key}.pred_period': pred_period,
-            f'{key}.closes[-1]': close,
             f'{key}.max_close_pred': max_close_pred,
             f'{key}.max_roi_pred': max_roi_pred,
-            f'{key}.pred_trigger': pred_trigger
+            f'{key}.pred_trigger': pred_trigger,
+            f'{key}.child_closes[-1]': child_closes,
+            f'{key}.occup_rate': occup_rate,
+            f'{key}.occup_trigger': occup_trigger,
+            f'{key}.predictor_highs[-1]': predictor_highs[-1]
         }
-        return max_roi_ok, repport
+        return can_buy, repport
     
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR DOWN ——————————————————————————————————————
