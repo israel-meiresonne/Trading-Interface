@@ -885,6 +885,35 @@ class Predictor(MyJson):
         return occup_rates
 
     @staticmethod
+    def occupation_rate(predicted_price: float, max_price_reached: float, price: float) -> float:
+        """
+        To evaluate occupation rate of max price reached in a predicted price
+
+        Parameters:
+        -----------
+        predicted_price: float
+            The predicted price
+        max_price_reached: float
+            The max price ever reached
+        price: float
+            The price from witch the prediction is based
+
+        raise: Exception
+            If predicted_price < price
+
+        Returns:
+        -------
+        return: float
+            The occupation rate
+        """
+        if predicted_price < price:
+            raise Exception(f"The predicted price must be higher or equal to price, instead: predicted_price='{predicted_price}', price='{price}'")
+        pred_roi = _MF.progress_rate(predicted_price, price)
+        max_reached_roi = _MF.progress_rate(max_price_reached, price)
+        occup_rate = max_reached_roi/pred_roi
+        return occup_rate
+
+    @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
         instance = Predictor(Pair('@json/@json'), -1)
