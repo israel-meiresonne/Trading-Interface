@@ -18,6 +18,7 @@ from model.tools.WebSocket import WebSocket
 
 class TestBinanceSocket(unittest.TestCase, BinanceSocket):
     def setUp(self) -> None:
+        _MF.OUTPUT = True
         rq = BinanceAPI.RQ_KLINES
         symbol1 = Pair('BTC/USDT').format(Pair.FORMAT_MERGED).lower()
         symbol2 = Pair('DOGE/USDT').format(Pair.FORMAT_MERGED).lower()
@@ -503,6 +504,10 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         def get_close(pair_str, period) -> float:
             mkt = MarketPrice.marketprice(bkr, Pair(pair_str), period, n_period=1000)
             return mkt.get_close()
+        
+        def add_stream(pair_str: str) -> None:
+            stream = bkr.generate_stream(Map({Map.pair: Pair(pair_str), Map.period: period}))
+            bkr.add_streams([stream])
 
         bkr = self.broker_switch(True)
         pair = Pair('hard/usdt')

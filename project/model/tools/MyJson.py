@@ -27,7 +27,7 @@ class MyJson(ABC):
         self._json_encode_prepare()
         _class_token = MyJson.get_class_name_token()
         class_name = self.__class__.__name__
-        attrs = self._json_encode_to_dict()
+        attrs = self._json_encode_to_dict().copy()
         json_dict = {_class_token: class_name}
         for attr, value in attrs.items():
             value_serialized = MyJson.__root_encoding(value)
@@ -68,6 +68,7 @@ class MyJson(ABC):
 
     @staticmethod
     def __encode_iterable(iterable_value: Iterable) -> Iterable:
+        iterable_value = iterable_value.copy()
         iter_type = type(iterable_value)
         if iter_type == dict:
             value_encoded = {}

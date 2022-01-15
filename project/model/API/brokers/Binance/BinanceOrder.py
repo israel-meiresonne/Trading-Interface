@@ -173,6 +173,7 @@ class BinanceOrder(Order):
         return Map(_MF.clean(cancel_params.get_map()))
 
     def handle_response(self, rsp: BrokerResponse) -> None:
+        from model.tools.Orders import Orders
         self._set_response(rsp)
         status_code = rsp.get_status_code()
         if status_code != 200:
@@ -180,14 +181,10 @@ class BinanceOrder(Order):
         else:
             self._update_order(rsp)
         # Backup
-        from model.tools.Orders import Orders
         Orders.insert_order(Orders.SAVE_ACTION_HANDLE, self)
 
     def _update_order(self, rsp: BrokerResponse) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
         pair = self.get_pair()
-        r_symbol = pair.get_right().get_symbol()
-        l_symbol = pair.get_left().get_symbol()
         # Extract From Rsp
         content = Map(rsp.get_content())
         status = self.convert_status(content.get(Map.status))
@@ -200,9 +197,9 @@ class BinanceOrder(Order):
         trades = self._structure_trades(rsp_trades, pair, exec_time, odr_bkr_id, move) \
             if (rsp_trades is not None) and (len(rsp_trades) > 0) else None
         # Update
-        self._set_status(status)
         self._set_broker_id(odr_bkr_id) if self.get_broker_id() is None else None
         self._set_trades(trades) if trades is not None else None
+        self._set_status(status)
 
     @staticmethod
     def _get_status_converter() -> Map:
