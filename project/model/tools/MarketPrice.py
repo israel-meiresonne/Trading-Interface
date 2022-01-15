@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from pandas_ta import supertrend as _supertrend
 from ta.volatility import KeltnerChannel
-from ta.momentum import RSIIndicator
-from ta.momentum import TSIIndicator
+from ta.momentum import RSIIndicator, TSIIndicator
 from ta.trend import PSARIndicator, MACD
 from ta.utils import _ema
 from scipy.signal import find_peaks
@@ -59,6 +58,7 @@ class MarketPrice(ABC):
     COLLECTION_KELTNERC_MIDDLE = "COLLECTION_KELTNERC_MIDDLE"
     COLLECTION_KELTNERC_HIGH = "COLLECTION_KELTNERC_HIGH"
     COLLECTION_KELTNERC_LOW = "COLLECTION_KELTNERC_LOW"
+    COLLECTION_EMA = "COLLECTION_EMA"
     # Collection Config
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
@@ -84,6 +84,7 @@ class MarketPrice(ABC):
     _MACD_FAST = 12
     _MACD_SIGNAL = 9
     _KELTNERC_WINDOW = 20
+    _EMA_N_PERIOD = 10
     # Constantes
     _PERIOD_MARKET_ANALYSE = 60 * 60
 
@@ -135,7 +136,8 @@ class MarketPrice(ABC):
             self.COLLECTION_MACD_HISTOGRAM: None,
             self.COLLECTION_KELTNERC_MIDDLE: None,
             self.COLLECTION_KELTNERC_HIGH: None,
-            self.COLLECTION_KELTNERC_LOW: None
+            self.COLLECTION_KELTNERC_LOW: None,
+            self.COLLECTION_EMA: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -651,6 +653,32 @@ class MarketPrice(ABC):
         })
         return kelc_map
 
+    def get_ema(self, n_period: int = _EMA_N_PERIOD) -> tuple:
+        """
+        To get the EMA of closes
+
+        Parameters:
+        -----------
+        n_period: int
+            Number of period to use
+
+        Returns:
+        --------
+        return: tuple
+            The EMA of closes
+        """
+        k = self.COLLECTION_EMA
+        ema = self._get_collection(k)
+        if ema is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            fillna = False
+            ema = self.ema(closes, n_period, fillna)
+            ema.reverse()
+            ema = tuple(ema)
+            self._set_collection(k, ema)
+        return ema
+
     def _set_ms(self) -> None:
         """
         To generate the market's variation speed for its most recent period\n
@@ -831,6 +859,28 @@ class MarketPrice(ABC):
         trend = MarketPrice.PSAR_RISING if psar < close else None
         trend = MarketPrice.PSAR_DROPPING if (trend is None) and (psar > close) else trend
         return trend
+
+    @staticmethod
+    def ema(values: list, n_period: int, fillna: bool) -> list:
+        """
+        To evaluate EMA
+
+        Paremeters:
+        -----------
+        values: list
+            Value to treat
+        n_period: int
+            Number of period to use
+        fillna: bool
+            Set True to fill Nan value with '-1' else False
+
+        Returns:
+        --------
+        return: list
+            The EMA
+        """
+        pd_series = pd.Series(values)
+        return _ema(pd_series, n_period, fillna).to_list()
 
     @staticmethod
     def get_peak(vs: Union[list, tuple], min_idx: int, max_idx: int) -> Union[int, None]:
@@ -1125,7 +1175,6 @@ class MarketPrice(ABC):
         return: MarketPrice
             MarketPrice from Broker's API
         """
-        from model.structure.Broker import Broker
         from model.tools.BrokerRequest import BrokerRequest
         _bkr_cls = bkr.__class__.__name__
         mkt_params = Map({
@@ -1145,7 +1194,6 @@ class MarketPrice(ABC):
         p = Config.get(Config.DIR_SAVE_MARKET)
         mkt = market_price.get_market()
         mkt = [[str(v) for v in row] for row in mkt]
-        # mkt = list(mkt)
         mkt.reverse()
         rows = [{
             Map.time: _MF.unix_to_date(_MF.get_timestamp()),

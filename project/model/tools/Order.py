@@ -41,6 +41,12 @@ class Order(Request, Transaction, MyJson, ABC):
         STATUS_FAILED,
         STATUS_EXPIRED
     ]
+    FINAL_STATUS = [
+        STATUS_COMPLETED,
+        STATUS_CANCELED,
+        STATUS_FAILED,
+        STATUS_EXPIRED
+    ]
     # Constants
     FAKE_FEE = 0.001
 
@@ -204,11 +210,8 @@ class Order(Request, Transaction, MyJson, ABC):
         if status not in self.STATUS_LIST:
             raise ValueError(f"This Order status '{status}' is not supported")
         hold = self.get_status()
-        if hold == self.STATUS_COMPLETED \
-                or hold == self.STATUS_CANCELED \
-                or hold == self.STATUS_FAILED \
-                or hold == self.STATUS_EXPIRED:
-            raise Exception(f"This Order status '{hold}' can't be updated to '{status}' cause it's final")
+        if hold in self.FINAL_STATUS:
+            raise Exception(f"Order's status '{hold}' can't be updated to '{status}' cause it's final")
         self.__status = status
 
     def get_status(self) -> str:
@@ -248,8 +251,9 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__amount
 
     def _set_execution_time(self, time: int) -> None:
-        if self.__execution_time is not None:
-            raise Exception(f"Order's execution time can't be updated.")
+        status = self.get_status()
+        if status in self.FINAL_STATUS:
+            raise Exception(f"Can't update Order's execution time because of its final status '{status}'")
         self.__execution_time = int(time)
 
     def get_execution_time(self) -> int:
@@ -263,8 +267,9 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__execution_time
 
     def _set_execution_price(self, price: Price) -> None:
-        if self.__execution_price is not None:
-            raise Exception(f"The execution price '{self.__execution_price}' is already set, (new price '{price}').")
+        status = self.get_status()
+        if status in self.FINAL_STATUS:
+            raise Exception(f"Can't update Order's execution price because of its final status '{status}'")
         self.__execution_price = price
 
     def get_execution_price(self) -> Price:
@@ -279,9 +284,9 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__execution_price
 
     def _set_executed_quantity(self, quantity: Price) -> None:
-        if self.__executed_quantity is not None:
-            raise Exception(f"The execution quantity "
-                            f"'{self.__executed_quantity}' is already set, (new quantity '{quantity}').")
+        status = self.get_status()
+        if status in self.FINAL_STATUS:
+            raise Exception(f"Can't update Order's executed quantity because of its final status '{status}'")
         self.__executed_quantity = quantity
         self._set_left(quantity)
 
@@ -298,9 +303,9 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__executed_quantity
 
     def _set_executed_amount(self, amount: Price) -> None:
-        if self.__executed_amount is not None:
-            raise Exception(f"The execution amount "
-                            f"'{self.__executed_amount}' is already set, (new amount '{amount}').")
+        status = self.get_status()
+        if status in self.FINAL_STATUS:
+            raise Exception(f"Can't update Order's executed amount because of its final status '{status}'")
         self.__executed_amount = amount
         self._set_right(amount)
 
@@ -317,13 +322,25 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__executed_amount
 
     def _set_fee(self, fee: Price) -> None:
-        if self.__fee is not None:
-            raise Exception(f"Order's fee can't be updated.")
+        """
+        To set fee charged to execute Order
+        NOTE: Must set Order's execution price before to call this function
+
+        Parameters:
+        -----------
+        fee: Price
+            Fee charged (in left or right asset)
+        """
+        status = self.get_status()
+        if status in self.FINAL_STATUS:
+            raise Exception(f"Can't update Order's fee because of its final status '{status}'")
+        exec_price = self.get_execution_price()
+        if exec_price is None:
+            raise TypeError(f"Order's execution price must be set before")
         pair = self.get_pair()
         l_symbol = pair.get_left().get_symbol()
         r_symbol = pair.get_right().get_symbol()
         fee_symbol = fee.get_asset().get_symbol()
-        exec_price = self.get_execution_price()
         if fee_symbol == l_symbol:
             l_fee = fee
             r_fee = Price(fee * exec_price, r_symbol)
