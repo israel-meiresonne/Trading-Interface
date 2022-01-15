@@ -318,6 +318,39 @@ class TestPredictor(unittest.TestCase, Predictor):
         self.assertEqual(period, new_predictor.get_period())
         self.assertNotEqual(id(predictor), id(new_predictor))
 
+    def test_occupation_rate(self) -> None:
+        tests = [{
+                'predicted_price': 20,
+                'max_price_reached': 11,
+                'price': 10,
+                'return': 0.1
+            },
+            {
+                'predicted_price': 15,
+                'max_price_reached': 12.5,
+                'price': 10,
+                'return': 0.5
+            },
+            {
+                'predicted_price': 8,
+                'max_price_reached': 12.5,
+                'price': 10
+            }
+            ]
+        # Test 1
+        exp1 = tests[0]['return']
+        del tests[0]['return']
+        result1 = round(Predictor.occupation_rate(**tests[0]), 2)
+        self.assertEqual(exp1, result1)
+        # Test 2
+        exp2 = tests[1]['return']
+        del tests[1]['return']
+        result2 = round(Predictor.occupation_rate(**tests[1]), 2)
+        self.assertEqual(exp2, result2)
+        # Test 3
+        with self.assertRaises(Exception):
+            Predictor.occupation_rate(**tests[2])
+
     def plot(self, ys, predictions, plot_name: str = 'plot_') -> str:
         import matplotlib.pyplot as plt
         project_dir = FileManager.get_project_directory()
