@@ -172,12 +172,16 @@ class IcarusStalker(StalkerClass):
         # Repport
         key = Icarus._can_buy_prediction.__name__
         pred_repport = {
-            f'{key}.max_roi_ok': None,
+            f'{key}.prediction_ok': None,
+            f'{key}.occup_rate_ok': None,
             f'{key}.pred_period': None,
-            f'{key}.closes[-1]': None,
             f'{key}.max_close_pred': None,
             f'{key}.max_roi_pred': None,
-            f'{key}.pred_trigger': None
+            f'{key}.pred_trigger': None,
+            f'{key}.child_closes[-1]': None,
+            f'{key}.occup_rate': None,
+            f'{key}.occup_trigger': None,
+            f'{key}.predictor_highs[-1]': None
         }
         # Repport
         key = Icarus.can_buy.__name__
@@ -191,10 +195,13 @@ class IcarusStalker(StalkerClass):
         key = Icarus.stalker_can_add.__name__
         stalker_datas = {
             f'{key}.psar_rising[-1]': None,
+            f'{key}.ema_rising[-1]': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
             f'{key}.psars[-1]': None,
-            f'{key}.psars[-2]': None
+            f'{key}.psars[-2]': None,
+            f'{key}.ema[-1]': None,
+            f'{key}.ema[-2]': None
             }
         # Repport
         key = IcarusStalker._eligible.__name__
