@@ -1,6 +1,10 @@
 import unittest
+from config.Config import Config
+from model.API.brokers.Binance.Binance import Binance
 
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
+from model.structure.Broker import Broker
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
@@ -9,6 +13,7 @@ from model.tools.Pair import Pair
 
 class TestMarketPrice(unittest.TestCase, MarketPrice):
     def setUp(self) -> None:
+        _MF.OUTPUT = True
         self.pair1 = Pair('BTC/USDT')
         self.list = ['1', '2', '3', '4', '5']
         self.tuple = tuple(self.list)
@@ -94,7 +99,26 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         return mkt_list
 
     def tearDown(self) -> None:
-        self.bnc_mkt = BinanceMarketPrice(self.list, "1m", self.pair1)
+        self.broker_switch(False)
+    
+    INIT_STAGE = None
+    BROKER = None
+
+    def broker_switch(self, on: bool = False) -> Broker:
+        if on:
+            self.INIT_STAGE = Config.get(Config.STAGE_MODE)
+            Config.update(Config.STAGE_MODE, Config.STAGE_2)
+            self.BROKER = Binance(Map({
+                Map.public: '-',
+                Map.secret: '-',
+                Map.test_mode: False
+            }))
+        else:
+            init_stage = self.INIT_STAGE
+            self.BROKER.close() if self.BROKER is not None else None
+            Config.update(Config.STAGE_MODE,
+                          init_stage) if init_stage is not None else None
+        return self.BROKER
 
     def get_opens(self) -> tuple:
         pass
@@ -140,8 +164,6 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             self.bnc_mkt._get_collection("unsupported_key")
         # supported collection key not set
         self.assertIsNone(self.bnc_mkt._get_collection(self.COLLECTION_CLOSES))
-
-    # def test_get_indicator(self):
 
     def test_opens(self):
         # it work
@@ -277,6 +299,18 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         result = bnc_mkt.get_rsi()
         self.assertEqual(exp, result)
         self.assertEqual(rsis[1], bnc_mkt.get_rsi(1))
+
+    def test_get_ema(self) -> None:
+        bkr = self.broker_switch(True)
+        pair = Pair('BTC/USDT')
+        period = 60 * 60
+        n_period = bkr.get_max_n_period()
+        marketprices = MarketPrice.marketprice(bkr, pair, period, n_period)
+        ema = marketprices.get_ema(n_period=200)
+        closes = marketprices.get_closes()
+        merged = [[closes[i], ema[i]] for i in range(len(closes))]
+        print(_MF.json_encode(merged))
+        self.broker_switch(False)
 
     def test_get_delta_price(self):
         # correct result
@@ -662,7 +696,6 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         exp1 = id(result0)
         result1 = id(self.sptrend_bnc_mkt.get_true_range())
         self.assertEqual(exp1, result1)
-    #
     """
 
     def test_set_actual_slope(self):
