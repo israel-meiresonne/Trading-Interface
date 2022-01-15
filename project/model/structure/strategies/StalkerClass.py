@@ -689,7 +689,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         self.get_wallet().reset_marketprices()
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
-        self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
+        # self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self._manage_trades(bkr)
         return self._get_sleep_time()
 
@@ -758,7 +758,7 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def _add_streams_periods(self) -> list:
         return [
-            MarketPrice.get_period_market_analyse(),
+            # MarketPrice.get_period_market_analyse(),
             self.get_period(),
             self.get_strategy_params().get(Map.period),
             Wallet.get_period()
@@ -783,9 +783,10 @@ class StalkerClass(Strategy, MyJson, ABC):
                 *streams,
                 *[broker.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
             ]
+        """
         # Add streams for market analyse
         market_analyse_period = MarketPrice.get_period_market_analyse()
-        wallet_period = Wallet.get_period()
+        # wallet_period = Wallet.get_period()
         spot_pairs = MarketPrice.get_spot_pairs(broker.__class__.__name__, self.get_pair().get_right())
         spot_pairs = [spot_pair for spot_pair in spot_pairs if spot_pair not in pairs]
         for spot_pair in spot_pairs:
@@ -793,6 +794,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             spot_stream = broker.generate_stream(Map({Map.pair: spot_pair, Map.period: market_analyse_period}))
             streams.append(wallet_stream)
             streams.append(spot_stream)
+        """
         streams = list(dict.fromkeys(streams))
         streams.sort()
         return streams
