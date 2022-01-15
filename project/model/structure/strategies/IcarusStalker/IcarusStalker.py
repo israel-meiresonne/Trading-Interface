@@ -104,13 +104,13 @@ class IcarusStalker(StalkerClass):
 
     def _add_streams_periods(self) -> list:
         return [
-            MarketPrice.get_period_market_analyse(),
+            # MarketPrice.get_period_market_analyse(),
             self.get_period(),
             self.get_strategy_params().get(Map.period),
             Wallet.get_period(),
-            *Predictor.get_learn_periods(),
+            # *Predictor.get_learn_periods(),
             *Icarus.get_periods_required(),
-            Icarus.get_predictor_period()
+            # Icarus.get_predictor_period()
         ]
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
