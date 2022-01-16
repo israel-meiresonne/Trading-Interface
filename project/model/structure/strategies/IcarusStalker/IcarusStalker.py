@@ -132,6 +132,8 @@ class IcarusStalker(StalkerClass):
         # Repport
         key = IcarusStalker._eligible.__name__
         repport = {
+            f'{key}.predictor_time': _MF.unix_to_date(predictor_marketprice.get_time()),
+            f'{key}.child_time': _MF.unix_to_date(child_marketprice.get_time()),
             f'{key}.pair': pair,
             f'{key}.eligible': eligible,
             f'{key}.stalker_ok': stalker_ok,
@@ -206,6 +208,8 @@ class IcarusStalker(StalkerClass):
         # Repport
         key = IcarusStalker._eligible.__name__
         canvas = {
+            f'{key}.predictor_time': None,
+            f'{key}.child_time': None,
             f'{key}.pair': None,
             f'{key}.eligible': None,
             f'{key}.stalker_ok': None,
