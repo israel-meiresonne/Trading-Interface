@@ -584,7 +584,7 @@ class Icarus(TraderClass):
         ema.reverse()
         ema_rising = closes[-1] > ema[-1]
         # Check
-        can_add = psar_rising and ema_rising
+        can_add = psar_rising # and ema_rising
         # Repport
         key = Icarus.stalker_can_add.__name__
         repport = {
