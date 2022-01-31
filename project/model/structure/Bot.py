@@ -75,15 +75,12 @@ class Bot(MyJson):
         _stage = Config.get(Config.STAGE_MODE)
         bkr = self.get_broker()
         stg = self.get_strategy()
-        end = False
         trade_index = Bot.get_trade_index()
         sleep_time = None
         nb_error = 0
-        limit_error = 60
-        stop_index = Bot.get_index_stop()
         _MF.output(f"{_MF.prefix()}Bot started to trade...")
         bot_id = self.get_id()
-        while not end:
+        while self.active():
             Bot._set_trade_index(trade_index)
             _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
             # Trade
@@ -96,10 +93,6 @@ class Bot(MyJson):
                     self.save_error(error, Bot.__name__, nb_error)
                 else:
                     raise error
-                """
-                if nb_error > limit_error:
-                    raise error
-                """
             # Sleep
             if _stage != Config.STAGE_1:
                 try:
@@ -115,20 +108,38 @@ class Bot(MyJson):
                 _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
                 sleep_time = None
-            end = self._still_active()
             trade_index += 1
-            # Stop stage1
-            if (_stage == Config.STAGE_1) and (stop_index is not None) and (trade_index > stop_index):
-                raise Exception(f"End code!🙂")
 
-    @staticmethod
-    def _still_active() -> bool:
-        _MF.output(f"{_MF.prefix()}still trading...")
-        return False
+    def active(self) -> bool:
+        """
+        To check if Bot still trading
+
+        Returns:
+        --------
+        return: bool
+            True if Bot still trading else False
+        """
+        stop_index = self.get_index_stop()
+        trade_index = self.get_trade_index()
+        _stage = Config.get_stage()
+        if (_stage == Config.STAGE_1) and (stop_index is not None) and (trade_index > stop_index):
+            active = False
+        else:
+            active = True
+            _MF.output(f"{_MF.prefix()}still trading...")
+        return active
 
     @staticmethod
     def _set_trade_index(index: int) -> None:
+        if not isinstance(index, int):
+            raise TypeError(f"The trade index must be of type '{int}', instead '{type(index)}'")
         Bot._TRADE_INDEX = index
+
+    @staticmethod
+    def update_trade_index(index: int) -> None:
+        if Config.get_stage() != Config.STAGE_1:
+            raise Exception(f"The trade index can be update only in stage '{Config.STAGE_1}', instead '{Config.get_stage()}'")
+        Bot._set_trade_index(index)
 
     @staticmethod
     def get_trade_index() -> int:
