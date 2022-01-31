@@ -552,7 +552,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         pfx = _MF.prefix
         def new_thread(f_pair_group: List[Pair]) -> Thread:
             f_params = {
-                'target': self._stalk_merket_thread,
+                'target': self._stalk_market_thread,
                 'base_name': self._THREAD_NAME_STALK_CHILD,
                 'call_class': self.__class__.__name__,
                 'repport': True,
@@ -594,7 +594,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         delta_time = _MF.delta_time(starttime, endtime)
         _MF.output(pfx() + _purple + f"End stalking in '{delta_time}'" + _normal)
 
-    def _stalk_merket_thread(self, broker: Broker, pairs: List[Pair]) -> None:
+    def _stalk_market_thread(self, broker: Broker, pairs: List[Pair]) -> None:
         _normal = self._TO_REMOVE_STYLE_NORMAL
         _cyan = self._TO_REMOVE_STYLE_CYAN
         _green = self._TO_REMOVE_STYLE_GREEN
@@ -850,37 +850,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         :return: Pair allowed to trade with this Strategy
                  Map[index{int}]:   {Pair}
         """
-        if self._allowed_pairs is None:
-            if StalkerClass._get_stage() == Config.STAGE_1:
-                path = Config.get(Config.DIR_MARKET_HISTORICS)
-                _bkr_cls = bkr.__class__.__name__
-                full_path = path.replace('$broker', _bkr_cls).replace('$pair/', '')
-                pair_folders = FileManager.get_dirs(full_path, make_dir=True)
-                from model.API.brokers.Binance.BinanceAPI import BinanceAPI
-                pair_strs = [BinanceAPI.symbol_to_pair(_MF.regex_replace('%.+$', '', pair_folder))
-                             for pair_folder in pair_folders]
-            else:
-                # Stablecoin regex
-                stablecoins = Config.get(Config.CONST_STABLECOINS)
-                concat_stable = '|'.join(stablecoins)
-                stablecoin_rgx = f'({concat_stable})/\w+$'
-                # Fiat regex
-                fiats = Config.get(Config.CONST_FIATS)
-                concat_fiat = '|'.join(fiats)
-                fiat_rgx = rf'({concat_fiat})/\w+$'
-                # Get pairs
-                no_match = [
-                    r'^\w+(up|down|bear|bull)\/\w+$',
-                    r'^(bear|bull)/\w+$',
-                    r'^\w*inch\w*/\w+$',
-                    fiat_rgx,
-                    stablecoin_rgx,
-                    r'BCHSV/\w+$'
-                ]
-                match = [r'^.+\/usdt']
-                pair_strs = bkr.get_pairs(match=match, no_match=no_match)
-            self._allowed_pairs = [Pair(pair_str) for pair_str in pair_strs]
-        return self._allowed_pairs
+        pass
 
     @abstractmethod
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
