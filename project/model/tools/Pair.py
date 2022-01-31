@@ -18,6 +18,8 @@ class Pair(MyJson):
             self.__constructor1(agrs[0])
         elif nb == 2:
             self.__constructor2(agrs[0], agrs[1])
+        else:
+            raise ValueError(f"This number of param '{nb}' is not supported")
 
     def __constructor1(self, prsbl: str):
         """
