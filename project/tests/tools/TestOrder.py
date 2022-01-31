@@ -89,7 +89,7 @@ class TestOrder(unittest.TestCase, Order):
     def _set_limit(self) -> None:
         pass
 
-    def _set_stop(self) -> None:
+    def _set_stop_loss(self) -> None:
         pass
 
     def _set_stop_limit(self) -> None:
