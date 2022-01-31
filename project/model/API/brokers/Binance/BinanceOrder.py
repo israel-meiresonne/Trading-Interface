@@ -90,9 +90,34 @@ class BinanceOrder(Order):
         return rq
 
     def _set_limit(self) -> None:
-        pass
+        def get_request_params() -> Map:
+            merged_pair = self.get_pair().format(Pair.FORMAT_MERGED)
+            side = BinanceAPI.SIDE_BUY if self.get_move() == self.MOVE_BUY else BinanceAPI.SIDE_SELL
+            quantity = self.get_quantity()
+            if quantity is None:
+                raise TypeError(f"The quantity must be set for limit Order")
+            limit_price = self.get_limit_price()
+            if limit_price is None:
+                raise TypeError(f"The limit_price must be set for limit Order")
+            rq_params = Map({
+                Map.symbol: merged_pair,
+                Map.side: side,
+                Map.type: BinanceAPI.TYPE_LIMIT,
+                Map.quantity: quantity.get_value(),
+                Map.price: limit_price.get_value(),
+                Map.quoteOrderQty: None,
+                Map.newClientOrderId: self.get_id(),
+                Map.icebergQty: None,
+                Map.newOrderRespType: BinanceAPI.RSP_TYPE_FULL,
+                Map.recvWindow: None
+            })
+            return rq_params
 
-    def _set_stop(self) -> None:
+        rq_params = get_request_params()
+        self.__set_api_request(BinanceAPI.RQ_ORDER_LIMIT)
+        self._set_request_params(rq_params)
+
+    def _set_stop_loss(self) -> None:
         mkt_prms = self._extract_stop_params()
         self.__set_api_request(BinanceAPI.RQ_ORDER_STOP_LOSS)
         self._set_request_params(mkt_prms)
@@ -107,7 +132,7 @@ class BinanceOrder(Order):
         mkt_params = Map({
             Map.symbol: self.get_pair().get_merged_symbols(),
             Map.side: BinanceAPI.SIDE_BUY if self.get_move() == self.MOVE_BUY else BinanceAPI.SIDE_SELL,
-            Map.type: BinanceAPI.TYPE_STOP,
+            Map.type: BinanceAPI.TYPE_STOP_LOSS,
             Map.quantity: self.get_quantity().get_value() if self.get_quantity() is not None else None,
             Map.stopPrice: self.get_stop_price().get_value(),
             # Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
