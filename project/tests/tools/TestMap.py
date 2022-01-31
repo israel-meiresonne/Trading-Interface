@@ -71,6 +71,11 @@ class TestMap(unittest.TestCase, Map):
         self.mp1.put(self.val2, self.key3, self.key1)
         self.assertEqual(self.mp1.get(self.key3, self.key1), self.val2)
 
+    def test_get(self) -> None:
+        # Deep Get of no existing keys
+        mymap = Map()
+        self.assertIsNone(mymap.get('there', 's', 'nothing', 'there'))
+
     def test_get_keys(self):
         exp = [self.key1, self.key2, self.key3]
         result = self.mp2.get_keys()
@@ -180,7 +185,6 @@ class TestMap(unittest.TestCase, Map):
         mp.put(val, random_random(), random_random())
         mp.put(val, random_random(), random_random())
         mp.put(val, random_random(), random_random())
-        print(len(mp.get_map()))
 
     def test_speed_dict(self):
         val = "xxx"
