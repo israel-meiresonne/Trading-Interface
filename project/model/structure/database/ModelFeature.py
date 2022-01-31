@@ -13,7 +13,7 @@ import dill
 import numpy as np
 import pandas as pd
 from model.structure.database.ModelAccess import ModelAccess
-from pytz import timezone
+import pytz
 from scipy.signal import find_peaks
 from scipy.stats import linregress
 
@@ -47,12 +47,16 @@ class ModelFeature(ModelAccess):
         return ts
 
     @staticmethod
-    def date_to_unix(date: str) -> float:
-        return datetime.datetime.fromisoformat(date).timestamp()
+    def date_to_unix(date: str, format: str = FORMAT_D_H_M_S, timezone_str: str = TIME_ZONE_UTC) -> float:
+        local_time = pytz.timezone(timezone_str)
+        naive_datetime = datetime.datetime.strptime(date, format)
+        local_datetime = local_time.localize(naive_datetime, is_dst=None)
+        utc_datetime = local_datetime.astimezone(pytz.utc)
+        return utc_datetime.timestamp()
 
     @staticmethod
     def unix_to_date(time: int, form: str = FORMAT_D_H_M_S, timezone_str: str = TIME_ZONE_UTC) -> str:
-        return datetime.datetime.fromtimestamp(time, timezone(timezone_str)).strftime(form)
+        return datetime.datetime.fromtimestamp(time, pytz.timezone(timezone_str)).strftime(form)
 
     # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
     @staticmethod
@@ -456,7 +460,7 @@ class ModelFeature(ModelAccess):
         return status
 
     @staticmethod
-    def catch_exception(callback: FunctionType, call_class: str, repport: bool = True, **kwargs) -> None:
+    def catch_exception(callback: FunctionType, call_class: str, repport: bool = True, **kwargs) -> Any:
         """
         To wrap function in try-catch and execute it
 
@@ -470,13 +474,20 @@ class ModelFeature(ModelAccess):
             Set True to repport exception else False
         **kwargs: dict[str, Any]
             Parameters for callback function to execute
+        
+        Return:
+        -------
+        return: Any
+            The value returned by the callback if there's one else None
         """
+        returned = None
         try:
-            callback(**kwargs)
+            returned = callback(**kwargs)
         except Exception as e:
             if repport:
                 from model.structure.Bot import Bot
                 Bot.save_error(e, call_class)
+        return returned
 
     @staticmethod
     def generate_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
