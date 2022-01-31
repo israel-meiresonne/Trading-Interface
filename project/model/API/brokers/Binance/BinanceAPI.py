@@ -369,7 +369,7 @@ class BinanceAPI(ABC):
     SIDE_SELL = "SELL"
     ''' ORDER TYPE '''
     TYPE_MARKET = "MARKET"
-    TYPE_STOP = "STOP_LOSS"
+    TYPE_STOP_LOSS = "STOP_LOSS"
     TYPE_LIMIT = "LIMIT"
     TYPE_STOP_LOSS_LIMIT = "STOP_LOSS_LIMIT"
     TYPE_TAKE_PROFIT = "TAKE_PROFIT"
@@ -585,11 +585,22 @@ class BinanceAPI(ABC):
 
     @staticmethod
     def get_trade_fees() -> Map:
+        """
+        To get all trade fees
+
+        Return:
+        -------
+        return: Map
+            All trade fees
+            Map[merged_pair{str}][Map.pair]:    {str}  # merged_pair
+            Map[merged_pair{str}][Map.taker]:   {float}
+            Map[merged_pair{str}][Map.maker]:   {float}
+        """
         BinanceAPI._set_trade_fees() if BinanceAPI._TRADE_FEES is None else None
         return BinanceAPI._TRADE_FEES
 
     @staticmethod
-    def get_trade_fee(pair: Pair) -> dict:
+    def get_trade_fee(pair: Pair) -> Map:
         """
         To get trade fees of the given Pair from Binance's API\n
         Parameters
@@ -600,16 +611,16 @@ class BinanceAPI(ABC):
         -------
         trade_fees: dict
             Trade fees of the given Pair
-            trade_fees[Map.taker]: {float}
-            trade_fees[Map.maker]: {float}
+            Map[Map.taker]: {float}
+            Map[Map.maker]: {float}
         """
         fees = BinanceAPI.get_trade_fees()
         if fees is None:
-            raise Exception(f"Trade fees must be set before. (pair: '{pair}')")
+            raise Exception(f"Trade fees must be set before (pair: '{pair}')")
         fee = fees.get(pair.get_merged_symbols())
         if fee is None:
             raise ValueError(f"Binance's API don't support this pair '{pair}'.")
-        return fee
+        return Map(fee)
 
     @staticmethod
     def get_default_api_keys() -> Map:
@@ -662,7 +673,7 @@ class BinanceAPI(ABC):
         BinanceAPI._SOCKET = socket
 
     @staticmethod
-    def _get_socket(new_streams: List[str]) -> Any:
+    def _get_socket(new_streams: List[str]) -> 'BinanceSocket':
         socket = BinanceAPI._SOCKET
         if socket is None:
             BinanceAPI._set_socket(new_streams)
@@ -810,30 +821,14 @@ class BinanceAPI(ABC):
         # Generate
         rq_kline_time_set = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
         rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE]
-        if _stage == Config.STAGE_1:
+        if (_stage == Config.STAGE_1) or ((_stage == Config.STAGE_2) and (rq not in rq_excluded)):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            return BinanceFakeAPI.steal_request(rq, params)
-        if (_stage == Config.STAGE_2) and (rq not in rq_excluded):
-            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            if (rq == BinanceAPI.RQ_KLINES) and (not rq_kline_time_set):
-                rsp = BinanceAPI._socket_market_history(test_mode, rq, params)
-                pair_merged = params.get(Map.symbol)
-                period_str = params.get(Map.interval)
-                period_milli = int(BinanceAPI.get_interval(period_str) * 1000)
-                BinanceFakeAPI.add_market_historic(pair_merged, period_milli, rsp.get_content())
-                BinanceFakeAPI.steal_request(rq, params)
-                return rsp
-            elif (rq == BinanceAPI.RQ_KLINES) and rq_kline_time_set:
-                BinanceFakeAPI.steal_request(rq, params)
-            else:
-                return BinanceFakeAPI.steal_request(rq, params)
-        start_time = params.get(Map.startTime)
-        end_time = params.get(Map.endTime)
-        if (rq == BinanceAPI.RQ_KLINES) and (end_time is None) and (start_time is None):
-            rsp = BinanceAPI._socket_market_history(test_mode, rq, params)
+            response = BinanceFakeAPI.steal_request(rq, params)
+        elif (rq == BinanceAPI.RQ_KLINES) and (not rq_kline_time_set):
+            response = BinanceAPI._socket_market_history(test_mode, rq, params)
         else:
-            rsp = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
-        return rsp
+            response = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
+        return response
 
     @staticmethod
     def get_waitingroom() -> WaitingRoom:
@@ -1116,13 +1111,31 @@ class BinanceAPI(ABC):
     @staticmethod
     def symbol_to_pair(symbol: str) -> str:
         """
-        To convert Binance symbol to System pair\n
-        i.e: 'BNBUSDT'|'bnbusdt' => 'bnb/usdt'\n
-        :param symbol: The symbol to convert
-        :return: the symbol converted
+        To convert Binance's merged pair to pair with slash
+        NOTE: 'BNBUSDT'|'bnbusdt' => 'bnb/usdt'
+
+        Parameters:
+        -----------
+        symbol: str
+            The symbol to convert
+
+        Raise:
+        ------
+        raise: ValueError
+            if merged pair don't correspond to a supported pair
+
+        Return:
+        -------
+        return: str
+            A pair with slash
         """
+        if not isinstance(symbol, str):
+            raise TypeError(f"The merged pair must be of type '{str}', instead type='{type(symbol)}'")
         convertor = BinanceAPI._get_symbol_to_pair()
-        return convertor.get(symbol.lower())
+        pair_str = convertor.get(symbol.lower())
+        if pair_str is None:
+            raise ValueError(f"This merged pair '{symbol}' don't correspond to a supported pair")
+        return pair_str
 
     @staticmethod
     def get_pairs(match: List[str] = None, no_match: List[str] = None) -> list:
@@ -1177,24 +1190,37 @@ class BinanceAPI(ABC):
         return BinanceAPI._INTERVALS_INT.get(period_str)
 
     @staticmethod
-    def convert_interval(prd: int) -> str:
+    def convert_interval(period: int) -> str:
         """
-        To convert a period time in second to a period interval supported by the API\n
-        :param prd: the period time (in second) to convert
-        :return: period interval supported by the API
+        To convert a period time to a period interval supported by the API
+
+        Parameters:
+        -----------
+        period: int
+            The period to convert (in second)
+
+        Raises:
+        -------
+        raise: TypeError
+            if period's type is not 'int'
+        raise: ValueError
+            if period doesn't correspond to a supported interval
+
+        Return:
+        -------
+        return: str
+            Period interval supported by the API
         """
-        if not isinstance(prd, int):
-            raise ValueError(f"The period to convert must be type int, instead '{prd}({type(prd)})'")
-        intrs = BinanceAPI.get_intervals()
-        ks = intrs.get_keys()
-        nb = len(ks)
-        intr = ks[nb - 1]
-        for i in range(nb):
-            v = intrs.get(ks[i])
-            if v >= prd:
-                intr = ks[i]
-                break
-        return intr
+        if not isinstance(period, int):
+            raise ValueError(f"The period to convert must be of type '{int}', instead type={type(period)}'")
+        intervals = BinanceAPI.get_intervals().get_map()
+        periods = list(intervals.values())
+        if period not in periods:
+            raise ValueError(f"This period '{period}' doesn't correspond to a supported interval")
+        idx = periods.index(period)
+        str_periods = list(intervals.keys())
+        interval = str_periods[idx]
+        return interval
 
     @staticmethod
     def _check_params(rq: str, prms_map: Map) -> bool:
