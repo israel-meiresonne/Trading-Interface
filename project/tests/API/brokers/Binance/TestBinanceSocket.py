@@ -197,6 +197,32 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         self.assertIsNone(bws._get_websocket(ws1.get_id()))
         self.assertIsNone(bws._get_websocket(ws2.get_id()))
 
+    def test_get_stream_time(self) -> None:
+        bws = self.bws_single
+        stream = bws.get_streams()[0]
+        bws.run()
+        event_times = []
+        n_turn = 5
+        # Update
+        while len(event_times) < n_turn:
+            event_time = bws.get_stream_time(stream)
+            event_times.append(event_time) if isinstance(event_time, int) and (event_time not in event_times) else time.sleep(1)
+        print([_MF.unix_to_date((event_time/1000), form=_MF.FORMAT_D_H_M_S_MS) for event_time in event_times])
+        exp1 = n_turn
+        result1 = len(event_times)
+        self.assertEqual(exp1, result1)
+        # Most recet event
+        exp2 = bws.get_stream_time(stream)
+        result2 = bws.stream_time()
+        self.assertIsInstance(result2, int)
+        self.assertEqual(exp2, result2)
+        # Close
+        bws.close()
+        self.assertDictEqual({}, bws._get_stream_times().get_map())
+    
+    def test_stream_time(self) -> None:
+        pass
+
     def test_set_get_market_history(self) -> None:
         bws = self.bws_multi
         streams = self.streams
