@@ -12,7 +12,6 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 
 class FileManager(ABC):
     _PROJECT_DIR = None
-    _REGEX_FILE_DIR = r'^.+\/'
 
     @abstractmethod
     def __init__(self):
@@ -63,7 +62,7 @@ class FileManager(ABC):
         if line_return:
             content = f'{content}\r\n'
         if make_dir:
-            file_dir = FileManager.extract_dir_from_file(path)
+            file_dir = FileManager.path_to_dir(path)
             FileManager.make_directory(file_dir)
         with open(full_path, write_mode + bin_mode) as file:
             if binary:
@@ -117,7 +116,7 @@ class FileManager(ABC):
         extrasaction = 'ignore' if ignore_extra else 'raise'
         mode = 'w' if overwrite else 'a'
         if make_dir:
-            file_dir = FileManager.extract_dir_from_file(path)
+            file_dir = FileManager.path_to_dir(path)
             FileManager.make_directory(file_dir)
         with open(full_path, mode=mode, newline='') as f:
             writer = DictWriter(f, fieldnames=fields, extrasaction=extrasaction)
@@ -164,7 +163,7 @@ class FileManager(ABC):
         return files
 
     @staticmethod
-    def get_dirs(path: str, special: bool = False, make_dir: bool = False) -> list:
+    def get_dirs(path: str, special: bool = False, make_dir: bool = False) -> list[str]:
         """
          To list directories of a directory\n
          :param path: the path of the directory
@@ -198,11 +197,27 @@ class FileManager(ABC):
         os_remove(path)
 
     @staticmethod
-    def extract_dir_from_file(file_path: str) -> str:
-        regex = FileManager._REGEX_FILE_DIR
-        file_name = _MF.regex_replace(regex, '', file_path)
-        file_dir = file_path.replace(file_name, '')
-        return file_dir
+    def path_to_dir(file_path: str) -> str:
+        """
+        To extract path to file's directory from file's path
+        NOTE: 'path/to/my/file.py' => 'path/to/my/'
+
+        Parameters:
+        -----------
+        file_path: str
+            Path to a file
+
+        Return:
+        -------
+        return: str
+            Path to file's directory
+        """
+        if file_path[-1] == '/':
+            raise ValueError(f"This path '{file_path}' is a directory")
+        if '/' not in file_path:
+            raise ValueError(f"This path '{file_path}' don't contain directory")
+        dir_path = '/'.join(file_path.split('/')[:-1]) + '/'
+        return dir_path
 
     @staticmethod
     def make_directory(path: str) -> None:
