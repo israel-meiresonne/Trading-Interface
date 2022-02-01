@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 from config.Config import Config
@@ -55,6 +55,40 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         class_name = BinanceFakeAPI.__name__
         return _cls._FILE_LOAD_ORDERS.replace('$stage', _cls._get_stage()).replace('$class', class_name)
+
+    @staticmethod
+    def load_market_histories(merged_to_period: Dict[str, List[int]]) -> None:
+        """
+        To load multiple market histories
+
+        Parameters:
+        -----------
+        merged_to_period: List[Dict[str, int]]
+            Couple of merged pair and period to load
+            merged_to_period[merged_pair{str}]: List[period{int}]
+        """
+        _cls = BinanceFakeAPI
+        histories = _cls._get_market_histories()
+        missings = {}
+        # Check params
+        for merged_pair, periods in merged_to_period.items():
+            _cls.check_merged_pair(merged_pair)
+            merged_pair = merged_pair.upper()
+            for period in periods:
+                _cls.check_period(period)
+                history = histories.get(merged_pair, period)
+                if history is None:
+                    if merged_pair not in missings:
+                        missings[merged_pair] = []
+                    missings[merged_pair].append(period)
+        # Load
+        for merged_pair, periods in missings.items():
+            for period in periods:
+                history = _cls._load_market_history(merged_pair, period)
+                histories.put(history, merged_pair, period)
+        if len(missings) > 0:
+            _cls._fixe_market_history_time()
+            _cls._check_market_histories()
 
     @staticmethod
     def _load_market_history(merged_pair: str, period: int) -> np.ndarray:

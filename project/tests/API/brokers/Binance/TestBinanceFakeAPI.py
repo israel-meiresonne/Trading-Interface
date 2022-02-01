@@ -68,6 +68,31 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         result = BinanceFakeAPI._get_file_path_load_orders()
         self.assertEqual(exp, result)
 
+    def test_load_market_histories(self) -> None:
+        _cls = BinanceFakeAPI
+        pair1 = Pair('BTC/USDT')
+        merged_pair1 = pair1.format(Pair.FORMAT_MERGED).upper()
+        pair2 = Pair('DOGE/USDT')
+        merged_pair2 = pair2.format(Pair.FORMAT_MERGED).upper()
+        merged_to_period = {
+            merged_pair1: [60, 60*3],
+            merged_pair2: [60*5, 60*15],
+        }
+        # Test load
+        _cls.load_market_histories(merged_to_period)
+        [[self.assertIsInstance(_cls._get_market_history(merged_pair, period), np.ndarray) for period in periods] for merged_pair, periods in merged_to_period.items()]
+        # Don't load existing hsitories
+        exp2 = id(_cls._get_market_history(merged_pair1, merged_to_period[merged_pair1][0]))
+        _cls.load_market_histories(merged_to_period={merged_pair1: [merged_to_period[merged_pair1][0]]})
+        result2 = id(_cls._get_market_history(merged_pair1, merged_to_period[merged_pair1][0]))
+        self.assertEqual(exp2, result2)
+        # Wrong pair
+        with self.assertRaises(ValueError):
+            _cls.load_market_histories(merged_to_period={'fake_merged': [merged_to_period[merged_pair1][0]]})
+        # Wrong period
+        with self.assertRaises(ValueError):
+            _cls.load_market_histories(merged_to_period={merged_pair1: [23]})
+
     def test_load_market_history(self) -> None:
         pair = Pair('BTC/USDT')
         merged_pair = pair.format(Pair.FORMAT_MERGED)
@@ -86,7 +111,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         This mean that it's normal if the last open time don't match the last second of the period
         """
 
-    def test_set_get_market_history(self) -> None:
+    def test_set_market_history(self) -> None:
         def test_instance(merged_pair: str, period: int) -> None:
             mkt = _cls._get_market_history(merged_pair, period)
             self.assertIsInstance(mkt, np.ndarray)
