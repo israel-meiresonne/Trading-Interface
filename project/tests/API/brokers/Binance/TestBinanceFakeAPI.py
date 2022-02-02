@@ -13,6 +13,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MarketPrice import MarketPrice
 from model.tools.Pair import Pair
 
 
@@ -57,8 +58,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         else:
             init_stage = self.INIT_STAGE
             self.BROKER.close() if self.BROKER is not None else None
-            Config.update(Config.STAGE_MODE,
-                          init_stage) if init_stage is not None else None
+            Config.update(Config.STAGE_MODE, init_stage) if init_stage is not None else None
         return self.BROKER
 
     def test_get_file_path_load_orders(self) -> None:
@@ -127,6 +127,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         '''
         # Stage 1
         '''
+        # —— Test type
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
         _cls._set_market_history(merged_pair1, period1, update=False)
         _cls._set_market_history(merged_pair2, period1, update=False)
@@ -134,6 +135,17 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         test_instance(merged_pair1, period1)
         test_instance(merged_pair2, period1)
         test_instance(merged_pair2, period2)
+        # —— Test if historis start at the same date
+        merged_pairs = [merged_pair1, merged_pair2]
+        broker_name = BinanceAPI.__name__.replace('API', '')
+        periods = MarketPrice.history_periods(broker_name)
+        open_times = []
+        [[_cls._get_market_history(merged_pair, period)[0,0] for period in periods] for merged_pair in merged_pairs]
+        for merged_pair in merged_pairs:
+            for period in periods:
+                open_time = _cls._get_market_history(merged_pair, period)[0,0]
+                self.assertEqual(open_times[-1], open_time) if len(open_times) > 0 else None
+                open_times.append(open_time)
         '''
         # Stage 2
         '''
@@ -245,9 +257,10 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         cols = tests.columns
         for i in range(tests.shape[0]):
             Bot.update_trade_index(i)
-            for period in cols:
+            for key in cols:
+                period = int(key) if key.isnumeric() else None
                 if isinstance(period, int):
-                    exp = tests.loc[i,period]
+                    exp = tests.loc[i,key]
                     result = _cls._index(period)
                     self.assertEqual(exp, result)
         Config.update(Config.STAGE_MODE, Config.STAGE_2)
@@ -341,9 +354,14 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         _cls = BinanceFakeAPI
         n_periods = [1, 534, _cls.CONSTRAINT_KLINES_MAX_PERIOD]
         period_milli = 60*1000
-        params = Map({"symbol": "BTCUSDT", "interval": "1m", Map.limit: 'x'})
+        pair1 = Pair('BTC/USDT')
+        merged_pair1 = pair1.format(Pair.FORMAT_MERGED).upper()
+        pair2 = Pair('DOGE/USDT')
+        merged_pair2 = pair2.format(Pair.FORMAT_MERGED).upper()
+        params = Map({"symbol": merged_pair1, "interval": "1m", Map.limit: 'x'})
         # Stage 1
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
+        # —— Test size
         open_times1 = []
         bot_index1 = 0
         for n_period in n_periods:
@@ -357,6 +375,28 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
             self.assertEqual(n_period, n_kline)
             n_increase = sum([1 for i in range(1, n_kline) if klines[i][0] > klines[i-1][0]])
             self.assertEqual((n_kline-1), n_increase)
+        # —— Test date
+        n_trade = 127
+        broker_name = BinanceAPI.__name__.replace('API', '')
+        periods = MarketPrice.history_periods(broker_name)
+        min_period = min(periods)
+        min_str_period = _cls.convert_interval(min_period)
+        merged_to_period = {
+            merged_pair1: periods,
+            merged_pair2: periods,
+        }
+        _cls.load_market_histories(merged_to_period)
+        for i in range(n_trade):
+            Bot.update_trade_index(i)
+            for merged_pair in merged_to_period.keys():
+                min_kline = _cls._request_kline(params=Map({Map.symbol: merged_pair, Map.interval: min_str_period, Map.limit: 10}))
+                min_open_time = min_kline[-1][0]
+                for period in merged_to_period[merged_pair]:
+                    str_period = _cls.convert_interval(period)
+                    kline = _cls._request_kline(params=Map({Map.symbol: merged_pair, Map.interval: str_period, Map.limit: 10}))
+                    open_time = kline[-1][0]
+                    min_open_time_rounded = _MF.round_time(min_open_time, period*1000)
+                    self.assertTrue(open_time == min_open_time_rounded)
         # Stage 2
         _cls.reset()
         Config.update(Config.STAGE_MODE, Config.STAGE_2)
