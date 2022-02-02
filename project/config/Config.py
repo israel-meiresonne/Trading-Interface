@@ -96,3 +96,26 @@ class Config(ABC):
             The actual stage
         """
         return Config.get(Config.STAGE_MODE)
+
+    @staticmethod
+    def check_stage(expected_stages: list[str], message: str = None) -> bool:
+        """
+        To check if the stages are valid
+
+        Paramaters:
+        -----------
+        expected_stage: str
+            List of valid stages
+        message: str
+            The error message
+
+        Return:
+        -------
+        return: bool
+            True if the stage is valid else raise exception
+        """
+        message = message if message is not None else "The stage must be '{}', instead stage='{}'"
+        stage = Config.get_stage()
+        if stage not in expected_stages:
+            raise Exception(message.format("' or '".join(expected_stages), stage))
+        return True
