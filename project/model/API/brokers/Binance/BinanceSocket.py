@@ -42,6 +42,7 @@ class BinanceSocket(BinanceAPI):
         self.__new_streams = None
         self.__websockets = None
         self.__market_histories = None
+        self.__stream_times = None
         self.__room_market_update = None
         self.__thread_market_update = None
         self.__room_call_market_update = None
@@ -213,6 +214,56 @@ class BinanceSocket(BinanceAPI):
             del wss.get_map()[websocket_id]
             del ws
 
+    def _reset_stream_times(self) -> None:
+        self.__stream_times = None
+
+    def _set_stream_time(self, stream: str, event_time: int) -> None:
+        """
+        To set event time for the given stream
+
+        Parameters:
+        -----------
+        stream: str
+            Stream to set
+        event_time: int
+            The new event time (in millisecond)
+        """
+        if not isinstance(event_time, int):
+            raise TypeError(f"The event time must be of type '{int}', instead event_time='{type(event_time)}'")
+        self.check_stream(stream)
+        stream_times = self._get_stream_times()
+        stream_times.put(event_time, stream)
+
+    def _get_stream_times(self) -> Map:
+        """
+        To get the most recent event times of each stream open
+
+        Returns:
+        --------
+        return: int
+            the most recent event times
+            Map[stream{str}]:   {int}   # in millisecond 
+        """
+        if self.__stream_times is None:
+            self.__stream_times = Map()
+        return self.__stream_times
+
+    def get_stream_time(self, stream: str) -> int:
+        """
+        To get the most recent event time of the given stream
+
+        Parameters:
+        -----------
+        stream: str
+            Stream to get event time of
+
+        Returns:
+        --------
+        return: int
+            Stream's most recent event time in millisecond else None
+        """
+        return self._get_stream_times().get(stream)
+
     def _reset_market_histories(self) -> None:
         self.__market_histories = None
 
@@ -294,10 +345,11 @@ class BinanceSocket(BinanceAPI):
 
     def _reset_room_market_update(self) -> None:
         market_room = self.__room_market_update
-        streams = market_room.get_tickets()
-        [market_room.quit_room(stream) for stream in streams]
-        self.__room_market_update = None
-        del market_room
+        if market_room is not None:
+            streams = market_room.get_tickets()
+            [market_room.quit_room(stream) for stream in streams]
+            self.__room_market_update = None
+            del market_room
 
     def _get_room_market_update(self) -> WaitingRoom:
         """
@@ -314,10 +366,11 @@ class BinanceSocket(BinanceAPI):
 
     def _reset_room_call_market_update(self) -> None:
         call_room = self.__room_call_market_update
-        tickets = call_room.get_tickets()
-        [call_room.quit_room(ticket) for ticket in tickets]
-        self.__room_call_market_update = None
-        del call_room
+        if call_room is not None:
+            tickets = call_room.get_tickets()
+            [call_room.quit_room(ticket) for ticket in tickets]
+            self.__room_call_market_update = None
+            del call_room
 
     def _get_room_call_market_update(self) -> WaitingRoom:
         """
@@ -495,6 +548,18 @@ class BinanceSocket(BinanceAPI):
         all_streams = [*self.get_streams(), *self.get_new_streams()]
         return _MF.remove_duplicates(all_streams)
 
+    def stream_time(self) -> int:
+        """
+        To get the most recent event time of all streams
+
+        Returns:
+        --------
+        return: int
+            The most recent event time else None (in millisecond)
+        """
+        event_times = list(self._get_stream_times().get_map().values())
+        return max(event_times) if len(event_times) > 0 else None
+
     def _websocket_are_running(self) -> bool:
         """
         To check if all WebSocket established and are maintaining a connection
@@ -524,6 +589,7 @@ class BinanceSocket(BinanceAPI):
             New WebSocket using given streams
         """
         from websocket import WebSocketApp
+        from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
 
         def on_open(socket: WebSocketApp) -> None:
             _MF.output(f"{_MF.prefix()}on_open: connection established...") if BinanceSocket._DEBUG else None
@@ -540,6 +606,11 @@ class BinanceSocket(BinanceAPI):
 
         def on_message(socket: WebSocketApp, message: str) -> None:
             def kline(pay_load: dict) -> None:
+                def update_fake_api(stream: str, merged_pair: str, str_period: str) -> None:
+                    period = self.get_interval(str_period)
+                    market_history = self._get_market_histories().get(stream)
+                    BinanceFakeAPI.update_market_history(merged_pair, period, market_history)
+
                 def milli_to_date(milli) -> str:
                     return _MF.unix_to_date(int(milli/1000))
                 
@@ -556,6 +627,8 @@ class BinanceSocket(BinanceAPI):
                 symbol = pay_load['s']
                 period_str = pay_load['k']['i']
                 stream = self.generate_stream(rq, symbol, period_str)
+                event_time = pay_load['E']
+                self._set_stream_time(stream, event_time)
                 if self._can_update_market_history(stream) \
                     and (stream not in self._get_room_market_update().get_tickets()):
                     self._update_market_history(stream)
@@ -582,11 +655,13 @@ class BinanceSocket(BinanceAPI):
                     if new_row[-1][0] == market_hist[-1][0]:   # compare open time
                         print(_MF.prefix() + f"REPLACE LAST") if BinanceSocket._VERBOSE else None
                         market_hist[-1] = new_row
+                        update_fake_api(stream, symbol, period_str)
                     elif new_row[-1][0] > market_hist[-1][0]:
                         print(_MF.prefix() + f"RESET ALL") if BinanceSocket._VERBOSE else None
                         new_market_hist = np.vstack((market_hist, new_row))
                         market_hists.put(new_market_hist, stream)
-                    else:
+                        update_fake_api(stream, symbol, period_str)
+                    elif BinanceSocket._VERBOSE:
                         new_date = _MF.unix_to_date(int(new_row[-1][0]/1000))
                         market_date = _MF.unix_to_date(int(market_hist[-1][0]/1000))
                         error = f"Stream event '{stream}' is older than market's newest row (market='{market_date}', new_date='{new_date}')"
@@ -743,7 +818,7 @@ class BinanceSocket(BinanceAPI):
         self._reset_room_market_update()
         self._reset_market_histories()
         self._reset_market_reset_times()
-        # self._reset_streams()
+        self._reset_stream_times()
 
     def _manage_run(self) -> None:
         """
