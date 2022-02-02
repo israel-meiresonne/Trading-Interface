@@ -68,6 +68,41 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         result = BinanceFakeAPI._get_file_path_load_orders()
         self.assertEqual(exp, result)
 
+    def test_get_history_times(self) -> None:
+        _cls = BinanceFakeAPI
+        unix_time = _MF.get_timestamp()
+        start_time = 1606225200
+        end_time = 1606225260
+        # No times
+        _cls._HISTORY_TIMES = {Map.start: None, Map.end: None}
+        times = _cls.get_history_times()
+        self.assertEqual(1, times.get(Map.start))
+        self.assertTrue(times.get(Map.end) >= unix_time)
+        # Start time set
+        _cls._HISTORY_TIMES = {Map.start: start_time, Map.end: None}
+        times = _cls.get_history_times()
+        self.assertEqual(start_time, times.get(Map.start))
+        self.assertTrue(times.get(Map.end) >= unix_time)
+        # End time set
+        _cls._HISTORY_TIMES = {Map.start: None, Map.end: end_time}
+        times = _cls.get_history_times()
+        self.assertEqual(1, times.get(Map.start))
+        self.assertEqual(end_time, times.get(Map.end))
+        # Start and End time set
+        _cls._HISTORY_TIMES = {Map.start: start_time, Map.end: end_time}
+        times = _cls.get_history_times()
+        self.assertEqual(start_time, times.get(Map.start))
+        self.assertEqual(end_time, times.get(Map.end))
+        # Times in millisecond
+        # —— Start time
+        _cls._HISTORY_TIMES = {Map.start: start_time*1000, Map.end: end_time}
+        with self.assertRaises(ValueError):
+            _cls.get_history_times()
+        # —— End time
+        _cls._HISTORY_TIMES = {Map.start: start_time, Map.end: end_time*1000}
+        with self.assertRaises(ValueError):
+            _cls.get_history_times()
+
     def test_load_market_histories(self) -> None:
         _cls = BinanceFakeAPI
         pair1 = Pair('BTC/USDT')
@@ -94,11 +129,12 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
             _cls.load_market_histories(merged_to_period={merged_pair1: [23]})
 
     def test_load_market_history(self) -> None:
+        _cls = BinanceFakeAPI
         pair = Pair('BTC/USDT')
         merged_pair = pair.format(Pair.FORMAT_MERGED)
         period = 60*60
         period_milli = int(period * 1000)
-        history = BinanceFakeAPI._load_market_history(merged_pair, period)
+        history = _cls._load_market_history(merged_pair, period)
         self.assertIsInstance(history, np.ndarray)
         # Check interval between open time
         diff_open = np.diff(history[:,0])
@@ -110,6 +146,23 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         definition(close time): time of the last transaction
         This mean that it's normal if the last open time don't match the last second of the period
         """
+        # Select time interval
+        # —— Start time set
+        _cls._HISTORY_TIMES = {Map.start: 1609452000, Map.end: None}
+        history = _cls._load_market_history(merged_pair, period)
+        times = _cls.get_history_times()
+        self.assertTrue(history[0,0] >= times.get(Map.start)*1000)
+        # —— End time set
+        _cls._HISTORY_TIMES = {Map.start: None, Map.end: 1611784800}
+        history = _cls._load_market_history(merged_pair, period)
+        times = _cls.get_history_times()
+        self.assertTrue(history[-1,0] <= times.get(Map.end)*1000)
+        # —— Start and End time set
+        _cls._HISTORY_TIMES = {Map.start: 1609452000, Map.end: 1611784800}
+        history = _cls._load_market_history(merged_pair, period)
+        times = _cls.get_history_times()
+        self.assertTrue(history[0,0] >= times.get(Map.start)*1000)
+        self.assertTrue(history[-1,0] <= times.get(Map.end)*1000)
 
     def test_set_market_history(self) -> None:
         def test_instance(merged_pair: str, period: int) -> None:
@@ -120,7 +173,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         _cls = BinanceFakeAPI
         pair1 = Pair('BTC/USDT')
         merged_pair1 = pair1.format(Pair.FORMAT_MERGED)
-        pair2 = Pair('DOGE/USDT')
+        pair2 = Pair('JOE/USDT')
         merged_pair2 = pair2.format(Pair.FORMAT_MERGED)
         period1 = 60
         period2 = 60*60
