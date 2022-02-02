@@ -17,7 +17,7 @@ from model.tools.Wallet import Wallet
 
 class Strategy(ABC):
     PREFIX_ID = 'stg_'
-    _CONST_BOT_SLEEP_TIME = 60
+    _CONST_BOT_SLEEP_TIME = 10
     _PERFORMANCE_INIT_CAPITAL = 100
     _TOP_ASSET = None
     _TOP_ASSET_MAX = 25

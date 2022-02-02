@@ -21,6 +21,10 @@ from model.tools.Pair import Pair
 
 class MarketPrice(ABC):
     PREFIX_ID = 'mktprc_'
+    _HISTORY_PATHS = {Map.active: 'active', Map.stock: 'stock'}
+    _HISTORY_PERIODS = None
+    _REGEX_HISTORY_FILE = r"\d+.csv"
+    _PERIOD_MARKET_ANALYSE = 60 * 60
     # Indicators
     INDIC_MS = "_set_ms"
     INDIC_DR = "_set_dr"
@@ -85,8 +89,6 @@ class MarketPrice(ABC):
     _MACD_SIGNAL = 9
     _KELTNERC_WINDOW = 20
     _EMA_N_PERIOD = 10
-    # Constantes
-    _PERIOD_MARKET_ANALYSE = 60 * 60
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -1176,6 +1178,7 @@ class MarketPrice(ABC):
             MarketPrice from Broker's API
         """
         from model.tools.BrokerRequest import BrokerRequest
+
         _bkr_cls = bkr.__class__.__name__
         mkt_params = Map({
             Map.pair: pair,
@@ -1188,6 +1191,326 @@ class MarketPrice(ABC):
             _bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
         bkr.request(bkr_rq)
         return bkr_rq.get_market_price()
+
+    @staticmethod
+    def marketprices(broker: 'Broker', pair: Pair, period: int, endtime: int, starttime: int = None, n_history: int = None) -> pd.DataFrame:
+        """
+        To request recurisively market history from starttime (older) to endtime (recent)
+        NOTE: if there's not enough period between starttime and endtime, market history already downloaded is returned
+
+        Parameters
+        ----------
+        broker: Broker
+            Access to a Broker's API
+        pair: Pair
+            Pair to get market prices for
+        period: int
+            The period interval to request
+        n_period: int
+            The number of period to retrieve
+        endtime: int
+            The most recent time (in second)
+        starttime: int
+            The older time (in second)
+        n_history: int
+            The number of history to retrieve
+
+        Raise
+        ------
+        raise: Exception
+            endtime is before actual time
+        raise: Exception
+            starttime is after or equal endtime
+        raise: Exception
+            if starttime and n_history are both None
+        raise: Exception
+            if starttime and n_history are both set
+
+        Returns
+        -------
+            The market history from starttime (older) to endtime (recent)
+        """
+        unix_time = _MF.get_timestamp()
+        if starttime == n_history == None:
+            raise ValueError(f"starttime and n_history can't both be None")
+        if (starttime != None) and (n_history != None):
+            raise ValueError(f"starttime '{starttime}' and n_history '{n_history}' can't both be set")
+        if (starttime is not None) and (not isinstance(starttime, int)):
+            raise ValueError(f"Param 'starttime' must be type int, instead '{type(starttime)}'")
+        if not isinstance(endtime, int):
+            raise ValueError(f"Param 'endtime' must be type int, instead '{type(endtime)}'")
+        if endtime > unix_time:
+            raise Exception(f"The endtime must be before than actual time, instead endtime'{endtime}' > actual'{unix_time}'")
+        if (starttime is not None) and (starttime >= endtime):
+            raise Exception(f"The starttime must be before than endtime, instead starttime'{starttime}' >= endtime'{endtime}'")
+        if starttime is None:
+            starttime = endtime - (n_history * period)
+        starttime = _MF.round_time(starttime, period)
+        max_n_period = broker.get_max_n_period()
+        endtime = _MF.round_time(endtime, period)
+        endtime_copy = endtime
+        marketprices = None
+        end = False
+        while not end:
+            marketprice = MarketPrice.marketprice(broker, pair, period, n_period=max_n_period, endtime=endtime_copy)
+            market = list(marketprice.get_market())
+            market.reverse()
+            martket_np = np.array(market, dtype=np.float64)
+            marketprices = martket_np if marketprices is None else np.vstack((martket_np, marketprices))
+            endtime_copy -= period * max_n_period
+            end = (martket_np.shape[0] < max_n_period) \
+                or (endtime_copy <= starttime)
+        # Convert to DataFrame
+        marketprices_pd = pd.DataFrame(marketprices, columns=[str(i) for i in range(marketprices.shape[1])])
+        # Drop duplicates
+        marketprices_pd = marketprices_pd.drop_duplicates(subset='0', keep='last', ignore_index=True)
+        # Sort following the open time
+        marketprices_pd = marketprices_pd.sort_values(by='0', axis=0, ascending=True)
+        # Remove exceeding periods
+        n_row = int(abs(endtime - starttime)/period)
+        marketprices_pd = marketprices_pd[-n_row:] if (marketprices_pd.shape[0] > n_row) else marketprices_pd
+        return marketprices_pd
+
+    @staticmethod
+    def save_marketprices(broker: 'Broker', pairs: List[Pair], periods: List[int], endtime: int, starttime: int) -> None:
+        """
+        To download and save markt prices
+
+        Parameters:
+        -----------
+        bkr: Broker
+            Access to a Broker's API
+        pairs: List[Pair]
+            List of Pair to download
+        periods: List[int]
+            List of period to download (in second)
+        endtime: int
+            The most recent time to download (in second)
+        starttime: int
+            The older time to download (in second)
+        """
+        def print_history(path: str, marketprice: pd.DataFrame) -> None:
+            csv = marketprice.to_csv(index=False)
+            FileManager.write(path, csv, overwrite=True, make_dir=True)
+        
+        def print_config(path: str, marketprice: pd.DataFrame) -> None:
+            first_time = int(marketprice.iloc[0,0]/1000)
+            last_time = int(marketprice.iloc[-1,0]/1000)
+            max_high = marketprice.iloc[:,2].max()
+            min_low = marketprice.iloc[:,3].min()
+            roi = _MF.progress_rate(max_high, min_low)
+            rows = [{
+                Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                Map.broker: broker_name,
+                Map.pair: pair,
+                Map.period: period,
+                Map.interval: f'{int(period/60)}min.',
+                Map.start_time: _MF.unix_to_date(first_time),
+                Map.end_time: _MF.unix_to_date(last_time),
+                Map.time: _MF.delta_time(first_time, last_time),
+                Map.roi: roi,
+                f"{Map.roi}_str": _MF.rate_to_str(roi)
+            }]
+            fields = list(rows[0].keys())
+            file_path = path + 'config.csv'
+            FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
+
+        _cls = MarketPrice
+        _back_cyan = '\033[46m' + '\033[30m'
+        _normal = '\033[0m'
+        broker_name = broker.__class__.__name__
+        # Ouput
+        n_turn = len(pairs) * len(periods)
+        turn = 1
+        out_starttime = _MF.get_timestamp()
+        _MF.output(f"{_back_cyan}Start extracting prices of '{len(pairs)}' pairs from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'{_normal}")
+        for pair in pairs:
+            for period in periods:
+                _MF.output(_MF.loop_progression(out_starttime, turn, n_turn, message=f"{pair.__str__().upper()} {int(period/60)}min."))
+                turn += 1
+                marketprice_pd = _MF.catch_exception(_cls.marketprices, _cls.__name__, repport=True, **{
+                    'broker': broker, 
+                    'pair': pair, 
+                    'period': period, 
+                    'endtime': endtime, 
+                    'starttime': starttime
+                    })
+                if marketprice_pd is None:
+                    continue
+                # marketprice_pd = _cls.marketprices(broker, pair, period, endtime, starttime=starttime)
+                file_path = _cls.file_path_market_history(broker_name, pair, period, active_path=False)
+                dir_path = _cls.dir_path_market_history(broker_name, pair, active_path=False)
+                print_history(file_path, marketprice_pd)
+                print_config(dir_path, marketprice_pd)
+
+    @staticmethod
+    def load_marketprice(broker_name: str, pair: Pair, period: int, active_path: bool) -> np.ndarray:
+        """
+        To load market history
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+        pair: Pair
+            Pair to get file path of
+        period: int
+            Period to get file path of (in second)
+        active_path: bool
+            Set True to access histories for the running session 
+            else False to access stored histories
+
+        Return:
+        -------
+        return: np.ndarray
+            Loaded market history
+        """
+        if active_path:
+            pair_dir_path = MarketPrice.dir_path_pair(broker_name, active_path=True)
+            str_pairs = FileManager.get_dirs(pair_dir_path, make_dir=True)
+            if pair.format(Pair.FORMAT_UNDERSCORE).upper() not in str_pairs:
+                raise ValueError(f"This Pair '{pair}' don't has its Active history")
+        else:
+            pair_dir_path = MarketPrice.dir_path_pair(broker_name, active_path=False)
+            str_pairs = FileManager.get_dirs(pair_dir_path, make_dir=True)
+            if pair.format(Pair.FORMAT_UNDERSCORE).upper() not in str_pairs:
+                raise ValueError(f"This Pair '{pair}' don't has its Stock history")
+        stock_file_path = MarketPrice.file_path_market_history(broker_name, pair, period, active_path=False)
+        project_dir = FileManager.get_project_directory()
+        history = pd.read_csv(project_dir + stock_file_path).to_numpy()
+        return history
+
+    @staticmethod
+    def file_path_market_history(broker_name: str, pair: Pair, period: int, active_path: bool = True) -> str:
+        """
+        To get the file path to a market price history
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+        pair: Pair
+            Pair to get file path of
+        period: int
+            Period to get file path of (in second)
+        active_path: bool = True
+            Set True to get file path to history for the running session 
+            else False to get path to where histories are stored
+
+        Return:
+        -------
+        return: str
+            The file path to the market price history with the give pair and period
+        """
+        canvas = Config.get(Config.FILE_PATH_MARKET_HISTORY)
+        hist_path = MarketPrice._HISTORY_PATHS
+        underscored_pair = pair.format(Pair.FORMAT_UNDERSCORE).upper()
+        stock_path = hist_path[Map.active] if active_path else hist_path[Map.stock]
+        file_path = canvas.replace('$stock_path', stock_path).replace('$broker', broker_name).replace('$pair', underscored_pair).replace('$period', str(period))
+        return file_path
+
+    @staticmethod
+    def dir_path_market_history(broker_name: str, pair: Pair, active_path: bool) -> str:
+        """
+        To get the directory path to where all market histories are stored
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+        pair: Pair
+            Pair to get file path of
+        active_path: bool
+            Set True to get file path to history for the running session 
+            else False to get path to where histories are stored
+
+        Return:
+        -------
+        return: str
+            The directory path to where all market histories are stored
+        """
+        period = -1
+        file_path = MarketPrice.file_path_market_history(broker_name, pair, period, active_path)
+        dir_path = FileManager.path_to_dir(file_path)
+        return dir_path
+
+    @staticmethod
+    def dir_path_pair(broker_name: str, active_path: bool) -> str:
+        """
+        To get directory path to where all pairs are stored
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+        active_path: bool
+            Set True to access histories for the running session 
+            else False to access stored histories
+
+        Returns:
+        -------
+        return: str
+            Directory path to where all pairs are stored
+        """
+        pair = Pair('none/none')
+        dir_path = MarketPrice.dir_path_market_history(broker_name, pair, active_path)
+        pairs_dir_path = '/'.join(dir_path.split('/')[:-2]) + '/'
+        return pairs_dir_path
+
+    @staticmethod
+    def history_pairs(broker_name: str, active_path: bool) -> List[Pair]:
+        """
+        To get list of Pair with a history
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+        active_path: bool
+            Set True to access histories for the running session 
+            else False to access stored histories
+
+        Return:
+        -------
+        return: List[Pair]
+            List of Pair with a history
+        """
+        pair_dir_path = MarketPrice.dir_path_pair(broker_name, active_path)
+        str_pairs = FileManager.get_dirs(pair_dir_path, make_dir=True)
+        pairs = [Pair(*str_pair.split(Pair.UNDERSCORE)) for str_pair in str_pairs]
+        return pairs
+
+    @staticmethod
+    def history_periods(broker_name: str) -> List[int]:
+        """
+        To get list of period available for market histories
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+
+        Return:
+        -------
+        return: List[int]
+            List of period available for market histories
+        """
+        _cls = MarketPrice
+        if _cls._HISTORY_PERIODS is None:
+            dir_path_pair = _cls.dir_path_pair(broker_name, active_path=False)
+            underscored_pairs = FileManager.get_dirs(dir_path_pair, make_dir=True)
+            pair = Pair(*underscored_pairs[0].split(Pair.UNDERSCORE))
+            history_dir_path = _cls.dir_path_market_history(broker_name, pair, active_path=False)
+            history_files = FileManager.get_files(history_dir_path)
+            regex = _cls.regex_history_file()
+            periods = [int(file.split('.')[0]) for file in history_files if _MF.regex_match(regex, file)]
+            periods.sort()
+            _cls._HISTORY_PERIODS = periods
+        return _cls._HISTORY_PERIODS
+
+    @staticmethod
+    def regex_history_file() -> str:
+        return MarketPrice._REGEX_HISTORY_FILE
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
