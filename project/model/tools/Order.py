@@ -14,7 +14,7 @@ class Order(Request, Transaction, MyJson, ABC):
     # Types
     TYPE_MARKET = "_set_market"
     TYPE_LIMIT = "_set_limit"
-    TYPE_STOP = "_set_stop"
+    TYPE_STOP = "_set_stop_loss"
     TYPE_STOP_LIMIT = "_set_stop_limit"
     ODR_TYPES = [
         TYPE_MARKET,
@@ -94,23 +94,32 @@ class Order(Request, Transaction, MyJson, ABC):
 
     def _set_order(self, params: Map) -> None:
         odr_type = self.get_type()
-        qty = params.get(Map.quantity)
+        quantity = params.get(Map.quantity)
         if odr_type == self.TYPE_MARKET:
             self._check_market(params)
             self._set_move(params.get(Map.move))
-            self._set_quantity(qty) if qty is not None else None
+            self._set_quantity(quantity) if quantity is not None else None
             self._set_amount(params.get(Map.amount))
         elif odr_type == self.TYPE_STOP:
             self._check_stop(params)
             self._set_move(params.get(Map.move))
             self._set_stop_price(params.get(Map.stop))
-            self._set_quantity(qty)
+            self._set_quantity(quantity)
+        elif odr_type == self.TYPE_LIMIT:
+            required = [Map.pair, Map.move, Map.limit, Map.quantity]
+            missing = _MF.keys_exist(required, params.get_map())
+            if missing is not None:
+                raise ValueError(f"This param '{missing}' is required to make a limit Order")
+            Order._check_logic(params)
+            self._set_move(params.get(Map.move))
+            self._set_limit_price(params.get(Map.limit))
+            self._set_quantity(quantity)
         elif odr_type == self.TYPE_STOP_LIMIT:
             self._check_stop_limit(params)
             self._set_move(params.get(Map.move))
             self._set_stop_price(params.get(Map.stop))
             self._set_limit_price(params.get(Map.limit))
-            self._set_quantity(qty)
+            self._set_quantity(quantity)
         else:
             raise Exception(f"This Order type is not supported '{odr_type}'.")
 
@@ -427,31 +436,43 @@ class Order(Request, Transaction, MyJson, ABC):
     @abstractmethod
     def _set_limit(self) -> None:
         """
-        To set a limit Order\n
-        :param params: params to config a limit Order
+        To set a limit Order
+
+        Format:
+        -------
+        * params[Map.pair]:     {Pair}
+        * params[Map.move]:     {str}
+        * params[Map.limit]:    {Price}  # in right asset
+        * params[Map.quantity]: {Price}  # in left asset
         """
         pass
 
     @abstractmethod
-    def _set_stop(self) -> None:
+    def _set_stop_loss(self) -> None:
         """
-        To prepare a stop order request\n
-            params[Map.pair]    => {Pair}
-            params[Map.move]    => {str}
-            params[Map.stop]    => {Price}  # in right asset
-            params[Map.quantity]=> {Price}  # in left asset
+        To prepare a stop order request
+
+        Format:
+        -------
+        * params[Map.pair]:     {Pair}
+        * params[Map.move]:     {str}
+        * params[Map.stop]:     {Price}  # in right asset
+        * params[Map.quantity]: {Price}  # in left asset
         """
         pass
 
     @abstractmethod
     def _set_stop_limit(self) -> None:
         """
-        To prepare a stop order request\n
-            params[Map.pair]    => {Pair}
-            params[Map.move]    => {str}
-            params[Map.stop]    => {Price}  # in right asset
-            params[Map.limit]   => {Price}  # in right asset
-            params[Map.quantity]=> {Price}  # in left asset
+        To prepare a stop order request
+
+        Format:
+        -------
+        * params[Map.pair]:     {Pair}
+        * params[Map.move]:     {str}
+        * params[Map.stop]:     {Price}  # in right asset
+        * params[Map.limit]:    {Price}  # in right asset
+        * params[Map.quantity]: {Price}  # in left asset
         """
         pass
     

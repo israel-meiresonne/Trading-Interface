@@ -11,13 +11,16 @@ project/content/storage/Predictor/learns/stock/
 project/content/storage/Predictor/market-histories/
 project/content/storage/Predictor/analyse/
 project/content/storage/Predictor/learns/print/
+project/content/storage/MarketPrice/histories/
 
 project/content/market-historic/
 project/content/sessions/
 project/content/analyse/
 project/content/print/
+
 project/tests/datas/tools/TestDeepLearning/
 project/tests/datas/tools/TestPredictor/
+
 project/venv/
 project/env/
 project/dev_env/
