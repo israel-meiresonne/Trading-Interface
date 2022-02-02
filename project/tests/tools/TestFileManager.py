@@ -59,7 +59,7 @@ class TestFileManager(unittest.TestCase, FileManager):
         FileManager.remove_file(path_binary_file)
         FileManager.remove_directory(test_path)
 
-    def test_extract_dir_from_file(self) -> None:
+    def test_path_to_dir(self) -> None:
         file_path = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
                     'i&meim projects/apollo21/versions/v0.1/apollo21/project/content/storage/STAGE_2/Bot/' \
                     'bot_24n6a2e030y81j9z3f45/' \
@@ -67,5 +67,9 @@ class TestFileManager(unittest.TestCase, FileManager):
         exp1 = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
                'i&meim projects/apollo21/versions/v0.1/apollo21/project/content/storage/STAGE_2/Bot/' \
                'bot_24n6a2e030y81j9z3f45/'
-        result1 = FileManager.extract_dir_from_file(file_path)
+        result1 = FileManager.path_to_dir(file_path)
         self.assertEqual(exp1, result1)
+        with self.assertRaises(ValueError):
+            FileManager.path_to_dir('path/to/my/dir/')
+        with self.assertRaises(ValueError):
+            FileManager.path_to_dir('file_without_path.ext')

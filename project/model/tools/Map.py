@@ -43,6 +43,11 @@ class Map(MyJson):
     shape = "shape"
     score = "score"
     thread = "thread"
+    ready = "ready"
+    submit = "submit"
+    active = "active"
+    stock = "stock"
+    execution = "execution"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
@@ -109,6 +114,7 @@ class Map(MyJson):
     isBuyer = "isBuyer"
     isMaker = "isMaker"
     isBestMatch = "isBestMatch"
+    isWorking = "isWorking"
     # BinanceOrder
     move = "move"
     pair = "pair"
@@ -192,7 +198,8 @@ class Map(MyJson):
 
     def put(self, val, *keys):
         nb = len(keys)
-        ValueError("Keys can't be empty") if nb <= 0 else None
+        if nb == 0:
+            raise ValueError("Keys can't be empty")
         key = keys[0]
         mp = self.get_map()
         if nb == 1:
@@ -211,7 +218,7 @@ class Map(MyJson):
                 mp[key] = self._put_rec(mp[key], val, keys, i)
             else:
                 i += 1
-                mp = {} if type(mp).__name__ != "dict" else mp
+                mp = {} if type(mp) != dict else mp
                 mp[key] = self._put_rec({}, val, keys, i)
             return mp
         else:
@@ -219,27 +226,25 @@ class Map(MyJson):
 
     def get(self, *keys):
         nb = len(keys)
-        if nb <= 0:
-            ValueError("Keys can't be empty")
+        if nb == 0:
+            raise ValueError("Keys can't be empty")
         mp = self.get_map()
         if nb == 1:
             key = keys[0]
-            val = mp[key] if (
-                    (type(mp).__name__ == "dict") and key in mp) else None
+            val = mp[key] if ((type(mp) == dict) and key in mp) else None
         else:
             key = keys[0]
-            val = self._get_rec(mp[key], keys, 1) if (
-                    (type(mp).__name__ == "dict") and key in mp) else None
+            val = self._get_rec(mp[key], keys, 1) if ((type(mp) == dict) and key in mp) else None
         return val
 
     def _get_rec(self, mp: dict, keys: tuple, i: int):
         if i == (len(keys) - 1):
             key = keys[i]
-            return mp[key] if ((type(mp).__name__ == "dict") and key in mp) else None
+            return mp[key] if ((type(mp) == dict) and key in mp) else None
         else:
             key = keys[i]
             i += 1
-            return self._get_rec(mp[key], keys, i) if ((type(mp).__name__ == "dict") and key in mp) else None
+            return self._get_rec(mp[key], keys, i) if ((type(mp) == dict) and key in mp) else None
 
     def get_keys(self) -> list:
         return list(self.__map.keys())

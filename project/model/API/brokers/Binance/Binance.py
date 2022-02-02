@@ -66,7 +66,7 @@ class Binance(Broker, MyJson):
 
     def get_trade_fee(self, pair: Pair) -> Map:
         fee = BinanceAPI.get_trade_fee(pair)
-        return Map(fee)
+        return fee
 
     def execute(self, order: Order) -> None:
         bases_params = self.get_base_params()
@@ -110,7 +110,6 @@ class Binance(Broker, MyJson):
 
     @staticmethod
     def close() -> None:
-        # self._get_api().close_socket()
         BinanceAPI.close_socket()
 
     def get_next_trade_time(self) -> int:

@@ -66,7 +66,7 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
         self.stop_prms1_extracted = Map({
             Map.symbol: self.pr.get_merged_symbols(),
             Map.side: BinanceAPI.SIDE_BUY,
-            Map.type: BinanceAPI.TYPE_STOP,
+            Map.type: BinanceAPI.TYPE_STOP_LOSS,
             Map.quantity: self.qty1.get_value(),
             Map.stopPrice: self.stop_prc1.get_value(),
             Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
@@ -80,7 +80,7 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
         self.stop_prms1_generated = Map({
             Map.symbol: self.pr.get_merged_symbols().upper(),
             Map.side: BinanceAPI.SIDE_BUY,
-            Map.type: BinanceAPI.TYPE_STOP,
+            Map.type: BinanceAPI.TYPE_STOP_LOSS,
             Map.quantity: self.qty1.get_value(),
             Map.stopPrice: self.stop_prc1.get_value(),
             Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
@@ -95,7 +95,7 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
         self.stop_prms2_extracted = Map({
             Map.symbol: self.pr.get_merged_symbols(),
             Map.side: BinanceAPI.SIDE_SELL,
-            Map.type: BinanceAPI.TYPE_STOP,
+            Map.type: BinanceAPI.TYPE_STOP_LOSS,
             Map.quantity: self.qty1.get_value(),
             Map.stopPrice: self.stop_prc1.get_value(),
             Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
@@ -106,8 +106,6 @@ class TestBinanceOrder(unittest.TestCase, BinanceOrder):
             Map.newOrderRespType: BinanceAPI.RSP_TYPE_FULL,
             Map.recvWindow: None
         })
-        # self.stop_odr1 = BinanceOrder(BinanceOrder.TYPE_STOP, self.stop_prms1)
-        # self.stop_odr2 = BinanceOrder(BinanceOrder.TYPE_STOP, self.stop_prms2)
 
     def test_constructor_market(self):
         # amount set
