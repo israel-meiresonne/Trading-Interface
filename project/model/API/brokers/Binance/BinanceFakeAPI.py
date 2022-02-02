@@ -222,7 +222,7 @@ class BinanceFakeAPI(BinanceAPI):
         To set initial indexes for market histories
         """
         def initial_index(max_period: int, period: int, max_n_period: int) -> int:
-            return int(((max_period/period)*max_n_period - 1))
+            return int(((max_period/period)*max_n_period))
 
         _cls = BinanceFakeAPI
         broker_name = BinanceAPI.__name__.replace('API', '')
@@ -629,7 +629,7 @@ class BinanceFakeAPI(BinanceAPI):
             Market prices
         """
         keys = params.get_keys()
-        if (Map.endTime in keys) and (Map.startTime in keys):
+        if (Map.endTime in keys) or (Map.startTime in keys):
             raise Exception(f"Params startTime or endTime can't be set")
         _cls = BinanceFakeAPI
         stage = Config.get_stage()
@@ -638,7 +638,7 @@ class BinanceFakeAPI(BinanceAPI):
         period = _cls.get_interval(str_period)
         limit = params.get(Map.limit)
         idx = _cls._index(period)
-        history = BinanceFakeAPI._get_market_history(merged_pair, period)
+        history = _cls._get_market_history(merged_pair, period)
         if stage == Config.STAGE_1:
             kline = history[:idx+1][-limit:]
         elif stage == Config.STAGE_2:
@@ -823,10 +823,13 @@ class BinanceFakeAPI(BinanceAPI):
         """
         def get_older_open_time(histories: Map) -> int:
             older_time = None
+            max_period = None
             for merged_pair, histories_dict in histories.get_map().items():
                 for period, history in histories_dict.items():
                     is_older = (older_time is None) or (history[0,0] < older_time)
                     older_time = history[0,0] if is_older else older_time
+                    max_period = period if (max_period is None) or (period > max_period) else max_period
+            older_time = _MF.round_time(older_time, max_period*1000)
             return older_time
 
         _cls = BinanceFakeAPI
