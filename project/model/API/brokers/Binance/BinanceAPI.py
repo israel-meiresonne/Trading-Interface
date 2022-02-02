@@ -674,6 +674,7 @@ class BinanceAPI(ABC):
 
     @staticmethod
     def _get_socket(new_streams: List[str]) -> 'BinanceSocket':
+        Config.check_stage([Config.STAGE_2, Config.STAGE_3])
         socket = BinanceAPI._SOCKET
         if socket is None:
             BinanceAPI._set_socket(new_streams)
@@ -686,7 +687,22 @@ class BinanceAPI(ABC):
 
     @staticmethod
     def add_streams(new_streams: List[str]) -> None:
-        BinanceAPI._get_socket(new_streams)
+        _cls = BinanceAPI
+        stage = Config.get_stage()
+        if stage in [Config.STAGE_2, Config.STAGE_3]:
+            _cls._get_socket(new_streams)
+        elif stage == Config.STAGE_1:
+            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+            from model.API.brokers.Binance.BinanceSocket import BinanceSocket
+            merged_to_period = {}
+            for stream in new_streams:
+                merged_pair, str_period = BinanceSocket.split_stream(stream)
+                period = _cls.get_interval(str_period)
+                if merged_pair not in merged_to_period:
+                    merged_to_period[merged_pair] = []
+                if period not in merged_to_period[merged_pair]:
+                    merged_to_period[merged_pair].append(period)
+            BinanceFakeAPI.load_market_histories(merged_to_period)
 
     @staticmethod
     def generate_stream(rq: str, symbol: str, period_str: str) -> str:
