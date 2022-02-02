@@ -628,6 +628,9 @@ class BinanceFakeAPI(BinanceAPI):
         return: list
             Market prices
         """
+        def asked_rows(index: int, n_row: int, history: np.ndarray) -> np.ndarray:
+            return history[:index+1][-n_row:]
+
         keys = params.get_keys()
         if (Map.endTime in keys) or (Map.startTime in keys):
             raise Exception(f"Params startTime or endTime can't be set")
@@ -640,7 +643,16 @@ class BinanceFakeAPI(BinanceAPI):
         idx = _cls._index(period)
         history = _cls._get_market_history(merged_pair, period)
         if stage == Config.STAGE_1:
-            kline = history[:idx+1][-limit:]
+            broker_name = BinanceAPI.__name__.replace('API', '')
+            kline = asked_rows(index=idx, n_row=limit, history=history)
+            min_period = min(MarketPrice.history_periods(broker_name))
+            if period != min_period:
+                min_history = _cls._get_market_history(merged_pair, min_period)
+                min_idx = _cls._index(min_period)
+                min_limit = limit
+                kline_min_history = asked_rows(index=min_idx, n_row=min_limit, history=min_history)
+                kline = np.append(kline, kline_min_history[-1].reshape((1, kline_min_history.shape[1])), axis=0)
+                kline = np.delete(kline, 0, axis=0)
         elif stage == Config.STAGE_2:
             kline = history[-limit:]
         else:
