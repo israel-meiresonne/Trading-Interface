@@ -1,4 +1,6 @@
 import unittest
+
+import numpy as np
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 
@@ -104,10 +106,10 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     INIT_STAGE = None
     BROKER = None
 
-    def broker_switch(self, on: bool = False) -> Broker:
+    def broker_switch(self, on: bool = False, stage: str = None) -> Broker:
         if on:
             self.INIT_STAGE = Config.get(Config.STAGE_MODE)
-            Config.update(Config.STAGE_MODE, Config.STAGE_2)
+            Config.update(Config.STAGE_MODE, stage)
             self.BROKER = Binance(Map({
                 Map.public: '-',
                 Map.secret: '-',
@@ -800,6 +802,100 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
             MarketPrice.get_psar_trend(closes, psar, -30)
         with self.assertRaises(IndexError):
             MarketPrice.get_psar_trend(closes, psar, -nb - 1)
+
+    def test_marketprices(self) -> None:
+        bkr = self.broker_switch(on=True, stage=Config.STAGE_3)
+        unix_time = _MF.get_timestamp()
+        pair = Pair('BTC/USDT')
+        period = 60*60
+        endtime = unix_time
+        starttime = unix_time - (period*900)*3
+        marketprices = MarketPrice.marketprices(bkr, pair, period, endtime, starttime)
+        n_error = sum([1 if ((marketprices.iloc[i,0] - marketprices.iloc[i-1,0])%period != 0) else 0 for i in range(1, marketprices.shape[0])])
+        self.assertEqual(0, n_error)
+        self.broker_switch(on=False)
+
+    def test_save_marketprices(self) -> None:
+        broker = self.broker_switch(on=True, stage=Config.STAGE_3)
+        pairs = [Pair('BTC/USDT'), Pair('DOGE/USDT')]
+        periods = [60*30, 60*60]
+        endtime = _MF.get_timestamp()
+        starttime = endtime - periods[-1]*900*3
+        MarketPrice.save_marketprices(broker, pairs, periods, endtime, starttime)
+        self.broker_switch(on=False)
+
+    def test_load_marketprice(self) -> None:
+        broker_name = 'Binance'
+        pair = Pair('BTC/USDT')
+        fake_pair = Pair('FAKE/PAIR')
+        period = 60*60
+        # Active history
+        marketprice1 = MarketPrice.load_marketprice(broker_name, pair, period, active_path=True)
+        self.assertIsInstance(marketprice1, np.ndarray)
+        # Stock history
+        marketprice2 = MarketPrice.load_marketprice(broker_name, pair, period, active_path=False)
+        self.assertIsInstance(marketprice2, np.ndarray)
+        # Same history
+        self.assertListEqual(marketprice1.tolist(), marketprice2.tolist())
+        # No supported Sctive pair
+        with self.assertRaises(ValueError):
+            MarketPrice.load_marketprice(broker_name, fake_pair, period, active_path=True)
+        # No supported Stock pair
+        with self.assertRaises(ValueError):
+            MarketPrice.load_marketprice(broker_name, fake_pair, period, active_path=False)
+
+    def test_file_path_market_history(self) -> None:
+        _cls = MarketPrice
+        broker_name = 'Binance'
+        pair = Pair('BTC/USDT')
+        str_pair = pair.format(Pair.FORMAT_UNDERSCORE).upper()
+        period = 60*60
+        # Stock file path
+        exp1 = f'content/storage/MarketPrice/histories/stock/Binance/{str_pair}/3600.csv'
+        result1 = _cls.file_path_market_history(broker_name, pair, period, active_path=False)
+        self.assertEqual(exp1, result1)
+        # Active file path
+        exp2 = f'content/storage/MarketPrice/histories/active/Binance/{str_pair}/3600.csv'
+        result2 = _cls.file_path_market_history(broker_name, pair, period, active_path=True)
+        self.assertEqual(exp2, result2)
+
+    def test_dir_path_market_history(self) -> None:
+        _cls = MarketPrice
+        broker_name = 'Binance'
+        pair = Pair('BTC/USDT')
+        str_pair = pair.format(Pair.FORMAT_UNDERSCORE).upper()
+        # Stock directory path
+        exp1 = f'content/storage/MarketPrice/histories/stock/Binance/{str_pair}/'
+        result1 = _cls.dir_path_market_history(broker_name, pair, active_path=False)
+        self.assertEqual(exp1, result1)
+        # Active directory path
+        exp2 = f'content/storage/MarketPrice/histories/active/Binance/{str_pair}/'
+        result2 = _cls.dir_path_market_history(broker_name, pair, active_path=True)
+        self.assertEqual(exp2, result2)
+
+    def test_dir_path_pair(self) -> None:
+        _cls = MarketPrice
+        broker_name = 'Binance'
+        # Stock directory path
+        exp1 = f'content/storage/MarketPrice/histories/stock/Binance/'
+        result1 = _cls.dir_path_pair(broker_name, active_path=False)
+        self.assertEqual(exp1, result1)
+        # Active directory path
+        exp1 = f'content/storage/MarketPrice/histories/active/Binance/'
+        result1 = _cls.dir_path_pair(broker_name, active_path=True)
+        self.assertEqual(exp1, result1)
+
+    def test_history_pairs(self) -> None:
+        broker_name = 'Binance'
+        self.assertListEqual([], MarketPrice.history_pairs(broker_name, active_path=True))
+        pairs = MarketPrice.history_pairs(broker_name, active_path=False)
+        self.assertIsInstance(pairs[0], Pair)
+
+    def test_history_periods(self) -> None:
+        broker_name = 'Binance'
+        periods = MarketPrice.history_periods(broker_name)
+        self.assertIsInstance(periods, list)
+        self.assertIsInstance(periods[0], int)
 
 
 if __name__ == '__main__':

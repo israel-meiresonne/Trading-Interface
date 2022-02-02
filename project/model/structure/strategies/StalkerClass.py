@@ -514,19 +514,16 @@ class StalkerClass(Strategy, MyJson, ABC):
         keep_stalkig: bool
             True to continue to stalk else False
         """
-        max_reached = self.max_active_strategies_reached()
-        return (not max_reached) and self.is_stalking()
+        stage = Config.get_stage()
+        if stage in [Config.STAGE_2, Config.STAGE_3]:
+            max_reached = self.max_active_strategies_reached()
+            keep_stalkig = (not max_reached) and self.is_stalking()
+        elif stage == Config.STAGE_1:
+            keep_stalkig = False
+        return keep_stalkig
 
     def _manage_stalking(self, broker: Broker) -> None:
-        _MF.output(f"{_MF.prefix()}Start Managing Stalking.")
-        while self._keep_stalkig():
-            _MF.output(f"{_MF.prefix()}Managing Stalking...")
-            _MF.output(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
-            start_time = _MF.get_timestamp()
-            self._set_next_stalk(start_time)
-            self._stalk_market(broker)
-            next_stalk = self.get_next_stalk()
-            end_time = _MF.get_timestamp()
+        def try_sleep(next_stalk: int, end_time: int) -> None:
             sleep_time = (next_stalk - end_time) if end_time < next_stalk else None
             if sleep_time is not None:
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
@@ -534,6 +531,22 @@ class StalkerClass(Strategy, MyJson, ABC):
                 end_sleep = _MF.unix_to_date(next_stalk)
                 _MF.output(f"{_MF.prefix()}Stalking Manager sleep for '{sleep_time_str}': '{start_sleep}'->'{end_sleep}'")
                 time.sleep(sleep_time)
+
+        _MF.output(f"{_MF.prefix()}Start Managing Stalking.")
+        keep_stalkig = True
+        while keep_stalkig:
+            _MF.output(f"{_MF.prefix()}Managing Stalking...")
+            _MF.output(_MF.prefix() + '\033[35m' + _MF.thread_infos() + '\033[0m')
+            start_time = _MF.get_timestamp()
+            self._set_next_stalk(start_time)
+            self._stalk_market(broker)
+            next_stalk = self.get_next_stalk()
+            end_time = _MF.get_timestamp()
+            keep_stalkig = self._keep_stalkig()
+            if not keep_stalkig:
+                continue
+            else:
+                try_sleep(next_stalk, end_time)
         _MF.output(f"{_MF.prefix()}End Managing Stalking.")
 
     def _stalk_market(self, broker: Broker) -> None:
@@ -552,7 +565,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         pfx = _MF.prefix
         def new_thread(f_pair_group: List[Pair]) -> Thread:
             f_params = {
-                'target': self._stalk_merket_thread,
+                'target': self._stalk_market_thread,
                 'base_name': self._THREAD_NAME_STALK_CHILD,
                 'call_class': self.__class__.__name__,
                 'repport': True,
@@ -594,7 +607,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         delta_time = _MF.delta_time(starttime, endtime)
         _MF.output(pfx() + _purple + f"End stalking in '{delta_time}'" + _normal)
 
-    def _stalk_merket_thread(self, broker: Broker, pairs: List[Pair]) -> None:
+    def _stalk_market_thread(self, broker: Broker, pairs: List[Pair]) -> None:
         _normal = self._TO_REMOVE_STYLE_NORMAL
         _cyan = self._TO_REMOVE_STYLE_CYAN
         _green = self._TO_REMOVE_STYLE_GREEN
@@ -689,8 +702,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         self.get_wallet().reset_marketprices()
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
-        # self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
+        self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self._manage_trades(bkr)
+        self.get_stalk_thread().join() if Config.get_stage() == Config.STAGE_1 else None
         return self._get_sleep_time()
 
     def _manage_trades(self, bkr: Broker) -> None:
@@ -850,37 +864,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         :return: Pair allowed to trade with this Strategy
                  Map[index{int}]:   {Pair}
         """
-        if self._allowed_pairs is None:
-            if StalkerClass._get_stage() == Config.STAGE_1:
-                path = Config.get(Config.DIR_MARKET_HISTORICS)
-                _bkr_cls = bkr.__class__.__name__
-                full_path = path.replace('$broker', _bkr_cls).replace('$pair/', '')
-                pair_folders = FileManager.get_dirs(full_path, make_dir=True)
-                from model.API.brokers.Binance.BinanceAPI import BinanceAPI
-                pair_strs = [BinanceAPI.symbol_to_pair(_MF.regex_replace('%.+$', '', pair_folder))
-                             for pair_folder in pair_folders]
-            else:
-                # Stablecoin regex
-                stablecoins = Config.get(Config.CONST_STABLECOINS)
-                concat_stable = '|'.join(stablecoins)
-                stablecoin_rgx = f'({concat_stable})/\w+$'
-                # Fiat regex
-                fiats = Config.get(Config.CONST_FIATS)
-                concat_fiat = '|'.join(fiats)
-                fiat_rgx = rf'({concat_fiat})/\w+$'
-                # Get pairs
-                no_match = [
-                    r'^\w+(up|down|bear|bull)\/\w+$',
-                    r'^(bear|bull)/\w+$',
-                    r'^\w*inch\w*/\w+$',
-                    fiat_rgx,
-                    stablecoin_rgx,
-                    r'BCHSV/\w+$'
-                ]
-                match = [r'^.+\/usdt']
-                pair_strs = bkr.get_pairs(match=match, no_match=no_match)
-            self._allowed_pairs = [Pair(pair_str) for pair_str in pair_strs]
-        return self._allowed_pairs
+        pass
 
     @abstractmethod
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:

@@ -8,25 +8,21 @@ class Dev:
     # Stage Modes
     STAGE_MODE = None
     # Static Files
-    DIR_BINANCE_EXCHANGE_INFOS = "tests/datas/API/brokers/Binance/BinanceFakeAPI/response_exchange_infos.json"
-    DIR_BINANCE_TRADE_FEE = "tests/datas/API/brokers/Binance/BinanceFakeAPI/trade_fee.json"
     DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03.26 00.52.00.csv'
     FILE_NAME_BOT_BACKUP = '$bot_ref_bot_backup.json'
     FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE = 'content/executable/model/tools/MyJson/json_instantiate.py'
     FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE = 'content/executable/model/tools/MyJson/test_json_encode_decode.py'
-    DIR_PRINT_HISTORIC = 'content/market-historic/Broker/$broker/$pair/$pair_ref/$period.csv'
     # Static paths
     DIR_BROKERS = "model/API/brokers"
     DIR_STRATEGIES = "model/structure/strategies"
     DIR_SESSIONS = 'content/sessions/running/'
     DIR_ANALYSES =  'content/sessions/analyse/'
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
-    DIR_MARKET_HISTORICS = 'content/market-historic/Active/$broker/$pair/'
     DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
     FILE_OUTPUT = f'{DIR_ACTUAL_SESSION}/outs/{START_DATE}_output.txt'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
-    FILE_BINANCE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/BinanceFakeAPI/orders/{SESSION_ID}_orders.json'
+    FILE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/orders/{SESSION_ID}_orders.json'
     DIR_BEGIN_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_a_a————————————————————.csv'
     DIR_SAVE_BOT_ERRORS = f'{DIR_SAVE_DATAS}{SESSION_ID}_b_bot_error.csv'
     DIR_SAVE_FAKE_API_RQ = f'{DIR_SAVE_DATAS}{SESSION_ID}_c_logs.csv'
@@ -37,13 +33,14 @@ class Dev:
     DIR_SAVE_GLOBAL_MOVES = f'{DIR_SAVE_DATAS}{SESSION_ID}_fb_$class_moves.csv'
     DIR_SAVE_CAPITAL = f'{DIR_SAVE_DATAS}{SESSION_ID}_g_capital_$pair.csv'
     DIR_SAVE_MOVES = f'{DIR_SAVE_DATAS}{SESSION_ID}_h_moves_$pair.csv'
-    DIR_SAVE_ORDER_RQ = f'{DIR_SAVE_DATAS}{SESSION_ID}_i_submitted_orders.csv'
     DIR_SAVE_ORDER_ACTIONS = f'{DIR_SAVE_DATAS}{SESSION_ID}_j_order_updates_$pair.csv'
     DIR_SAVE_PERIOD_RANKING = f'{DIR_SAVE_DATAS}{SESSION_ID}_k_period_ranking_$pair.csv'
     DIR_END_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_z————————————————————.csv'
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
     # Storage
     DIR_STORAGE = 'content/storage/'
+    FILE_PATH_MARKET_HISTORY = f'{DIR_STORAGE}MarketPrice/histories/$stock_path/$broker/$pair/$period.csv'
+
     # Predictor
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
     PREDICTOR_PATH_LEARN = '$class/learns/$stock_path/$pair/$period/$price_type/'
@@ -82,7 +79,7 @@ class Dev:
         Dev.FILE_OUTPUT =                   Dev.FILE_OUTPUT.replace(old, new, 1)
         Dev.DIR_SAVE_DATAS =                Dev.DIR_SAVE_DATAS.replace(old, new)
         Dev.DIR_ACTUAL_SESSION =            Dev.DIR_ACTUAL_SESSION.replace(old, new)
-        Dev.FILE_BINANCE_FAKE_API_ORDERS =  Dev.FILE_BINANCE_FAKE_API_ORDERS.replace(old, new)
+        Dev.FILE_FAKE_API_ORDERS =          Dev.FILE_FAKE_API_ORDERS.replace(old, new)
         Dev.DIR_DATABASE =                  Dev.DIR_DATABASE.replace(old, new)
         Dev.DIR_BEGIN_BACKUP =              Dev.DIR_BEGIN_BACKUP.replace(old, new)
         Dev.DIR_SAVE_BOT_ERRORS =           Dev.DIR_SAVE_BOT_ERRORS.replace(old, new)
@@ -94,7 +91,6 @@ class Dev:
         Dev.DIR_SAVE_GLOBAL_MOVES =         Dev.DIR_SAVE_GLOBAL_MOVES.replace(old, new)
         Dev.DIR_SAVE_CAPITAL =              Dev.DIR_SAVE_CAPITAL.replace(old, new)
         Dev.DIR_SAVE_MOVES =                Dev.DIR_SAVE_MOVES.replace(old, new)
-        Dev.DIR_SAVE_ORDER_RQ =             Dev.DIR_SAVE_ORDER_RQ.replace(old, new)
         Dev.DIR_SAVE_ORDER_ACTIONS =        Dev.DIR_SAVE_ORDER_ACTIONS.replace(old, new)
         Dev.DIR_SAVE_PERIOD_RANKING =       Dev.DIR_SAVE_PERIOD_RANKING.replace(old, new)
         Dev.DIR_END_BACKUP =                Dev.DIR_END_BACKUP.replace(old, new)
