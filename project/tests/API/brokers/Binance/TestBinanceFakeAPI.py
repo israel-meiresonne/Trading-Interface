@@ -368,12 +368,12 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
             Bot.update_trade_index(bot_index1)
             bot_index1 += 1
             params.put(n_period, Map.limit)
-            klines = _cls._request_kline(params)
-            test_open_time(open_times1, klines)
-            n_kline = len(klines)
-            self.assertIsInstance(klines, list)
+            kline = _cls._request_kline(params)
+            test_open_time(open_times1, kline)
+            n_kline = len(kline)
+            self.assertIsInstance(kline, list)
             self.assertEqual(n_period, n_kline)
-            n_increase = sum([1 for i in range(1, n_kline) if klines[i][0] > klines[i-1][0]])
+            n_increase = sum([1 for i in range(1, n_kline) if kline[i][0] > kline[i-1][0]])
             self.assertEqual((n_kline-1), n_increase)
         # —— Test date
         n_trade = 127
@@ -394,9 +394,14 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
                 for period in merged_to_period[merged_pair]:
                     str_period = _cls.convert_interval(period)
                     kline = _cls._request_kline(params=Map({Map.symbol: merged_pair, Map.interval: str_period, Map.limit: 10}))
+                    # Most recent row
                     open_time = kline[-1][0]
-                    min_open_time_rounded = _MF.round_time(min_open_time, period*1000)
-                    self.assertTrue(open_time == min_open_time_rounded)
+                    self.assertTrue(open_time == min_open_time)
+                    # prev[-2] row
+                    if period != min_period:
+                        prev_open_time = kline[-2][0]
+                        min_open_time_rounded = _MF.round_time(min_open_time, period*1000)
+                        self.assertTrue(prev_open_time == min_open_time_rounded)
         # Stage 2
         _cls.reset()
         Config.update(Config.STAGE_MODE, Config.STAGE_2)
