@@ -187,7 +187,7 @@ class FileManager(ABC):
             'make_dir': make_dir,
             'ignore_extra': ignore_extra
         }
-        cls._join_write_queu(cls._write, **kwargs)
+        cls._join_write_queu(cls._write_csv, **kwargs)
 
     @classmethod
     def _write_csv(cls, path: str, fields: list, rows: list, overwrite=True, make_dir: bool = False, ignore_extra=False) -> None:
