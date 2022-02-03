@@ -5,17 +5,21 @@ from abc import ABC, abstractmethod
 from os import path as os_path, remove as os_remove, walk
 from pathlib import Path
 import re as rgx
+import threading
+import time
+from types import FunctionType
 from typing import Any, List
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.WaitingRoom import WaitingRoom
 
 
 class FileManager(ABC):
     _PROJECT_DIR = None
-
-    @abstractmethod
-    def __init__(self):
-        pass
+    _THREAD_WRITE = None
+    _ROOM_WRITE = None
+    _QUEU_WRITE = None
+    _THREAD_NAME_WRITE = "files_writer"
 
     @staticmethod
     def get_project_directory() -> str:
@@ -26,6 +30,67 @@ class FileManager(ABC):
         if FileManager._PROJECT_DIR is None:
             FileManager._PROJECT_DIR = os_path.abspath(__file__).replace('model/tools/FileManager.py', '')
         return FileManager._PROJECT_DIR
+
+    @classmethod
+    def _get_write_thread(cls) -> threading.Thread:
+        if (cls._THREAD_WRITE is None) or (not cls._THREAD_WRITE.is_alive()):
+            thread, output = _MF.generate_thread(cls._thread_write, cls._THREAD_NAME_WRITE)
+            cls._THREAD_WRITE = thread
+            # _MF.output(_MF.prefix() + output)
+        return cls._THREAD_WRITE
+
+    @classmethod
+    def _get_writing_room(cls) -> WaitingRoom:
+        if cls._ROOM_WRITE is None:
+            cls._ROOM_WRITE = WaitingRoom('WriteRoom')
+        return cls._ROOM_WRITE
+
+    @classmethod
+    def _get_write_queu(cls)  -> List[dict]:
+        """
+        To get list of write to execute
+
+        Returns:
+        --------
+        return: List[dict]
+            List of write to execute
+            list[index{int}][Map.callback]: {FunctionType}
+            list[index{int}][Map.data]:     {**kwargs}
+        """
+        if cls._QUEU_WRITE is None:
+            cls._QUEU_WRITE = []
+        return cls._QUEU_WRITE
+
+    @classmethod
+    def _join_write_queu(cls, callback: FunctionType, **kwargs) -> None:
+        """
+        To submit write request
+
+        Parameters:
+        -----------
+        callback: FunctionType
+            The write function to call
+        **kwargs:
+            Params to pass to the callback
+        """
+        from model.tools.Map import Map
+        room = cls._get_writing_room()
+        ticket = room.join_room()
+        while not room.my_turn(ticket):
+            time.sleep(0.0001)
+        cls._get_write_queu().append({Map.callback: callback, Map.data: kwargs})
+        cls._get_write_thread().start() if not cls._get_write_thread().is_alive() else None
+        room.quit_room(ticket)
+
+    @classmethod
+    def _thread_write(cls) -> None:
+        from model.tools.Map import Map
+        write_queu = cls._get_write_queu()
+        while len(write_queu) > 0:
+            callback = write_queu[0][Map.callback]
+            datas = write_queu[0][Map.data]
+            callback(**datas)
+            del write_queu[0]
 
     @staticmethod
     def read(path: str, binary: bool = False) -> Any:
@@ -56,6 +121,18 @@ class FileManager(ABC):
         :param make_dir: Set True create missing directory else False to raise error if miss directory
         :param line_return: Set True to end with new line else False
         """
+        kwargs = {
+            'path': path,
+            'content': content,
+            'binary': binary,
+            'overwrite': overwrite,
+            'make_dir': make_dir,
+            'line_return': line_return
+        }
+        FileManager._join_write_queu(FileManager._write, **kwargs)
+
+    @staticmethod
+    def _write(path: str, content: Any, binary: bool = False, overwrite: bool = True, make_dir: bool = False, line_return=True) -> None:
         full_path = FileManager.get_project_directory() + path
         bin_mode = 'b' if binary else ''
         write_mode = 'w' if overwrite else 'a'
@@ -88,9 +165,8 @@ class FileManager(ABC):
             rows = [{k: v for k, v in row.items() if k is not None} for row in reader]
         return rows
 
-    @staticmethod
-    def write_csv(path: str, fields: list, rows: list,
-                  overwrite=True, make_dir: bool = False, ignore_extra=False) -> None:
+    @classmethod
+    def write_csv(cls, path: str, fields: list, rows: list, overwrite=True, make_dir: bool = False, ignore_extra=False) -> None:
         """
         To write a csv file\n
         :param path: the path to the csv file ended by the file's name, ie: path/to/file.csv
@@ -103,6 +179,18 @@ class FileManager(ABC):
         :param make_dir: Set True create missing directory else False to raise error if miss directory
         :param ignore_extra: set True to ignore format errors else False
         """
+        kwargs = {
+            'path': path,
+            'fields': fields,
+            'rows': rows,
+            'overwrite': overwrite,
+            'make_dir': make_dir,
+            'ignore_extra': ignore_extra
+        }
+        cls._join_write_queu(cls._write_csv, **kwargs)
+
+    @classmethod
+    def _write_csv(cls, path: str, fields: list, rows: list, overwrite=True, make_dir: bool = False, ignore_extra=False) -> None:
         if rgx.match(r'^.*\.csv$', path) is None:
             raise ValueError(f"This file '{path}' has not a csv extension")
         if not ignore_extra:
