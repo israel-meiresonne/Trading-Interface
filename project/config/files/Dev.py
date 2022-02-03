@@ -19,7 +19,7 @@ class Dev:
     DIR_ANALYSES =  'content/sessions/analyse/'
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
-    FILE_OUTPUT = f'{DIR_ACTUAL_SESSION}/outs/{START_DATE}_output.txt'
+    FILE_OUTPUT = f'{DIR_ACTUAL_SESSION}outs/{START_DATE}_output.txt'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/orders/{SESSION_ID}_orders.json'
