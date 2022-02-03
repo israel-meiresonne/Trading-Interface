@@ -492,7 +492,7 @@ class ModelFeature(ModelAccess):
     @staticmethod
     def generate_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
         """
-        To generate a new thread
+        To create a new thread
 
         Parameters:
         -----------
@@ -502,6 +502,13 @@ class ModelFeature(ModelAccess):
             Name of the new thread
         **kwargs: dict[str, Any]
             Parameters for callback function to execute
+
+        Returns:
+        --------
+        return: Tuple[threading.Thread, str]
+            New thread
+            return[0]:  {Thread}
+            return[1]:  {str}   # ouput message
         """
         _cls = ModelFeature
         thread_name = _cls.generate_thread_name(base_name, n_code)

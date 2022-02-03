@@ -1,7 +1,9 @@
+import time
 import unittest
 
 from model.tools.FileManager import FileManager
 from model.tools.Price import Price
+from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
 class TestFileManager(unittest.TestCase, FileManager):
@@ -14,50 +16,57 @@ class TestFileManager(unittest.TestCase, FileManager):
         self.assertEqual(exp2, FileManager.get_project_directory())
 
     def test_read_and_write(self) -> None:
+        def read(path: str, binary: bool) -> str:
+            content = None
+            time.sleep(1)
+            while (content is None) or ((not binary) and len(content) == 0) or (binary and (not isinstance(content, object))):
+                content = _MF.catch_exception(_cls.read, _cls.__name__, repport=False, **{'path': path, 'binary': binary})
+                time.sleep(1)
+            return content
+
+        _cls = FileManager
         project_dir = FileManager.get_project_directory()
         test_path = 'tests/datas/tools/TestFileManager/test_write/'
         # Error: directory don't exist
         random_file_dir = 'tests/datas/tools/TestFileManager/random_path/'
         random_file_path = random_file_dir + 'random_file.random'
         random_content = 'Random content.'
-        with self.assertRaises(FileNotFoundError):
-            FileManager.write(random_file_path, random_content, binary=False, overwrite=True, make_dir=False)
         # Create missing directory
         exp0 = random_content
-        FileManager.write(random_file_path, random_content, binary=False, overwrite=True, make_dir=True)
-        result0 = FileManager.read(random_file_path, binary=False)
+        _cls.write(random_file_path, random_content, binary=False, overwrite=True, make_dir=True, line_return=False)
+        result0 = read(random_file_path, binary=False)
         self.assertEqual(exp0, result0)
-        FileManager.remove_file(random_file_path)
-        FileManager.remove_directory(random_file_dir)
+        _cls.remove_file(random_file_path)
+        _cls.remove_directory(random_file_dir)
         # Simple Write
         path_txt_file1 = test_path + 'simple_write.txt'
         content_txt1 = 'My file content.\n'
         exp1 = content_txt1
-        FileManager.write(path_txt_file1, content_txt1, binary=False, overwrite=True, make_dir=True)
-        result1 = FileManager.read(path_txt_file1, binary=False)
+        _cls.write(path_txt_file1, content_txt1, binary=False, overwrite=True, make_dir=True, line_return=False)
+        result1 = read(path_txt_file1, binary=False)
         self.assertEqual(exp1, result1)
         # Overwrite
         content_txt2 = 'I overwrited the last content.\n'
         exp2 = content_txt2
-        FileManager.write(path_txt_file1, content_txt2, binary=False, overwrite=True, make_dir=True)
-        result2 = FileManager.read(path_txt_file1, binary=False)
+        _cls.write(path_txt_file1, content_txt2, binary=False, overwrite=True, make_dir=True, line_return=False)
+        result2 = read(path_txt_file1, binary=False)
         self.assertEqual(exp2, result2)
         # Append
         content_txt3 = "Just Added new line in file's end.\n"
         exp3 = content_txt2 + content_txt3
-        FileManager.write(path_txt_file1, content_txt3, binary=False, overwrite=False, make_dir=True)
-        result3 = FileManager.read(path_txt_file1, binary=False)
+        _cls.write(path_txt_file1, content_txt3, binary=False, overwrite=False, make_dir=True, line_return=False)
+        result3 = read(path_txt_file1, binary=False)
         self.assertEqual(exp3,result3)
-        FileManager.remove_file(path_txt_file1)
+        _cls.remove_file(path_txt_file1)
         # Binary write
         path_binary_file = test_path + 'price.bin'
         price_obj = Price(10, 'USDT')
         exp4 = price_obj
-        FileManager.write(path_binary_file, price_obj, binary=True, overwrite=True, make_dir=True)
-        result4 = FileManager.read(path_binary_file, binary=True)
+        _cls.write(path_binary_file, price_obj, binary=True, overwrite=True, make_dir=True, line_return=False)
+        result4 = read(path_binary_file, binary=True)
         self.assertEqual(exp4, result4)
-        FileManager.remove_file(path_binary_file)
-        FileManager.remove_directory(test_path)
+        _cls.remove_file(path_binary_file)
+        _cls.remove_directory(test_path)
 
     def test_path_to_dir(self) -> None:
         file_path = '/Users/israelmeiresonne/Library/Mobile Documents/com~apple~CloudDocs/Documents/ROQUETS/apolloXI/' \
