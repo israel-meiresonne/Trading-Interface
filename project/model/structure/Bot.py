@@ -89,10 +89,10 @@ class Bot(MyJson):
                 nb_error = 0
             except Exception as error:
                 nb_error += 1
-                if _stage != Config.STAGE_1:
-                    self.save_error(error, Bot.__name__, nb_error)
-                else:
-                    raise error
+                self.save_error(error, Bot.__name__, nb_error)
+                # if _stage != Config.STAGE_1:
+                # else:
+                #     raise error
             # Sleep
             if _stage != Config.STAGE_1:
                 try:
