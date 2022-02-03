@@ -86,20 +86,13 @@ class Bot(MyJson):
             # Trade
             try:
                 sleep_time = stg.trade(bkr)
+                self.backup()
                 nb_error = 0
+                trade_index += 1
             except Exception as error:
                 nb_error += 1
                 self.save_error(error, Bot.__name__, nb_error)
-                # if _stage != Config.STAGE_1:
-                # else:
-                #     raise error
-            # Sleep
             if _stage != Config.STAGE_1:
-                try:
-                    self.backup()
-                except Exception as error:
-                    nb_error += 1
-                    self.save_error(error, Bot.__name__, nb_error)
                 sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
                 unix_time = _MF.get_timestamp()
                 start_date = _MF.unix_to_date(unix_time)
@@ -108,7 +101,6 @@ class Bot(MyJson):
                 _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
                 sleep_time = None
-            trade_index += 1
 
     def active(self) -> bool:
         """
