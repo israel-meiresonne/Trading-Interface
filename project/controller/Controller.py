@@ -2,7 +2,6 @@ from config.Config import Config
 from model.structure.Log import Log
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
-from view.ViewInterface import ViewInterface
 from view.structure.View import View
 
 
@@ -11,21 +10,21 @@ class Controller:
         self.model = Log()
         self.view = View()
 
-    def _get_model(self):
+    def _get_model(self) -> Log:
         """
         To get Controller's access to the model\n
         :return: Controller's access to the model
         """
         return self.model
 
-    def _get_view(self):
+    def _get_view(self) -> View:
         """
         To get Controller's access to the view\n
         :return: Controller's access to the view
         """
         return self.view
 
-    def start(self):
+    def start(self) -> None:
         """
         To start the application\n
         """
@@ -39,7 +38,7 @@ class Controller:
         FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}], make_dir=True)
         end = False
         while not end:
-            i = view.menu("Choose an execution", options)
+            i = view.menu("Menu:", options)
             fc = menu[home_key][View.MENUS_KEY_FUNC][i]
             end = eval("self." + fc + "()")
 
@@ -66,7 +65,6 @@ class Controller:
             message = f"Select a session ID (or '{end_word}' to end the loading process):"
             while not end:
                 entry = load_options[view.menu(message, load_options)]
-                # entry = view.input(f"Enter a session ID or '{end_word}' to end the loading process:")
                 session_id = entry if entry in session_ids else None
                 end = (session_id is not None) or (entry == end_word)
             Config.update(Config.SESSION_ID, session_id) if session_id is not None else None
@@ -242,48 +240,34 @@ class Controller:
             configs.put(stg_params, stg)
         else:
             raise Exception(f"Unknown stage '{_stage}'.")
-        print(configs.get_map())
-        # create Bot
         configs.put(pair_code, stg, Map.pair)
         bot = md.create_bot(bkr, stg, pair_code, configs)
-        vw.output(View.FILE_MESSAGE, f"✅ new Bot created (Bot's id: '{bot.get_id()}')")
-        """
-        if (_stage == Config.STAGE_2) or (_stage == Config.STAGE_3):
-            # Select period
-            bots = md.get_bots()
-            bt_ids = list(bots.keys())
-            bot = bots[bt_ids[0]]
-            period_ranking = bot.get_period_ranking()
-            options = []
-            best_periods = []
-            for rank, struc in period_ranking.get(Map.period).items():
-                period = struc[Map.period]
-                best_periods.append(period)
-                roi = round(struc[Map.roi]*100, 2)
-                roi_per_day = round(struc[Map.day]*100, 2)
-                option = f"rank:{rank} | minutes:{period / 60} | " \
-                         f"roi:{roi}% | day:{roi_per_day}%"
-                options.append(option)
-            best_period = best_periods[vw.menu(f"Select a trading interval for your pair '{pair_code.upper()}':", options)]
-            bot.set_best_period(best_period)
-            vw.output(View.FILE_MESSAGE, "✅ Trading interval set!")
-        """
+        vw.output(View.FILE_MESSAGE, f"✅ new Bot created: '{bot}'")
 
-    def start_bot(self):
-        md = self._get_model()
-        vw = self._get_view()
-        bots = md.get_bots()
-        bt_ids = bots.get_keys()
-        bot_refs = [bots.get(bot_id).__str__() for bot_id in bt_ids]
-        if len(bt_ids) <= 0:
-            vw.output(View.FILE_ERROR, "You have no Bot created")
+    def start_bot(self) -> None:
+        model = self._get_model()
+        view = self._get_view()
+        bots = model.get_bots()
+        bot_ids = bots.get_keys()
+        bot_refs = [bots.get(bot_id).__str__() for bot_id in bot_ids]
+        if len(bot_ids) <= 0:
+            view.output(View.FILE_ERROR, "You have no Bot created")
             return None
-        bt_id = bt_ids[vw.menu("Choose the Bot to start:", bot_refs)]
-        md.start_bot(bt_id)
-        vw.output(View.FILE_MESSAGE, f"❌ Bot stopped: {bt_id}!")
+        bot_id = bot_ids[view.menu("Choose the Bot to start:", bot_refs)]
+        model.start_bot(bot_id)
 
-    def stop_bot(self):
-        pass
+    def stop_bot(self) -> None:
+        model = self._get_model()
+        view = self._get_view()
+        bots = model.get_bots()
+        bot_ids = bots.get_keys()
+        bot_menu = [bot.__str__() for bot in list(bots.get_map().values())]
+        bot_menu.insert(0, view.WORD_END)
+        choice_index = view.menu("Select the Bot to stop:", bot_menu)
+        if choice_index > 0:
+            bot_id = bot_ids[choice_index-1]
+            model.stop_bot(bot_id)
+            view.output(View.FILE_MESSAGE, f"❌ Bot stopped: {bot_id}!")
 
     def stop_bots(self):
         pass
