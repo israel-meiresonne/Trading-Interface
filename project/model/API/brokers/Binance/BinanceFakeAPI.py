@@ -677,6 +677,33 @@ class BinanceFakeAPI(BinanceAPI):
         def asked_rows(index: int, n_row: int, history: np.ndarray) -> np.ndarray:
             return history[:index+1][-n_row:]
 
+        def update_last_row(merged_pair: str, period: int, min_period: int, limit: int, kline: np.ndarray) -> np.ndarray:
+            min_history = _cls._get_market_history(merged_pair, min_period)
+            min_idx = _cls._index(min_period)
+            min_limit = int(period/min_period)
+            open_time = kline[-1,0]
+            kline_min_history = asked_rows(index=min_idx, n_row=min_limit, history=min_history)
+            min_open_time = kline_min_history[-1,0]
+            if open_time != min_open_time:
+                n_elapsed = int((min_open_time - open_time)/(min_period*1000))
+                elapseds = kline_min_history[-n_elapsed-1:]
+                if elapseds[0,0] != open_time:
+                    raise ValueError(f"Opens times must be the same")
+                high = max(elapseds[:,2])
+                low = min(elapseds[:,3])
+            else:
+                high = kline_min_history[-1,2]
+                low = kline_min_history[-1,3]
+            kline[-1,2] = high
+            kline[-1,3] = low
+            kline[-1,4] = kline_min_history[-1,4]
+            kline[-1,5] = kline_min_history[-1,5]
+            kline[-1,7] = kline_min_history[-1,7]
+            kline[-1,8] = kline_min_history[-1,8]
+            kline[-1,9] = kline_min_history[-1,9]
+            kline[-1,10] = kline_min_history[-1,10]
+            return kline
+
         keys = params.get_keys()
         if (Map.endTime in keys) or (Map.startTime in keys):
             raise Exception(f"Params startTime or endTime can't be set")
@@ -693,12 +720,7 @@ class BinanceFakeAPI(BinanceAPI):
             kline = asked_rows(index=idx, n_row=limit, history=history)
             min_period = min(MarketPrice.history_periods(broker_name))
             if period != min_period:
-                min_history = _cls._get_market_history(merged_pair, min_period)
-                min_idx = _cls._index(min_period)
-                min_limit = limit
-                kline_min_history = asked_rows(index=min_idx, n_row=min_limit, history=min_history)
-                kline = np.append(kline, kline_min_history[-1].reshape((1, kline_min_history.shape[1])), axis=0)
-                kline = np.delete(kline, 0, axis=0)
+                kline = update_last_row(merged_pair=merged_pair, period=period, min_period=min_period, limit=limit, kline=kline)
         elif stage == Config.STAGE_2:
             kline = history[-limit:]
         else:
