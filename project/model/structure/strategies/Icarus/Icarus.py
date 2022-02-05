@@ -26,6 +26,8 @@ class Icarus(TraderClass):
     _PERIODS_REQUIRRED = [_MIN_PERIOD, _PREDICTOR_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
+    _RSI_BUY_TRIGGER = 60
+    _RSI_SELL_TRIGGER = _RSI_BUY_TRIGGER
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -327,7 +329,6 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
 
     def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
-        pass
         # Get values
         pair = self.get_pair()
         buy_price = self._get_orders().get_last_execution().get_execution_price().get_value()
@@ -376,9 +377,9 @@ class Icarus(TraderClass):
             period = self.get_period()
             buy_time = int(self.get_buy_order().get_execution_time() / 1000)
             buy_time_rounded = _MF.round_time(buy_time, period)
-            first_open_time = buy_time_rounded + period
+            next_open_time = buy_time_rounded + period
             open_time = marketprice.get_time()
-            return open_time < first_open_time
+            return open_time < next_open_time
 
         def is_supertrend_dropping() -> bool:
             supertrend = list(marketprice.get_super_trend())
@@ -399,12 +400,18 @@ class Icarus(TraderClass):
             macd_ok = macd[-1] <= macd[-2]
             return macd_ok
 
+        def is_rsi_dropping() -> bool:
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            return rsi[-1] < self._RSI_SELL_TRIGGER
+
         can_sell = False
         # Close
         closes = list(marketprice.get_closes())
         closes.reverse()
         # Check
-        can_sell = (not is_buy_period()) and (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+        can_sell = is_rsi_dropping() if is_buy_period() else (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+        # can_sell = (not is_buy_period()) and (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -425,7 +432,7 @@ class Icarus(TraderClass):
             self._set_max_close_predicted(max_close_predicted=max_close_pred)
             return max_roi_pred >= pred_trigger
 
-        can_sell = is_prediction_reached() and is_new_prediction_better()
+        can_sell = is_prediction_reached() and (not is_new_prediction_better())
         return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
@@ -625,8 +632,8 @@ class Icarus(TraderClass):
         }
         return can_buy, repport
 
-    @staticmethod
-    def _can_buy_indicator(child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    @classmethod
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
@@ -649,17 +656,27 @@ class Icarus(TraderClass):
         histogram_ok = histogram[-1] > 0
         macd_ok = macd[-1] > macd[-2]
         macd_rising = macd_ok and histogram_ok
+        # EMA
+        ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
+        ema.reverse()
+        ema_rising = closes[-1] > ema[-1]
+        # RSI
+        rsi = list(child_marketprice.get_rsis())
+        rsi.reverse()
+        rsi_rising = rsi[-1] > cls._RSI_BUY_TRIGGER
         # Check
         supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
         supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
         psar_rising = now_psar_trend == MarketPrice.PSAR_RISING
         psar_switch_up = psar_rising and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
         # can_buy_indicator = macd_rising and ((psar_switch_up and supertrend_rising) or (supertrend_switch_up and psar_rising))
-        can_buy_indicator = macd_rising and (supertrend_rising and psar_rising)
+        can_buy_indicator = ema_rising and rsi_rising and macd_rising and (supertrend_rising and psar_rising)
         # Repport
-        key = Icarus._can_buy_indicator.__name__
+        key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
+            f'{key}.ema_rising': ema_rising,
+            f'{key}.rsi_rising': rsi_rising,
             f'{key}.supertrend_rising': supertrend_rising,
             f'{key}.supertrend_switch_up': supertrend_switch_up,
             f'{key}.psar_rising': psar_rising,
@@ -677,7 +694,13 @@ class Icarus(TraderClass):
             f'{key}.psar[-3]': psar[-3],
             f'{key}.macd[-1]': macd[-1],
             f'{key}.macd[-2]': macd[-2],
-            f'{key}.histogram[-1]': histogram[-1]
+            f'{key}.histogram[-1]': histogram[-1],
+            f'{key}.histogram[-2]': histogram[-2],
+            f'{key}.ema[-1]': ema[-1],
+            f'{key}.ema[-2]': ema[-2],
+            f'{key}._RSI_BUY_TRIGGER': cls._RSI_BUY_TRIGGER,
+            f'{key}.rsi[-1]': rsi[-1],
+            f'{key}.rsi[-2]': rsi[-2]
         }
         return can_buy_indicator, repport
 

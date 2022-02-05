@@ -119,7 +119,7 @@ class IcarusStalker(StalkerClass):
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
         child_period = self.get_strategy_params().get(Map.period)
-        child_marketprice = self._get_market_price(broker, pair, child_period)
+        child_marketprice = self._get_market_price(broker, pair, child_period, nb_period=broker.get_max_n_period())
         predictor_marketprice = Icarus.predictor_market_price(broker, pair)
         # Stalker
         stalker_ok, stalker_datas = Icarus.stalker_can_add(predictor_marketprice)
@@ -152,6 +152,8 @@ class IcarusStalker(StalkerClass):
         key = Icarus._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
+            f'{key}.ema_rising': None,
+            f'{key}.rsi_rising': None,
             f'{key}.supertrend_rising': None,
             f'{key}.supertrend_switch_up': None,
             f'{key}.psar_rising': None,
@@ -169,7 +171,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.psar[-3]': None,
             f'{key}.macd[-1]': None,
             f'{key}.macd[-2]': None,
-            f'{key}.histogram[-1]': None
+            f'{key}.histogram[-1]': None,
+            f'{key}.histogram[-2]': None,
+            f'{key}.ema[-1]': None,
+            f'{key}.ema[-2]': None,
+            f'{key}._RSI_BUY_TRIGGER': None,
+            f'{key}.rsi[-1]': None,
+            f'{key}.rsi[-2]': None
         }
         # Repport
         key = Icarus._can_buy_prediction.__name__
