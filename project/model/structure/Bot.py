@@ -27,6 +27,7 @@ class Bot(MyJson):
         super().__init__()
         self.__id = Bot.PREFIX_ID + _MF.new_code()
         self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
+        self.__trading = False
         self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
         self.__strategy = None
         self._set_strategy(stg, configs)
@@ -45,6 +46,20 @@ class Bot(MyJson):
 
     def get_settime(self) -> int:
         return self.__settime
+
+    def _set_trading(self, is_trading: bool) -> None:
+        self.__trading = is_trading
+
+    def is_trading(self) -> bool:
+        """
+        To check if Bot is trading
+
+        Returns:
+        --------
+        return: bool
+            True if Bot is trading else False
+        """
+        return self.__trading
 
     def get_broker(self) -> Broker:
         return self.__broker
@@ -72,18 +87,18 @@ class Bot(MyJson):
         """
         To start trade\n
         """
+        self._set_trading(True)
         _stage = Config.get(Config.STAGE_MODE)
         bkr = self.get_broker()
         stg = self.get_strategy()
         trade_index = Bot.get_trade_index()
         sleep_time = None
         nb_error = 0
-        _MF.output(f"{_MF.prefix()}Bot started to trade...")
+        _MF.output(f"{_MF.prefix()}Bot started to trade 🤖")
         bot_id = self.get_id()
         while self.active():
             Bot._set_trade_index(trade_index)
             _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
-            # Trade
             try:
                 sleep_time = stg.trade(bkr)
                 self.backup()
@@ -101,6 +116,11 @@ class Bot(MyJson):
                 _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
                 sleep_time = None
+        _MF.output(f"{_MF.prefix()}Bot stoped to trade ☠️")
+
+
+    def stop(self) -> None:
+        self._set_trading(False)
 
     def active(self) -> bool:
         """
@@ -118,7 +138,7 @@ class Bot(MyJson):
             active = False
         else:
             active = True
-            _MF.output(f"{_MF.prefix()}still trading...")
+        active = self.is_trading() and active
         return active
 
     @staticmethod

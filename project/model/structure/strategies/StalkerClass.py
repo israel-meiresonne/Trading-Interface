@@ -703,8 +703,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         self.add_streams(bkr) if self._get_trade_index() == 0 else None
         self._launch_stalking(bkr) if self._can_launch_stalking() else None
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
-        self._manage_trades(bkr)
         self.get_stalk_thread().join() if Config.get_stage() == Config.STAGE_1 else None
+        self._manage_trades(bkr)
         return self._get_sleep_time()
 
     def _manage_trades(self, bkr: Broker) -> None:

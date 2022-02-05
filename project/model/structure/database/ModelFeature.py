@@ -350,12 +350,12 @@ class ModelFeature(ModelAccess):
             raise ValueError(f"Code size must be > 0 or None")
         new_code = ModelFeature.new_code()
         if code_size is None:
-            thread_code = new_code
+            thread_code = ""
         elif code_size > len(new_code):
             thread_code = ModelFeature.new_code(code_size)
         else:
             thread_code = new_code[0:code_size]
-        return f'Thread_{thread_base_name}_{thread_code}'
+        return f'Thread-{thread_base_name + thread_code}'
 
     @staticmethod
     def remove_duplicates(values: list) -> list:

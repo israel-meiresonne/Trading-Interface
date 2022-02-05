@@ -1,3 +1,4 @@
+import threading
 from config.Config import Config
 from model.ModelInterface import ModelInterface
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -11,6 +12,7 @@ from model.tools.MyJson import MyJson
 
 class Log(ModelInterface, _MF):
     PREFIX_ID = 'log_'
+    _BOT_THREADS = None
 
     def __init__(self):
         super().__init__(Log.PREFIX_ID)
@@ -73,15 +75,42 @@ class Log(ModelInterface, _MF):
         bot.backup()
         return bot
 
-    def start_bot(self, bot_id):
+    def start_bot(self, bot_id: str) -> None:
         bot = self.get_bot(bot_id)
-        bot.start()
+        base_name = bot_id
+        thread, output = _MF.generate_thread(bot.start, base_name, n_code=None)
+        thread.start()
+        self.get_bot_threads().put(thread, bot_id)
+        _MF.output(_MF.prefix() + output)
 
-    def stop_bot(self, bot_id):
-        pass
+    def stop_bot(self, bot_id: str) -> None:
+        bot = self.get_bot(bot_id)
+        bot.stop()
+        bot_thread = self.get_bot_threads().get(bot_id)
+        bot_thread.join() if (bot_thread is not None) and bot_thread.is_alive() else None
 
     def stop_bots(self):
         pass
+
+    @classmethod
+    def get_bot_threads(cls) -> Map:
+        """
+        To get thread running Bot with the given id
+
+        Parameters:
+        -----------
+        bot_id: str
+            ID of Bot to get thread of
+
+        Returns:
+        --------
+        return: dict[str, threading.Thread]
+            All thread running bot
+            dict[bot_id{str}]:  {Thread}
+        """
+        if cls._BOT_THREADS is None:
+            cls._BOT_THREADS = Map()
+        return cls._BOT_THREADS
 
     @staticmethod
     def list_brokers():
