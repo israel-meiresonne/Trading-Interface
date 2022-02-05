@@ -409,7 +409,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         period_milli = 60*1000
         pair1 = Pair('BTC/USDT')
         merged_pair1 = pair1.format(Pair.FORMAT_MERGED).upper()
-        pair2 = Pair('DOGE/USDT')
+        pair2 = Pair('JOE/USDT')
         merged_pair2 = pair2.format(Pair.FORMAT_MERGED).upper()
         params = Map({"symbol": merged_pair1, "interval": "1m", Map.limit: 'x'})
         # Stage 1
@@ -447,14 +447,28 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
                 for period in merged_to_period[merged_pair]:
                     str_period = _cls.convert_interval(period)
                     kline = _cls._request_kline(params=Map({Map.symbol: merged_pair, Map.interval: str_period, Map.limit: 10}))
-                    # Most recent row
                     open_time = kline[-1][0]
-                    self.assertTrue(open_time == min_open_time)
-                    # prev[-2] row
+                    high = kline[-1][2]
+                    low = kline[-1][3]
                     if period != min_period:
-                        prev_open_time = kline[-2][0]
-                        min_open_time_rounded = _MF.round_time(min_open_time, period*1000)
-                        self.assertTrue(prev_open_time == min_open_time_rounded)
+                        min_history = _cls._get_market_history(merged_pair, min_period)
+                        elapseds = min_history[(min_history[:,0] >= open_time) & (min_history[:,0] <= min_open_time)]
+                        exp_max_high = max(elapseds[:,2])
+                        exp_min_low = min(elapseds[:,3])
+                        self.assertEqual(exp_max_high, high)
+                        self.assertEqual(exp_min_low, low)
+                    else:
+                        exp_max_high = min_kline[-1][2]
+                        exp_min_low = min_kline[-1][3]
+                        self.assertEqual(exp_max_high, high)
+                        self.assertEqual(exp_min_low, low)
+                    self.assertTrue(open_time%period == 0)
+                    self.assertEqual(min_kline[-1][4], kline[-1][4])
+                    self.assertEqual(min_kline[-1][5], kline[-1][5])
+                    self.assertEqual(min_kline[-1][7], kline[-1][7])
+                    self.assertEqual(min_kline[-1][8], kline[-1][8])
+                    self.assertEqual(min_kline[-1][9], kline[-1][9])
+                    self.assertEqual(min_kline[-1][10], kline[-1][10])
         # Stage 2
         _cls.reset()
         Config.update(Config.STAGE_MODE, Config.STAGE_2)
