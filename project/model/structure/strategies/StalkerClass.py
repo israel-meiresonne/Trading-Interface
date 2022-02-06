@@ -972,6 +972,8 @@ class StalkerClass(Strategy, MyJson, ABC):
         fee_total_capital_rate = total_fee / total_capital
         # Print
         row = {
+            Map.index: self._get_trade_index(),
+            Map.trade: self.get_nb_trade(),
             Map.id: self.get_id(),
             Map.date: _MF.unix_to_date(unix_time),
             Map.pair: pair,
