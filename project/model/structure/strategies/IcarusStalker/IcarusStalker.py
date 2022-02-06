@@ -78,12 +78,14 @@ class IcarusStalker(StalkerClass):
         endtime = _MF.get_timestamp()
         interval = _MF.delta_time(starttime, endtime)
         rows = [{
+            Map.index: self._get_trade_index(),
+            Map.trade: self.get_nb_trade(),
             Map.date: _MF.unix_to_date(endtime),
             Map.start: _MF.unix_to_date(starttime),
             Map.interval: interval,
             Map.id: self.get_id(),
             'child_id': child.get_id(),
-            'nb_trade': self.get_nb_trade(),
+            'child_n_trade': child.get_nb_trade(),
             Map.pair: pair,
             Map.roi: _MF.rate_to_str(stg_roi),
             'roi_after': _MF.rate_to_str(stg_roi_after),
