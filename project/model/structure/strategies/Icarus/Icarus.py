@@ -13,7 +13,7 @@ from model.tools.Wallet import Wallet
 
 
 class Icarus(TraderClass):
-    _MAX_LOSS = -3/100
+    _MAX_LOSS = -1/100
     _ROI_FLOOR_FIXE = 0.002
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 1000
@@ -331,23 +331,23 @@ class Icarus(TraderClass):
         # Get values
         pair = self.get_pair()
         buy_price = self._get_orders().get_last_execution().get_execution_price().get_value()
-        '''
+        # '''
         if self._get_secure_order() is None:
             secure_price = TraderClass._secure_order_price(self, bkr, marketprice)
         else:
-        '''
-        get_max_close_pred = self.get_max_close_predicted()
-        max_occupation = self.prediction_max_occupation(marketprice)
-        reduce_rate = self.get_prediction_occupation_reduce()
-        # Delta between buy price and prediction price
-        increase_range = get_max_close_pred - buy_price
-        # Eval price corresponding to occupation rate
-        occup_close = increase_range * max_occupation + buy_price
-        # Eval price point to reduce
-        reduce = increase_range * reduce_rate
-        # Reduce price point to occupation to get secure price
-        secure_close = occup_close - reduce
-        secure_price = Price(secure_close, pair.get_right().get_symbol())
+        # '''
+            get_max_close_pred = self.get_max_close_predicted()
+            max_occupation = self.prediction_max_occupation(marketprice)
+            reduce_rate = self.get_prediction_occupation_reduce()
+            # Delta between buy price and prediction price
+            increase_range = get_max_close_pred - buy_price
+            # Eval price corresponding to occupation rate
+            occup_close = increase_range * max_occupation + buy_price
+            # Eval price point to reduce
+            reduce = increase_range * reduce_rate
+            # Reduce price point to occupation to get secure price
+            secure_close = occup_close - reduce
+            secure_price = Price(secure_close, pair.get_right().get_symbol())
         return secure_price
 
     def get_buy_unix(self) -> int:
@@ -450,7 +450,7 @@ class Icarus(TraderClass):
         if can_buy:
             self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
-            # self._secure_position(executions)
+            self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -464,8 +464,10 @@ class Icarus(TraderClass):
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
         """
-        def is_new_prediction_higher(old_close: float, new_close) -> bool:
+        '''
+        def is_new_prediction_higher(old_close: float, new_close: float) -> bool:
             return new_close > old_close
+        '''
 
         def is_occupation_trigger_reached() -> bool:
             occup_trigger = self.get_prediction_occupation_secure_trigger()
@@ -474,15 +476,15 @@ class Icarus(TraderClass):
 
         def is_max_price_higher(old_max_price: float, new_max_price: float) -> bool:
             return new_max_price > old_max_price
-        """
+        '''
         def is_secure_is_max_loss() -> bool:
-            buy_odr = self.get_buy_order()
-            secure_odr = self._get_secure_order()
-            return secure_odr.get_limit_price().get_value() < buy_odr.get_execution_price().get_value()
-        """
+            buy_order = self.get_buy_order()
+            secure_order = self._get_secure_order()
+            return secure_order.get_limit_price().get_value() < buy_order.get_execution_price().get_value()
+        '''
 
         executions = Map()
-        max_close_pred = self.get_max_close_predicted()
+        # max_close_pred = self.get_max_close_predicted()
         old_max_price = self.get_max_prices()[-1]
         # Evaluate Sell
         predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
@@ -490,21 +492,10 @@ class Icarus(TraderClass):
         if can_sell:
             self._sell(executions)
         else:
-            new_max_close_pred = self.get_max_close_predicted()
-            new_prediction_higher = is_new_prediction_higher(max_close_pred, new_max_close_pred)
+            # new_max_close_pred = self.get_max_close_predicted()
             occup_trigger_reached = is_occupation_trigger_reached()
-            # secure_is_max_loss = is_secure_is_max_loss()
-            has_secure_odr = isinstance(self._get_secure_order(), Order)
             max_price_higher = is_max_price_higher(old_max_price, new_max_price=self.get_max_price(market_price))
-            # elif secure_is_max_loss and occup_trigger_reached:
-            if (not has_secure_odr) and occup_trigger_reached:
-                # Move up occupation secure
-                self._secure_position(executions)
-            elif has_secure_odr and occup_trigger_reached and new_prediction_higher:
-                # Move up occupation secure if new prediction and occup trigger reached
-                self._move_up_secure_order(executions)
-            elif has_secure_odr and occup_trigger_reached and max_price_higher:
-                # Move up occupation secure
+            if occup_trigger_reached and max_price_higher:
                 self._move_up_secure_order(executions)
         # Save
         var_param = vars().copy()
