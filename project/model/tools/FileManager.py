@@ -32,11 +32,22 @@ class FileManager(ABC):
         return FileManager._PROJECT_DIR
 
     @classmethod
+    def is_writting(cls) -> bool:
+        """
+        To check if FileManager is writting
+
+        Returns:
+        --------
+        return: bool
+            True if FileManager is writting else False
+        """
+        return cls._get_write_thread().is_alive()
+
+    @classmethod
     def _get_write_thread(cls) -> threading.Thread:
         if (cls._THREAD_WRITE is None) or (not cls._THREAD_WRITE.is_alive()):
             thread, output = _MF.generate_thread(cls._thread_write, cls._THREAD_NAME_WRITE)
             cls._THREAD_WRITE = thread
-            # _MF.output(_MF.prefix() + output)
         return cls._THREAD_WRITE
 
     @classmethod
