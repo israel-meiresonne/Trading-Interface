@@ -710,7 +710,7 @@ class Icarus(TraderClass):
         highs_np = Predictor.market_price_to_np(predictor_marketprice, Predictor.HIGH, n_feature)
         if stage == Config.STAGE_1:
             pair = predictor_marketprice.get_pair()
-            predict_key = '-'.join(highs_np[-1,:])
+            predict_key = '-'.join([str(e) for e in highs_np[-1,:]])
             max_close_pred = cls._get_prediction(pair, predict_key)
             if max_close_pred is None:
                 max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
