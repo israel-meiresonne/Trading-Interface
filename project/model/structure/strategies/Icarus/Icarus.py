@@ -25,6 +25,7 @@ class Icarus(TraderClass):
     _MIN_PERIOD = 60
     _PERIODS_REQUIRRED = [_MIN_PERIOD, _PREDICTOR_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
+    _PREDICTIONS = None
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -680,7 +681,6 @@ class Icarus(TraderClass):
         """
         if cls._PREDICTIONS is None:
             path = cls._get_file_path_prediction()
-            FileManager.read(path)
             json_str = _MF.catch_exception(FileManager.read, cls.__name__, repport=False, **{Map.path: path})
             cls._PREDICTIONS = Map() if json_str is None else MyJson.json_decode(json_str)
         return cls._PREDICTIONS
@@ -693,6 +693,7 @@ class Icarus(TraderClass):
 
     @classmethod
     def _add_prediction(cls, pair: Pair, predict_key: str, max_close_pred: float) -> float:
+        max_close_pred = float(max_close_pred)
         predicts = cls._get_predictions()
         predicts.put(max_close_pred, pair.__str__(), predict_key)
         path = cls._get_file_path_prediction()
