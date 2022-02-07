@@ -6,7 +6,7 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 import time
-from types import FunctionType
+from types import FunctionType, MethodType
 from typing import Any, Tuple, Union
 
 import dill
@@ -603,8 +603,8 @@ class ModelFeature(ModelAccess):
         **kwargs: dict[str, Any]
             Parameters for callback function
         """
-        if not isinstance(callback, FunctionType):
-            raise TypeError(f"The callback must be of type '{FunctionType}', instead '{type(callback)}'")
+        if (not isinstance(callback, FunctionType)) and (not isinstance(callback, MethodType)):
+            raise TypeError(f"The callback must be of type '{FunctionType}' or '{MethodType}', instead '{type(callback)}'")
         if not isinstance(timeout, int):
             raise TypeError(f"The timeout must be of type '{int}', instead '{type(timeout)}'")
         if (to_raise is not None) and (not isinstance(to_raise, Exception)):

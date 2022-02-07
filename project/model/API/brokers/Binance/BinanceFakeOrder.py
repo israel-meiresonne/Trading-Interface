@@ -118,8 +118,10 @@ class BinanceFakeOrder(MyJson):
 
             if (not self.get_attribut(Map.ready)) and stop_reached(market_close_price):
                 self._set_attribut(Map.ready, True)
+                stop_price = self.get_attribut(Map.stopPrice)
+                market_datas.put(stop_price, Map.close)
             if self.get_attribut(Map.ready):
-                if limit_reached(is_buyer, market_close_price):
+                if limit_reached(is_buyer, market_datas.get(Map.close)):
                     self._execute(market_datas)
         else:
             raise Exception(f"This order type '{order_type}' is not supported")
