@@ -41,6 +41,7 @@ class BinanceFakeAPI(BinanceAPI):
         BinanceFakeAPI._HISTORIES = None
         BinanceFakeAPI._INITIAL_INDEXES = None
         BinanceFakeAPI._ORDERS = None
+        BinanceFakeAPI._HISTORY_TIMES = None
 
     @staticmethod
     def _get_stage() -> str:
