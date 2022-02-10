@@ -20,15 +20,16 @@ from model.tools.Pair import Pair
 class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
     def setUp(self) -> None:
         _MF.OUTPUT = True
-        BinanceFakeAPI.reset()
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
+        Bot.update_trade_index(0)
+        BinanceFakeAPI.reset()
         self.initial_indexes = Map({
-            60: 59999,
-            180: 19999,
-            300: 11999,
-            900: 3999,
-            1800: 1999,
-            3600: 999
+            60: 60000,
+            180: 20000,
+            300: 12000,
+            900: 4000,
+            1800: 2000,
+            3600: 1000
             })
         self.order_params = order_params = Map({
             "symbol": "BTCUSDT",
@@ -278,6 +279,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
             order = _cls._new_order(params)
             orders = _cls._get_orders()
             _cls._save_orders()
+            _MF.wait_while(FileManager.is_writting, False, 10)
             _cls.reset()
             loaded_orders = _cls._get_orders()
             loaded_order = _cls._get_order(order.get_attribut(Map.symbol), order.get_attribut(Map.orderId))

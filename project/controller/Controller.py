@@ -255,6 +255,7 @@ class Controller:
             return None
         bot_id = bot_ids[view.menu("Choose the Bot to start:", bot_refs)]
         model.start_bot(bot_id)
+        view.output(View.FILE_MESSAGE, f"✅ Bot started: {bot_id}!")
 
     def stop_bot(self) -> None:
         model = self._get_model()

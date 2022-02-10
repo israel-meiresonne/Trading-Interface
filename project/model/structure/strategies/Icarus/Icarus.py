@@ -1,7 +1,9 @@
 from typing import Tuple
+from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.TraderClass import TraderClass
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
@@ -16,7 +18,7 @@ class Icarus(TraderClass):
     _MAX_LOSS = -3/100
     _ROI_FLOOR_FIXE = 0.002
     _PREDICTOR_PERIOD = 60 * 60
-    _PREDICTOR_N_PERIOD = 1000
+    _PREDICTOR_N_PERIOD = 100
     _MIN_ROI_PREDICTED = 2/100
     _PREDICTION_OCCUPATION_RATE = 1
     _PREDICTION_OCCUPATION_SECURE_TRIGGER = 30/100
@@ -26,6 +28,7 @@ class Icarus(TraderClass):
     _PERIODS_REQUIRRED = [_MIN_PERIOD, _PREDICTOR_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
+    _PREDICTIONS = None
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -721,16 +724,55 @@ class Icarus(TraderClass):
     
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR DOWN ——————————————————————————————————————
-    
-    @staticmethod
-    def _predict_max_high(predictor_marketprice: MarketPrice, predictor: Predictor) -> float:
+
+    @classmethod
+    def _get_file_path_prediction(cls) -> str:
+        return f'content/storage/Strategy/Icarus/prediction/prediction.json'
+
+    @classmethod
+    def _get_predictions(cls) -> Map:
+        """
+        Map[pair{str}][predict_key{str}]:   {float}
+        """
+        if cls._PREDICTIONS is None:
+            path = cls._get_file_path_prediction()
+            json_str = _MF.catch_exception(FileManager.read, cls.__name__, repport=False, **{Map.path: path})
+            cls._PREDICTIONS = Map() if json_str is None else MyJson.json_decode(json_str)
+        return cls._PREDICTIONS
+
+    @classmethod
+    def _get_prediction(cls, pair: Pair, predict_key: str) -> float:
+        predicts = cls._get_predictions()
+        predict = predicts.get(pair.__str__(), predict_key)
+        return predict
+
+    @classmethod
+    def _add_prediction(cls, pair: Pair, predict_key: str, max_close_pred: float) -> float:
+        max_close_pred = float(max_close_pred)
+        predicts = cls._get_predictions()
+        predicts.put(max_close_pred, pair.__str__(), predict_key)
+        path = cls._get_file_path_prediction()
+        content = predicts.json_encode()
+        FileManager.write(path, content, overwrite=True, make_dir=True)
+
+    @classmethod
+    def _predict_max_high(cls, predictor_marketprice: MarketPrice, predictor: Predictor) -> float:
+        stage = Config.get_stage()
         model = predictor.get_model(Predictor.HIGH)
         n_feature = model.n_feature()
         highs = list(predictor_marketprice.get_highs())
         highs.reverse()
         xs, ys = Predictor.generate_dataset(highs, n_feature)
         highs_np = Predictor.market_price_to_np(predictor_marketprice, Predictor.HIGH, n_feature)
-        max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
+        if stage == Config.STAGE_1:
+            pair = predictor_marketprice.get_pair()
+            predict_key = '-'.join([str(e) for e in highs_np[-1,:]])
+            max_close_pred = cls._get_prediction(pair, predict_key)
+            if max_close_pred is None:
+                max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
+                cls._add_prediction(pair, predict_key, max_close_pred)
+        else:
+            max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
         return float(max_close_pred)
     
     @staticmethod

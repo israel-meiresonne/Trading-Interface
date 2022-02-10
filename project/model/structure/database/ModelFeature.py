@@ -6,7 +6,7 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 import time
-from types import FunctionType
+from types import FunctionType, MethodType
 from typing import Any, Tuple, Union
 
 import dill
@@ -603,8 +603,8 @@ class ModelFeature(ModelAccess):
         **kwargs: dict[str, Any]
             Parameters for callback function
         """
-        if not isinstance(callback, FunctionType):
-            raise TypeError(f"The callback must be of type '{FunctionType}', instead '{type(callback)}'")
+        if (not isinstance(callback, FunctionType)) and (not isinstance(callback, MethodType)):
+            raise TypeError(f"The callback must be of type '{FunctionType}' or '{MethodType}', instead '{type(callback)}'")
         if not isinstance(timeout, int):
             raise TypeError(f"The timeout must be of type '{int}', instead '{type(timeout)}'")
         if (to_raise is not None) and (not isinstance(to_raise, Exception)):
@@ -615,3 +615,21 @@ class ModelFeature(ModelAccess):
             time.sleep(1)
         if (to_raise is not None) and (i >= timeout):
             raise to_raise()
+
+    @staticmethod
+    def update_speed_test(speed_test: 'Map', test_name: str, starttime: int = None, endtime: int = None) -> None:
+        from model.tools.Map import Map
+        if starttime is not None:
+            speed_test.put(starttime, test_name, Map.start)
+        elif endtime is not None:
+            speed_test.put(endtime, test_name, Map.end)
+        else:
+            raise ValueError("Start and end time can't both be None")
+
+    @classmethod
+    def print_speed_test(cls, speed_test: 'Map', class_name: str, function_name: str) -> None:
+        from model.tools.Map import Map
+        for test_name, row in speed_test.get_map().items():
+            test_name = function_name.replace(",", ";")
+            delta = f"speed_test,{class_name},{function_name},{test_name},{(row[Map.end] - row[Map.start])/1000}sec"
+            cls.output(delta)

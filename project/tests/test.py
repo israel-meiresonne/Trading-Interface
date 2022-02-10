@@ -9,6 +9,7 @@ def get_import(class_name: str) -> str:
         f'from tests.API.brokers.Binance.{class_name} import {class_name}',
         f'from tests.structure.database.{class_name} import {class_name}',
         f'from tests.structure.strategies.{class_name} import {class_name}',
+        f'from tests.structure.strategies.' + class_name.replace('Test', '') + f'.{class_name} import {class_name}',
         f'from tests.tools.{class_name} import {class_name}'
     ]
     found = None

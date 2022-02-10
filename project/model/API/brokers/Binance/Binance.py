@@ -138,7 +138,8 @@ class Binance(Broker, MyJson):
             'DOGE/USDT',
             'ETC/USDT',
             'RLC/USDT',
-            'UNFI/USDT'
+            'UNFI/USDT',
+            'ZRX/USDT'
         ]
         return prs
 
