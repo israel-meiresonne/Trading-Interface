@@ -12,6 +12,7 @@ project/content/storage/Predictor/market-histories/
 project/content/storage/Predictor/analyse/
 project/content/storage/Predictor/learns/print/
 project/content/storage/MarketPrice/histories/
+project/content/storage/Strategy/Icarus/prediction/
 
 project/content/market-historic/
 project/content/sessions/

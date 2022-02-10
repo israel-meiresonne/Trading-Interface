@@ -615,3 +615,20 @@ class ModelFeature(ModelAccess):
             time.sleep(1)
         if (to_raise is not None) and (i >= timeout):
             raise to_raise()
+
+    @staticmethod
+    def update_speed_test(speed_test: 'Map', test_name: str, starttime: int = None, endtime: int = None) -> None:
+        from model.tools.Map import Map
+        if starttime is not None:
+            speed_test.put(starttime, test_name, Map.start)
+        elif endtime is not None:
+            speed_test.put(endtime, test_name, Map.end)
+        else:
+            raise ValueError("Start and end time can't both be None")
+
+    @classmethod
+    def print_speed_test(cls, speed_test: 'Map', class_name: str, function_name: str) -> None:
+        from model.tools.Map import Map
+        for test_name, row in speed_test.get_map().items():
+            delta = f"speed_test: {class_name}.{function_name} : {test_name} - {(row[Map.end] - row[Map.start])/1000}sec"
+            cls.output(delta)
