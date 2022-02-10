@@ -618,10 +618,10 @@ class StalkerClass(Strategy, MyJson, ABC):
         repports = []
         i = 1
         for pair in pairs:
-            marketprice = MarketPrice.marketprice(broker, pair, stalk_period, n_period)
             max_not_reached = not self.max_active_strategies_reached()
             eligible = False
             if max_not_reached:
+                marketprice = MarketPrice.marketprice(broker, pair, stalk_period, n_period)
                 eligible, repport = self._eligible(marketprice, broker)
                 repports.append(repport)
             _MF.output(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible: {eligible}" + _normal)
