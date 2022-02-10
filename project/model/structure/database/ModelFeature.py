@@ -630,5 +630,6 @@ class ModelFeature(ModelAccess):
     def print_speed_test(cls, speed_test: 'Map', class_name: str, function_name: str) -> None:
         from model.tools.Map import Map
         for test_name, row in speed_test.get_map().items():
-            delta = f"speed_test: {class_name}.{function_name} : {test_name} - {(row[Map.end] - row[Map.start])/1000}sec"
+            test_name = function_name.replace(",", ";")
+            delta = f"speed_test,{class_name},{function_name},{test_name},{(row[Map.end] - row[Map.start])/1000}sec"
             cls.output(delta)
