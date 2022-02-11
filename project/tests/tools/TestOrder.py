@@ -75,13 +75,13 @@ class TestOrder(unittest.TestCase, Order):
         else:
             amount = Price(quantity * exec_price, pair.get_right())
         fee = Price(amount * fee_rate, pair.get_right())
-        order._set_status(Order.STATUS_COMPLETED)
         order._set_broker_id(_MF.new_code())
         order._set_execution_time(_MF.get_timestamp(unit=_MF.TIME_MILLISEC))
         order._set_execution_price(exec_price)
         order._set_fee(fee)
         order._set_executed_amount(amount)
         order._set_executed_quantity(quantity)
+        order._set_status(Order.STATUS_COMPLETED)
     
     def _set_market(self) -> None:
         pass
@@ -260,15 +260,15 @@ class TestOrder(unittest.TestCase, Order):
                 'buy': buy_value,
                 'sell': r_zero,
                 'positions': buy_value - buy_fee,
-                'roi': (buy_value - buy_fee)/initial-1,
-                'total': initial - buy_fee,
+                'roi': (r_zero + (buy_value - buy_fee))/initial-1,
+                'total': initial - buy_fee
                 },
             {
                 'spot': initial - buy_value + sell_value - sell_fee,
                 'buy': buy_value,
                 'sell': sell_value,
                 'positions': buy_value - buy_fee - sell_value,
-                'roi': (initial - (buy_fee + sell_fee))/initial-1,
+                'roi': ((initial - buy_value + sell_value - sell_fee) + (buy_value - buy_fee - sell_value))/initial-1,
                 'total': initial - buy_value + sell_value - sell_fee + (buy_value - buy_fee - sell_value)
                 }
             ]
