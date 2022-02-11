@@ -639,7 +639,7 @@ class TestWallet(unittest.TestCase, Wallet):
             return state_idx + 1
 
         bkr = self.broker_switch(True)
-        file_path = 'tests/datas/tools/TestWallet/test_multiple_transaction/wallet-states-2.csv'
+        file_path = 'tests/datas/tools/TestWallet/test_multiple_transaction/wallet-states-3.csv'
         wallet_stages = FileManager.get_csv(file_path)
         cols = {
             "initial": "initial",
