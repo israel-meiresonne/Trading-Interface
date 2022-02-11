@@ -154,24 +154,21 @@ class IcarusStalker(StalkerClass):
         key = Icarus._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
-            f'{key}.supertrend_rising': None,
-            f'{key}.supertrend_switch_up': None,
-            f'{key}.psar_rising': None,
-            f'{key}.psar_switch_up': None,
-            f'{key}.macd_rising': None,
-            f'{key}.macd_ok': None,
-            f'{key}.histogram_ok': None,
+            f'{key}.ema_rising': None,
+            f'{key}.histogram_rising': None,
+            f'{key}.rsi_ok': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
-            f'{key}.supertrend[-1]': None,
-            f'{key}.supertrend[-2]': None,
-            f'{key}.supertrend[-3]': None,
-            f'{key}.psar[-1]': None,
-            f'{key}.psar[-2]': None,
-            f'{key}.psar[-3]': None,
-            f'{key}.macd[-1]': None,
-            f'{key}.macd[-2]': None,
-            f'{key}.histogram[-1]': None
+            f'{key}.closes[-3]': None,
+            f'{key}.ema[-1]': None,
+            f'{key}.ema[-2]': None,
+            f'{key}.ema[-3]': None,
+            f'{key}.histogram[-1]': None,
+            f'{key}.histogram[-2]': None,
+            f'{key}.histogram[-3]': None,
+            f'{key}.rsi[-1]': None,
+            f'{key}.rsi[-2]': None,
+            f'{key}.rsi[-3]': None
         }
         # Repport
         key = Icarus._can_buy_prediction.__name__
@@ -191,22 +188,11 @@ class IcarusStalker(StalkerClass):
         key = Icarus.can_buy.__name__
         child_datas = {
             f'{key}.indicator': None,
-            f'{key}.prediction': None,
-            **indicator_datas,
-            **pred_repport
+            **indicator_datas
         }
         # Repport
         key = Icarus.stalker_can_add.__name__
-        stalker_datas = {
-            f'{key}.psar_rising[-1]': None,
-            f'{key}.ema_rising[-1]': None,
-            f'{key}.closes[-1]': None,
-            f'{key}.closes[-2]': None,
-            f'{key}.psars[-1]': None,
-            f'{key}.psars[-2]': None,
-            f'{key}.ema[-1]': None,
-            f'{key}.ema[-2]': None
-            }
+        stalker_datas = {}
         # Repport
         key = IcarusStalker._eligible.__name__
         canvas = {
