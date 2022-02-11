@@ -349,7 +349,7 @@ class Wallet(MyJson):
 
     def get_total(self, bkr: Broker) -> Price:
         """
-        To get Wallet’s total value in Wallet.initial’s Asset
+        To get Wallet's total value in Wallet.initial's Asset
 
         Parameters:
         -----------
@@ -359,7 +359,7 @@ class Wallet(MyJson):
         Returns:
         --------
         return: Price
-            Wallet’s total value in Wallet.initial’s Asset
+            Wallet's total value in Wallet.initial's Asset
         """
         self._set_total(bkr) if self.__total is None else None
         return self.__total
@@ -370,23 +370,25 @@ class Wallet(MyJson):
     def _set_roi(self, bkr: Broker) -> None:
         def func_roi() -> float:
             """
-            Roi = (positions + sell - sell.fee − added_pos + removed_pos) ÷ buy − 1
+            ROI = (spot + positions - added_pos + removed_pos - depot + withdrawal) ÷ initial - 1
             """
             roi = 0
             buy = self.get_buy()
             if buy.get_value() != 0:
-                sell = self.get_sell()
-                sell_fee = self.get_sell(sum_key=self.SUM_FEE)
                 position = self.get_all_position_value(bkr, self.ATTR_POSITONS)
                 added_position = self.get_all_position_value(bkr, self.ATTR_ADDED_POSIIONS)
                 removed_position = self.get_all_position_value(bkr, self.ATTR_REMOVED_POSIIONS)
-                roi = (position + sell - sell_fee - added_position + removed_position) / buy - 1
+                spot = self.get_spot()
+                depot = self.get_depot()
+                withdrawal = self.get_withdrawal()
+                initial = self.get_initial()
+                roi = (spot + position - added_position + removed_position - depot + withdrawal) / initial - 1
             return roi
         self.__roi = func_roi()
 
     def get_roi(self, bkr: Broker) -> float:
         """
-        To get Wallet’s Return On Invest (ROI)
+        To get Wallet's Return On Invest (ROI)
 
         Parameters:
         -----------
@@ -396,7 +398,7 @@ class Wallet(MyJson):
         Returns:
         --------
         return: float
-            Wallet’s Return On Invest (ROI)
+            Wallet's Return On Invest (ROI)
         """
         self._set_roi(bkr) if self.__roi is None else None
         return self.__roi
