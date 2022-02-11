@@ -91,11 +91,12 @@ class Bot(MyJson):
         _stage = Config.get(Config.STAGE_MODE)
         bkr = self.get_broker()
         stg = self.get_strategy()
+        bot_id = self.get_id()
         trade_index = Bot.get_trade_index()
         sleep_time = None
         nb_error = 0
+        starttime = _MF.get_timestamp()
         _MF.output(f"{_MF.prefix()}Bot started to trade 🤖")
-        bot_id = self.get_id()
         while self.active():
             Bot._set_trade_index(trade_index)
             _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
@@ -116,6 +117,16 @@ class Bot(MyJson):
                 _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
                 time.sleep(sleep_time)
                 sleep_time = None
+            if _stage == Config.STAGE_1:
+                _normal = '\033[0m'
+                _cyan = '\033[36m'
+                endtime = _MF.get_timestamp()
+                n_trade = trade_index
+                delta_time = endtime - starttime
+                time_per_trade = f"{n_trade/delta_time}(trade/sec.)"
+                trade_time = f"{delta_time/n_trade}(sec./trade)"
+                run_time = _MF.delta_time(0, n_trade*60)
+                _MF.output(_MF.prefix() + _cyan + f"{time_per_trade} — {trade_time} - {run_time}" + _normal)
         _MF.output(f"{_MF.prefix()}Bot stoped to trade ☠️")
 
 
