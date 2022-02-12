@@ -619,16 +619,20 @@ class Icarus(TraderClass):
             vars_map.put(ema_rising, 'ema_rising')
             return ema_rising
 
-        def is_macd_histogram_rising(vars_map: Map) -> bool:
+        def is_macd_switch_up(vars_map: Map) -> bool:
             # MACD
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             histogram_rising = histogram[-1] > 0
+            prev_histogram_dropping = histogram[-2] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
             vars_map.put(histogram, 'histogram')
             vars_map.put(histogram_rising, 'histogram_rising')
-            return histogram_rising
+            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            return macd_switch_up
 
         def is_rsi_ok(rsi_trigger: float, vars_map: Map) -> bool:
             # RSI
@@ -648,10 +652,10 @@ class Icarus(TraderClass):
         # Check
         if is_ema_rising(vars_map):
             rsi_trigger = 70
-            can_buy_indicator = is_macd_histogram_rising(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
+            can_buy_indicator = is_macd_switch_up(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
         else:
             rsi_trigger = 50
-            can_buy_indicator = is_macd_histogram_rising(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
+            can_buy_indicator = is_macd_switch_up(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get('histogram')
@@ -661,6 +665,8 @@ class Icarus(TraderClass):
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.ema_rising': vars_map.get('ema_rising'),
             f'{key}.histogram_rising': vars_map.get('histogram_rising'),
+            f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
+            f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.rsi_ok': vars_map.get('rsi_ok'),
             f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
             f'{key}.closes[-1]': closes[-1],
