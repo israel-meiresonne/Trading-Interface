@@ -422,11 +422,23 @@ class Icarus(TraderClass):
             vars_map.put(rsi_ok, 'rsi_ok')
             return rsi_ok
 
+        def is_macd_dropping(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            macd_dropping = macd[-1] <= macd[-2]
+            vars_map.put(macd, 'macd')
+            vars_map.put(macd_dropping, 'macd_dropping')
+            return macd_dropping
+
         vars_map = Map()
         can_sell = False
         # Check
         if not is_buy_period():
-            can_sell = is_rsi_ok(70, vars_map) if is_ema_rising(vars_map) else is_rsi_ok(50, vars_map)
+            if is_macd_dropping(vars_map):
+                can_sell = True
+            else:
+                can_sell = is_rsi_ok(70, vars_map) if is_ema_rising(vars_map) else is_rsi_ok(50, vars_map)
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
