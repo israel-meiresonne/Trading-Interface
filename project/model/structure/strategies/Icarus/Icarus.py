@@ -398,12 +398,14 @@ class Icarus(TraderClass):
             open_time = marketprice.get_time()
             return open_time < first_open_time
 
+        """
         def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
             # RSI
             rsi = list(marketprice.get_rsis())
             rsi.reverse()
             rsi_reached = rsi[-1] > rsi_trigger
             return rsi_reached
+        """
 
         def is_histogram_dropping(vars_map: Map) -> bool:
             # MACD
@@ -416,7 +418,7 @@ class Icarus(TraderClass):
         vars_map = Map()
         can_sell = False
         # Check
-        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or is_rsi_reached(70, vars_map))
+        can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map) # or is_rsi_reached(70, vars_map))
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
