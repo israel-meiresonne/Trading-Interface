@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Icarus.Icarus import Icarus
@@ -109,41 +110,23 @@ class IcarusStalker(StalkerClass):
 
     def _add_streams_periods(self) -> list:
         return [
-            # MarketPrice.get_period_market_analyse(),
             self.get_period(),
             self.get_strategy_params().get(Map.period),
-            Wallet.get_period(),
-            # *Predictor.get_learn_periods(),
-            *Icarus.get_periods_required(),
-            # Icarus.get_predictor_period()
+            Wallet.get_period()
         ]
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
-        child_period = self.get_strategy_params().get(Map.period)
-        child_marketprice = self._get_market_price(broker, pair, child_period)
-        predictor_marketprice = Icarus.predictor_market_price(broker, pair)
-        # Stalker
-        stalker_ok, stalker_datas = Icarus.stalker_can_add(predictor_marketprice)
-        # Child
-        child_datas = {}
-        child_ok = False
-        if stalker_ok:
-            child_ok, child_datas = Icarus.can_buy(predictor_marketprice, child_marketprice)
-        eligible = stalker_ok and child_ok
+        child_ok, child_datas = Icarus.can_buy(market_price)
+        eligible = child_ok
         # Repport
         key = IcarusStalker._eligible.__name__
         repport = {
-            f'{key}.predictor_time': _MF.unix_to_date(predictor_marketprice.get_time()),
-            f'{key}.child_time': _MF.unix_to_date(child_marketprice.get_time()),
+            f'{key}.child_time': _MF.unix_to_date(market_price.get_time()),
             f'{key}.pair': pair,
             f'{key}.eligible': eligible,
-            f'{key}.stalker_ok': stalker_ok,
             f'{key}.child_ok': child_ok,
-            f'{key}.stalker_period': self.get_period(),
-            f'{key}.child_period': child_period,
-            f'{key}.predictor_period': predictor_marketprice.get_period_time(),
-            **stalker_datas,
+            f'{key}.child_period': market_price.get_period_time(),
             **child_datas
         }
         repport_formated = self._format_stalk(Map(repport))
@@ -173,41 +156,19 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd[-3]': None
         }
         # Repport
-        key = Icarus._can_buy_prediction.__name__
-        pred_repport = {
-            f'{key}.prediction_ok': None,
-            f'{key}.occup_rate_ok': None,
-            f'{key}.pred_period': None,
-            f'{key}.max_close_pred': None,
-            f'{key}.max_roi_pred': None,
-            f'{key}.pred_trigger': None,
-            f'{key}.child_closes[-1]': None,
-            f'{key}.occup_rate': None,
-            f'{key}.occup_trigger': None,
-            f'{key}.predictor_highs[-1]': None
-        }
-        # Repport
         key = Icarus.can_buy.__name__
         child_datas = {
             f'{key}.indicator': None,
             **indicator_datas
         }
         # Repport
-        key = Icarus.stalker_can_add.__name__
-        stalker_datas = {}
-        # Repport
         key = IcarusStalker._eligible.__name__
         canvas = {
-            f'{key}.predictor_time': None,
             f'{key}.child_time': None,
             f'{key}.pair': None,
             f'{key}.eligible': None,
-            f'{key}.stalker_ok': None,
             f'{key}.child_ok': None,
-            f'{key}.stalker_period': None,
             f'{key}.child_period': None,
-            f'{key}.predictor_period': None,
-            **stalker_datas,
             **child_datas
         }
         content = {key: repport.get(key) for key in canvas}
@@ -225,24 +186,14 @@ class IcarusStalker(StalkerClass):
         return self.__last_reset_allowed_pair
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
-        def can_reset() -> bool:
-            f_last_reset = self.get_last_reset_allowed_pair()
-            _can_reset = f_last_reset is None
-            if not _can_reset:
-                interval = Icarus.get_predictor_period()
-                unix_time = _MF.get_timestamp()
-                _can_reset = unix_time >= (f_last_reset + interval)
-            return _can_reset
 
-        if (self._allowed_pairs is None) or can_reset():
-            stock_pairs = Predictor.learned_pairs(stock_path=True)
-            occup_df = Predictor.load_occupation_rate()
-            df = occup_df[occup_df[Map.mean] >= self._PAIR_FILTER_MEAN]
-            df = df[df[">= 100"] >= self._PAIR_FILTER_100]
-            filtered_pair = df[Map.pair].to_list()
-            allowed_pairs = [stock_pair for stock_pair in stock_pairs if stock_pair.__str__() in filtered_pair]
+        if self._allowed_pairs is None:
+            if Config.get_stage() == Config.STAGE_1:
+                allowed_pairs = MarketPrice.history_pairs(bkr.__class__.__name__, active_path=True)
+            else:
+                right_asset = self.get_pair().get_right()
+                allowed_pairs = MarketPrice.get_spot_pairs(bkr.__class__.__name__, right_asset)
             self._allowed_pairs = allowed_pairs
-            self._reset_last_reset_allowed_pair()
         return self._allowed_pairs
 
     @staticmethod
