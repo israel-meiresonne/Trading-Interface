@@ -398,35 +398,25 @@ class Icarus(TraderClass):
             open_time = marketprice.get_time()
             return open_time < first_open_time
 
-        def is_ema_rising(vars_map: Map) -> bool:
-            # Close
-            closes = list(marketprice.get_closes())
-            closes.reverse()
-            # EMA
-            ema = list(marketprice.get_ema(self.EMA_N_PERIOD))
-            ema.reverse()
-            ema_rising = closes[-1] > ema[-1]
-            # Put
-            vars_map.put(ema, 'ema')
-            vars_map.put(ema_rising, 'ema_rising')
-            return ema_rising
-
-        def is_rsi_ok(rsi_trigger: float, vars_map: Map) -> bool:
+        def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
             # RSI
             rsi = list(marketprice.get_rsis())
             rsi.reverse()
-            rsi_ok = rsi[-1] > rsi_trigger
-            # Put
-            vars_map.put(rsi_trigger, 'rsi_trigger')
-            vars_map.put(rsi, 'rsi')
-            vars_map.put(rsi_ok, 'rsi_ok')
-            return rsi_ok
+            rsi_reached = rsi[-1] > rsi_trigger
+            return rsi_reached
+
+        def is_histogram_dropping(vars_map: Map) -> bool:
+            # MACD
+            macd_map = marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_dropping = histogram[-1] < 0
+            return histogram_dropping
 
         vars_map = Map()
         can_sell = False
         # Check
-        if not is_buy_period():
-            can_sell = is_rsi_ok(70, vars_map) if is_ema_rising(vars_map) else is_rsi_ok(50, vars_map)
+        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or is_rsi_reached(70, vars_map))
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -472,7 +462,7 @@ class Icarus(TraderClass):
         if can_buy:
             # self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
-            self._secure_position(executions)
+            # self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -619,50 +609,48 @@ class Icarus(TraderClass):
             vars_map.put(ema_rising, 'ema_rising')
             return ema_rising
 
-        def is_macd_histogram_rising(vars_map: Map) -> bool:
+        def is_macd_negative(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            macd_negative = macd[-1] < 0
+            # Put
+            vars_map.put(macd, 'macd')
+            vars_map.put(macd_negative, 'macd_negative')
+            return macd_negative
+
+        def is_macd_switch_up(vars_map: Map) -> bool:
             # MACD
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             histogram_rising = histogram[-1] > 0
+            prev_histogram_dropping = histogram[-2] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
             vars_map.put(histogram, 'histogram')
             vars_map.put(histogram_rising, 'histogram_rising')
-            return histogram_rising
-
-        def is_rsi_ok(rsi_trigger: float, vars_map: Map) -> bool:
-            # RSI
-            rsi = list(child_marketprice.get_rsis())
-            rsi.reverse()
-            rsi_ok = rsi[-1] < rsi_trigger
-            # Put
-            vars_map.put(rsi_trigger, 'rsi_trigger')
-            vars_map.put(rsi, 'rsi')
-            vars_map.put(rsi_ok, 'rsi_ok')
-            return rsi_ok
+            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            return macd_switch_up
 
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        # Check
-        if is_ema_rising(vars_map):
-            rsi_trigger = 70
-            can_buy_indicator = is_macd_histogram_rising(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
-        else:
-            rsi_trigger = 50
-            can_buy_indicator = is_macd_histogram_rising(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
+        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map)
         # Repport
         ema = vars_map.get('ema')
-        histogram = vars_map.get('histogram')
-        rsi = vars_map.get('rsi')
+        histogram = vars_map.get(Map.histogram)
+        macd = vars_map.get(Map.macd)
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.ema_rising': vars_map.get('ema_rising'),
+            f'{key}.macd_negative': vars_map.get('macd_negative'),
             f'{key}.histogram_rising': vars_map.get('histogram_rising'),
-            f'{key}.rsi_ok': vars_map.get('rsi_ok'),
-            f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
+            f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
+            f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -672,9 +660,9 @@ class Icarus(TraderClass):
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
             f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
-            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
-            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None,
-            f'{key}.rsi[-3]': rsi[-3] if rsi is not None else None
+            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+            f'{key}.macd[-2]': macd[-2] if macd is not None else None,
+            f'{key}.macd[-3]': macd[-3] if macd is not None else None
         }
         return can_buy_indicator, repport
 
