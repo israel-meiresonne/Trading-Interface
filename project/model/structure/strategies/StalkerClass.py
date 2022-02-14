@@ -371,7 +371,7 @@ class StalkerClass(Strategy, MyJson, ABC):
         --------
         return: Map
             Collection of thread managing trade of child Strategy
-            Map[Pair{str}]: {TraderClass}
+            Map[Pair{str}]: {Thread}
         """
         if self.__thread_manage_trade is None:
             self.__thread_manage_trade = Map()
@@ -705,6 +705,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         self._launch_analyse(bkr) if bkr.is_active() and (not self.is_analysing()) else None
         self.get_stalk_thread().join() if Config.get_stage() == Config.STAGE_1 else None
         self._manage_trades(bkr)
+        if Config.get_stage() == Config.STAGE_1:
+            threads = list(self._get_threads_manage_trade().get_map().values())
+            [thread.join() for thread in threads]
         return self._get_sleep_time()
 
     def _manage_trades(self, bkr: Broker) -> None:
