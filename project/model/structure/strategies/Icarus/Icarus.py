@@ -30,6 +30,7 @@ class Icarus(TraderClass):
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
     _PREDICTIONS = None
+    _MACD_HISTOGRAM = None
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -459,12 +460,15 @@ class Icarus(TraderClass):
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
         # Evaluate Buy
-        # predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
-        can_buy, _ = self.can_buy(market_price)
+        minute_marketprice = self.get_marketprice(period=60, n_period=10)
+        if self.get_nb_trade() >= 9:
+            a = 1
+        can_buy, repport = self.can_buy(market_price, minute_marketprice)
         if can_buy:
             # self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
             # self._secure_position(executions)
+            self._reset_histogram_list(self.get_pair())
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -582,13 +586,13 @@ class Icarus(TraderClass):
         pass
 
     @classmethod
-    def can_buy(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    def can_buy(cls, child_marketprice: MarketPrice, minute_marketprice: MarketPrice) -> Tuple[bool, dict]:
         if child_marketprice.get_period_time() != 60*15:
             child_period = cls.get_period()
             market_period = child_marketprice.get_period_time()
             raise ValueError(f"MarketPrice must have period '{child_period}', instead '{market_period}'")
         # indicator
-        indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice)
+        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, minute_marketprice)
         # Check
         can_buy = indicator_ok
         # Repport
@@ -600,7 +604,52 @@ class Icarus(TraderClass):
         return can_buy, repport
 
     @classmethod
-    def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    def _get_histograms(cls) -> Map:
+        """
+        Map[Pair.__str__()][index{int}][Map.time]:      {int}      # Unix time of histogram (in second)
+        Map[Pair.__str__()][index{int}][Map.histogram]: {float}    # Value of histogram
+        """
+        if cls._MACD_HISTOGRAM is None:
+            cls._MACD_HISTOGRAM = Map()
+        return cls._MACD_HISTOGRAM
+
+    @classmethod
+    def _reset_histogram_list(cls, pair: Pair) -> list:
+        str_pair = pair.__str__()
+        histograms = cls._get_histograms()
+        if str_pair in histograms.get_keys():
+            histograms.get_map()[str_pair] = None
+            del histograms.get_map()[str_pair]
+
+    @classmethod
+    def _get_histogram_list(cls, pair: Pair) -> list:
+        str_pair = pair.__str__()
+        histograms = cls._get_histograms()
+        if histograms.get(str_pair) is None:
+            histograms.put([], str_pair)
+        return histograms.get(str_pair)
+
+    @classmethod
+    def _update_histogram_list(cls, child_marketprice: MarketPrice, minute_marketprice: MarketPrice) -> None:
+        pair = child_marketprice.get_pair()
+        # Minute
+        minute_open_time = minute_marketprice.get_time()
+        # MACD
+        macd_map = child_marketprice.get_macd()
+        histogram = list(macd_map.get(Map.histogram))
+        histogram.reverse()
+        histogram_list = cls._get_histogram_list(pair)
+        if (len(histogram_list) == 0) or (minute_open_time > histogram_list[-1][Map.time]):
+            row = {
+                Map.time: minute_open_time,
+                Map.histogram: histogram[-1]
+                }
+            histogram_list.append(row)
+        if len(histogram_list) > 2:
+            del histogram_list[0]
+
+    @classmethod
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice, minute_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def is_ema_rising(vars_map: Map) -> bool:
             # EMA
             ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
@@ -636,15 +685,40 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
+        def is_delta_macd_rising(vars_map: Map) -> bool:
+            histogram_rising = False
+            minute_open_time = minute_marketprice.get_time()
+            minute_period = minute_marketprice.get_period_time()
+            child_period = child_marketprice.get_period_time()
+            child_open_time = child_marketprice.get_time()
+            histogram_list = cls._get_histogram_list(pair)
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            stored_histogram = None
+            prev_histogram = histogram[-2]
+            if (len(histogram_list) >= 2) and (minute_period  <= (minute_open_time - child_open_time) < child_period) and (prev_histogram < 0):
+                stored_histogram = histogram_list[-2][Map.histogram]
+                histogram_rising = ((stored_histogram + prev_histogram) > 0) and ((histogram[-1] + prev_histogram) > 0)
+            vars_map.put(histogram_rising, 'histogram_rising')
+            vars_map.put(_MF.unix_to_date(minute_open_time), 'minute_open_time')
+            vars_map.put(stored_histogram, 'stored_histogram')
+            vars_map.put(histogram_list, 'histogram_list')
+            return histogram_rising
+
         vars_map = Map()
+        pair = child_marketprice.get_pair()
+        cls._update_histogram_list(child_marketprice, minute_marketprice)
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map)
+        delta_macd_rising = is_delta_macd_rising(vars_map)
+        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and delta_macd_rising
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
+        histogram_list = vars_map.get('histogram_list')
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -653,6 +727,10 @@ class Icarus(TraderClass):
             f'{key}.histogram_rising': vars_map.get('histogram_rising'),
             f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.histogram_rising': vars_map.get('histogram_rising'),
+            f'{key}.delta_macd_rising': delta_macd_rising,
+            f'{key}.minute_open_time': vars_map.get('minute_open_time'),
+            f'{key}.stored_histogram': vars_map.get('stored_histogram'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -664,7 +742,9 @@ class Icarus(TraderClass):
             f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
-            f'{key}.macd[-3]': macd[-3] if macd is not None else None
+            f'{key}.macd[-3]': macd[-3] if macd is not None else None,
+            f'{key}.histogram_list[-1]': histogram_list[-1] if len(histogram_list) >= 1 else None,
+            f'{key}.histogram_list[-2]': histogram_list[-2] if len(histogram_list) >= 2 else None
         }
         return can_buy_indicator, repport
 
@@ -785,6 +865,7 @@ class Icarus(TraderClass):
     def save_move(self, **agrs) -> None:
         args_map = Map(agrs)
         market_price = agrs['market_price']
+        minute_marketprice = args_map.get('minute_marketprice')
         bkr = self.get_broker()
         # predictor_marketprice = agrs['predictor_marketprice']
         roi = self.get_wallet().get_roi(bkr)
@@ -865,7 +946,7 @@ class Icarus(TraderClass):
             'has_position': has_position,
             'can_buy': args_map.get('can_buy'),
             'can_sell': args_map.get('can_sell'),
-            'indicator_buy': self._can_buy_indicator(market_price)[0],
+            'indicator_buy': self._can_buy_indicator(market_price, minute_marketprice)[0] if not has_position else None,
             'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
             Map.rsi: rsis[-1],
             'rsis[-2]': rsis[-2],
@@ -904,7 +985,8 @@ class Icarus(TraderClass):
             'histograms[-3]': histograms[-3],
             'ema[-1]': ema[-1],
             'ema[-2]': ema[-2],
-            'ema[-3]': ema[-3]
+            'ema[-3]': ema[-3],
+            **(args_map.get('repport') if args_map.get('repport') is not None else {})
         })
         self._print_move(params_map)
 

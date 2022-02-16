@@ -117,12 +117,14 @@ class IcarusStalker(StalkerClass):
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
-        child_ok, child_datas = Icarus.can_buy(market_price)
+        minute_marketprice = MarketPrice.marketprice(broker, pair, period=60, n_period=10)
+        child_ok, child_datas = Icarus.can_buy(market_price, minute_marketprice)
         eligible = child_ok
         # Repport
         key = IcarusStalker._eligible.__name__
         repport = {
             f'{key}.child_time': _MF.unix_to_date(market_price.get_time()),
+            f'{key}.minute_time': _MF.unix_to_date(minute_marketprice.get_time()),
             f'{key}.pair': pair,
             f'{key}.eligible': eligible,
             f'{key}.child_ok': child_ok,
@@ -142,6 +144,9 @@ class IcarusStalker(StalkerClass):
             f'{key}.histogram_rising': None,
             f'{key}.prev_histogram_dropping': None,
             f'{key}.macd_switch_up': None,
+            f'{key}.histogram_rising': None,
+            f'{key}.minute_open_time': None,
+            f'{key}.stored_histogram': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
             f'{key}.closes[-3]': None,
@@ -165,6 +170,7 @@ class IcarusStalker(StalkerClass):
         key = IcarusStalker._eligible.__name__
         canvas = {
             f'{key}.child_time': None,
+            f'{key}.minute_time': None,
             f'{key}.pair': None,
             f'{key}.eligible': None,
             f'{key}.child_ok': None,
