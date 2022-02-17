@@ -421,7 +421,7 @@ class Icarus(TraderClass):
             macd.reverse()
             signal = list(macd_map.get(Map.signal))
             signal.reverse()
-            macd_signal_negatives = (macd[-1] < 0) and (signal[-1] < 0)
+            macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
             return macd_signal_negatives
 
         def is_tangent_macd_dropping(vars_map: Map) -> bool:
