@@ -99,7 +99,7 @@ class Bot(MyJson):
             The thread that run Bot's back up
         """
         thread = self.__thread_backup
-        if thread is None:
+        if (thread is None) or (not thread.is_alive()):
             callback = self.backup
             call_class = self.__class__.__name__
             base_name = self._THREAD_NAME_BOT_BACKUP
@@ -127,8 +127,7 @@ class Bot(MyJson):
             _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
             try:
                 sleep_time = stg.trade(bkr)
-                thread_backup = self._get_thread_backup()
-                thread_backup.start() if not thread_backup.is_alive() else None
+                self._get_thread_backup() if not self._get_thread_backup().is_alive() else None
                 nb_error = 0
                 trade_index += 1
             except Exception as error:
