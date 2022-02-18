@@ -355,6 +355,7 @@ class ModelFeature(ModelAccess):
             thread_code = ModelFeature.new_code(code_size)
         else:
             thread_code = new_code[0:code_size]
+        thread_code = '_' + thread_code if len(thread_code) > 0 else thread_code
         return f'Thread-{thread_base_name + thread_code}'
 
     @staticmethod
