@@ -68,8 +68,8 @@ class MyJson(ABC):
 
     @staticmethod
     def __encode_iterable(iterable_value: Iterable) -> Iterable:
-        iterable_value = iterable_value.copy()
         iter_type = type(iterable_value)
+        iterable_value = iterable_value.copy() if not isinstance(iterable_value, tuple) else iterable_value
         if iter_type == dict:
             value_encoded = {}
             for key, value in iterable_value.items():
