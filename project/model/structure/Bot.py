@@ -127,9 +127,10 @@ class Bot(MyJson):
             _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
             try:
                 sleep_time = stg.trade(bkr)
-                self._get_thread_backup() if not self._get_thread_backup().is_alive() else None
                 nb_error = 0
                 trade_index += 1
+                thread_backup = self._get_thread_backup()
+                thread_backup.start() if not thread_backup.is_alive() else None
             except Exception as error:
                 nb_error += 1
                 self.save_error(error, Bot.__name__, nb_error)
