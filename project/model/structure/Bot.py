@@ -1,3 +1,4 @@
+import threading
 import time
 
 from config.Config import Config
@@ -14,6 +15,7 @@ class Bot(MyJson):
     PREFIX_ID = 'bot_'
     _TRADE_INDEX = 0
     _TRADE_INDEX_STOP = 40320
+    _THREAD_NAME_BOT_BACKUP = 'bot_backup'
 
     def __init__(self, bkr: str, stg: str, configs: Map):
         """
@@ -33,6 +35,7 @@ class Bot(MyJson):
         self._set_strategy(stg, configs)
         self.__pair = self.__strategy.get_pair()
         self.__last_backup = None
+        self.__thread_backup = None
 
     def _set_strategy(self, stg_class: str, params: Map) -> None:
         # Put Pair
@@ -83,6 +86,28 @@ class Bot(MyJson):
         """
         return self.__last_backup
 
+    def _reset_thread_backup(self) -> None:
+        self.__thread_backup = None
+
+    def _get_thread_backup(self) -> threading.Thread:
+        """
+        To get thread that run Bot's back up
+
+        Returns:
+        --------
+        return: threading.Thread
+            The thread that run Bot's back up
+        """
+        thread = self.__thread_backup
+        if thread is None:
+            callback = self.backup
+            call_class = self.__class__.__name__
+            base_name = self._THREAD_NAME_BOT_BACKUP
+            thread, output = _MF.wrap_thread(callback, call_class, base_name, repport=True)
+            _MF.output(_MF.prefix() + output)
+            self.__thread_backup = thread
+        return thread
+
     def start(self) -> None:
         """
         To start trade\n
@@ -102,7 +127,8 @@ class Bot(MyJson):
             _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
             try:
                 sleep_time = stg.trade(bkr)
-                self.backup()
+                thread_backup = self._get_thread_backup()
+                thread_backup.start() if not thread_backup.is_alive() else None
                 nb_error = 0
                 trade_index += 1
             except Exception as error:
@@ -127,8 +153,8 @@ class Bot(MyJson):
                 trade_time = f"{delta_time/n_trade}(sec./trade)"
                 run_time = _MF.delta_time(0, n_trade*60)
                 _MF.output(_MF.prefix() + _cyan + f"{time_per_trade} — {trade_time} - {run_time}" + _normal)
+        self.backup()
         _MF.output(f"{_MF.prefix()}Bot stoped to trade ☠️")
-
 
     def stop(self) -> None:
         self._set_trading(False)
@@ -205,6 +231,7 @@ class Bot(MyJson):
         json_str = self.json_encode()
         FileManager.write(backup_path, json_str, binary=False, overwrite=True, make_dir=True)
         _MF.output(f"{_MF.prefix()}💾 Bot saved! ✅")
+        self._reset_thread_backup()
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
