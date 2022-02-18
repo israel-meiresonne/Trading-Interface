@@ -354,11 +354,15 @@ class StalkerClass(Strategy, MyJson, ABC):
         return self.__last_global_save
 
     def _can_save_global(self) -> bool:
-        last_save = self._get_global_save_time()
-        interval = self._GLOBAL_SAVE_INTERVAL
-        next_save = _MF.round_time(last_save, interval) + interval
-        unix_time = _MF.get_timestamp()
-        return unix_time >= next_save
+        if Config.get_stage() == Config.STAGE_1:
+            can_save = True
+        else:
+            last_save = self._get_global_save_time()
+            interval = self._GLOBAL_SAVE_INTERVAL
+            next_save = _MF.round_time(last_save, interval) + interval
+            unix_time = _MF.get_timestamp()
+            can_save = unix_time >= next_save
+        return can_save
 
 
     # —————————————————————————————————————————————— THREAD TRADE DOWN
