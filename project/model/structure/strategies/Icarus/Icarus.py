@@ -32,7 +32,7 @@ class Icarus(TraderClass):
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
     _PREDICTIONS = None
-    _FILE_PATH_BACKTEST = f'Icarus/backtest/$session_backtest.csv'
+    _FILE_PATH_BACKTEST = f'Icarus/backtest/$path/$session_backtest.csv'
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -593,14 +593,6 @@ class Icarus(TraderClass):
         """
         return Icarus._PERIODS_REQUIRRED
 
-    @classmethod
-    def file_path_backtest(cls) -> str:
-        """
-        To get path to file where backtest are stored
-        """
-        dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
-        return dir_strategy_storage + cls._FILE_PATH_BACKTEST.replace('$session', Config.get(Config.SESSION_ID))
-    
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
 
@@ -797,12 +789,60 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
 
     @classmethod
-    def backtest(cls, broker: Broker,starttime: int, endtime: int, periods: list[int], pairs: list[Pair] = None) -> None:
+    def file_path_backtest(cls, active_path: bool) -> str:
         """
-        Raises:
-        raise: XXX
-            If starttime >= endtime
-            If starttime and endtime are not in second
+        To get path to file where backtest are stored
+        """
+        dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
+        file_path = dir_strategy_storage + cls._FILE_PATH_BACKTEST.replace('$session', Config.get(Config.SESSION_ID))
+        return file_path.replace('$path', 'active') if active_path else file_path.replace('$path', 'stock')
+
+    @classmethod
+    def best_pairs(cls) -> list[Pair]:
+        """
+        To get list of best Pair to tade
+
+        Returns:
+        --------
+        return: list[Pair]
+            List of best Pair to tade
+        """
+        backtest_df = cls.load_backtest(active_path=True)
+
+    def load_backtest(cls, active_path: bool) -> pd.DataFrame:
+        """
+        To load most recent backtest
+
+        Returns:
+        --------
+            The most recent backtest
+        """
+        file_path = cls.file_path_backtest(active_path)
+        dir_path = FileManager.path_to_dir(file_path)
+        files = FileManager.get_files(dir_path)
+        if len(files) == 0:
+            raise Exception(f"There's no backtest file in this directory '{dir_path}'")
+        real_file_path = FileManager.get_project_directory() + dir_path + files[-1]
+        backtest_df = pd.read_csv(real_file_path)
+        return backtest_df
+
+    @classmethod
+    def backtest(cls, broker: Broker, starttime: int, endtime: int, periods: list[int], pairs: list[Pair] = None) -> None:
+        """
+        To backtest Strategy
+
+        Parameters:
+        -----------
+        broker: Broker
+            Access to a Broker's API
+        starttime: int
+            Time of the older period to backtest
+        endtime: int
+            Time of the most recent period to backtest
+        periods: list[int]
+            Periods to backtest (in second)
+        pairs: list[Pair] = None
+            Pairs to backtest
         """
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.structure.Bot import Bot
@@ -943,7 +983,7 @@ class Icarus(TraderClass):
         Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
         active_path = True
         pairs = MarketPrice.history_pairs(broker_name, active_path=active_path) if pairs is None else pairs
-        path = cls.file_path_backtest()
+        file_path = cls.file_path_backtest(active_path=False)
         broker_name = broker.__class__.__name__
         output_starttime = _MF.get_timestamp()
         turn = 1
@@ -952,7 +992,7 @@ class Icarus(TraderClass):
             print(_MF.loop_progression(output_starttime, turn, n_turn,f"{pair.__str__().upper()}({BinanceAPI.convert_interval(period)})"))
             trades = trade_history(pair, period).to_dict(orient='records')
             fields = list(trades[0].keys())
-            FileManager.write_csv(path, fields, trades, overwrite=False, make_dir=True)
+            FileManager.write_csv(file_path, fields, trades, overwrite=False, make_dir=True)
 
         for pair in pairs:
             for period in periods:
