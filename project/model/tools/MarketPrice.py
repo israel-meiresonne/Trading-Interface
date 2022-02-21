@@ -1153,13 +1153,13 @@ class MarketPrice(ABC):
         return pairs
 
     @staticmethod
-    def marketprice(bkr: 'Broker', pair: Pair, period: int, n_period: int, starttime: int = None, endtime: int = None) -> 'MarketPrice':
+    def marketprice(broker: 'Broker', pair: Pair, period: int, n_period: int, starttime: int = None, endtime: int = None) -> 'MarketPrice':
         """
         To request MarketPrice to Broker
 
         Parameters
         ----------
-        bkr: Broker
+        broker: Broker
             Access to a Broker's API
         pair: Pair
             Pair to get market prices for
@@ -1179,7 +1179,7 @@ class MarketPrice(ABC):
         """
         from model.tools.BrokerRequest import BrokerRequest
 
-        _bkr_cls = bkr.__class__.__name__
+        _bkr_cls = broker.__class__.__name__
         mkt_params = Map({
             Map.pair: pair,
             Map.period: period,
@@ -1187,9 +1187,9 @@ class MarketPrice(ABC):
             Map.end_time: endtime,
             Map.number: n_period
         })
-        bkr_rq = bkr.generate_broker_request(
+        bkr_rq = broker.generate_broker_request(
             _bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
-        bkr.request(bkr_rq)
+        broker.request(bkr_rq)
         return bkr_rq.get_market_price()
 
     @staticmethod
