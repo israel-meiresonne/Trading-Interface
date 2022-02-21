@@ -103,6 +103,10 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         _cls._HISTORY_TIMES = {Map.start: start_time, Map.end: end_time*1000}
         with self.assertRaises(ValueError):
             _cls.get_history_times()
+        # start_time >= end_time
+        _cls._HISTORY_TIMES = {Map.start: 100, Map.end: 50}
+        with self.assertRaises(ValueError):
+            _cls.get_history_times()
 
     def test_load_market_histories(self) -> None:
         _cls = BinanceFakeAPI
