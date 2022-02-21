@@ -27,6 +27,7 @@ class BinanceFakeAPI(BinanceAPI):
     _HISTORIES = None
     _INITIAL_INDEXES = None
     _ORDERS = None
+    _LAST_ORDERS_SAVED = None
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION DOWN ———————————————————————————————————
 
@@ -326,37 +327,39 @@ class BinanceFakeAPI(BinanceAPI):
         idx = idxs.get_map()[period]
         return idx
 
-    @staticmethod
-    def _save_orders() -> None:
+    @classmethod
+    def _save_orders(cls) -> None:
         """
         To save all submitted orders
         """
-        _cls = BinanceFakeAPI
-        file_path = _cls._get_file_path_load_orders()
-        orders = _cls._get_orders()
-        json_str = orders.json_encode()
-        FileManager.write(file_path, json_str, overwrite=True, make_dir=True)
+        orders = cls._get_orders()
+        last_saved_orders = cls._get_last_saved_orders()
+        if orders != last_saved_orders:
+            file_path = cls._get_file_path_load_orders()
+            json_str = orders.json_encode()
+            FileManager.write(file_path, json_str, overwrite=True, make_dir=True)
+            copy_orders = MyJson.json_decode(json_str)
+            cls._set_last_saved_orders(copy_orders, make_copy=False)
 
-    @staticmethod
-    def load_orders() -> Map():
+    @classmethod
+    def _load_orders(cls) -> Map:
         """
         To load all submitted orders
         """
-        _cls = BinanceFakeAPI
         orders = Map()
-        file_path = _cls._get_file_path_load_orders()
+        file_path = cls._get_file_path_load_orders()
         folder_path = FileManager.path_to_dir(file_path)
         files = FileManager.get_files(folder_path, make_dir=True)
         file_name = files[-1] if len(files) > 0 else None
         if file_name is not None:
             backup_file_path = folder_path + file_name
             json_str = FileManager.read(backup_file_path)
-            content = _MF.catch_exception(MyJson.json_decode, _cls.__name__, repport=True, **{'json_str': json_str})
+            content = _MF.catch_exception(MyJson.json_decode, cls.__name__, repport=True, **{'json_str': json_str})
             orders = content if isinstance(content, Map) else orders
         return orders
 
-    @staticmethod
-    def _get_orders() -> Map:
+    @classmethod
+    def _get_orders(cls) -> Map:
         """
         To get submitted orders
 
@@ -366,10 +369,10 @@ class BinanceFakeAPI(BinanceAPI):
             Submitted orders
             Map[merged_pair.upper(){str}][BinanceFakeOrder.orderId{int}]:   {BinanceFakeOrder}
         """
-        _cls = BinanceFakeAPI
-        if _cls._ORDERS is None:
-            _cls._ORDERS = _cls.load_orders()
-        return _cls._ORDERS
+        if cls._ORDERS is None:
+            cls._ORDERS = cls._load_orders()
+            cls._set_last_saved_orders(cls._ORDERS, make_copy=True)
+        return cls._ORDERS
 
     @staticmethod
     def _get_order_dict(merged_pair: str) -> Dict[int, BinanceFakeOrder]:
@@ -431,6 +434,33 @@ class BinanceFakeAPI(BinanceAPI):
         if found is not None:
             raise Exception(f"There's already an order with this order_id '{order_id}' (new_order='{id(order)}', found_order='{id(found)}')")
         orders.put(order, merged_pair, order_id)
+
+    @classmethod
+    def _set_last_saved_orders(cls, orders: Map, make_copy: bool = True) -> None:
+        """
+        To set last saved state of oders
+
+        Parameters:
+        -----------
+        orders: Map
+            Last orders saved
+        make_copy: bool = True
+            Set True to make a deep copy of orders else False
+        """
+        cls._LAST_ORDERS_SAVED = orders.copy() if make_copy else orders
+
+    @classmethod
+    def _get_last_saved_orders(cls) -> Map:
+        """
+        To get last saved state of oders
+        NOTE: it's a copy of last orders loaded or saved
+
+        Returns:
+        --------
+        return: Map
+            The last saved state of oders
+        """
+        return cls._LAST_ORDERS_SAVED
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION UP —————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
