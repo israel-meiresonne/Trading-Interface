@@ -98,12 +98,11 @@ def backtest_icarus() -> None:
     Config.update(Config.STAGE_MODE, old_stage)
 
 def draft() -> None:
-    broker = get_broker()
-    pair = Pair('AAVE/USDT')
-    print(broker.get_trade_fee(pair))
+    pairs = Icarus.best_pairs()
+    print(pairs)
 
 def main() -> None:
-    backtest_icarus()
+    pass
 
 if __name__ == '__main__':
     _main_starttime = _MF.get_timestamp()
