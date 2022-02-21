@@ -63,6 +63,7 @@ class Config(ABC):
     SESSION_ID = "SESSION_ID"
     API_KEY_BINANCE_PUBLIC = 'API_KEY_BINANCE_PUBLIC'
     API_KEY_BINANCE_SECRET = 'API_KEY_BINANCE_SECRET'
+    FAKE_API_START_END_TIME = "FAKE_API_START_END_TIME"
 
 
     @staticmethod
@@ -85,7 +86,7 @@ class Config(ABC):
         _env_cls = eval(env)
         old_value = Config.get(key)
         exec(f"{env}.{key} = new_value")
-        _env_cls.update(old_value, new_value) if old_value is not None else None
+        _env_cls.update(old_value, new_value) if isinstance(new_value, str) and (old_value is not None) else None
 
     @staticmethod
     def get_stage() -> str:
