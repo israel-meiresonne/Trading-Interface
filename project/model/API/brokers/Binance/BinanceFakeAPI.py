@@ -22,10 +22,7 @@ class BinanceFakeAPI(BinanceAPI):
     _FILE_LOAD_ORDERS = Config.get(Config.FILE_FAKE_API_ORDERS)
     _DIR_EXCHANGE_INFOS = f"{_DIR_STORAGE}BinanceFakeAPI/requests/exchange_infos/"
     _DIR_TRADE_FEES = f"{_DIR_STORAGE}BinanceFakeAPI/requests/trade_fees/"
-    _HISTORY_TIMES = {
-        Map.start: 1608537600,  # UTC 2020-12-21 8:00:00
-        Map.end: 1614556800     # UTC 2021-03-01 0:00:00
-        }
+    _HISTORY_TIMES = None
     # Variables
     _HISTORIES = None
     _INITIAL_INDEXES = None
@@ -61,8 +58,8 @@ class BinanceFakeAPI(BinanceAPI):
         class_name = BinanceFakeAPI.__name__
         return _cls._FILE_LOAD_ORDERS.replace('$stage', _cls._get_stage()).replace('$class', class_name)
 
-    @staticmethod
-    def get_history_times() -> Map:
+    @classmethod
+    def get_history_times(cls) -> Map:
         """
         To get market history's date interval
 
@@ -78,8 +75,13 @@ class BinanceFakeAPI(BinanceAPI):
             if not isinstance(date, str):
                 raise ValueError(f"This time is invalid '{unix_time}'")
             return True
+        
+        def get_history_times() -> dict:
+            if cls._HISTORY_TIMES is None:
+                cls._HISTORY_TIMES = Config.get(Config.FAKE_API_START_END_TIME)
+            return cls._HISTORY_TIMES
 
-        times = Map(BinanceFakeAPI._HISTORY_TIMES)
+        times = Map(get_history_times())
         start_time = times.get(Map.start)
         start_time =  start_time if (start_time is not None) and valid_time(start_time) else 1
         end_time = times.get(Map.end)

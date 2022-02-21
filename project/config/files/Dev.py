@@ -62,6 +62,10 @@ class Dev:
         'xbd', 'xcd', 'xdr', 'xof', 'xpd', 'xpf', 'xpt', 'xsu', 'xts', 'xua', 'xxx', 'yer', 'zar', 'zmw', 'zwl']
     API_KEY_BINANCE_PUBLIC = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
     API_KEY_BINANCE_SECRET = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
+    FAKE_API_START_END_TIME = {
+        'start': 1608537600,  # UTC 2020-12-21 8:00:00
+        'end': 1614556800     # UTC 2021-03-01 0:00:00
+        }
 
     @staticmethod
     def update(old: str, new: str) -> None:
