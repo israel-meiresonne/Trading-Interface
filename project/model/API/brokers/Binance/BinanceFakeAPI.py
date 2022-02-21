@@ -87,6 +87,8 @@ class BinanceFakeAPI(BinanceAPI):
         start_time =  start_time if (start_time is not None) and valid_time(start_time) else 1
         end_time = times.get(Map.end)
         end_time =  end_time if (end_time is not None) and valid_time(end_time) else _MF.get_timestamp()
+        if start_time >= end_time:
+            raise ValueError(f"The end_time must be strictly greater than the start_time, instead '{start_time} >= {end_time}'")
         times.put(start_time, Map.start)
         times.put(end_time, Map.end)
         return times
