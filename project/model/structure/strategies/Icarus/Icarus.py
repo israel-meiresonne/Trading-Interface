@@ -1,5 +1,7 @@
 from typing import Tuple
 
+import pandas as pd
+
 from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -30,6 +32,7 @@ class Icarus(TraderClass):
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
     _PREDICTIONS = None
+    _FILE_PATH_BACKTEST = f'Icarus/backtest/$session_backtest.csv'
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -589,6 +592,14 @@ class Icarus(TraderClass):
             List of period used to trade
         """
         return Icarus._PERIODS_REQUIRRED
+
+    @classmethod
+    def file_path_backtest(cls) -> str:
+        """
+        To get path to file where backtest are stored
+        """
+        dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
+        return dir_strategy_storage + cls._FILE_PATH_BACKTEST.replace('$session', Config.get(Config.SESSION_ID))
     
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
@@ -599,10 +610,10 @@ class Icarus(TraderClass):
 
     @classmethod
     def can_buy(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        if child_marketprice.get_period_time() != 60*15:
-            child_period = cls.get_period()
-            market_period = child_marketprice.get_period_time()
-            raise ValueError(f"MarketPrice must have period '{child_period}', instead '{market_period}'")
+        # if child_marketprice.get_period_time() != 60*15:
+        #     child_period = child_marketprice.get_period()
+        #     market_period = child_marketprice.get_period_time()
+        #     raise ValueError(f"MarketPrice must have period '{child_period}', instead '{market_period}'")
         # indicator
         indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice)
         # Check
@@ -784,6 +795,169 @@ class Icarus(TraderClass):
 
     # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR UP ————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
+
+    @classmethod
+    def backtest(cls, broker: Broker,starttime: int, endtime: int, periods: list[int], pairs: list[Pair] = None) -> None:
+        """
+        Raises:
+        raise: XXX
+            If starttime >= endtime
+            If starttime and endtime are not in second
+        """
+        from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+        from model.structure.Bot import Bot
+        import sys
+    
+        def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
+            def is_buy_period() -> bool:
+                period = marketprice.get_period_time()
+                buy_time_rounded = _MF.round_time(buy_time, period)
+                first_open_time = buy_time_rounded + period
+                open_time = marketprice.get_time()
+                return open_time < first_open_time
+
+            def is_histogram_dropping(vars_map: Map) -> bool:
+                macd_map = marketprice.get_macd()
+                histogram = list(macd_map.get(Map.histogram))
+                histogram.reverse()
+                histogram_dropping = histogram[-1] < 0
+                return histogram_dropping
+
+            def are_macd_signal_negatives(vars_map: Map) -> bool:
+                macd_map = marketprice.get_macd()
+                macd = list(macd_map.get(Map.macd))
+                macd.reverse()
+                signal = list(macd_map.get(Map.signal))
+                signal.reverse()
+                macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
+                return macd_signal_negatives
+
+            def is_tangent_macd_dropping(vars_map: Map) -> bool:
+                macd_map = marketprice.get_macd()
+                macd = list(macd_map.get(Map.macd))
+                macd.reverse()
+                tangent_macd_dropping = macd[-1] <= macd[-2]
+                return tangent_macd_dropping
+
+            vars_map = Map()
+            can_sell = False
+            # Check
+            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+            return can_sell
+
+        def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
+            n_period = 500
+            fees = broker.get_trade_fee(pair)
+            taker_fee_rate = fees.get(Map.taker)
+            buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
+            pair_merged = pair.format(Pair.FORMAT_MERGED)
+            str_period = BinanceAPI.convert_interval(period)
+            trades = None
+            trade = {}
+            market_params = {
+                Map.broker: broker,
+                Map.pair: pair,
+                Map.period: period,
+                'n_period': n_period
+                }
+            i = 0
+            Bot.update_trade_index(i)
+            marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **market_params)
+            while isinstance(marketprice, MarketPrice):
+                times = list(marketprice.get_times())
+                times.reverse()
+                closes = list(marketprice.get_closes())
+                closes.reverse()
+                highs = list(marketprice.get_highs())
+                highs.reverse()
+                if i == 0:
+                    higher_price = 0
+                    start_date = _MF.unix_to_date(times[-1])
+                    end_date = _MF.unix_to_date(times[-1])
+                    start_price = closes[-1]
+                else:
+                    end_date = _MF.unix_to_date(times[-1])
+                    end_price = closes[-1]
+                    higher_price = highs[-1] if highs[-1] > higher_price else higher_price
+                sys.stdout.write(f'\r{_MF.prefix()}{_MF.unix_to_date(times[-1])}')
+                sys.stdout.flush()
+                has_position = len(trade) != 0
+                if (not has_position) and cls.can_buy(marketprice)[0]:
+                    buy_time = marketprice.get_time()
+                    exec_price = marketprice.get_close()
+                    trade = {
+                        Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                        Map.pair: pair,
+                        Map.period: str_period,
+                        Map.id: f'{pair_merged}_{str_period}_{i}',
+                        Map.start: start_date,
+                        Map.end: end_date,
+                        'buy_time': buy_time,
+                        'buy_date': _MF.unix_to_date(buy_time),
+                        'buy_price': exec_price,
+                    }
+                elif has_position and can_sell_indicator(marketprice, buy_time):
+                    sell_time = marketprice.get_time()
+                    exec_price = marketprice.get_close()
+                    trade['sell_time'] = sell_time
+                    trade['sell_date'] = _MF.unix_to_date(sell_time)
+                    trade['sell_price'] = exec_price
+                    trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
+                    trade[Map.sum] = None
+                    trade[Map.fee] = buy_sell_fee
+                    trade['sum_fee'] = None
+                    trade['sum_roi_no_fee'] = None
+                    trade['start_price'] = None
+                    trade['end_price'] = None
+                    trade['higher_price'] = None
+                    trade['market_performence'] = None
+                    trade['max_profit'] = None
+                    trades = pd.DataFrame([trade], columns=list(trade.keys())) if trades is None else trades.append(trade, ignore_index=True)
+                    sum_roi = trades[Map.roi].sum()
+                    sum_fee = trades[Map.fee].sum()
+                    trades.loc[trades.index[-1], Map.sum] = sum_roi
+                    trades.loc[trades.index[-1], f'sum_fee'] = sum_fee
+                    trades.loc[trades.index[-1], f'sum_roi_no_fee'] = sum_roi + sum_fee
+                    trade = {}
+                    buy_time = None
+                i += 1
+                Bot.update_trade_index(i)
+                marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **market_params)
+            print()
+            if trades is None:
+                default = {
+                    Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                    Map.pair: pair,
+                    Map.period: str_period
+                    }
+                trades = pd.DataFrame([default], columns=list(default.keys()))
+            else:
+                trades.loc[:,'higher_price'] = higher_price
+                trades.loc[:,'start_price'] = start_price
+                trades.loc[:,'end_price'] = end_price
+                trades.loc[:,'higher_price'] = higher_price
+                trades.loc[:,'market_performence'] = _MF.progress_rate(end_price, start_price)
+                trades.loc[:,'max_profit'] = _MF.progress_rate(higher_price, start_price)
+            return trades
+
+        Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
+        active_path = True
+        pairs = MarketPrice.history_pairs(broker_name, active_path=active_path) if pairs is None else pairs
+        path = cls.file_path_backtest()
+        broker_name = broker.__class__.__name__
+        output_starttime = _MF.get_timestamp()
+        turn = 1
+        n_turn = len(pairs) * len(periods)
+        def wrap_trades(pair: Pair, period: int, turn: int) -> None:
+            print(_MF.loop_progression(output_starttime, turn, n_turn,f"{pair.__str__().upper()}({BinanceAPI.convert_interval(period)})"))
+            trades = trade_history(pair, period).to_dict(orient='records')
+            fields = list(trades[0].keys())
+            FileManager.write_csv(path, fields, trades, overwrite=False, make_dir=True)
+
+        for pair in pairs:
+            for period in periods:
+                _MF.catch_exception(wrap_trades, Icarus.__name__, repport=True, **{Map.pair: pair, Map.period: period, 'turn': turn})
+                turn += 1
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
