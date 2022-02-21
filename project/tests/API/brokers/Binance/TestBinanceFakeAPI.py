@@ -269,6 +269,35 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         with self.assertRaises(Exception):
             _cls._get_initial_index(periods[0])
 
+    def test_save_orders(self) -> None:
+        _cls = BinanceFakeAPI
+        params = self.order_params
+        # 
+        orders = _cls._get_orders()
+        last_saved_order = _cls._get_last_saved_orders()
+        self.assertEqual(orders, last_saved_order)
+        # Nothing to save
+        _cls._save_orders()
+        _MF.wait_while(FileManager.is_writting, False, 5)
+        result2 = _cls._get_last_saved_orders()
+        self.assertEqual(id(last_saved_order), id(result2))
+        self.assertEqual(orders, result2)
+        # New order to save
+        order = _cls._new_order(params)
+        _cls._save_orders()
+        _MF.wait_while(FileManager.is_writting, False, 5)
+        new_orders = _cls._get_orders()
+        new_last_saved_order = _cls._get_last_saved_orders()
+        self.assertNotEqual(id(last_saved_order), id(new_last_saved_order))
+        self.assertEqual(new_orders, new_last_saved_order)
+        self.assertEqual(new_last_saved_order, _cls._load_orders())
+        # Nothing to save again
+        _cls._save_orders()
+        _MF.wait_while(FileManager.is_writting, False, 5)
+        result4 = _cls._get_last_saved_orders()
+        self.assertEqual(id(new_last_saved_order), id(result4))
+        self.assertEqual(new_orders, result4)
+
     def test_get_orders(self) -> None:
         self.broker_switch(on=True)
         _cls = BinanceFakeAPI
