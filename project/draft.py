@@ -17,6 +17,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Log import Log
 from model.structure.strategies.Floor.Floor import Floor
+from model.structure.strategies.Icarus.Icarus import Icarus
 from model.structure.strategies.MinMax.MinMax import MinMax
 from model.structure.strategies.MinMaxFloor.MinMaxFloor import MinMaxFloor
 from model.structure.Strategy import Strategy
@@ -82,13 +83,27 @@ def load_market_history_dict() -> None:
     history = FileManager.get_csv(file_path)
     print(len(history), len(history[0]))
 
+def backtest_icarus() -> None:
+    # _MF.OUTPUT = True
+    old_stage = Config.get(Config.STAGE_MODE)
+    Config.update(Config.STAGE_MODE, Config.STAGE_1)
+    broker = get_broker()
+    broker_name = broker.__class__.__name__
+    starttime = 1608537600  # December 21, 2020 8:00:00
+    endtime = 1614556800    # March 1, 2021 0:00:00
+    periods = [60*15]
+    # pairs = [Pair('BCH/USDT')]
+    pairs = MarketPrice.history_pairs(broker_name, active_path=True)
+    Icarus.backtest(broker, starttime, endtime, periods, pairs)
+    Config.update(Config.STAGE_MODE, old_stage)
+
 def draft() -> None:
     broker = get_broker()
     pair = Pair('AAVE/USDT')
     print(broker.get_trade_fee(pair))
 
 def main() -> None:
-    load_icarus_pairs()
+    backtest_icarus()
 
 if __name__ == '__main__':
     _main_starttime = _MF.get_timestamp()

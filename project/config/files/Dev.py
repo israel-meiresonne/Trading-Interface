@@ -40,6 +40,7 @@ class Dev:
     # Storage
     DIR_STORAGE = 'content/storage/'
     FILE_PATH_MARKET_HISTORY = f'{DIR_STORAGE}MarketPrice/histories/$stock_path/$broker/$pair/$period.csv'
+    DIR_STRATEGY_STORAGE = f'{DIR_STORAGE}Strategy/'
 
     # Predictor
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
