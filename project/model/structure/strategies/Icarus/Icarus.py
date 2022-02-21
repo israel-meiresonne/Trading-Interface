@@ -809,6 +809,7 @@ class Icarus(TraderClass):
         """
         backtest_df = cls.load_backtest(active_path=True)
 
+    @classmethod
     def load_backtest(cls, active_path: bool) -> pd.DataFrame:
         """
         To load most recent backtest
