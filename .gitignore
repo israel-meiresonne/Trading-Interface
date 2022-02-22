@@ -13,7 +13,8 @@ project/content/storage/Predictor/analyse/
 project/content/storage/Predictor/learns/print/
 project/content/storage/MarketPrice/histories/
 project/content/storage/Strategy/Icarus/prediction/
-project/content/storage/Strategy/Icarus/backtest/
+project/content/storage/Strategy/Icarus/backtest/number/
+project/content/storage/Strategy/Icarus/backtest/stock/
 
 project/content/market-historic/
 project/content/sessions/
