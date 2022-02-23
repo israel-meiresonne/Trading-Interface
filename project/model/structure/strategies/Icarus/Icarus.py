@@ -807,7 +807,9 @@ class Icarus(TraderClass):
         return: list[Pair]
             List of best Pair to tade
         """
-        backtest_df = cls.load_backtest(active_path=True)
+        pair_serie = cls.load_backtest(active_path=True)[Map.pair]
+        best_pairs = [Pair(pair_str) for pair_str in pair_serie]
+        return best_pairs
 
     @classmethod
     def load_backtest(cls, active_path: bool) -> pd.DataFrame:
@@ -944,7 +946,13 @@ class Icarus(TraderClass):
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
                     trade['sell_price'] = exec_price
                     trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
+                    trade['mean_roi'] = None
+                    trade['min_roi'] = None
+                    trade['max_roi'] = None
+                    trade['mean_win_roi'] = None
+                    trade['mean_loss_roi'] = None
                     trade[Map.sum] = None
+                    trade['final_roi'] = None
                     trade[Map.fee] = buy_sell_fee
                     trade['sum_fee'] = None
                     trade['sum_roi_no_fee'] = None
@@ -953,6 +961,10 @@ class Icarus(TraderClass):
                     trade['higher_price'] = None
                     trade['market_performence'] = None
                     trade['max_profit'] = None
+                    trade['n_win'] = None
+                    trade['win_rate'] = None
+                    trade['n_loss'] = None
+                    trade['loss_rate'] = None
                     trades = pd.DataFrame([trade], columns=list(trade.keys())) if trades is None else trades.append(trade, ignore_index=True)
                     sum_roi = trades[Map.roi].sum()
                     sum_fee = trades[Map.fee].sum()
@@ -973,12 +985,25 @@ class Icarus(TraderClass):
                     }
                 trades = pd.DataFrame([default], columns=list(default.keys()))
             else:
+                win_trades = trades[trades[Map.roi] > 0]
+                loss_trades = trades[trades[Map.roi] < 0]
+                n_trades = win_trades.shape[0] + loss_trades.shape[0]
                 trades.loc[:,'higher_price'] = higher_price
                 trades.loc[:,'start_price'] = start_price
                 trades.loc[:,'end_price'] = end_price
                 trades.loc[:,'higher_price'] = higher_price
                 trades.loc[:,'market_performence'] = _MF.progress_rate(end_price, start_price)
                 trades.loc[:,'max_profit'] = _MF.progress_rate(higher_price, start_price)
+                trades.loc[:,'mean_roi'] = trades[Map.roi].mean()
+                trades.loc[:,'min_roi'] = trades[Map.roi].min()
+                trades.loc[:,'max_roi'] = trades[Map.roi].max()
+                trades.loc[:,'mean_win_roi'] = win_trades[Map.roi].mean()
+                trades.loc[:,'mean_loss_roi'] = loss_trades[Map.roi].mean()
+                trades.loc[:,'final_roi'] = trades.loc[trades.index[-1], Map.sum]
+                trades.loc[:,'n_win'] = win_trades.shape[0]
+                trades.loc[:,'win_rate'] = win_trades.shape[0]/n_trades
+                trades.loc[:,'n_loss'] = loss_trades.shape[0]
+                trades.loc[:,'loss_rate'] = loss_trades.shape[0]/n_trades
             return trades
 
         Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
