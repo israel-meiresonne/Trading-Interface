@@ -656,6 +656,40 @@ class Icarus(TraderClass):
             return macd_switch_up
 
         def will_market_bounce(vars_map: Map) -> bool:
+            def macd_last_minimum_index(macd: list, histogram: list) -> int:
+                neg_macd_indexes = []
+                macd_df = pd.DataFrame({Map.macd: macd, Map.histogram: histogram})
+                neg_macd_df = macd_df[macd_df[Map.macd] < 0]
+                neg_idxs = neg_macd_df.index
+                for i in range(2, neg_macd_df.shape[0]):
+                    i = -i
+                    neg_macd_indexes.append(neg_idxs[i+1]) if abs(i) == 2 else None
+                    if abs(neg_idxs[i] - neg_idxs[i+1]) == 1:
+                        neg_macd_indexes.append(neg_idxs[i])
+                    else:
+                        break
+                last_lows_df = macd_df[macd_df.index.isin(neg_macd_indexes)]
+                last_min_macd = last_lows_df[Map.macd].min()
+                last_min_macd_index = last_lows_df[last_lows_df[Map.macd] == last_min_macd].index[-1]
+                return last_min_macd_index
+
+            def macd_last_peak_index(macd: list, signal: list, histogram: list) -> int:
+                posi_macd_indexes = []
+                macd_df = pd.DataFrame({Map.macd: macd, Map.signal: signal, Map.histogram: histogram})
+                posi_macd_df = macd_df[(macd_df[Map.histogram] > 0) & (macd_df[Map.macd] > 0) & (macd_df[Map.signal] > 0)]
+                posi_indexes = posi_macd_df.index
+                for i in range(2, posi_macd_df.shape[0]):
+                    i = -i
+                    posi_macd_indexes.append(posi_indexes[i+1]) if abs(i) == 2 else None
+                    if abs(posi_indexes[i] - posi_indexes[i+1]) == 1:
+                        posi_macd_indexes.append(posi_indexes[i])
+                    else:
+                        break
+                last_highs_df = macd_df[macd_df.index.isin(posi_macd_indexes)]
+                last_macd_peak = last_highs_df[Map.macd].max()
+                last_macd_peak_index = last_highs_df[last_highs_df[Map.macd] == last_macd_peak].index[-1]
+                return last_macd_peak_index
+
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
             macd_map = child_marketprice.get_macd()
@@ -681,40 +715,6 @@ class Icarus(TraderClass):
             vars_map.put(macd_min_date, 'macd_min_date')
             vars_map.put(macd_peak_date, 'macd_peak_date')
             return will_bounce
-        
-        def macd_last_minimum_index(macd: list, histogram: list) -> int:
-            neg_macd_indexes = []
-            macd_df = pd.DataFrame({Map.macd: macd, Map.histogram: histogram})
-            neg_macd_df = macd_df[macd_df[Map.macd] < 0]
-            neg_idxs = neg_macd_df.index
-            for i in range(2, neg_macd_df.shape[0]):
-                i = -i
-                neg_macd_indexes.append(neg_idxs[i+1]) if abs(i) == 2 else None
-                if abs(neg_idxs[i] - neg_idxs[i+1]) == 1:
-                    neg_macd_indexes.append(neg_idxs[i])
-                else:
-                    break
-            last_lows_df = macd_df[macd_df.index.isin(neg_macd_indexes)]
-            last_min_macd = last_lows_df[Map.macd].min()
-            last_min_macd_index = last_lows_df[last_lows_df[Map.macd] == last_min_macd].index[-1]
-            return last_min_macd_index
-
-        def macd_last_peak_index(macd: list, signal: list, histogram: list) -> int:
-            posi_macd_indexes = []
-            macd_df = pd.DataFrame({Map.macd: macd, Map.signal: signal, Map.histogram: histogram})
-            posi_macd_df = macd_df[(macd_df[Map.histogram] > 0) & (macd_df[Map.macd] > 0) & (macd_df[Map.signal] > 0)]
-            posi_indexes = posi_macd_df.index
-            for i in range(2, posi_macd_df.shape[0]):
-                i = -i
-                posi_macd_indexes.append(posi_indexes[i+1]) if abs(i) == 2 else None
-                if abs(posi_indexes[i] - posi_indexes[i+1]) == 1:
-                    posi_macd_indexes.append(posi_indexes[i])
-                else:
-                    break
-            last_highs_df = macd_df[macd_df.index.isin(posi_macd_indexes)]
-            last_macd_peak = last_highs_df[Map.macd].max()
-            last_macd_peak_index = last_highs_df[last_highs_df[Map.macd] == last_macd_peak].index[-1]
-            return last_macd_peak_index
 
         vars_map = Map()
         # Close
