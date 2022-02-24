@@ -889,7 +889,8 @@ class Icarus(TraderClass):
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
-            n_period = 500
+            buy_repports = []
+            n_period = broker.get_max_n_period()
             fees = broker.get_trade_fee(pair)
             taker_fee_rate = fees.get(Map.taker)
             buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
@@ -925,20 +926,27 @@ class Icarus(TraderClass):
                 sys.stdout.write(f'\r{_MF.prefix()}{_MF.unix_to_date(times[-1])}')
                 sys.stdout.flush()
                 has_position = len(trade) != 0
-                if (not has_position) and cls.can_buy(marketprice)[0]:
-                    buy_time = marketprice.get_time()
-                    exec_price = marketprice.get_close()
-                    trade = {
-                        Map.date: _MF.unix_to_date(_MF.get_timestamp()),
-                        Map.pair: pair,
-                        Map.period: str_period,
-                        Map.id: f'{pair_merged}_{str_period}_{i}',
-                        Map.start: start_date,
-                        Map.end: end_date,
-                        'buy_time': buy_time,
-                        'buy_date': _MF.unix_to_date(buy_time),
-                        'buy_price': exec_price,
+                if not has_position:
+                    can_buy, buy_repport = cls.can_buy(marketprice)
+                    buy_repport = {
+                        Map.time: _MF.unix_to_date(times[-1]),
+                        **buy_repport
                     }
+                    buy_repports.append(buy_repport)
+                    if can_buy:
+                        buy_time = marketprice.get_time()
+                        exec_price = marketprice.get_close()
+                        trade = {
+                            Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                            Map.pair: pair,
+                            Map.period: str_period,
+                            Map.id: f'{pair_merged}_{str_period}_{i}',
+                            Map.start: start_date,
+                            Map.end: end_date,
+                            'buy_time': buy_time,
+                            'buy_date': _MF.unix_to_date(buy_time),
+                            'buy_price': exec_price,
+                        }
                 elif has_position and can_sell_indicator(marketprice, buy_time):
                     sell_time = marketprice.get_time()
                     exec_price = marketprice.get_close()
@@ -1004,6 +1012,11 @@ class Icarus(TraderClass):
                 trades.loc[:,'win_rate'] = win_trades.shape[0]/n_trades
                 trades.loc[:,'n_loss'] = loss_trades.shape[0]
                 trades.loc[:,'loss_rate'] = loss_trades.shape[0]/n_trades
+            if len(buy_repports) > 0:
+                repport_path = '/'.join(file_path.split('/')[:-2]) + f'/repports/{Config.get(Config.SESSION_ID)}_buy_repports.csv'
+                fields = list(buy_repports[0].keys())
+                rows = buy_repports
+                FileManager.write_csv(repport_path, fields, rows, overwrite=False, make_dir=True)
             return trades
 
         Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
