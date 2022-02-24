@@ -655,11 +655,72 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
+        def will_market_bounce(vars_map: Map) -> bool:
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd_min_index = macd_last_minimum_index(macd, histogram)
+            last_min_macd = macd[macd_min_index]
+            macd_peak_index = macd_last_peak_index(macd, signal, histogram)
+            last_peak_macd = macd[macd_peak_index]
+            will_bounce = last_peak_macd > abs(last_min_macd)
+            macd_min_date = _MF.unix_to_date(open_times[macd_min_index])
+            macd_peak_date = _MF.unix_to_date(open_times[macd_peak_index])
+            # Put
+            vars_map.put(macd_min_index, 'macd_min_index')
+            vars_map.put(last_min_macd, 'last_min_macd')
+            vars_map.put(macd_peak_index, 'macd_peak_index')
+            vars_map.put(last_peak_macd, 'last_peak_macd')
+            vars_map.put(will_bounce, 'will_bounce')
+            vars_map.put(macd_min_date, 'macd_min_date')
+            vars_map.put(macd_peak_date, 'macd_peak_date')
+            return will_bounce
+        
+        def macd_last_minimum_index(macd: list, histogram: list) -> int:
+            neg_macd_indexes = []
+            macd_df = pd.DataFrame({Map.macd: macd, Map.histogram: histogram})
+            neg_macd_df = macd_df[macd_df[Map.macd] < 0]
+            neg_idxs = neg_macd_df.index
+            for i in range(2, neg_macd_df.shape[0]):
+                i = -i
+                neg_macd_indexes.append(neg_idxs[i+1]) if abs(i) == 2 else None
+                if abs(neg_idxs[i] - neg_idxs[i+1]) == 1:
+                    neg_macd_indexes.append(neg_idxs[i])
+                else:
+                    break
+            last_lows_df = macd_df[macd_df.index.isin(neg_macd_indexes)]
+            last_min_macd = last_lows_df[Map.macd].min()
+            last_min_macd_index = last_lows_df[last_lows_df[Map.macd] == last_min_macd].index[-1]
+            return last_min_macd_index
+
+        def macd_last_peak_index(macd: list, signal: list, histogram: list) -> int:
+            posi_macd_indexes = []
+            macd_df = pd.DataFrame({Map.macd: macd, Map.signal: signal, Map.histogram: histogram})
+            posi_macd_df = macd_df[(macd_df[Map.histogram] > 0) & (macd_df[Map.macd] > 0) & (macd_df[Map.signal] > 0)]
+            posi_indexes = posi_macd_df.index
+            for i in range(2, posi_macd_df.shape[0]):
+                i = -i
+                posi_macd_indexes.append(posi_indexes[i+1]) if abs(i) == 2 else None
+                if abs(posi_indexes[i] - posi_indexes[i+1]) == 1:
+                    posi_macd_indexes.append(posi_indexes[i])
+                else:
+                    break
+            last_highs_df = macd_df[macd_df.index.isin(posi_macd_indexes)]
+            last_macd_peak = last_highs_df[Map.macd].max()
+            last_macd_peak_index = last_highs_df[last_highs_df[Map.macd] == last_macd_peak].index[-1]
+            return last_macd_peak_index
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map)
+        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
@@ -672,6 +733,13 @@ class Icarus(TraderClass):
             f'{key}.histogram_rising': vars_map.get('histogram_rising'),
             f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.will_bounce': vars_map.get('will_bounce'),
+            f'{key}.macd_min_index': vars_map.get('macd_min_index'),
+            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
+            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
+            f'{key}.macd_peak_index': vars_map.get('macd_peak_index'),
+            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
+            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -889,7 +957,8 @@ class Icarus(TraderClass):
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
-            n_period = 500
+            buy_repports = []
+            n_period = broker.get_max_n_period()
             fees = broker.get_trade_fee(pair)
             taker_fee_rate = fees.get(Map.taker)
             buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
@@ -925,20 +994,27 @@ class Icarus(TraderClass):
                 sys.stdout.write(f'\r{_MF.prefix()}{_MF.unix_to_date(times[-1])}')
                 sys.stdout.flush()
                 has_position = len(trade) != 0
-                if (not has_position) and cls.can_buy(marketprice)[0]:
-                    buy_time = marketprice.get_time()
-                    exec_price = marketprice.get_close()
-                    trade = {
-                        Map.date: _MF.unix_to_date(_MF.get_timestamp()),
-                        Map.pair: pair,
-                        Map.period: str_period,
-                        Map.id: f'{pair_merged}_{str_period}_{i}',
-                        Map.start: start_date,
-                        Map.end: end_date,
-                        'buy_time': buy_time,
-                        'buy_date': _MF.unix_to_date(buy_time),
-                        'buy_price': exec_price,
+                if not has_position:
+                    can_buy, buy_repport = cls.can_buy(marketprice)
+                    buy_repport = {
+                        Map.time: _MF.unix_to_date(times[-1]),
+                        **buy_repport
                     }
+                    buy_repports.append(buy_repport)
+                    if can_buy:
+                        buy_time = marketprice.get_time()
+                        exec_price = marketprice.get_close()
+                        trade = {
+                            Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                            Map.pair: pair,
+                            Map.period: str_period,
+                            Map.id: f'{pair_merged}_{str_period}_{i}',
+                            Map.start: start_date,
+                            Map.end: end_date,
+                            'buy_time': buy_time,
+                            'buy_date': _MF.unix_to_date(buy_time),
+                            'buy_price': exec_price,
+                        }
                 elif has_position and can_sell_indicator(marketprice, buy_time):
                     sell_time = marketprice.get_time()
                     exec_price = marketprice.get_close()
@@ -1004,6 +1080,11 @@ class Icarus(TraderClass):
                 trades.loc[:,'win_rate'] = win_trades.shape[0]/n_trades
                 trades.loc[:,'n_loss'] = loss_trades.shape[0]
                 trades.loc[:,'loss_rate'] = loss_trades.shape[0]/n_trades
+            if len(buy_repports) > 0:
+                repport_path = '/'.join(file_path.split('/')[:-2]) + f'/repports/{Config.get(Config.SESSION_ID)}_buy_repports.csv'
+                fields = list(buy_repports[0].keys())
+                rows = buy_repports
+                FileManager.write_csv(repport_path, fields, rows, overwrite=False, make_dir=True)
             return trades
 
         Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
