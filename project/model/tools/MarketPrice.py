@@ -168,7 +168,12 @@ class MarketPrice(ABC):
     def get_pair(self) -> Pair:
         return self.__pair
 
-    def __get_collections(self) -> Map:
+    def reset_collections(self) -> None:
+        collections = self._get_collections()
+        for key, _ in collections.get_map().items():
+            collections.put(None, key)
+
+    def _get_collections(self) -> Map:
         return self.__collections
 
     def _set_collection(self, k: str, e: tuple) -> None:
@@ -181,8 +186,7 @@ class MarketPrice(ABC):
         coll = self._get_collection(k)
         if coll is not None:
             raise Exception(f"This collection '{k}' is already set")
-        self.__get_collections().put(tuple(e), k)
-        # self.__get_collections().put(e, k)
+        self._get_collections().put(tuple(e), k)
 
     def _get_collection(self, k) -> tuple:
         """
@@ -191,7 +195,7 @@ class MarketPrice(ABC):
         :exception IndexError: if the given key is not supported
         :return: the collection at the given key
         """
-        colls = self.__get_collections()
+        colls = self._get_collections()
         if k not in colls.get_keys():
             raise IndexError(f"This collection key '{k}' is not supported")
         return colls.get(k)
