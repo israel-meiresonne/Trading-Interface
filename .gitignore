@@ -16,6 +16,7 @@ project/content/storage/Strategy/Icarus/prediction/
 project/content/storage/Strategy/Icarus/backtest/number/
 project/content/storage/Strategy/Icarus/backtest/stock/
 project/content/storage/Strategy/Icarus/backtest/repports/
+project/content/storage/Strategy/Icarus/backtest/tests/
 
 project/content/market-historic/
 project/content/sessions/
