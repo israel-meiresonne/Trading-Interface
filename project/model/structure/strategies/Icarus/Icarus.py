@@ -393,6 +393,7 @@ class Icarus(TraderClass):
         return can_sell
     
     def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
+        """
         def is_buy_period() -> bool:
             period = self.get_period()
             buy_time = int(self.get_buy_order().get_execution_time() / 1000)
@@ -401,14 +402,12 @@ class Icarus(TraderClass):
             open_time = marketprice.get_time()
             return open_time < first_open_time
 
-        """
         def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
             # RSI
             rsi = list(marketprice.get_rsis())
             rsi.reverse()
             rsi_reached = rsi[-1] > rsi_trigger
             return rsi_reached
-        """
 
         def is_histogram_dropping(vars_map: Map) -> bool:
             # MACD
@@ -433,11 +432,25 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
+        """
+
+        def is_bollinger_reached(vars_map: Map) -> bool:
+            bollinger = marketprice.get_bollingerbands()
+            bollinger_high = list(bollinger.get(Map.high))
+            bollinger_high.reverse()
+            bollinger_low = list(bollinger.get(Map.low))
+            bollinger_low.reverse()
+            bollinger_reached = (closes[-1] >= bollinger_high[-1]) or (closes[-1] <= bollinger_low[-1])
+            return bollinger_reached
 
         vars_map = Map()
         can_sell = False
+        # Close
+        closes = list(marketprice.get_closes())
+        closes.reverse()
         # Check
-        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+        # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+        can_sell = is_bollinger_reached(vars_map)
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -852,40 +865,22 @@ class Icarus(TraderClass):
         import sys
     
         def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
-            def is_buy_period() -> bool:
-                period = marketprice.get_period_time()
-                buy_time_rounded = _MF.round_time(buy_time, period)
-                first_open_time = buy_time_rounded + period
-                open_time = marketprice.get_time()
-                return open_time < first_open_time
-
-            def is_histogram_dropping(vars_map: Map) -> bool:
-                macd_map = marketprice.get_macd()
-                histogram = list(macd_map.get(Map.histogram))
-                histogram.reverse()
-                histogram_dropping = histogram[-1] < 0
-                return histogram_dropping
-
-            def are_macd_signal_negatives(vars_map: Map) -> bool:
-                macd_map = marketprice.get_macd()
-                macd = list(macd_map.get(Map.macd))
-                macd.reverse()
-                signal = list(macd_map.get(Map.signal))
-                signal.reverse()
-                macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
-                return macd_signal_negatives
-
-            def is_tangent_macd_dropping(vars_map: Map) -> bool:
-                macd_map = marketprice.get_macd()
-                macd = list(macd_map.get(Map.macd))
-                macd.reverse()
-                tangent_macd_dropping = macd[-1] <= macd[-2]
-                return tangent_macd_dropping
+            def is_bollinger_reached(vars_map: Map) -> bool:
+                bollinger = marketprice.get_bollingerbands()
+                bollinger_high = list(bollinger.get(Map.high))
+                bollinger_high.reverse()
+                bollinger_low = list(bollinger.get(Map.low))
+                bollinger_low.reverse()
+                bollinger_reached = (closes[-1] >= bollinger_high[-1]) or (closes[-1] <= bollinger_low[-1])
+                return bollinger_reached
 
             vars_map = Map()
             can_sell = False
+            # Close
+            closes = list(marketprice.get_closes())
+            closes.reverse()
             # Check
-            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+            can_sell = is_bollinger_reached(vars_map)
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
