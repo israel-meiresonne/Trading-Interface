@@ -634,3 +634,51 @@ class ModelFeature(ModelAccess):
             test_name = function_name.replace(",", ";")
             delta = f"speed_test,{class_name},{function_name},{test_name},{(row[Map.end] - row[Map.start])/1000}sec"
             cls.output(delta)
+
+    @staticmethod
+    def group_swings(values: list[float,int], compares: list[float,int]) -> dict[int,list[int]]:
+        """
+        To group given value following if there are above, equal or bellow the corresponding compare value
+
+        Parameters:
+        -----------
+        values: list[float,int]
+            Values to group
+        compares: list[float,int]
+            Values to compare with
+
+        Raises:
+        -------
+        raise: ValueError
+            If values and compares don't have the same size
+
+        Returns:
+        --------
+        return: dict[int,list[int]]
+            Values grouped with their indexes sorted from lower to higher
+            group[index{int}][0]:   {int}   # index from list of values that start the group
+            group[index{int}][1]:   {int}   # index from list of values that end the group
+        """
+        def group(df: pd.DataFrame) -> None:
+            group = []
+            for i in range(df.index.shape[0]):
+                index = df.index[i]
+                groups[index] = group
+                group.append(index) if len(group) == 0 else None
+                if (i == df.index.shape[0]-1) or ((df.index[i+1] - df.index[i]) != 1):
+                    group.append(index)
+                    group = []
+
+        from model.tools.Map import Map
+        if len(values) != len(compares):
+            raise ValueError(f"Values and compares must have the same size")
+        groups = {}
+        all_df = pd.DataFrame({Map.x: values, Map.neutral: compares})
+        above_df = all_df[all_df[Map.x] > all_df[Map.neutral]]
+        bellow_df = all_df[all_df[Map.x] < all_df[Map.neutral]]
+        equal_df = all_df[all_df[Map.x] == all_df[Map.neutral]]
+        group(above_df)
+        group(bellow_df)
+        group(equal_df)
+        groups = dict(sorted(groups.items(), key=lambda row: row[0]))
+        return groups
