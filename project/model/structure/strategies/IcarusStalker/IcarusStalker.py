@@ -140,10 +140,10 @@ class IcarusStalker(StalkerClass):
             f'{key}.ema_rising': None,
             f'{key}.macd_negative': None,
             f'{key}.histogram_rising': None,
-            f'{key}.edited_histogram': None,
             f'{key}.edited_histogram_rising': None,
             f'{key}.edited_prev_histogram_dropping': None,
             f'{key}.edited_macd_switch_up': None,
+            f'{key}.rsi_reached': None,
             f'{key}.will_bounce': None,
             f'{key}.macd_min_index': None,
             f'{key}.macd_min_date': None,
@@ -162,7 +162,10 @@ class IcarusStalker(StalkerClass):
             f'{key}.histogram[-3]': None,
             f'{key}.macd[-1]': None,
             f'{key}.macd[-2]': None,
-            f'{key}.macd[-3]': None
+            f'{key}.macd[-3]': None,
+            f'{key}.rsi[-1]': None,
+            f'{key}.rsi[-2]': None,
+            f'{key}.rsi[-3]': None
         }
         # Repport
         key = Icarus.can_buy.__name__
