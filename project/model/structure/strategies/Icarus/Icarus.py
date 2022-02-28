@@ -942,6 +942,8 @@ class Icarus(TraderClass):
                 closes.reverse()
                 highs = list(marketprice.get_highs())
                 highs.reverse()
+                lows = list(marketprice.get_lows())
+                lows.reverse()
                 if i == 0:
                     higher_price = 0
                     start_date = _MF.unix_to_date(times[-1])
@@ -954,6 +956,11 @@ class Icarus(TraderClass):
                 sys.stdout.write(f'\r{_MF.prefix()}{_MF.unix_to_date(times[-1])}')
                 sys.stdout.flush()
                 has_position = len(trade) != 0
+                if has_position:
+                    high_roi = _MF.progress_rate(highs[-1], trade['buy_price'])
+                    low_roi = _MF.progress_rate(lows[-1], trade['buy_price'])
+                    min_roi_position = low_roi if (min_roi_position is None) or (low_roi < min_roi_position) else min_roi_position
+                    max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 if not has_position:
                     can_buy, buy_repport = cls.can_buy(marketprice)
                     buy_repport = {
@@ -964,6 +971,8 @@ class Icarus(TraderClass):
                     if can_buy:
                         buy_time = marketprice.get_time()
                         exec_price = marketprice.get_close()
+                        min_roi_position = None
+                        max_roi_position = None
                         trade = {
                             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                             Map.pair: pair,
@@ -985,6 +994,8 @@ class Icarus(TraderClass):
                     trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
                     trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
                     trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
+                    trade['min_roi_position'] = min_roi_position
+                    trade['max_roi_position'] = max_roi_position
                     trade['mean_roi'] = None
                     trade['min_roi'] = None
                     trade['max_roi'] = None
