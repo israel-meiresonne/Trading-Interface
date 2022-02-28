@@ -656,6 +656,14 @@ class Icarus(TraderClass):
             vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
+
+        def is_bellow_keltner(vars_map: Map) -> bool:
+            kc = child_marketprice.get_keltnerchannel()
+            kc_high = list(kc.get(Map.high))
+            kc_high.reverse()
+            bellow_keltner = closes[-1] < kc_high[-1]
+            return bellow_keltner
+
         """
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
@@ -724,7 +732,7 @@ class Icarus(TraderClass):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
-        can_buy_indicator = is_macd_switch_up(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_bellow_keltner(vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
