@@ -656,7 +656,7 @@ class Icarus(TraderClass):
             vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
-        """
+
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -717,14 +717,13 @@ class Icarus(TraderClass):
             vars_map.put(macd_min_date, 'macd_min_date')
             vars_map.put(macd_peak_date, 'macd_peak_date')
             return will_bounce
-        """
 
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
-        can_buy_indicator = is_macd_switch_up(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
