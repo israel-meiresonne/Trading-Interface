@@ -621,7 +621,6 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        """
         def is_ema_rising(vars_map: Map) -> bool:
             # EMA
             ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
@@ -632,6 +631,7 @@ class Icarus(TraderClass):
             vars_map.put(ema_rising, 'ema_rising')
             return ema_rising
 
+        """
         def is_macd_negative(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -724,7 +724,7 @@ class Icarus(TraderClass):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
-        can_buy_indicator = is_macd_switch_up(vars_map)
+        can_buy_indicator = is_ema_rising(vars_map) and is_macd_switch_up(vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
