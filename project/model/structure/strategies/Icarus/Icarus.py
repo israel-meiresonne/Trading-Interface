@@ -416,7 +416,7 @@ class Icarus(TraderClass):
             histogram.reverse()
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
-        """
+
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -432,13 +432,11 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
-        """
 
         vars_map = Map()
         can_sell = False
         # Check
-        # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
-        can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map)
+        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -972,7 +970,7 @@ class Icarus(TraderClass):
                 histogram.reverse()
                 histogram_dropping = histogram[-1] < 0
                 return histogram_dropping
-            """
+
             def are_macd_signal_negatives(vars_map: Map) -> bool:
                 macd_map = marketprice.get_macd()
                 macd = list(macd_map.get(Map.macd))
@@ -988,12 +986,11 @@ class Icarus(TraderClass):
                 macd.reverse()
                 tangent_macd_dropping = macd[-1] <= macd[-2]
                 return tangent_macd_dropping
-            """
 
             vars_map = Map()
             can_sell = False
             # Check
-            can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map)
+            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
