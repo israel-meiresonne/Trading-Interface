@@ -400,7 +400,6 @@ class Icarus(TraderClass):
             first_open_time = buy_time_rounded + period
             open_time = marketprice.get_time()
             return open_time < first_open_time
-
         """
         def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
             # RSI
@@ -417,7 +416,7 @@ class Icarus(TraderClass):
             histogram.reverse()
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
-
+        """
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -433,11 +432,13 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
+        """
 
         vars_map = Map()
         can_sell = False
         # Check
-        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+        # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+        can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map)
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -620,6 +621,7 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        """
         def is_ema_rising(vars_map: Map) -> bool:
             # EMA
             ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
@@ -639,7 +641,7 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'macd')
             vars_map.put(macd_negative, 'macd_negative')
             return macd_negative
-
+        """
         def is_macd_switch_up(vars_map: Map) -> bool:
             # MACD
             macd_map = child_marketprice.get_macd()
@@ -654,7 +656,7 @@ class Icarus(TraderClass):
             vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
-
+        """
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -715,12 +717,14 @@ class Icarus(TraderClass):
             vars_map.put(macd_min_date, 'macd_min_date')
             vars_map.put(macd_peak_date, 'macd_peak_date')
             return will_bounce
+        """
 
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+        # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
@@ -949,19 +953,27 @@ class Icarus(TraderClass):
     
         def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
             def is_buy_period() -> bool:
-                period = marketprice.get_period_time()
                 buy_time_rounded = _MF.round_time(buy_time, period)
                 first_open_time = buy_time_rounded + period
                 open_time = marketprice.get_time()
                 return open_time < first_open_time
+            """
+            def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
+                # RSI
+                rsi = list(marketprice.get_rsis())
+                rsi.reverse()
+                rsi_reached = rsi[-1] > rsi_trigger
+                return rsi_reached
+            """
 
             def is_histogram_dropping(vars_map: Map) -> bool:
+                # MACD
                 macd_map = marketprice.get_macd()
                 histogram = list(macd_map.get(Map.histogram))
                 histogram.reverse()
                 histogram_dropping = histogram[-1] < 0
                 return histogram_dropping
-
+            """
             def are_macd_signal_negatives(vars_map: Map) -> bool:
                 macd_map = marketprice.get_macd()
                 macd = list(macd_map.get(Map.macd))
@@ -977,11 +989,12 @@ class Icarus(TraderClass):
                 macd.reverse()
                 tangent_macd_dropping = macd[-1] <= macd[-2]
                 return tangent_macd_dropping
+            """
 
             vars_map = Map()
             can_sell = False
             # Check
-            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+            can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map)
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
