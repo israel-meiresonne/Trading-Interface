@@ -177,6 +177,20 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         result1 = self.df_apply(df, cols, func_apply, params=[param2])
         self.assertEqual(exp1.to_csv(), result1.to_csv())
 
-
-if __name__ == '__main__':
-    unittest.main
+    def test_group_swings(self) -> None:
+        values = [4, 8, -9, 6, 8, 9, -5, -9, -8, 0]
+        compares = [9, -9, -8, 2, -1, -8, 6, -5, -7, 7]
+        exp1 = {
+            0: [0,0],
+            1: [1,1],
+            2: [2,2],
+            3: [3,5],
+            4: [3,5],
+            5: [3,5],
+            6: [6,9],
+            7: [6,9],
+            8: [6,9],
+            9: [6,9]
+        }
+        result1 = ModelFeature.group_swings(values, compares)
+        self.assertDictEqual(exp1, result1)
