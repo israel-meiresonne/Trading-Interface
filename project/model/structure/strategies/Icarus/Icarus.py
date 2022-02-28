@@ -866,6 +866,34 @@ class Icarus(TraderClass):
         return file_path.replace('$path', 'active') if active_path else file_path.replace('$path', 'stock')
 
     @classmethod
+    def file_path_backtest_test(cls) -> str:
+        """
+        To get path to file where backtest are stored
+        """
+        # f'Icarus/backtest/$path/$session/datas/$session_backtest.csv'
+        dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
+        session_id = Config.get(Config.SESSION_ID)
+        file_path = dir_strategy_storage + cls._FILE_PATH_BACKTEST.replace('$session', session_id)
+        file_path = file_path.replace('$path', 'tests')
+        paths = file_path.split('/')
+        paths.insert(-1, session_id)
+        paths.insert(-1, 'datas')
+        file_path = '/'.join(paths)
+        return file_path
+
+    @classmethod
+    def file_path_backtest_repport(cls) -> str:
+        """
+        To get file path of where condition to buy/sell are printed
+        """
+        test_file_path = cls.file_path_backtest_test()
+        repport_file_name = f'{Config.get(Config.SESSION_ID)}_buy_repports.csv'
+        repport_paths = test_file_path.split('/')
+        repport_paths[-1] = repport_file_name
+        repport_file_path = '/'.join(repport_paths)
+        return repport_file_path
+
+    @classmethod
     def best_pairs(cls) -> list[Pair]:
         """
         To get list of best Pair to tade
@@ -1022,6 +1050,9 @@ class Icarus(TraderClass):
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
                     trade['sell_price'] = exec_price
                     trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
+                    trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
+                    trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
+                    trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
                     trade['mean_roi'] = None
                     trade['min_roi'] = None
                     trade['max_roi'] = None
@@ -1081,16 +1112,16 @@ class Icarus(TraderClass):
                 trades.loc[:,'n_loss'] = loss_trades.shape[0]
                 trades.loc[:,'loss_rate'] = loss_trades.shape[0]/n_trades
             if len(buy_repports) > 0:
-                repport_path = '/'.join(file_path.split('/')[:-2]) + f'/repports/{Config.get(Config.SESSION_ID)}_buy_repports.csv'
+                repport_file_path = cls.file_path_backtest_repport()
                 fields = list(buy_repports[0].keys())
                 rows = buy_repports
-                FileManager.write_csv(repport_path, fields, rows, overwrite=False, make_dir=True)
+                FileManager.write_csv(repport_file_path, fields, rows, overwrite=False, make_dir=True)
             return trades
 
         Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
         active_path = True
         pairs = MarketPrice.history_pairs(broker_name, active_path=active_path) if pairs is None else pairs
-        file_path = cls.file_path_backtest(active_path=False)
+        file_path = cls.file_path_backtest_test()
         broker_name = broker.__class__.__name__
         output_starttime = _MF.get_timestamp()
         turn = 1

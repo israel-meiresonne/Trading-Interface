@@ -4,7 +4,7 @@ from typing import Union, List
 import numpy as np
 import pandas as pd
 from pandas_ta import supertrend as _supertrend
-from ta.volatility import KeltnerChannel
+from ta.volatility import KeltnerChannel, BollingerBands
 from ta.momentum import RSIIndicator, TSIIndicator
 from ta.trend import PSARIndicator, MACD
 from ta.utils import _ema
@@ -63,6 +63,11 @@ class MarketPrice(ABC):
     COLLECTION_KELTNERC_HIGH = "COLLECTION_KELTNERC_HIGH"
     COLLECTION_KELTNERC_LOW = "COLLECTION_KELTNERC_LOW"
     COLLECTION_EMA = "COLLECTION_EMA"
+    COLLECTION_BOLLINGER_HIGH = "COLLECTION_BOLLINGER_HIGH"
+    COLLECTION_BOLLINGER_MIDDLE = "COLLECTION_BOLLINGER_MIDDLE"
+    COLLECTION_BOLLINGER_LOW = "COLLECTION_BOLLINGER_LOW"
+    COLLECTION_BOLLINGER_WIDTH = "COLLECTION_BOLLINGER_WIDTH"
+    COLLECTION_BOLLINGER_RATE = "COLLECTION_BOLLINGER_RATE"
     # Collection Config
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
@@ -89,6 +94,8 @@ class MarketPrice(ABC):
     _MACD_SIGNAL = 9
     _KELTNERC_WINDOW = 20
     _EMA_N_PERIOD = 10
+    _BOLLINGER_WINDOW = 20
+    _BOLLINGER_WINDOW_DEV = 2
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -139,7 +146,12 @@ class MarketPrice(ABC):
             self.COLLECTION_KELTNERC_MIDDLE: None,
             self.COLLECTION_KELTNERC_HIGH: None,
             self.COLLECTION_KELTNERC_LOW: None,
-            self.COLLECTION_EMA: None
+            self.COLLECTION_EMA: None,
+            self.COLLECTION_BOLLINGER_HIGH: None,
+            self.COLLECTION_BOLLINGER_MIDDLE: None,
+            self.COLLECTION_BOLLINGER_LOW: None,
+            self.COLLECTION_BOLLINGER_WIDTH: None,
+            self.COLLECTION_BOLLINGER_RATE: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -168,7 +180,12 @@ class MarketPrice(ABC):
     def get_pair(self) -> Pair:
         return self.__pair
 
-    def __get_collections(self) -> Map:
+    def reset_collections(self) -> None:
+        collections = self._get_collections()
+        for key, _ in collections.get_map().items():
+            collections.put(None, key)
+
+    def _get_collections(self) -> Map:
         return self.__collections
 
     def _set_collection(self, k: str, e: tuple) -> None:
@@ -181,8 +198,7 @@ class MarketPrice(ABC):
         coll = self._get_collection(k)
         if coll is not None:
             raise Exception(f"This collection '{k}' is already set")
-        self.__get_collections().put(tuple(e), k)
-        # self.__get_collections().put(e, k)
+        self._get_collections().put(tuple(e), k)
 
     def _get_collection(self, k) -> tuple:
         """
@@ -191,7 +207,7 @@ class MarketPrice(ABC):
         :exception IndexError: if the given key is not supported
         :return: the collection at the given key
         """
-        colls = self.__get_collections()
+        colls = self._get_collections()
         if k not in colls.get_keys():
             raise IndexError(f"This collection key '{k}' is not supported")
         return colls.get(k)
@@ -681,6 +697,59 @@ class MarketPrice(ABC):
             self._set_collection(k, ema)
         return ema
 
+    def get_bollingerbands(self, window: int = _BOLLINGER_WINDOW, window_dev: int = _BOLLINGER_WINDOW_DEV) -> Map:
+        """
+        To get Bollinger Bands
+
+        Parameters:
+        -----------
+        closes: list
+            Market's closes prices
+        window: int
+            The number of period to use
+        window_dev: int
+            n factor standard deviation
+
+        Returns:
+        --------
+        return: Map
+            Bollinger Bands
+            indicator[Map.high]:    {list}  # Bollinger Bands's High Band
+            indicator[Map.middle]:  {list}  # Bollinger Bands's middle Band
+            indicator[Map.low]:     {list}  # Bollinger Bands's low Band
+            indicator[Map.width]:   {list}  # Bollinger Bands's Width
+            indicator[Map.rate]:    {list}  # Bollinger Bands's Percentage Band
+        """
+        k = self.COLLECTION_BOLLINGER_MIDDLE
+        bollinger_middle = self._get_collection(k)
+        if bollinger_middle is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            bollinger = self.bollingerbands(closes, window, window_dev)
+            bollinger_high = bollinger.get(Map.high)
+            bollinger_high.reverse()
+            bollinger_middle = bollinger.get(Map.middle)
+            bollinger_middle.reverse()
+            bollinger_low = bollinger.get(Map.low)
+            bollinger_low.reverse()
+            bollinger_width = bollinger.get(Map.width)
+            bollinger_width.reverse()
+            bollinger_rate = bollinger.get(Map.rate)
+            bollinger_rate.reverse()
+            self._set_collection(self.COLLECTION_BOLLINGER_HIGH, bollinger_high)
+            self._set_collection(self.COLLECTION_BOLLINGER_MIDDLE, bollinger_middle)
+            self._set_collection(self.COLLECTION_BOLLINGER_LOW, bollinger_low)
+            self._set_collection(self.COLLECTION_BOLLINGER_WIDTH, bollinger_width)
+            self._set_collection(self.COLLECTION_BOLLINGER_RATE, bollinger_rate)
+        bollinger = Map({
+            Map.high: self._get_collection(self.COLLECTION_BOLLINGER_HIGH),
+            Map.middle: bollinger_middle,
+            Map.low: self._get_collection(self.COLLECTION_BOLLINGER_LOW),
+            Map.width: self._get_collection(self.COLLECTION_BOLLINGER_WIDTH),
+            Map.rate: self._get_collection(self.COLLECTION_BOLLINGER_RATE)
+        })
+        return bollinger
+
     def _set_ms(self) -> None:
         """
         To generate the market's variation speed for its most recent period\n
@@ -1051,8 +1120,8 @@ class MarketPrice(ABC):
     def macd(closes: list, slow: int, fast: int, signal: int) -> Map:
         """
         To generate the Moving Average Convergence Divergence (MACD)\n
-        Parameters
-        ----------
+        Parameters:
+        -----------
         closes: list
             Market's close prices.
         slow: int
@@ -1061,9 +1130,10 @@ class MarketPrice(ABC):
             Number period short term
         signal
             Number period to signal
-        Returns
-        -------
-        macd:  Map
+
+        Returns:
+        --------
+        return:  Map
             MACD's macd, signal line and Histogram
             macd[Map.macd]:         {List}
             macd[Map.signal]:       {List}
@@ -1081,7 +1151,7 @@ class MarketPrice(ABC):
     @staticmethod
     def keltnerchannel(highs: list, lows: list, closes: list, window: int) -> Map:
         """
-        To generate Keltner Channels indicator\n
+        To generate Keltner Channels\n
         Parameters
         ----------
         highs: list
@@ -1095,10 +1165,10 @@ class MarketPrice(ABC):
         Returns
         -------
         indicator: Map
-            Keltner Channels indicator
+            Keltner Channels
             indicator[Map.high]:    {list}  # Keltner Channel's High Band
-            indicator[Map.low]:    {list}  # Keltner Channel's low Band
-            indicator[Map.middle]:    {list}  # Keltner Channel's middle Band
+            indicator[Map.middle]:  {list}  # Keltner Channel's middle Band
+            indicator[Map.low]:     {list}  # Keltner Channel's low Band
         """
         pd_closes = pd.Series(np.array(closes))
         pd_highs = pd.Series(np.array(highs))
@@ -1113,6 +1183,46 @@ class MarketPrice(ABC):
             Map.middle: mband
         })
         return kel_map
+
+    @staticmethod
+    def bollingerbands(closes: list, window: int, window_dev: int) -> Map:
+        """
+        To generate Bollinger Bands
+
+        Parameters:
+        -----------
+        closes: list
+            Market's closes prices
+        window: int
+            The number of period to use
+        window_dev: int
+            n factor standard deviation
+
+        Returns:
+        --------
+        return: Map
+            Bollinger Bands
+            indicator[Map.high]:    {list}  # Bollinger Bands's High Band
+            indicator[Map.middle]:  {list}  # Bollinger Bands's middle Band
+            indicator[Map.low]:     {list}  # Bollinger Bands's low Band
+            indicator[Map.width]:   {list}  # Bollinger Bands's Width
+            indicator[Map.rate]:    {list}  # Bollinger Bands's Percentage Band
+        """
+        pd_closes = pd.Series(np.array(closes))
+        bollinger = BollingerBands(pd_closes, window, window_dev)
+        bollinger_high = bollinger.bollinger_hband().to_list()
+        bollinger_middle = bollinger.bollinger_mavg().to_list()
+        bollinger_low = bollinger.bollinger_lband().to_list()
+        bollinger_width = bollinger.bollinger_wband().to_list()
+        bollinger_rate = bollinger.bollinger_pband().to_list()
+        bollinger_rate_map = Map({
+            Map.high: bollinger_high,
+            Map.middle: bollinger_middle,
+            Map.low: bollinger_low,
+            Map.width: bollinger_width,
+            Map.rate: bollinger_rate
+        })
+        return bollinger_rate_map
 
     @staticmethod
     def get_spot_pairs(broker_class: str, fiat_asset: Asset) -> List[Pair]:

@@ -16,6 +16,7 @@ from model.tools.Pair import Pair
 class TestMarketPrice(unittest.TestCase, MarketPrice):
     def setUp(self) -> None:
         _MF.OUTPUT = True
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
         self.pair1 = Pair('BTC/USDT')
         self.list = ['1', '2', '3', '4', '5']
         self.tuple = tuple(self.list)
@@ -106,7 +107,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
     INIT_STAGE = None
     BROKER = None
 
-    def broker_switch(self, on: bool = False, stage: str = None) -> Broker:
+    def broker_switch(self, on: bool = False, stage: str = Config.STAGE_1) -> Broker:
         if on:
             self.INIT_STAGE = Config.get(Config.STAGE_MODE)
             Config.update(Config.STAGE_MODE, stage)
@@ -142,6 +143,21 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
 
     def get_time(self, prd=0) -> int:
         pass
+
+    def test_reset_collections(self) -> None:
+        broker = self.broker_switch(True)
+        pair = Pair('BTC/USDT')
+        period = 60*5
+        n_period = broker.get_max_n_period()
+        marketprice = MarketPrice.marketprice(broker, pair, period, n_period)
+        closes = marketprice.get_closes()
+        rsi = marketprice.get_rsis()
+        macd = marketprice.get_macd()
+        collections = marketprice._get_collections()
+        self.assertEqual(5, len([1 for _, collection in collections.get_map().items() if collection is not None]))
+        marketprice.reset_collections()
+        self.assertEqual(0, len([1 for _, collection in collections.get_map().items() if collection is not None]))
+        self.broker_switch(False)
 
     def test_set_collection(self):
         # unsupported collection key
