@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pandas_ta import supertrend as _supertrend
 from ta.volatility import KeltnerChannel, BollingerBands
-from ta.momentum import RSIIndicator, TSIIndicator
+from ta.momentum import RSIIndicator, TSIIndicator, ROCIndicator
 from ta.trend import PSARIndicator, MACD
 from ta.utils import _ema
 from scipy.signal import find_peaks
@@ -68,6 +68,7 @@ class MarketPrice(ABC):
     COLLECTION_BOLLINGER_LOW = "COLLECTION_BOLLINGER_LOW"
     COLLECTION_BOLLINGER_WIDTH = "COLLECTION_BOLLINGER_WIDTH"
     COLLECTION_BOLLINGER_RATE = "COLLECTION_BOLLINGER_RATE"
+    COLLECTION_ROC = "COLLECTION_ROC"
     # Collection Config
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
@@ -96,6 +97,7 @@ class MarketPrice(ABC):
     _EMA_N_PERIOD = 10
     _BOLLINGER_WINDOW = 20
     _BOLLINGER_WINDOW_DEV = 2
+    _ROC_WINDOW = 12
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -151,7 +153,8 @@ class MarketPrice(ABC):
             self.COLLECTION_BOLLINGER_MIDDLE: None,
             self.COLLECTION_BOLLINGER_LOW: None,
             self.COLLECTION_BOLLINGER_WIDTH: None,
-            self.COLLECTION_BOLLINGER_RATE: None
+            self.COLLECTION_BOLLINGER_RATE: None,
+            self.COLLECTION_ROC: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -750,6 +753,20 @@ class MarketPrice(ABC):
         })
         return bollinger
 
+    def get_roc(self, window: int = _ROC_WINDOW) -> tuple:
+        """
+        To get Rate-of-Change (ROC)
+        """
+        key = self.COLLECTION_ROC
+        roc = self._get_collection(key)
+        if roc is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            roc = self.roc(closes, window)
+            roc.reverse()
+            self._set_collection(key, roc)
+        return roc
+
     def _set_ms(self) -> None:
         """
         To generate the market's variation speed for its most recent period\n
@@ -1223,6 +1240,13 @@ class MarketPrice(ABC):
             Map.rate: bollinger_rate
         })
         return bollinger_rate_map
+
+    @staticmethod
+    def roc(closes: list, window: int) -> list:
+        closes_series = pd.Series(closes)
+        roc_obj = ROCIndicator(closes_series, window)
+        roc = roc_obj.roc().to_list()
+        return roc
 
     @staticmethod
     def get_spot_pairs(broker_class: str, fiat_asset: Asset) -> List[Pair]:
