@@ -330,6 +330,19 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         print(_MF.json_encode(merged))
         self.broker_switch(False)
 
+    def test_get_roc(self) -> None:
+        bkr = self.broker_switch(True, stage = Config.STAGE_2)
+        pair = Pair('BTC/USDT')
+        period = 60 * 15
+        n_period = bkr.get_max_n_period()
+        marketprices = MarketPrice.marketprice(bkr, pair, period, n_period)
+        roc = marketprices.get_roc(window=15)
+        closes = marketprices.get_closes()
+        open_times = marketprices.get_times()
+        output_list = [f"{_MF.unix_to_date(open_times[i])}: close='{closes[i]}', roc='{roc[i]}'" for i in range(10)]
+        print(_MF.json_encode(output_list))
+        self.broker_switch(False)
+
     def test_get_delta_price(self):
         # correct result
         exp = float(self.closes_u_u[-2]) - float(self.closes_u_u[-3])
