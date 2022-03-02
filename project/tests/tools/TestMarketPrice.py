@@ -926,6 +926,36 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         self.assertIsInstance(periods, list)
         self.assertIsInstance(periods[0], int)
 
+    def test_last_extremum_index(self) -> None:
+        values = [7, -6, 10, 7, 2, 9, -2, -1, -6, 6, 5, -3, 1, 7, -10, 3, -10, 10, -8, -6]
+        zeros = [2, -9, -4, 7, 2, -1, -7, 0, -4, 3, 4, -8, 10, 9, -9, 7, -1, 9, -10, -10]
+        n_row = len(values)
+        # Exclude 0 peak
+        exp0 = 17
+        result0 = self.last_extremum_index(values, zeros, 1, excludes=[])
+        self.assertEqual(exp0, result0)
+        # Exclude 1 peak
+        excludes1 = [-1]
+        exp1 = 9
+        result1 = self.last_extremum_index(values, zeros, 1, excludes=excludes1)
+        self.assertEqual(exp1, result1)
+        # Exclude 2 peaks
+        excludes2 = [-1, exp1]
+        exp2 = 5
+        result2 = self.last_extremum_index(values, zeros, 1, excludes2)
+        self.assertEqual(exp2, result2)
+        # Get last minimum
+        exp3 = 16
+        result3 = self.last_extremum_index(values, zeros, -1)
+        self.assertEqual(exp3, result3)
+        # Get last zero
+        exp4 = 4
+        result4 = self.last_extremum_index(values, zeros, 0)
+        self.assertEqual(exp4, result4)
+        # Wrong  extremum
+        with self.assertRaises(ValueError):
+            result4 = self.last_extremum_index(values, zeros, 2)
+
 
 if __name__ == '__main__':
     unittest.main
