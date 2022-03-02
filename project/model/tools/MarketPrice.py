@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pandas_ta import supertrend as _supertrend
 from ta.volatility import KeltnerChannel, BollingerBands
-from ta.momentum import RSIIndicator, TSIIndicator
+from ta.momentum import RSIIndicator, TSIIndicator, ROCIndicator
 from ta.trend import PSARIndicator, MACD
 from ta.utils import _ema
 from scipy.signal import find_peaks
@@ -68,6 +68,7 @@ class MarketPrice(ABC):
     COLLECTION_BOLLINGER_LOW = "COLLECTION_BOLLINGER_LOW"
     COLLECTION_BOLLINGER_WIDTH = "COLLECTION_BOLLINGER_WIDTH"
     COLLECTION_BOLLINGER_RATE = "COLLECTION_BOLLINGER_RATE"
+    COLLECTION_ROC = "COLLECTION_ROC"
     # Collection Config
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
@@ -96,6 +97,7 @@ class MarketPrice(ABC):
     _EMA_N_PERIOD = 10
     _BOLLINGER_WINDOW = 20
     _BOLLINGER_WINDOW_DEV = 2
+    _ROC_WINDOW = 12
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -151,7 +153,8 @@ class MarketPrice(ABC):
             self.COLLECTION_BOLLINGER_MIDDLE: None,
             self.COLLECTION_BOLLINGER_LOW: None,
             self.COLLECTION_BOLLINGER_WIDTH: None,
-            self.COLLECTION_BOLLINGER_RATE: None
+            self.COLLECTION_BOLLINGER_RATE: None,
+            self.COLLECTION_ROC: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -750,6 +753,20 @@ class MarketPrice(ABC):
         })
         return bollinger
 
+    def get_roc(self, window: int = _ROC_WINDOW) -> tuple:
+        """
+        To get Rate-of-Change (ROC)
+        """
+        key = self.COLLECTION_ROC
+        roc = self._get_collection(key)
+        if roc is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            roc = self.roc(closes, window)
+            roc.reverse()
+            self._set_collection(key, roc)
+        return roc
+
     def _set_ms(self) -> None:
         """
         To generate the market's variation speed for its most recent period\n
@@ -1225,6 +1242,13 @@ class MarketPrice(ABC):
         return bollinger_rate_map
 
     @staticmethod
+    def roc(closes: list, window: int) -> list:
+        closes_series = pd.Series(closes)
+        roc_obj = ROCIndicator(closes_series, window)
+        roc = roc_obj.roc().to_list()
+        return roc
+
+    @staticmethod
     def get_spot_pairs(broker_class: str, fiat_asset: Asset) -> List[Pair]:
         """
         To get pairs available for spot trading\n
@@ -1621,6 +1645,64 @@ class MarketPrice(ABC):
     @staticmethod
     def regex_history_file() -> str:
         return MarketPrice._REGEX_HISTORY_FILE
+
+    @staticmethod
+    def last_extremum_index(values: list, zeros: list, extremum: int, excludes: list = []) -> int:
+        """
+        To get index of the last extremum
+        * 1: to get index of the last peak
+        * 0: to get index of the last zero
+        * -1: to get index of the last minimum
+
+        Parameters:
+        -----------
+        values: list
+            Values to search peak in
+        zeros: list
+            Values to use as comparaison base
+        extremum: int
+            The extremum to get
+        exclude: list = []
+            List of index to exclude (can be positive of negative)
+
+        Returns:
+        --------
+        Index of the last peak
+        """
+        def excludes_are_in(swings: list, excludes: list) -> bool:
+            index_range = range(swings[i][0], (swings[i][1] + 1))
+            excludes_in = sum([1 for exclude in excludes if exclude in index_range]) > 0
+            return excludes_in
+        
+        if extremum not in [1, 0, -1]:
+            raise ValueError(f"Extremum must be '1', '0', or '-1', instead '{extremum}'")
+        last_peak_index = None
+        n_row = len(values)
+        excludes = [(n_row + i) if (isinstance(float(values[i]), float)) and (i < 0) else i for i in excludes]
+        zero_np = np.array(zeros)
+        values_pd = pd.DataFrame({Map.x: values, Map.zero: zero_np})
+        swings = _MF.group_swings(values, zero_np.tolist())
+        i = n_row - 1
+        while i >= 0:
+            if extremum == 1:
+                in_group = values[i] > zeros[i]
+            elif extremum == 0:
+                in_group = values[i] == zeros[i]
+            elif extremum == -1:
+                in_group = values[i] < zeros[i]
+            if in_group and (not excludes_are_in(swings, excludes)):
+                sub_values = values_pd.loc[swings[i][0]:(swings[i][1]), Map.x]
+                if extremum in [1, -1]:
+                    target_value = sub_values.max() if extremum == 1 else sub_values.min()
+                    last_peak_index = sub_values[sub_values == target_value].index[-1]
+                else:
+                    last_peak_index = sub_values.index[-1]
+                break
+            else:
+                i = swings[i][0]
+            del in_group
+            i -= 1
+        return last_peak_index
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
