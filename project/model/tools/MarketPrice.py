@@ -1647,6 +1647,64 @@ class MarketPrice(ABC):
         return MarketPrice._REGEX_HISTORY_FILE
 
     @staticmethod
+    def last_extremum_index(values: list, zeros: list, extremum: int, excludes: list = []) -> int:
+        """
+        To get index of the last extremum
+        * 1: to get index of the last peak
+        * 0: to get index of the last zero
+        * -1: to get index of the last minimum
+
+        Parameters:
+        -----------
+        values: list
+            Values to search peak in
+        zeros: list
+            Values to use as comparaison base
+        extremum: int
+            The extremum to get
+        exclude: list = []
+            List of index to exclude (can be positive of negative)
+
+        Returns:
+        --------
+        Index of the last peak
+        """
+        def excludes_are_in(swings: list, excludes: list) -> bool:
+            index_range = range(swings[i][0], (swings[i][1] + 1))
+            excludes_in = sum([1 for exclude in excludes if exclude in index_range]) > 0
+            return excludes_in
+        
+        if extremum not in [1, 0, -1]:
+            raise ValueError(f"Extremum must be '1', '0', or '-1', instead '{extremum}'")
+        last_peak_index = None
+        n_row = len(values)
+        excludes = [(n_row + i) if (isinstance(float(values[i]), float)) and (i < 0) else i for i in excludes]
+        zero_np = np.array(zeros)
+        values_pd = pd.DataFrame({Map.x: values, Map.zero: zero_np})
+        swings = _MF.group_swings(values, zero_np.tolist())
+        i = n_row - 1
+        while i >= 0:
+            if extremum == 1:
+                in_group = values[i] > zeros[i]
+            elif extremum == 0:
+                in_group = values[i] == zeros[i]
+            elif extremum == -1:
+                in_group = values[i] < zeros[i]
+            if in_group and (not excludes_are_in(swings, excludes)):
+                sub_values = values_pd.loc[swings[i][0]:(swings[i][1]), Map.x]
+                if extremum in [1, -1]:
+                    target_value = sub_values.max() if extremum == 1 else sub_values.min()
+                    last_peak_index = sub_values[sub_values == target_value].index[-1]
+                else:
+                    last_peak_index = sub_values.index[-1]
+                break
+            else:
+                i = swings[i][0]
+            del in_group
+            i -= 1
+        return last_peak_index
+
+    @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
         p = Config.get(Config.DIR_SAVE_MARKET)
         mkt = market_price.get_market()
