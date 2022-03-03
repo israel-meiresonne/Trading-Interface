@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 import pandas as pd
 
@@ -652,46 +653,10 @@ class Icarus(TraderClass):
             macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
             vars_map.put(histogram, 'histogram')
-            vars_map.put(histogram_rising, 'histogram_rising')
-            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
-        def will_market_bounce(vars_map: Map) -> bool:
-            def macd_last_minimum_index(macd: list, histogram: list) -> int:
-                neg_macd_indexes = []
-                macd_df = pd.DataFrame({Map.macd: macd, Map.histogram: histogram})
-                neg_macd_df = macd_df[macd_df[Map.macd] < 0]
-                neg_idxs = neg_macd_df.index
-                for i in range(2, neg_macd_df.shape[0]):
-                    i = -i
-                    neg_macd_indexes.append(neg_idxs[i+1]) if abs(i) == 2 else None
-                    if abs(neg_idxs[i] - neg_idxs[i+1]) == 1:
-                        neg_macd_indexes.append(neg_idxs[i])
-                    else:
-                        break
-                last_lows_df = macd_df[macd_df.index.isin(neg_macd_indexes)]
-                last_min_macd = last_lows_df[Map.macd].min()
-                last_min_macd_index = last_lows_df[last_lows_df[Map.macd] == last_min_macd].index[-1]
-                return last_min_macd_index
-
-            def macd_last_peak_index(macd: list, signal: list, histogram: list) -> int:
-                posi_macd_indexes = []
-                macd_df = pd.DataFrame({Map.macd: macd, Map.signal: signal, Map.histogram: histogram})
-                posi_macd_df = macd_df[(macd_df[Map.histogram] > 0) & (macd_df[Map.macd] > 0) & (macd_df[Map.signal] > 0)]
-                posi_indexes = posi_macd_df.index
-                for i in range(2, posi_macd_df.shape[0]):
-                    i = -i
-                    posi_macd_indexes.append(posi_indexes[i+1]) if abs(i) == 2 else None
-                    if abs(posi_indexes[i] - posi_indexes[i+1]) == 1:
-                        posi_macd_indexes.append(posi_indexes[i])
-                    else:
-                        break
-                last_highs_df = macd_df[macd_df.index.isin(posi_macd_indexes)]
-                last_macd_peak = last_highs_df[Map.macd].max()
-                last_macd_peak_index = last_highs_df[last_highs_df[Map.macd] == last_macd_peak].index[-1]
-                return last_macd_peak_index
-
+        def is_macd_bounce(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
             macd_map = child_marketprice.get_macd()
@@ -701,54 +666,46 @@ class Icarus(TraderClass):
             signal.reverse()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
-            macd_min_index = macd_last_minimum_index(macd, histogram)
-            last_min_macd = macd[macd_min_index]
-            macd_peak_index = macd_last_peak_index(macd, signal, histogram)
-            last_peak_macd = macd[macd_peak_index]
-            will_bounce = last_peak_macd > abs(last_min_macd)
-            macd_min_date = _MF.unix_to_date(open_times[macd_min_index])
-            macd_peak_date = _MF.unix_to_date(open_times[macd_peak_index])
+            n_macd = len(macd)
+            peak_zeros = min_zeros = np.zeros(n_macd)
+            # Min
+            macd_min_index = MarketPrice.last_extremum_index(macd, min_zeros, -1, excludes=[])
+            # Peak
+            peak_excludes = [-1]
+            macd_peak_index = MarketPrice.last_extremum_index(macd, peak_zeros, 1, excludes=peak_excludes)
+            while (signal[macd_peak_index] < 0) or (histogram[macd_peak_index] < 0):
+                peak_excludes.append(macd_peak_index)
+                macd_peak_index = MarketPrice.last_extremum_index(macd, peak_zeros, 1, excludes=peak_excludes)
+            # Check
+            macd_bounce = macd[macd_peak_index] > abs(macd[macd_min_index])
             # Put
-            vars_map.put(macd_min_index, 'macd_min_index')
-            vars_map.put(last_min_macd, 'last_min_macd')
-            vars_map.put(macd_peak_index, 'macd_peak_index')
-            vars_map.put(last_peak_macd, 'last_peak_macd')
-            vars_map.put(will_bounce, 'will_bounce')
-            vars_map.put(macd_min_date, 'macd_min_date')
-            vars_map.put(macd_peak_date, 'macd_peak_date')
-            return will_bounce
+            vars_map.put(macd_bounce, 'macd_bounce')
+            vars_map.put(_MF.unix_to_date(open_times[macd_peak_index]), 'macd_peak_date')
+            vars_map.put(macd[macd_peak_index], 'last_peak_macd')
+            vars_map.put(_MF.unix_to_date(open_times[macd_min_index]), 'macd_min_date')
+            vars_map.put(macd[macd_min_index], 'last_min_macd')
+            return macd_bounce
 
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
-        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_macd_bounce(vars_map)
         # Repport
-        ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.ema_rising': vars_map.get('ema_rising'),
-            f'{key}.macd_negative': vars_map.get('macd_negative'),
-            f'{key}.histogram_rising': vars_map.get('histogram_rising'),
-            f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.will_bounce': vars_map.get('will_bounce'),
-            f'{key}.macd_min_index': vars_map.get('macd_min_index'),
-            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
-            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
-            f'{key}.macd_peak_index': vars_map.get('macd_peak_index'),
+            f'{key}.macd_bounce': vars_map.get('macd_bounce'),
             f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
             f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
+            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
+            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
-            f'{key}.ema[-1]': ema[-1] if ema is not None else None,
-            f'{key}.ema[-2]': ema[-2] if ema is not None else None,
-            f'{key}.ema[-3]': ema[-3] if ema is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
             f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
