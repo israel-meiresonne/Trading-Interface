@@ -416,7 +416,7 @@ class Icarus(TraderClass):
             histogram.reverse()
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
-        """
+
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -432,13 +432,11 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
-        """
 
         vars_map = Map()
         can_sell = False
         # Check
-        # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
-        can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map)
+        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
@@ -657,6 +655,13 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
+        def is_bellow_keltner(vars_map: Map) -> bool:
+            kc = child_marketprice.get_keltnerchannel()
+            kc_high = list(kc.get(Map.high))
+            kc_high.reverse()
+            bellow_keltner = closes[-1] < kc_high[-1]
+            return bellow_keltner
+
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -723,7 +728,7 @@ class Icarus(TraderClass):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
-        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) and is_bellow_keltner(vars_map)
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
@@ -972,7 +977,7 @@ class Icarus(TraderClass):
                 histogram.reverse()
                 histogram_dropping = histogram[-1] < 0
                 return histogram_dropping
-            """
+
             def are_macd_signal_negatives(vars_map: Map) -> bool:
                 macd_map = marketprice.get_macd()
                 macd = list(macd_map.get(Map.macd))
@@ -988,12 +993,11 @@ class Icarus(TraderClass):
                 macd.reverse()
                 tangent_macd_dropping = macd[-1] <= macd[-2]
                 return tangent_macd_dropping
-            """
 
             vars_map = Map()
             can_sell = False
             # Check
-            can_sell = (not is_buy_period()) and is_histogram_dropping(vars_map)
+            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
