@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 import pandas as pd
 
@@ -31,6 +32,7 @@ class Icarus(TraderClass):
     _PERIODS_REQUIRRED = [_MIN_PERIOD, _PREDICTOR_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
+    ROC_WINDOW = 15
     _PREDICTIONS = None
     _FILE_PATH_BACKTEST = f'Icarus/backtest/$path/$session_backtest.csv'
 
@@ -656,6 +658,31 @@ class Icarus(TraderClass):
             vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
+
+        def is_roc_positive(vars_map: Map) -> bool:
+            roc = list(child_marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            roc_positive = roc[-1] > 0
+            vars_map.put(roc_positive, 'roc_positive')
+            return roc_positive
+
+        def is_roc_bounce(vars_map: Map) -> bool:
+            roc = list(child_marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            zeros = np.zeros(len(roc)).tolist()
+            last_min_index = MarketPrice.last_extremum_index(roc, zeros, -1, excludes=[-1])
+            last_peak_index = MarketPrice.last_extremum_index(roc, zeros, 1, excludes=[-1])
+            roc_bounce = abs(roc[last_min_index]) <= 0.5*roc[last_peak_index]
+            vars_map.put(roc_bounce, 'roc_bounce')
+            vars_map.put(_MF.unix_to_date(open_times[last_peak_index]), 'last_roc_peak_date')
+            vars_map.put(roc[last_peak_index], 'last_roc_peak')
+            vars_map.put(_MF.unix_to_date(open_times[last_min_index]), 'last_roc_min_date')
+            vars_map.put(roc[last_min_index], 'last_roc_min')
+            vars_map.put(roc, 'roc')
+            return roc_bounce
+
         """
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
@@ -723,39 +750,33 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
-        can_buy_indicator = is_macd_switch_up(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_roc_positive(vars_map) and is_roc_bounce(vars_map)
         # Repport
-        ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
+        roc = vars_map.get('roc')
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.ema_rising': vars_map.get('ema_rising'),
-            f'{key}.macd_negative': vars_map.get('macd_negative'),
-            f'{key}.histogram_rising': vars_map.get('histogram_rising'),
-            f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.will_bounce': vars_map.get('will_bounce'),
-            f'{key}.macd_min_index': vars_map.get('macd_min_index'),
-            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
-            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
-            f'{key}.macd_peak_index': vars_map.get('macd_peak_index'),
-            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
-            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
+            f'{key}.roc_positive': vars_map.get('roc_positive'),
+            f'{key}.roc_bounce': vars_map.get('roc_bounce'),
+            f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
+            f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
+            f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
+            f'{key}.last_roc_min': vars_map.get('last_roc_min'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
-            f'{key}.ema[-1]': ema[-1] if ema is not None else None,
-            f'{key}.ema[-2]': ema[-2] if ema is not None else None,
-            f'{key}.ema[-3]': ema[-3] if ema is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
             f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
-            f'{key}.macd[-3]': macd[-3] if macd is not None else None
+            f'{key}.macd[-3]': macd[-3] if macd is not None else None,
+            f'{key}.roc[-1]': roc[-1] if roc is not None else None,
+            f'{key}.roc[-2]': roc[-2] if roc is not None else None,
+            f'{key}.roc[-3]': roc[-3] if roc is not None else None
         }
         return can_buy_indicator, repport
 
