@@ -50,6 +50,7 @@ class Map(MyJson):
     execution = "execution"
     callback = "callback"
     width = "width"
+    zero = "zero"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI

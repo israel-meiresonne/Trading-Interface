@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pandas_ta import supertrend as _supertrend
 from ta.volatility import KeltnerChannel, BollingerBands
-from ta.momentum import RSIIndicator, TSIIndicator
+from ta.momentum import RSIIndicator, TSIIndicator, ROCIndicator
 from ta.trend import PSARIndicator, MACD
 from ta.utils import _ema
 from scipy.signal import find_peaks
@@ -68,6 +68,7 @@ class MarketPrice(ABC):
     COLLECTION_BOLLINGER_LOW = "COLLECTION_BOLLINGER_LOW"
     COLLECTION_BOLLINGER_WIDTH = "COLLECTION_BOLLINGER_WIDTH"
     COLLECTION_BOLLINGER_RATE = "COLLECTION_BOLLINGER_RATE"
+    COLLECTION_ROC = "COLLECTION_ROC"
     # Collection Config
     _NB_PRD_RSIS = 14
     _NB_PRD_SLOPES = 7
@@ -96,6 +97,7 @@ class MarketPrice(ABC):
     _EMA_N_PERIOD = 10
     _BOLLINGER_WINDOW = 20
     _BOLLINGER_WINDOW_DEV = 2
+    _ROC_WINDOW = 12
 
     @abstractmethod
     def __init__(self, mkt: list, prd_time: int, pair: Pair):
@@ -151,7 +153,8 @@ class MarketPrice(ABC):
             self.COLLECTION_BOLLINGER_MIDDLE: None,
             self.COLLECTION_BOLLINGER_LOW: None,
             self.COLLECTION_BOLLINGER_WIDTH: None,
-            self.COLLECTION_BOLLINGER_RATE: None
+            self.COLLECTION_BOLLINGER_RATE: None,
+            self.COLLECTION_ROC: None
         })
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
@@ -750,6 +753,20 @@ class MarketPrice(ABC):
         })
         return bollinger
 
+    def get_roc(self, window: int = _ROC_WINDOW) -> tuple:
+        """
+        To get Rate-of-Change (ROC)
+        """
+        key = self.COLLECTION_ROC
+        roc = self._get_collection(key)
+        if roc is None:
+            closes = list(self.get_closes())
+            closes.reverse()
+            roc = self.roc(closes, window)
+            roc.reverse()
+            self._set_collection(key, roc)
+        return roc
+
     def _set_ms(self) -> None:
         """
         To generate the market's variation speed for its most recent period\n
@@ -1225,6 +1242,13 @@ class MarketPrice(ABC):
         return bollinger_rate_map
 
     @staticmethod
+    def roc(closes: list, window: int) -> list:
+        closes_series = pd.Series(closes)
+        roc_obj = ROCIndicator(closes_series, window)
+        roc = roc_obj.roc().to_list()
+        return roc
+
+    @staticmethod
     def get_spot_pairs(broker_class: str, fiat_asset: Asset) -> List[Pair]:
         """
         To get pairs available for spot trading\n
@@ -1319,9 +1343,9 @@ class MarketPrice(ABC):
         n_period: int
             The number of period to retrieve
         endtime: int
-            The most recent time (in second)
+            The most recent open time (in second)
         starttime: int
-            The older time (in second)
+            The older open time (in second)
         n_history: int
             The number of history to retrieve
 
@@ -1355,7 +1379,7 @@ class MarketPrice(ABC):
             raise Exception(f"The starttime must be before than endtime, instead starttime'{starttime}' >= endtime'{endtime}'")
         if starttime is None:
             starttime = endtime - (n_history * period)
-        starttime = _MF.round_time(starttime, period)
+        starttime = _MF.round_time(starttime, period) - period
         max_n_period = broker.get_max_n_period()
         endtime = _MF.round_time(endtime, period)
         endtime_copy = endtime
@@ -1377,12 +1401,11 @@ class MarketPrice(ABC):
         # Sort following the open time
         marketprices_pd = marketprices_pd.sort_values(by='0', axis=0, ascending=True)
         # Remove exceeding periods
-        n_row = int(abs(endtime - starttime)/period)
-        marketprices_pd = marketprices_pd[-n_row:] if (marketprices_pd.shape[0] > n_row) else marketprices_pd
+        marketprices_pd = marketprices_pd[(marketprices_pd.iloc[:,0] >= ((starttime+period)*1000)) & (marketprices_pd.iloc[:,0] <= (endtime*1000))]
         return marketprices_pd
 
-    @staticmethod
-    def save_marketprices(broker: 'Broker', pairs: List[Pair], periods: List[int], endtime: int, starttime: int) -> None:
+    @classmethod
+    def download_marketprices(cls, broker: 'Broker', pairs: List[Pair], periods: List[int], endtime: int, starttime: int) -> None:
         """
         To download and save markt prices
 
@@ -1399,6 +1422,16 @@ class MarketPrice(ABC):
         starttime: int
             The older time to download (in second)
         """
+        def get_marketprices(broker: 'Broker', pair: Pair, period: int, endtime: int, starttime: int) -> pd.DataFrame:
+            marketprice_pd = _MF.catch_exception(cls.marketprices, cls.__name__, repport=True, **{
+                'broker': broker, 
+                'pair': pair, 
+                'period': period, 
+                'endtime': endtime, 
+                'starttime': starttime
+                })
+            return marketprice_pd
+
         def print_history(path: str, marketprice: pd.DataFrame) -> None:
             csv = marketprice.to_csv(index=False)
             FileManager.write(path, csv, overwrite=True, make_dir=True)
@@ -1414,7 +1447,8 @@ class MarketPrice(ABC):
                 Map.broker: broker_name,
                 Map.pair: pair,
                 Map.period: period,
-                Map.interval: f'{int(period/60)}min.',
+                Map.interval: _MF.delta_time(0, period),
+                Map.shape: marketprice.shape,
                 Map.start_time: _MF.unix_to_date(first_time),
                 Map.end_time: _MF.unix_to_date(last_time),
                 Map.time: _MF.delta_time(first_time, last_time),
@@ -1425,7 +1459,6 @@ class MarketPrice(ABC):
             file_path = path + 'config.csv'
             FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
 
-        _cls = MarketPrice
         _back_cyan = '\033[46m' + '\033[30m'
         _normal = '\033[0m'
         broker_name = broker.__class__.__name__
@@ -1433,28 +1466,34 @@ class MarketPrice(ABC):
         n_turn = len(pairs) * len(periods)
         turn = 1
         out_starttime = _MF.get_timestamp()
-        _MF.output(f"{_back_cyan}Start extracting prices of '{len(pairs)}' pairs from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'{_normal}")
+        _MF.output(f"{_MF.prefix() + _back_cyan}Start extracting prices of '{len(pairs)}' pairs from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'{_normal}")
         for pair in pairs:
             for period in periods:
                 _MF.output(_MF.loop_progression(out_starttime, turn, n_turn, message=f"{pair.__str__().upper()} {int(period/60)}min."))
                 turn += 1
-                marketprice_pd = _MF.catch_exception(_cls.marketprices, _cls.__name__, repport=True, **{
-                    'broker': broker, 
-                    'pair': pair, 
-                    'period': period, 
-                    'endtime': endtime, 
-                    'starttime': starttime
-                    })
-                if marketprice_pd is None:
-                    continue
-                # marketprice_pd = _cls.marketprices(broker, pair, period, endtime, starttime=starttime)
-                file_path = _cls.file_path_market_history(broker_name, pair, period, active_path=False)
-                dir_path = _cls.dir_path_market_history(broker_name, pair, active_path=False)
+                if cls.exist_history(broker_name, pair, period):
+                    marketprice_pd = cls.load_marketprice(broker_name, pair, period, active_path=False)
+                    old_starttime = int(marketprice_pd.iloc[0,0]/1000)
+                    old_endtime = int(marketprice_pd.iloc[-1,0]/1000)
+                    if (old_starttime - starttime) > 0:
+                        # Download before existing history
+                        before_marketprice_pd = get_marketprices(broker, pair, period, old_starttime, starttime)
+                        marketprice_pd = pd.concat([before_marketprice_pd[:-1], marketprice_pd], ignore_index=True)
+                    if (endtime - old_endtime) > 0:
+                        # Download after existing history
+                        after_marketprice_pd = get_marketprices(broker, pair, period, endtime, old_endtime)
+                        marketprice_pd = pd.concat([marketprice_pd, after_marketprice_pd.iloc[1:]], ignore_index=True)
+                else:
+                    marketprice_pd = get_marketprices(broker, pair, period, endtime, starttime)
+                    if marketprice_pd is None:
+                        continue
+                file_path = cls.file_path_market_history(broker_name, pair, period, active_path=False)
+                dir_path = cls.dir_path_market_history(broker_name, pair, active_path=False)
                 print_history(file_path, marketprice_pd)
                 print_config(dir_path, marketprice_pd)
 
     @staticmethod
-    def load_marketprice(broker_name: str, pair: Pair, period: int, active_path: bool) -> np.ndarray:
+    def load_marketprice(broker_name: str, pair: Pair, period: int, active_path: bool) -> pd.DataFrame:
         """
         To load market history
 
@@ -1472,7 +1511,7 @@ class MarketPrice(ABC):
 
         Return:
         -------
-        return: np.ndarray
+        return: pd.DataFrame
             Loaded market history
         """
         if active_path:
@@ -1487,8 +1526,35 @@ class MarketPrice(ABC):
                 raise ValueError(f"This Pair '{pair}' don't has its Stock history")
         stock_file_path = MarketPrice.file_path_market_history(broker_name, pair, period, active_path=False)
         project_dir = FileManager.get_project_directory()
-        history = pd.read_csv(project_dir + stock_file_path).to_numpy()
+        history = pd.read_csv(project_dir + stock_file_path)
         return history
+
+    @classmethod
+    def exist_history(cls, broker_name: str, pair: Pair, period: int) -> bool:
+        """
+        To check if a market history exist
+
+        Parameters:
+        -----------
+        broker_name: str
+            Class name of a supported Broker
+        pair: Pair
+            Pair of the history to check
+        period: int
+            Period of the history to check (in second)
+
+        Returns:
+        --------
+        return: bool
+            True if exist a history else False
+        """
+        active_path = False
+        file_path = cls.file_path_market_history(broker_name, pair, period, active_path)
+        file_name = file_path.split('/')[-1]
+        dir_path_history = cls.dir_path_market_history(broker_name, pair, active_path)
+        history_files = FileManager.get_files(dir_path_history, make_dir=True)
+        exist_history = file_name in history_files
+        return exist_history
 
     @staticmethod
     def file_path_market_history(broker_name: str, pair: Pair, period: int, active_path: bool = True) -> str:
@@ -1621,6 +1687,64 @@ class MarketPrice(ABC):
     @staticmethod
     def regex_history_file() -> str:
         return MarketPrice._REGEX_HISTORY_FILE
+
+    @staticmethod
+    def last_extremum_index(values: list, zeros: list, extremum: int, excludes: list = []) -> int:
+        """
+        To get index of the last extremum
+        * 1: to get index of the last peak
+        * 0: to get index of the last zero
+        * -1: to get index of the last minimum
+
+        Parameters:
+        -----------
+        values: list
+            Values to search peak in
+        zeros: list
+            Values to use as comparaison base
+        extremum: int
+            The extremum to get
+        exclude: list = []
+            List of index to exclude (can be positive of negative)
+
+        Returns:
+        --------
+        Index of the last peak
+        """
+        def excludes_are_in(swings: list, excludes: list) -> bool:
+            index_range = range(swings[i][0], (swings[i][1] + 1))
+            excludes_in = sum([1 for exclude in excludes if exclude in index_range]) > 0
+            return excludes_in
+        
+        if extremum not in [1, 0, -1]:
+            raise ValueError(f"Extremum must be '1', '0', or '-1', instead '{extremum}'")
+        last_peak_index = None
+        n_row = len(values)
+        excludes = [(n_row + i) if (isinstance(float(values[i]), float)) and (i < 0) else i for i in excludes]
+        zero_np = np.array(zeros)
+        values_pd = pd.DataFrame({Map.x: values, Map.zero: zero_np})
+        swings = _MF.group_swings(values, zero_np.tolist())
+        i = n_row - 1
+        while i >= 0:
+            if extremum == 1:
+                in_group = values[i] > zeros[i]
+            elif extremum == 0:
+                in_group = values[i] == zeros[i]
+            elif extremum == -1:
+                in_group = values[i] < zeros[i]
+            if in_group and (not excludes_are_in(swings, excludes)):
+                sub_values = values_pd.loc[swings[i][0]:(swings[i][1]), Map.x]
+                if extremum in [1, -1]:
+                    target_value = sub_values.max() if extremum == 1 else sub_values.min()
+                    last_peak_index = sub_values[sub_values == target_value].index[-1]
+                else:
+                    last_peak_index = sub_values.index[-1]
+                break
+            else:
+                i = swings[i][0]
+            del in_group
+            i -= 1
+        return last_peak_index
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
