@@ -160,7 +160,7 @@ class BinanceFakeAPI(BinanceAPI):
         _cls = BinanceFakeAPI
         broker_name = BinanceAPI.__name__.replace('API', '')
         pair = Pair(_cls.symbol_to_pair(merged_pair))
-        history = MarketPrice.load_marketprice(broker_name, pair, period, active_path=True)
+        history = MarketPrice.load_marketprice(broker_name, pair, period, active_path=True).to_numpy()
         # Select times
         history = filter_time(history=history, period=period)
         # Complete missing period
