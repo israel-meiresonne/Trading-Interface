@@ -138,12 +138,8 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
-            f'{key}.roc_positive': None,
-            f'{key}.roc_bounce': None,
-            f'{key}.last_roc_peak_date': None,
-            f'{key}.last_roc_peak': None,
-            f'{key}.last_roc_min_date': None,
-            f'{key}.last_roc_min': None,
+            f'{key}.rsi_reached': None,
+            f'{key}.rsi_trigger': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
             f'{key}.closes[-3]': None,
@@ -153,9 +149,9 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd[-1]': None,
             f'{key}.macd[-2]': None,
             f'{key}.macd[-3]': None,
-            f'{key}.roc[-1]': None,
-            f'{key}.roc[-2]': None,
-            f'{key}.roc[-3]': None
+            f'{key}.rsi[-1]': None,
+            f'{key}.rsi[-2]': None,
+            f'{key}.rsi[-3]': None
         }
         # Repport
         key = Icarus.can_buy.__name__

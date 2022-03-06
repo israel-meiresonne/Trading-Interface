@@ -660,6 +660,17 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
+        def is_rsi_reached(vars_map: Map, marketprice: MarketPrice) -> bool:
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            rsi_trigger = 60
+            rsi_reached = rsi[-1] > rsi_trigger
+            vars_map.put(rsi_reached, 'rsi_reached')
+            vars_map.put(rsi_trigger, 'rsi_trigger')
+            vars_map.put(rsi, Map.rsi)
+            return rsi_reached
+
+        """
         def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
             roc = list(marketprice.get_roc(cls.ROC_WINDOW))
             roc.reverse()
@@ -684,7 +695,6 @@ class Icarus(TraderClass):
             vars_map.put(roc, 'roc')
             return roc_bounce
 
-        """
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -751,21 +761,17 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_rsi_reached(vars_map, big_marketprice)
         # Repport
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
-        roc = vars_map.get('roc')
+        rsi = vars_map.get(Map.rsi)
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.roc_positive': vars_map.get('roc_positive'),
-            f'{key}.roc_bounce': vars_map.get('roc_bounce'),
-            f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
-            f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
-            f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
-            f'{key}.last_roc_min': vars_map.get('last_roc_min'),
+            f'{key}.rsi_reached': vars_map.get('rsi_reached'),
+            f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -775,9 +781,9 @@ class Icarus(TraderClass):
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.macd[-3]': macd[-3] if macd is not None else None,
-            f'{key}.roc[-1]': roc[-1] if roc is not None else None,
-            f'{key}.roc[-2]': roc[-2] if roc is not None else None,
-            f'{key}.roc[-3]': roc[-3] if roc is not None else None
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
+            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None,
+            f'{key}.rsi[-3]': rsi[-3] if rsi is not None else None
         }
         return can_buy_indicator, repport
 
