@@ -1,6 +1,6 @@
 import unittest
 
-import numpy as np
+import pandas as pd
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 
@@ -837,11 +837,21 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         unix_time = _MF.get_timestamp()
         pair = Pair('BTC/USDT')
         period = 60*60
-        endtime = unix_time
-        starttime = unix_time - (period*900)*3
+        # endtime = _MF.round_time(unix_time, period)
+        # starttime = _MF.round_time((unix_time - (period*900)*3), period)
+        starttime = int(_MF.date_to_unix('2021-03-23 0:00:00'))
+        endtime = int(_MF.date_to_unix('2021-05-24 12:00:00'))
         marketprices = MarketPrice.marketprices(bkr, pair, period, endtime, starttime)
+        # Interval of followed open times equal period
         n_error = sum([1 if ((marketprices.iloc[i,0] - marketprices.iloc[i-1,0])%period != 0) else 0 for i in range(1, marketprices.shape[0])])
         self.assertEqual(0, n_error)
+        # First and last open times are correct
+        exp2 = starttime
+        result2 = int(marketprices.iloc[0,0]/1000)
+        self.assertEqual(exp2, result2)
+        exp3 = endtime
+        result3 = int(marketprices.iloc[-1,0]/1000)
+        self.assertEqual(exp3, result3)
         self.broker_switch(on=False)
 
     def test_save_marketprices(self) -> None:
@@ -850,7 +860,7 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         periods = [60*30, 60*60]
         endtime = _MF.get_timestamp()
         starttime = endtime - periods[-1]*900*3
-        MarketPrice.save_marketprices(broker, pairs, periods, endtime, starttime)
+        MarketPrice.download_marketprices(broker, pairs, periods, endtime, starttime)
         self.broker_switch(on=False)
 
     def test_load_marketprice(self) -> None:
@@ -860,18 +870,28 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         period = 60*60
         # Active history
         marketprice1 = MarketPrice.load_marketprice(broker_name, pair, period, active_path=True)
-        self.assertIsInstance(marketprice1, np.ndarray)
+        self.assertIsInstance(marketprice1, pd.DataFrame)
         # Stock history
         marketprice2 = MarketPrice.load_marketprice(broker_name, pair, period, active_path=False)
-        self.assertIsInstance(marketprice2, np.ndarray)
+        self.assertIsInstance(marketprice2, pd.DataFrame)
         # Same history
-        self.assertListEqual(marketprice1.tolist(), marketprice2.tolist())
-        # No supported Sctive pair
+        self.assertListEqual(marketprice1.to_numpy().tolist(), marketprice2.to_numpy().tolist())
+        # No supported Active pair
         with self.assertRaises(ValueError):
             MarketPrice.load_marketprice(broker_name, fake_pair, period, active_path=True)
         # No supported Stock pair
         with self.assertRaises(ValueError):
             MarketPrice.load_marketprice(broker_name, fake_pair, period, active_path=False)
+
+    def test_exist_history(self) -> None:
+        broker_name = 'Binance'
+        pair = self.pair1
+        # Exist
+        period1 = 60
+        self.assertTrue(self.exist_history(broker_name, pair, period1))
+        # Don't exist
+        period1 = 3
+        self.assertFalse(self.exist_history(broker_name, pair, period1))
 
     def test_file_path_market_history(self) -> None:
         _cls = MarketPrice
