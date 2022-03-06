@@ -755,8 +755,7 @@ class Icarus(TraderClass):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
-            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice)  \
-                and is_bellow_keltner(vars_map)
+            and is_roc_positive(vars_map, big_marketprice) and is_bellow_keltner(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
