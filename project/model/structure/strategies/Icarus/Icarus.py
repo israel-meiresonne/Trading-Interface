@@ -1036,7 +1036,7 @@ class Icarus(TraderClass):
             SELL_ROI_TRIGGER = 3/100
             ROI_SAVE_RATE = 50/100
             buy_repports = []
-            n_period = 100
+            n_period = 300
             fees = broker.get_trade_fee(pair)
             taker_fee_rate = fees.get(Map.taker)
             buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
