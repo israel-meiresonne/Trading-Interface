@@ -141,7 +141,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.will_bounce': None,
             f'{key}.closes_above_low_keltner': None,
             f'{key}.macd_peak_date': None,
-            f'{key}.macd_peak_date': None,
+            f'{key}.last_peak_macd': None,
             f'{key}.macd_min_date': None,
             f'{key}.last_min_macd': None,
             f'{key}.min_close_date': None,

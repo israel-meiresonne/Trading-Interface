@@ -773,7 +773,7 @@ class Icarus(TraderClass):
             f'{key}.will_bounce': vars_map.get('will_bounce'),
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
             f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
-            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
+            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
             f'{key}.min_close_date': vars_map.get('min_close_date'),
