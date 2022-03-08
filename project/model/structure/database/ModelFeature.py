@@ -636,21 +636,21 @@ class ModelFeature(ModelAccess):
             cls.output(delta)
 
     @staticmethod
-    def group_swings(values: list[float,int], compares: list[float,int]) -> dict[int,list[int]]:
+    def group_swings(values: list[float,int], zeros: list[float,int]) -> dict[int,list[int]]:
         """
-        To group given value following if there are above, equal or bellow the corresponding compare value
+        To group given values following if there are above, equal or bellow the corresponding zero value
 
         Parameters:
         -----------
         values: list[float,int]
             Values to group
-        compares: list[float,int]
-            Values to compare with
+        zeros: list[float,int]
+            Values to use as reference (zero value) to compare with
 
         Raises:
         -------
         raise: ValueError
-            If values and compares don't have the same size
+            If values and zeros don't have the same size
 
         Returns:
         --------
@@ -670,10 +670,10 @@ class ModelFeature(ModelAccess):
                     group = []
 
         from model.tools.Map import Map
-        if len(values) != len(compares):
-            raise ValueError(f"Values and compares must have the same size")
+        if len(values) != len(zeros):
+            raise ValueError(f"Values and Zeros must have the same size")
         groups = {}
-        all_df = pd.DataFrame({Map.x: values, Map.neutral: compares})
+        all_df = pd.DataFrame({Map.x: values, Map.neutral: zeros})
         above_df = all_df[all_df[Map.x] > all_df[Map.neutral]]
         bellow_df = all_df[all_df[Map.x] < all_df[Map.neutral]]
         equal_df = all_df[all_df[Map.x] == all_df[Map.neutral]]
