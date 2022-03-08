@@ -138,12 +138,19 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
+            f'{key}.will_bounce': None,
             f'{key}.roc_positive': None,
             f'{key}.roc_bounce': None,
+            f'{key}.bellow_keltner': None,
+            f'{key}.closes_above_low_keltner': None,
             f'{key}.last_roc_peak_date': None,
             f'{key}.last_roc_peak': None,
             f'{key}.last_roc_min_date': None,
             f'{key}.last_roc_min': None,
+            f'{key}.min_close_date': None,
+            f'{key}.min_close': None,
+            f'{key}.min_keltner_date': None,
+            f'{key}.min_keltner': None,
             f'{key}.closes[-1]': None,
             f'{key}.closes[-2]': None,
             f'{key}.closes[-3]': None,
@@ -155,7 +162,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd[-3]': None,
             f'{key}.roc[-1]': None,
             f'{key}.roc[-2]': None,
-            f'{key}.roc[-3]': None
+            f'{key}.roc[-3]': None,
+            f'{key}.signal[-1]': None,
+            f'{key}.signal[-2]': None,
+            f'{key}.signal[-3]': None,
+            f'{key}.keltner_low[-1]': None,
+            f'{key}.keltner_low[-2]': None,
+            f'{key}.keltner_low[-3]': None
         }
         # Repport
         key = Icarus.can_buy.__name__
