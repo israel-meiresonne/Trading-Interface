@@ -647,8 +647,8 @@ class Icarus(TraderClass):
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
-            histogram_rising = histogram[-1] > 0
-            prev_histogram_dropping = histogram[-2] < 0
+            histogram_rising = histogram[-2] > 0
+            prev_histogram_dropping = histogram[-3] < 0
             macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
             vars_map.put(histogram, 'histogram')
@@ -723,33 +723,17 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
         can_buy_indicator = is_macd_switch_up(vars_map)
         # Repport
-        ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.ema_rising': vars_map.get('ema_rising'),
-            f'{key}.macd_negative': vars_map.get('macd_negative'),
-            f'{key}.histogram_rising': vars_map.get('histogram_rising'),
-            f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.will_bounce': vars_map.get('will_bounce'),
-            f'{key}.macd_min_index': vars_map.get('macd_min_index'),
-            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
-            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
-            f'{key}.macd_peak_index': vars_map.get('macd_peak_index'),
-            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
-            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
-            f'{key}.ema[-1]': ema[-1] if ema is not None else None,
-            f'{key}.ema[-2]': ema[-2] if ema is not None else None,
-            f'{key}.ema[-3]': ema[-3] if ema is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
             f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
