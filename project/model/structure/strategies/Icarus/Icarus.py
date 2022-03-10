@@ -691,9 +691,11 @@ class Icarus(TraderClass):
             vars_map.put(roc, 'roc')
             return roc_bounce
 
-        def is_closes_above_low_keltner(vars_map: Map) -> bool:
+        def is_lows_above_low_keltner(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
+            lows = list(child_marketprice.get_lows())
+            lows.reverse()
             keltner_low = list(child_marketprice.get_keltnerchannel().get(Map.low))
             keltner_low.reverse()
             macd_map = child_marketprice.get_macd()
@@ -708,26 +710,26 @@ class Icarus(TraderClass):
             interval = macd_swing[last_min_index]
             sub_open_times = open_times[interval[0]:interval[1]+1]
             # Min Close
-            sub_close = closes[interval[0]:interval[1]+1]
-            min_close = min(sub_close)
-            min_close_open_time = sub_open_times[sub_close.index(min_close)]
+            sub_lows = lows[interval[0]:interval[1]+1]
+            min_low = min(sub_lows)
+            min_low_open_time = sub_open_times[sub_lows.index(min_low)]
             # Min Keltner
             sub_keltner_low = keltner_low[interval[0]:interval[1]+1]
             min_keltner = min(sub_keltner_low)
             min_keltner_open_time = sub_open_times[sub_keltner_low.index(min_keltner)]
             # Check
-            closes_above_low_keltner = min_close > min_keltner
+            lows_above_low_keltner = min_low > min_keltner
             # Put
-            vars_map.put(closes_above_low_keltner, 'closes_above_low_keltner')
-            vars_map.put(_MF.unix_to_date(min_close_open_time), 'min_close_date')
-            vars_map.put(min_close, 'min_close')
+            vars_map.put(lows_above_low_keltner, 'lows_above_low_keltner')
+            vars_map.put(_MF.unix_to_date(min_low_open_time), 'min_low_date')
+            vars_map.put(min_low, 'min_low')
             vars_map.put(_MF.unix_to_date(min_keltner_open_time), 'min_keltner_date')
             vars_map.put(min_keltner, 'min_keltner')
             vars_map.put(keltner_low, 'keltner_low')
             vars_map.put(macd, Map.macd)
             vars_map.put(signal, Map.signal)
             vars_map.put(histogram, Map.histogram)
-            return closes_above_low_keltner
+            return lows_above_low_keltner
 
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
@@ -796,7 +798,7 @@ class Icarus(TraderClass):
         closes.reverse()
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
-                and is_bellow_keltner(vars_map) and is_closes_above_low_keltner(vars_map)
+                and is_bellow_keltner(vars_map) and is_lows_above_low_keltner(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
@@ -811,13 +813,13 @@ class Icarus(TraderClass):
             f'{key}.roc_positive': vars_map.get('roc_positive'),
             f'{key}.roc_bounce': vars_map.get('roc_bounce'),
             f'{key}.bellow_keltner': vars_map.get('bellow_keltner'),
-            f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
+            f'{key}.lows_above_low_keltner': vars_map.get('lows_above_low_keltner'),
             f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
             f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
             f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
             f'{key}.last_roc_min': vars_map.get('last_roc_min'),
-            f'{key}.min_close_date': vars_map.get('min_close_date'),
-            f'{key}.min_close': vars_map.get('min_close'),
+            f'{key}.min_low_date': vars_map.get('min_low_date'),
+            f'{key}.min_low': vars_map.get('min_low'),
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
             f'{key}.min_keltner': vars_map.get('min_keltner'),
             f'{key}.closes[-1]': closes[-1],
