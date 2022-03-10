@@ -648,8 +648,8 @@ class Icarus(TraderClass):
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
-            histogram_rising = histogram[-1] > 0
-            prev_histogram_dropping = histogram[-2] < 0
+            histogram_rising = histogram[-2] > 0
+            prev_histogram_dropping = histogram[-3] < 0
             macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
             vars_map.put(histogram, 'histogram')
