@@ -1078,7 +1078,6 @@ class Icarus(TraderClass):
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
                     trade['sell_price'] = exec_price
-                    trade['sell_in_buy_period'] = sell_in_buy_period
                     trade['unban_time'] = _MF.unix_to_date(unban_time) if unban_time > 0 else None
                     trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
                     trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
