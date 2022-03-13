@@ -157,11 +157,12 @@ class Map(MyJson):
     low = "low"
     rsi = "rsi"
     tsi = "tsi"
-    super_trend = "super_trend"
+    supertrend = "supertrend"
     volume = "volume"
     macd = "macd"
     signal = "signal"
     histogram = "histogram"
+    ema = "ema"
     # MinMax
     stop = "stop"
     # Order

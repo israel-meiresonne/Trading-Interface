@@ -886,12 +886,13 @@ class Icarus(TraderClass):
         return file_path
 
     @classmethod
-    def file_path_backtest_repport(cls) -> str:
+    def file_path_backtest_repport(cls, buy_file: bool) -> str:
         """
         To get file path of where condition to buy/sell are printed
         """
+        file_type = Map.buy if buy_file else Map.sell
         test_file_path = cls.file_path_backtest_test()
-        repport_file_name = f'{Config.get(Config.SESSION_ID)}_buy_repports.csv'
+        repport_file_name = f'{Config.get(Config.SESSION_ID)}_{file_type}_repports.csv'
         repport_paths = test_file_path.split('/')
         repport_paths[-1] = repport_file_name
         repport_file_path = '/'.join(repport_paths)
@@ -1136,7 +1137,7 @@ class Icarus(TraderClass):
                 trades.loc[:,'n_loss'] = loss_trades.shape[0]
                 trades.loc[:,'loss_rate'] = loss_trades.shape[0]/n_trades
             if len(buy_repports) > 0:
-                repport_file_path = cls.file_path_backtest_repport()
+                repport_file_path = cls.file_path_backtest_repport(buy_file=True)
                 fields = list(buy_repports[0].keys())
                 rows = buy_repports
                 FileManager.write_csv(repport_file_path, fields, rows, overwrite=False, make_dir=True)
