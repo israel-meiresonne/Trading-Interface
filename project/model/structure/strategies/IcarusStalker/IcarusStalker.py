@@ -138,15 +138,31 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
+            f'{key}.macd_bellow_bull_peak': None,
+            f'{key}.lows_above_low_keltner': None,
+            f'{key}.close_bellow_keltner': None,
+
+            f'{key}.macd_bull_peak_iterval_start': None,
+            f'{key}.macd_bull_peak_iterval_end': None,
+            f'{key}.global_macd_bull_peak_date': None,
+            f'{key}.global_macd_bull_peak': None,
+            f'{key}.local_macd_bull_peak': None,
+
+            f'{key}.min_low_date': None,
+            f'{key}.min_low': None,
+            f'{key}.min_keltner_date': None,
+            f'{key}.min_keltner': None,
+
             f'{key}.closes[-1]': None,
-            f'{key}.closes[-2]': None,
-            f'{key}.closes[-3]': None,
+            f'{key}.high[-1]': None,
+            f'{key}.low[-1]': None,
             f'{key}.histogram[-1]': None,
-            f'{key}.histogram[-2]': None,
-            f'{key}.histogram[-3]': None,
             f'{key}.macd[-1]': None,
-            f'{key}.macd[-2]': None,
-            f'{key}.macd[-3]': None
+            f'{key}.signal[-1]': None,
+            f'{key}.ema[-1]': None,
+            f'{key}.supertrend[-1]': None,
+            f'{key}.keltner_high[-1]': None,
+            f'{key}.keltner_low[-1]': None,
         }
         # Repport
         key = Icarus.can_buy.__name__
