@@ -1078,12 +1078,14 @@ class Icarus(TraderClass):
                     trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
                     trade['min_roi_position'] = min_roi_position
                     trade['max_roi_position'] = max_roi_position
-                    trade['mean_roi'] = None
                     trade['min_roi'] = None
+                    trade['mean_roi'] = None
                     trade['max_roi'] = None
                     trade['mean_win_roi'] = None
                     trade['mean_loss_roi'] = None
                     trade[Map.sum] = None
+                    trade['min_sum_roi'] = None
+                    trade['max_sum_roi'] = None
                     trade['final_roi'] = None
                     trade[Map.fee] = buy_sell_fee
                     trade['sum_fee'] = None
@@ -1131,6 +1133,8 @@ class Icarus(TraderClass):
                 trades.loc[:,'max_roi'] = trades[Map.roi].max()
                 trades.loc[:,'mean_win_roi'] = win_trades[Map.roi].mean()
                 trades.loc[:,'mean_loss_roi'] = loss_trades[Map.roi].mean()
+                trades.loc[:,'min_sum_roi'] = trades[Map.sum].min()
+                trades.loc[:,'max_sum_roi'] = trades[Map.sum].max()
                 trades.loc[:,'final_roi'] = trades.loc[trades.index[-1], Map.sum]
                 trades.loc[:,'n_win'] = win_trades.shape[0]
                 trades.loc[:,'win_rate'] = win_trades.shape[0]/n_trades
