@@ -908,12 +908,13 @@ class Icarus(TraderClass):
         return file_path
 
     @classmethod
-    def file_path_backtest_repport(cls) -> str:
+    def file_path_backtest_repport(cls, buy_file: bool) -> str:
         """
         To get file path of where condition to buy/sell are printed
         """
+        file_type = Map.buy if buy_file else Map.sell
         test_file_path = cls.file_path_backtest_test()
-        repport_file_name = f'{Config.get(Config.SESSION_ID)}_buy_repports.csv'
+        repport_file_name = f'{Config.get(Config.SESSION_ID)}_{file_type}_repports.csv'
         repport_paths = test_file_path.split('/')
         repport_paths[-1] = repport_file_name
         repport_file_path = '/'.join(repport_paths)
@@ -1021,7 +1022,7 @@ class Icarus(TraderClass):
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
             buy_repports = []
-            n_period = broker.get_max_n_period()
+            n_period = 300
             fees = broker.get_trade_fee(pair)
             taker_fee_rate = fees.get(Map.taker)
             buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
@@ -1111,12 +1112,14 @@ class Icarus(TraderClass):
                     trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
                     trade['min_roi_position'] = min_roi_position
                     trade['max_roi_position'] = max_roi_position
-                    trade['mean_roi'] = None
                     trade['min_roi'] = None
+                    trade['mean_roi'] = None
                     trade['max_roi'] = None
                     trade['mean_win_roi'] = None
                     trade['mean_loss_roi'] = None
                     trade[Map.sum] = None
+                    trade['min_sum_roi'] = None
+                    trade['max_sum_roi'] = None
                     trade['final_roi'] = None
                     trade[Map.fee] = buy_sell_fee
                     trade['sum_fee'] = None
@@ -1164,13 +1167,15 @@ class Icarus(TraderClass):
                 trades.loc[:,'max_roi'] = trades[Map.roi].max()
                 trades.loc[:,'mean_win_roi'] = win_trades[Map.roi].mean()
                 trades.loc[:,'mean_loss_roi'] = loss_trades[Map.roi].mean()
+                trades.loc[:,'min_sum_roi'] = trades[Map.sum].min()
+                trades.loc[:,'max_sum_roi'] = trades[Map.sum].max()
                 trades.loc[:,'final_roi'] = trades.loc[trades.index[-1], Map.sum]
                 trades.loc[:,'n_win'] = win_trades.shape[0]
                 trades.loc[:,'win_rate'] = win_trades.shape[0]/n_trades
                 trades.loc[:,'n_loss'] = loss_trades.shape[0]
                 trades.loc[:,'loss_rate'] = loss_trades.shape[0]/n_trades
             if len(buy_repports) > 0:
-                repport_file_path = cls.file_path_backtest_repport()
+                repport_file_path = cls.file_path_backtest_repport(buy_file=True)
                 fields = list(buy_repports[0].keys())
                 rows = buy_repports
                 FileManager.write_csv(repport_file_path, fields, rows, overwrite=False, make_dir=True)
