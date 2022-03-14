@@ -702,6 +702,15 @@ class Icarus(TraderClass):
             vars_map.put(macd_min_date, 'macd_min_date')
             vars_map.put(macd_peak_date, 'macd_peak_date')
             return will_bounce
+
+        def is_bellow_keltner(vars_map: Map) -> bool:
+            keltner_map = child_marketprice.get_keltnerchannel()
+            keltner_high = list(keltner_map.get(Map.high))
+            keltner_high.reverse()
+            bellow_keltner = closes[-1] < keltner_high[-1]
+            vars_map.put(bellow_keltner, 'close_bellow_keltner')
+            vars_map.put(keltner_high, 'keltner_high')
+            return bellow_keltner
         """
 
         def is_macd_switch_up(vars_map: Map) -> bool:
@@ -718,15 +727,6 @@ class Icarus(TraderClass):
             vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
-
-        def is_bellow_keltner(vars_map: Map) -> bool:
-            keltner_map = child_marketprice.get_keltnerchannel()
-            keltner_high = list(keltner_map.get(Map.high))
-            keltner_high.reverse()
-            bellow_keltner = closes[-1] < keltner_high[-1]
-            vars_map.put(bellow_keltner, 'close_bellow_keltner')
-            vars_map.put(keltner_high, 'keltner_high')
-            return bellow_keltner
 
         def is_lows_above_low_keltner(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
@@ -835,7 +835,7 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_macd_switch_up(vars_map) and ((is_lows_above_low_keltner(vars_map) or is_bellow_keltner(vars_map)) and is_macd_bellow_bull_peak(vars_map))
+        can_buy_indicator = is_macd_switch_up(vars_map) and (is_lows_above_low_keltner(vars_map) and is_macd_bellow_bull_peak(vars_map))
         # Repport
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
