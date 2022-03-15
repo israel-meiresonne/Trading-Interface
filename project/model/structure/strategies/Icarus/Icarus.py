@@ -752,9 +752,12 @@ class Icarus(TraderClass):
             histogram.reverse()
             macd = list(macd_map.get(Map.macd))
             macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
             histogram_rising = histogram[-1] > 0
             macd_rising = macd[-1] > 0
-            big_macd_rising = histogram_rising and macd_rising
+            signal_rising = signal[-1] > 0
+            big_macd_rising = histogram_rising and macd_rising and signal_rising
             # Put
             vars_map.put(histogram, 'big_macd_rising')
             return big_macd_rising
