@@ -763,7 +763,7 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_macd_switch_up(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
@@ -1060,9 +1060,9 @@ class Icarus(TraderClass):
             Bot.update_trade_index(i)
             marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=True, **market_params)
             while isinstance(marketprice, MarketPrice):
+                big_marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **big_market_params)
                 open_times = list(marketprice.get_times())
                 open_times.reverse()
-                big_marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **big_market_params)
                 closes = list(marketprice.get_closes())
                 closes.reverse()
                 highs = list(marketprice.get_highs())
