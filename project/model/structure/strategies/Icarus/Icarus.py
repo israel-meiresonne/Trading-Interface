@@ -746,6 +746,16 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
+        def is_price_bellow_keltner(vars_map: Map) -> bool:
+            keltner = child_marketprice.get_keltnerchannel()
+            keltner_high = list(keltner.get(Map.high))
+            keltner_high.reverse()
+            bellow_keltner = closes[-1] < keltner_high[-1]
+            # Put
+            vars_map.put(bellow_keltner, 'close_bellow_keltner_high')
+            vars_map.put(keltner_high, 'keltner_high')
+            return bellow_keltner
+
         def is_big_macd_rising(vars_map: Map) -> bool:
             macd_map = big_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
@@ -766,18 +776,21 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map) and is_price_bellow_keltner(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
         macd = vars_map.get(Map.macd)
+        keltner_high = vars_map.get('keltner_high')
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
+            f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.macd[-1]': macd[-1] if macd is not None else None
+            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None
         }
         return can_buy_indicator, repport
 
