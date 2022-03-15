@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 import pandas as pd
 
@@ -20,6 +21,7 @@ from model.tools.Wallet import Wallet
 class Icarus(TraderClass):
     _MAX_LOSS = -3/100
     _ROI_FLOOR_FIXE = 0.002
+    MARKETPRICE_BUY_BIG_PERIOD = 60*60*6
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 100
     _MIN_ROI_PREDICTED = 2/100
@@ -28,9 +30,10 @@ class Icarus(TraderClass):
     _PREDICTION_OCCUPATION_REDUCE = 30/100
     _PREDICTION_OCCUPATION_REACHED_TRIGGER = 50/100
     _MIN_PERIOD = 60
-    _PERIODS_REQUIRRED = [_MIN_PERIOD, _PREDICTOR_PERIOD]
+    _PERIODS_REQUIRRED = [_MIN_PERIOD, _PREDICTOR_PERIOD, MARKETPRICE_BUY_BIG_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
+    ROC_WINDOW = 15
     _PREDICTIONS = None
     _FILE_PATH_BACKTEST = f'Icarus/backtest/$path/$session_backtest.csv'
 
@@ -602,13 +605,13 @@ class Icarus(TraderClass):
         pass
 
     @classmethod
-    def can_buy(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
         # if child_marketprice.get_period_time() != 60*15:
         #     child_period = child_marketprice.get_period()
         #     market_period = child_marketprice.get_period_time()
         #     raise ValueError(f"MarketPrice must have period '{child_period}', instead '{market_period}'")
         # indicator
-        indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice)
+        indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice, big_marketprice)
         # Check
         can_buy = indicator_ok
         # Repport
@@ -620,7 +623,7 @@ class Icarus(TraderClass):
         return can_buy, repport
 
     @classmethod
-    def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
         """
         def is_ema_rising(vars_map: Map) -> bool:
             # EMA
@@ -641,22 +644,31 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'macd')
             vars_map.put(macd_negative, 'macd_negative')
             return macd_negative
-        """
-        def is_macd_switch_up(vars_map: Map) -> bool:
-            # MACD
-            macd_map = child_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            histogram_rising = (histogram[-2] > 0) and (histogram[-1] > 0)
-            prev_histogram_dropping = histogram[-3] < 0
-            macd_switch_up = histogram_rising and prev_histogram_dropping
-            # Put
-            vars_map.put(histogram, 'histogram')
-            vars_map.put(histogram_rising, 'histogram_rising')
-            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
-            vars_map.put(macd_switch_up, 'macd_switch_up')
-            return macd_switch_up
-        """
+
+        def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            roc_positive = roc[-1] > 0
+            vars_map.put(roc_positive, 'roc_positive')
+            return roc_positive
+
+        def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            open_times = list(marketprice.get_times())
+            open_times.reverse()
+            zeros = np.zeros(len(roc)).tolist()
+            last_min_index = MarketPrice.last_extremum_index(roc, zeros, -1, excludes=[-1])
+            last_peak_index = MarketPrice.last_extremum_index(roc, zeros, 1, excludes=[-1])
+            roc_bounce = abs(roc[last_min_index]) <= 0.5*roc[last_peak_index]
+            vars_map.put(roc_bounce, 'roc_bounce')
+            vars_map.put(_MF.unix_to_date(open_times[last_peak_index]), 'last_roc_peak_date')
+            vars_map.put(roc[last_peak_index], 'last_roc_peak')
+            vars_map.put(_MF.unix_to_date(open_times[last_min_index]), 'last_roc_min_date')
+            vars_map.put(roc[last_min_index], 'last_roc_min')
+            vars_map.put(roc, 'roc')
+            return roc_bounce
+
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -719,6 +731,34 @@ class Icarus(TraderClass):
             return will_bounce
         """
 
+        def is_macd_switch_up(vars_map: Map) -> bool:
+            # MACD
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_rising = (histogram[-2] > 0) and (histogram[-1] > 0)
+            prev_histogram_dropping = histogram[-3] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
+            # Put
+            vars_map.put(histogram, 'histogram')
+            vars_map.put(histogram_rising, 'histogram_rising')
+            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            return macd_switch_up
+
+        def is_big_macd_rising(vars_map: Map) -> bool:
+            macd_map = big_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            histogram_rising = histogram[-1] > 0
+            macd_rising = macd[-1] > 0
+            big_macd_rising = histogram_rising and macd_rising
+            # Put
+            vars_map.put(histogram, 'big_macd_rising')
+            return big_macd_rising
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
@@ -731,15 +771,10 @@ class Icarus(TraderClass):
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.closes[-2]': closes[-2],
-            f'{key}.closes[-3]': closes[-3],
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
-            f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
-            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
-            f'{key}.macd[-2]': macd[-2] if macd is not None else None,
-            f'{key}.macd[-3]': macd[-3] if macd is not None else None
+            f'{key}.macd[-1]': macd[-1] if macd is not None else None
         }
         return can_buy_indicator, repport
 
@@ -1002,6 +1037,7 @@ class Icarus(TraderClass):
             pair_merged = pair.format(Pair.FORMAT_MERGED)
             str_period = BinanceAPI.convert_interval(period)
             unban_time = 0
+            big_period = cls.MARKETPRICE_BUY_BIG_PERIOD
             trades = None
             trade = {}
             market_params = {
@@ -1010,12 +1046,23 @@ class Icarus(TraderClass):
                 Map.period: period,
                 'n_period': n_period
                 }
+            big_market_params = {
+                Map.broker: broker,
+                Map.pair: pair,
+                Map.period: big_period,
+                'n_period': n_period
+                }
+            broker.add_streams([
+                broker.generate_stream(Map({Map.pair: pair, Map.period: period})),
+                broker.generate_stream(Map({Map.pair: pair, Map.period: big_period}))
+            ])
             i = 0
             Bot.update_trade_index(i)
-            marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **market_params)
+            marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=True, **market_params)
             while isinstance(marketprice, MarketPrice):
                 open_times = list(marketprice.get_times())
                 open_times.reverse()
+                big_marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **big_market_params)
                 closes = list(marketprice.get_closes())
                 closes.reverse()
                 highs = list(marketprice.get_highs())
@@ -1046,7 +1093,7 @@ class Icarus(TraderClass):
                 # Try buy/sell
                 if (not period_is_ban) and (not has_position):
                     unban_time = 0
-                    can_buy, buy_repport = cls.can_buy(marketprice)
+                    can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice)
                     buy_repport = {
                         Map.time: _MF.unix_to_date(open_times[-1]),
                         **buy_repport
