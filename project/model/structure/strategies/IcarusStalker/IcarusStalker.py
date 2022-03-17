@@ -140,16 +140,33 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd_switch_up': None,
             f'{key}.will_macd_bounce': None,
             f'{key}.big_macd_rising': None,
+            f'{key}.roc_positive': None,
+            f'{key}.roc_bounce': None,
             f'{key}.close_bellow_keltner_high': None,
+            f'{key}.closes_above_low_keltner': None,
+
             f'{key}.macd_min_date': None,
             f'{key}.last_min_macd': None,
             f'{key}.macd_peak_date': None,
             f'{key}.last_peak_macd': None,
+
+            f'{key}.last_roc_peak_date': None,
+            f'{key}.last_roc_peak': None,
+            f'{key}.last_roc_min_date': None,
+            f'{key}.last_roc_min': None,
+
+            f'{key}.min_close_date': None,
+            f'{key}.min_close': None,
+            f'{key}.min_keltner_date': None,
+            f'{key}.min_keltner': None,
+
             f'{key}.closes[-1]': None,
             f'{key}.macd[-1]': None,
             f'{key}.signal[-1]': None,
             f'{key}.histogram[-1]': None,
-            f'{key}.keltner_high[-1]': None
+            f'{key}.roc[-1]': None,
+            f'{key}.keltner_high[-1]': None,
+            f'{key}.keltner_low[-1]': None
         }
         # Repport
         key = Icarus.can_buy.__name__
