@@ -644,30 +644,6 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'macd')
             vars_map.put(macd_negative, 'macd_negative')
             return macd_negative
-
-        def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
-            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
-            roc.reverse()
-            roc_positive = roc[-1] > 0
-            vars_map.put(roc_positive, 'roc_positive')
-            return roc_positive
-
-        def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
-            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
-            roc.reverse()
-            open_times = list(marketprice.get_times())
-            open_times.reverse()
-            zeros = np.zeros(len(roc)).tolist()
-            last_min_index = MarketPrice.last_extremum_index(roc, zeros, -1, excludes=[-1])
-            last_peak_index = MarketPrice.last_extremum_index(roc, zeros, 1, excludes=[-1])
-            roc_bounce = abs(roc[last_min_index]) <= 0.5*roc[last_peak_index]
-            vars_map.put(roc_bounce, 'roc_bounce')
-            vars_map.put(_MF.unix_to_date(open_times[last_peak_index]), 'last_roc_peak_date')
-            vars_map.put(roc[last_peak_index], 'last_roc_peak')
-            vars_map.put(_MF.unix_to_date(open_times[last_min_index]), 'last_roc_min_date')
-            vars_map.put(roc[last_min_index], 'last_roc_min')
-            vars_map.put(roc, 'roc')
-            return roc_bounce
         """
 
         def is_macd_switch_up(vars_map: Map) -> bool:
@@ -710,6 +686,68 @@ class Icarus(TraderClass):
             vars_map.put(bellow_keltner, 'close_bellow_keltner_high')
             vars_map.put(keltner_high, 'keltner_high')
             return bellow_keltner
+
+        def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            roc_positive = roc[-1] > 0
+            vars_map.put(roc_positive, 'roc_positive')
+            return roc_positive
+
+        def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            open_times = list(marketprice.get_times())
+            open_times.reverse()
+            zeros = np.zeros(len(roc)).tolist()
+            last_min_index = MarketPrice.last_extremum_index(roc, zeros, -1, excludes=[-1])
+            last_peak_index = MarketPrice.last_extremum_index(roc, zeros, 1, excludes=[-1])
+            roc_bounce = abs(roc[last_min_index]) <= 0.5*roc[last_peak_index]
+            vars_map.put(roc_bounce, 'roc_bounce')
+            vars_map.put(_MF.unix_to_date(open_times[last_peak_index]), 'last_roc_peak_date')
+            vars_map.put(roc[last_peak_index], 'last_roc_peak')
+            vars_map.put(_MF.unix_to_date(open_times[last_min_index]), 'last_roc_min_date')
+            vars_map.put(roc[last_min_index], 'last_roc_min')
+            vars_map.put(roc, 'roc')
+            return roc_bounce
+
+        def is_price_above_low_keltner(vars_map: Map) -> bool:
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            keltner_low = list(child_marketprice.get_keltnerchannel().get(Map.low))
+            keltner_low.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            last_min_index = MarketPrice.last_extremum_index(macd, signal, -1, excludes=[])
+            macd_swing = _MF.group_swings(macd, signal)
+            interval = macd_swing[last_min_index]
+            sub_open_times = open_times[interval[0]:interval[1]+1]
+            # Min Close
+            sub_close = closes[interval[0]:interval[1]+1]
+            min_close = min(sub_close)
+            min_close_open_time = sub_open_times[sub_close.index(min_close)]
+            # Min Keltner
+            sub_keltner_low = keltner_low[interval[0]:interval[1]+1]
+            min_keltner = min(sub_keltner_low)
+            min_keltner_open_time = sub_open_times[sub_keltner_low.index(min_keltner)]
+            # Check
+            closes_above_low_keltner = min_close > min_keltner
+            # Put
+            vars_map.put(closes_above_low_keltner, 'closes_above_low_keltner')
+            vars_map.put(_MF.unix_to_date(min_close_open_time), 'min_close_date')
+            vars_map.put(min_close, 'min_close')
+            vars_map.put(_MF.unix_to_date(min_keltner_open_time), 'min_keltner_date')
+            vars_map.put(min_keltner, 'min_keltner')
+            vars_map.put(keltner_low, 'keltner_low')
+            vars_map.put(macd, Map.macd)
+            vars_map.put(signal, Map.signal)
+            vars_map.put(histogram, Map.histogram)
+            return closes_above_low_keltner
 
         def will_bounce_macd(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
@@ -777,28 +815,50 @@ class Icarus(TraderClass):
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) and is_price_bellow_keltner(vars_map)
+        # 
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
+            and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         keltner_high = vars_map.get('keltner_high')
         signal = vars_map.get(Map.signal)
         histogram = vars_map.get(Map.histogram)
+        roc = vars_map.get('roc')
+        keltner_low = vars_map.get('keltner_low')
         key = Icarus._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
+            f'{key}.roc_positive': vars_map.get('roc_positive'),
+            f'{key}.roc_bounce': vars_map.get('roc_bounce'),
             f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
+            f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
+
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
             f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
             f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
+
+            f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
+            f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
+            f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
+            f'{key}.last_roc_min': vars_map.get('last_roc_min'),
+
+            f'{key}.min_close_date': vars_map.get('min_close_date'),
+            f'{key}.min_close': vars_map.get('min_close'),
+            f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
+            f'{key}.min_keltner': vars_map.get('min_keltner'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None
+            f'{key}.roc[-1]': roc[-1] if roc is not None else None,
+            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
+            f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None
         }
         return can_buy_indicator, repport
 
@@ -1028,7 +1088,7 @@ class Icarus(TraderClass):
                 histogram.reverse()
                 histogram_dropping = histogram[-1] < 0
                 return histogram_dropping
-            """
+
             def are_macd_signal_negatives(vars_map: Map) -> bool:
                 macd_map = marketprice.get_macd()
                 macd = list(macd_map.get(Map.macd))
@@ -1044,12 +1104,11 @@ class Icarus(TraderClass):
                 macd.reverse()
                 tangent_macd_dropping = macd[-1] <= macd[-2]
                 return tangent_macd_dropping
-            """
 
             vars_map = Map()
             can_sell = False
             # Check
-            can_sell = is_histogram_dropping(vars_map)
+            can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
