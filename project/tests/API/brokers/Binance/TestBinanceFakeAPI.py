@@ -151,29 +151,42 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         definition(close time): time of the last transaction
         This mean that it's normal if the last open time don't match the last second of the period
         """
-        # Select time interval
-        # —— Start time set
-        _cls._HISTORY_TIMES = {Map.start: 1609452000, Map.end: None}
-        history = _cls._load_market_history(merged_pair, period)
-        times = _cls.get_history_times()
-        self.assertTrue(history[0,0] >= times.get(Map.start)*1000)
-        # —— End time set
-        _cls._HISTORY_TIMES = {Map.start: None, Map.end: 1611784800}
-        history = _cls._load_market_history(merged_pair, period)
-        times = _cls.get_history_times()
-        self.assertTrue(history[-1,0] <= times.get(Map.end)*1000)
-        # —— Start and End time set
-        _cls._HISTORY_TIMES = {Map.start: 1609452000, Map.end: 1611784800}
-        history = _cls._load_market_history(merged_pair, period)
-        times = _cls.get_history_times()
-        self.assertTrue(history[0,0] >= times.get(Map.start)*1000)
-        self.assertTrue(history[-1,0] <= times.get(Map.end)*1000)
 
     def test_set_market_history(self) -> None:
         def test_instance(merged_pair: str, period: int) -> None:
             mkt = _cls._get_market_history(merged_pair, period)
             self.assertIsInstance(mkt, np.ndarray)
             self.assertEqual(id(mkt), id(_cls._get_market_history(merged_pair, period)))
+
+        def test_interval() -> None:
+            initial_times = _cls._HISTORY_TIMES
+            merged_pair = merged_pair1
+            period = period1
+            # —— Start time set
+            _cls.reset()
+            _cls._HISTORY_TIMES = {Map.start: 1609452000, Map.end: None}
+            _cls._set_market_history(merged_pair1, period1, update=False)
+            # history = _cls._load_market_history(merged_pair, period)
+            history = _cls._get_market_history(merged_pair, period)
+            times = _cls.get_history_times()
+            self.assertTrue(history[0,0] >= times.get(Map.start)*1000)
+            # —— End time set
+            _cls.reset()
+            _cls._HISTORY_TIMES = {Map.start: None, Map.end: 1611784800}
+            _cls._set_market_history(merged_pair1, period1, update=False)
+            history = _cls._get_market_history(merged_pair, period)
+            times = _cls.get_history_times()
+            self.assertTrue(history[-1,0] <= times.get(Map.end)*1000)
+            # —— Start and End time set
+            _cls.reset()
+            _cls._HISTORY_TIMES = {Map.start: 1609452000, Map.end: 1611784800}
+            _cls._set_market_history(merged_pair1, period1, update=False)
+            history = _cls._get_market_history(merged_pair, period)
+            times = _cls.get_history_times()
+            self.assertTrue(history[0,0] >= times.get(Map.start)*1000)
+            self.assertTrue(history[-1,0] <= times.get(Map.end)*1000)
+            # End
+            _cls._HISTORY_TIMES = initial_times
 
         _cls = BinanceFakeAPI
         pair1 = Pair('BTC/USDT')
@@ -185,6 +198,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         '''
         # Stage 1
         '''
+        """
         # —— Test type
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
         _cls._set_market_history(merged_pair1, period1, update=False)
@@ -204,6 +218,9 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
                 open_time = _cls._get_market_history(merged_pair, period)[0,0]
                 self.assertEqual(open_times[-1], open_time) if len(open_times) > 0 else None
                 open_times.append(open_time)
+        """
+        # Select time interval
+        test_interval()
         '''
         # Stage 2
         '''
