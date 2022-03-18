@@ -1063,6 +1063,7 @@ class Icarus(TraderClass):
             Pairs to backtest
         """
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+        from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
         from model.structure.Bot import Bot
         import sys
     
@@ -1123,6 +1124,7 @@ class Icarus(TraderClass):
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
+            BinanceFakeAPI.reset()
             buy_repports = []
             n_period = 300
             fees = broker.get_trade_fee(pair)
