@@ -1552,8 +1552,8 @@ class MarketPrice(ABC):
         file_path = cls.file_path_market_history(broker_name, pair, period, active_path)
         file_name = file_path.split('/')[-1]
         dir_path_history = cls.dir_path_market_history(broker_name, pair, active_path)
-        history_files = FileManager.get_files(dir_path_history, make_dir=True)
-        exist_history = file_name in history_files
+        history_files = _MF.catch_exception(FileManager.get_files, cls.__name__, repport=True, **{'path': dir_path_history, 'make_dir': False})
+        exist_history = (file_name in history_files) if isinstance(history_files, list) else False
         return exist_history
 
     @staticmethod
