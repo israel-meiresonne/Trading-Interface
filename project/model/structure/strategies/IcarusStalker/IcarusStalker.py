@@ -15,7 +15,7 @@ from model.tools.Wallet import Wallet
 
 class IcarusStalker(StalkerClass):
     _CONST_MAX_STRATEGY = 5
-    _STALKER_BOT_SLEEP_TIME = 1             # in second
+    _STALKER_BOT_SLEEP_TIME = 60            # in second
     _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
 
     def __init__(self, params: Map):
