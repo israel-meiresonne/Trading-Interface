@@ -99,6 +99,22 @@ class StalkerClass(Strategy, MyJson, ABC):
     def get_max_strategy(self) -> int:
         return self.__max_strategy
 
+    def _set_allowed_pairs(self, pairs: list[Pair]) -> None:
+        wrong_types = [pair for pair in pairs if (not isinstance(pair, Pair))]
+        if len(wrong_types) > 0:
+            raise TypeError(f"Allowed Pair to trade must be of type '{Pair}', instead '{type(wrong_types[0])}'")
+        self._allowed_pairs = pairs
+
+    @abstractmethod
+    def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
+        """
+        To get pair allowed to trade with this Strategy\n
+        :param bkr: Access to Broker's API
+        :return: Pair allowed to trade with this Strategy
+                 Map[index{int}]:   {Pair}
+        """
+        pass
+
     def _set_next_stalk(self, unix_time: int) -> None:
         stalk_frequency = self.get_stalk_frequency()
         round_time = _MF.round_time(unix_time, stalk_frequency)
@@ -863,15 +879,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
         bkr.request(bkr_rq)
         return bkr_rq.get_market_price()
-
-    def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
-        """
-        To get pair allowed to trade with this Strategy\n
-        :param bkr: Access to Broker's API
-        :return: Pair allowed to trade with this Strategy
-                 Map[index{int}]:   {Pair}
-        """
-        pass
 
     @abstractmethod
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
