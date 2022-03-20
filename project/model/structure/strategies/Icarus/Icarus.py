@@ -386,7 +386,6 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION CAN SELL DOWN ———————————————————————————————————————————————
 
     def can_sell(self, marketprice: MarketPrice) -> bool:
-        # return self._can_sell_indicator(marketprice) or self._can_sell_prediction(predictor_marketprice, marketprice)
         return self._can_sell_indicator(marketprice)
     
     def _can_sell_roi(self) -> bool:
@@ -420,7 +419,7 @@ class Icarus(TraderClass):
             histogram.reverse()
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
-        """
+
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -436,12 +435,11 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
-        """
 
         vars_map = Map()
         can_sell = False
         # Check
-        can_sell = is_histogram_dropping(vars_map)
+        can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
