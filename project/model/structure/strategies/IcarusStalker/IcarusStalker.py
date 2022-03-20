@@ -63,9 +63,7 @@ class IcarusStalker(StalkerClass):
             _MF.output(f"{_MF.prefix()}" + _color_green + f"Pair {pair_str.upper()} trade with SUCCESS." + _normal)
         else:
             self._delete_active_strategy(bkr, pair)
-            last_exec_order = child._get_orders().get_last_execution()
-            blacklist = (stg_roi < 0) or ((last_exec_order is not None) and (last_exec_order.get_type() != Order.TYPE_MARKET)) 
-            self._blacklist_pair(pair, stg_period) if blacklist else None
+            self._blacklist_pair(pair, stg_period)
             _MF.output(f"{_MF.prefix()}" + _color_red + f"Pair {pair_str.upper()} is DELETED." + _normal)
         # After trade
         stg_roi_after = stg_wallet.get_roi(bkr)
