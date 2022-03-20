@@ -1,5 +1,4 @@
 from typing import List, Tuple
-from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Icarus.Icarus import Icarus
@@ -10,16 +9,14 @@ from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
-from model.tools.Predictor import Predictor
 from model.tools.Price import Price
 from model.tools.Wallet import Wallet
 
 
 class IcarusStalker(StalkerClass):
     _CONST_MAX_STRATEGY = 5
-    _STALKER_BOT_SLEEP_TIME = 1  # in second
-    _PAIR_FILTER_MEAN = 40/100
-    _PAIR_FILTER_100 = 20/100
+    _STALKER_BOT_SLEEP_TIME = 1             # in second
+    _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
 
     def __init__(self, params: Map):
         """
@@ -28,7 +25,7 @@ class IcarusStalker(StalkerClass):
                params[*]:   {Stalker.__init__()}    # Same structure
         """
         super().__init__(params)
-        self.__last_reset_allowed_pair = None
+        self.__next_reset_allowed_pair = None
 
     def _manage_trade(self, bkr: Broker, child: TraderClass) -> None:
         starttime = _MF.get_timestamp()
@@ -189,26 +186,22 @@ class IcarusStalker(StalkerClass):
         content = {key: repport.get(key) for key in canvas}
         return content
 
-    def _reset_last_reset_allowed_pair(self) -> int:
-        interval = Icarus.get_predictor_period()
+    def _reset_next_reset_allowed_pair(self) -> None:
+        interval = self._RESET_INTERVAL_ALLOWED_PAIR
         unix_time = _MF.get_timestamp()
-        self.__last_reset_allowed_pair = _MF.round_time(unix_time, interval)
+        self.__next_reset_allowed_pair = _MF.round_time(unix_time, interval) + interval
 
-    def get_last_reset_allowed_pair(self) -> int:
+    def get_next_reset_allowed_pair(self) -> int:
         """
-        To get last time that the pair to stalk have been reseted
+        To get the next time that the allowed pair to trade must be reset
         """
-        return self.__last_reset_allowed_pair
+        return self.__next_reset_allowed_pair
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
-
-        if self._allowed_pairs is None:
-            if Config.get_stage() == Config.STAGE_1:
-                allowed_pairs = MarketPrice.history_pairs(bkr.__class__.__name__, active_path=True)
-            else:
-                right_asset = self.get_pair().get_right()
-                allowed_pairs = MarketPrice.get_spot_pairs(bkr.__class__.__name__, right_asset)
-            self._allowed_pairs = allowed_pairs
+        if (self._allowed_pairs is None) or (_MF.get_timestamp() >= self.get_next_reset_allowed_pair()):
+            allowed_pairs = Icarus.best_pairs()
+            self._set_allowed_pairs(allowed_pairs)
+            self._reset_next_reset_allowed_pair()
         return self._allowed_pairs
 
     @staticmethod
