@@ -480,8 +480,9 @@ class Icarus(TraderClass):
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
         # Evaluate Buy
-        # predictor_marketprice = self.get_marketprice(period=self.get_predictor_period())
-        can_buy, _ = self.can_buy(market_price)
+        big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
+        big_marketprice = self.get_marketprice(big_period)
+        can_buy, _ = self.can_buy(market_price, big_marketprice)
         if can_buy:
             # self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
@@ -604,11 +605,6 @@ class Icarus(TraderClass):
 
     @classmethod
     def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        # if child_marketprice.get_period_time() != 60*15:
-        #     child_period = child_marketprice.get_period()
-        #     market_period = child_marketprice.get_period_time()
-        #     raise ValueError(f"MarketPrice must have period '{child_period}', instead '{market_period}'")
-        # indicator
         indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice, big_marketprice)
         # Check
         can_buy = indicator_ok
