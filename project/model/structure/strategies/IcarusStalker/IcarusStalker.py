@@ -17,6 +17,7 @@ class IcarusStalker(StalkerClass):
     _CONST_MAX_STRATEGY = 5
     _STALKER_BOT_SLEEP_TIME = 60            # in second
     _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
+    _MARKETPRICE_N_PERIOD = Icarus.get_marketprice_n_period()
 
     def __init__(self, params: Map):
         """
@@ -112,7 +113,9 @@ class IcarusStalker(StalkerClass):
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
-        child_ok, child_datas = Icarus.can_buy(market_price)
+        big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
+        big_marketprice = self._get_market_price(broker, pair, big_period)
+        child_ok, child_datas = Icarus.can_buy(market_price, big_marketprice)
         eligible = child_ok
         # Repport
         key = IcarusStalker._eligible.__name__
