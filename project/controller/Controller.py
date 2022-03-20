@@ -42,8 +42,9 @@ class Controller:
             fc = menu[home_key][View.MENUS_KEY_FUNC][i]
             end = eval("self." + fc + "()")
 
-    @staticmethod
-    def quit() -> bool:
+    def quit(self) -> bool:
+        self.stop_bots()
+        self._get_model().close_brokers()
         return True
 
     def _set_session(self) -> None:
