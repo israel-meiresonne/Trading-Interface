@@ -108,7 +108,8 @@ class IcarusStalker(StalkerClass):
         return [
             self.get_period(),
             self.get_strategy_params().get(Map.period),
-            Wallet.get_period()
+            Wallet.get_period(),
+            *Icarus.get_periods_required()
         ]
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
