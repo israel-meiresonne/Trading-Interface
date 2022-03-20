@@ -25,7 +25,7 @@ class StalkerClass(Strategy, MyJson, ABC):
     _STALKER_BOT_SLEEP_TIME = 10            # in second
     _CONST_MAX_STRATEGY = 20
     _BLACKLIST_TIME = 60 * 3                # in second
-    _PAIR_MANAGER_NB_PERIOD = 100
+    _MARKETPRICE_N_PERIOD = 300
     _REGEX_PAIR = r'\?\/[A-z\d]+'
     _THREAD_NAME_STALK_PARENT = 'stalk_parent'
     _THREAD_NAME_STALK_CHILD = 'stalk_child'
@@ -632,7 +632,6 @@ class StalkerClass(Strategy, MyJson, ABC):
         _cyan = self._TO_REMOVE_STYLE_CYAN
         _green = self._TO_REMOVE_STYLE_GREEN
         pfx = _MF.prefix
-        n_period = broker.get_max_n_period()
         stalk_period = self.get_period()
         n_pair = len(pairs)
         repports = []
@@ -641,7 +640,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             max_not_reached = not self.max_active_strategies_reached()
             eligible = False
             if max_not_reached:
-                marketprice = MarketPrice.marketprice(broker, pair, stalk_period, n_period)
+                marketprice = self._get_market_price(broker, pair, stalk_period)
                 eligible, repport = self._eligible(marketprice, broker)
                 repports.append(repport)
             _MF.output(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible: {eligible}" + _normal)
@@ -860,25 +859,23 @@ class StalkerClass(Strategy, MyJson, ABC):
     def get_regex_pair() -> str:
         return StalkerClass._REGEX_PAIR
 
-    def _get_market_price(self, bkr: Broker, pair: Pair, period: int = None, nb_period: int = _PAIR_MANAGER_NB_PERIOD) \
-            -> MarketPrice:
+    def _get_market_price(self, broker: Broker, pair: Pair, period: int, n_period: int = None) -> MarketPrice:
         """
-        To request MarketPrice to Broker\n
-        :param bkr: an access to Broker's API
-        :return: MarketPrice
+        To request MarketPrice to Broker
+
+        Parameters:
+        -----------
+        broker: Broker
+            Access to Broker's API
+
+        Returns:
+        --------
+        return: MarketPrice
+            MarketPrice
         """
-        _bkr_cls = bkr.__class__.__name__
-        period = self.get_period() if period is None else period
-        mkt_params = Map({
-            Map.pair: pair,
-            Map.period: period,
-            Map.begin_time: None,
-            Map.end_time: None,
-            Map.number: nb_period
-        })
-        bkr_rq = bkr.generate_broker_request(_bkr_cls, BrokerRequest.RQ_MARKET_PRICE, mkt_params)
-        bkr.request(bkr_rq)
-        return bkr_rq.get_market_price()
+        n_period = n_period if n_period is not None else self._MARKETPRICE_N_PERIOD
+        marketprice = MarketPrice.marketprice(broker, pair, period, n_period)
+        return marketprice
 
     @abstractmethod
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:

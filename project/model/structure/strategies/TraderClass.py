@@ -14,7 +14,7 @@ from model.tools.Price import Price
 
 
 class TraderClass(Strategy, MyJson, ABC):
-    _MARKET_PRICE_N_PERIOD = 1000
+    _MARKETPRICE_N_PERIOD = 300
     _EXEC_BUY = "EXEC_BUY"
     _EXEC_PLACE_SECURE = "EXEC_PLACE_SECURE"
     _EXEC_SELL = "EXEC_SELL"
@@ -324,7 +324,7 @@ class TraderClass(Strategy, MyJson, ABC):
         return: int
             The number of period to retrieve from Broker's API
         """
-        return TraderClass._MARKET_PRICE_N_PERIOD
+        return TraderClass._MARKETPRICE_N_PERIOD
 
     @staticmethod
     def get_period_ranking(bkr: Broker, pair: Pair) -> Map:
