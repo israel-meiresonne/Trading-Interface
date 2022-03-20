@@ -54,3 +54,11 @@ class ModelInterface(ABC):
          To turn off all active Bot\n
         """
         pass
+
+    @classmethod
+    @abstractmethod
+    def close_brokers(cls) -> None:
+        """
+        To close connection of all Broker
+        """
+        pass
