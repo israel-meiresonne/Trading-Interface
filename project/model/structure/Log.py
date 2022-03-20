@@ -124,3 +124,10 @@ class Log(ModelInterface, _MF):
     @staticmethod
     def list_strategies():
         return Strategy.list_strategies()
+
+    @classmethod
+    def close_brokers(cls) -> None:
+        brokers = cls.list_brokers()
+        for broker in brokers:
+            exec(f"from model.API.brokers.{broker}.{broker} import {broker}")
+            exec(f"{broker}.close()")
