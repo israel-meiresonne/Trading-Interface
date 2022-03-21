@@ -19,7 +19,7 @@ from model.tools.WaitingRoom import WaitingRoom
 
 
 class BinanceAPI(ABC):
-    _DEBUG = True
+    _DEBUG = False
     # Const
     ORDER_TEST_PATH = "/api/v3/order/test"
     ORDER_REAL_PATH = "/api/v3/order"
