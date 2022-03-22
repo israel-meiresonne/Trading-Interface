@@ -668,7 +668,7 @@ class Icarus(TraderClass):
             signal_rising = signal[-1] > 0
             big_macd_rising = histogram_rising and macd_rising and signal_rising
             # Put
-            vars_map.put(histogram, 'big_macd_rising')
+            vars_map.put(big_macd_rising, 'big_macd_rising')
             return big_macd_rising
 
         def is_price_bellow_keltner(vars_map: Map) -> bool:
