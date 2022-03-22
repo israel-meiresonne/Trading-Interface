@@ -751,6 +751,16 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return big_supertrend_rising
 
+        def is_big_keltner_low_above_ema(vars_map: Map) -> bool:
+            ema = list(big_marketprice.get_ema(n_period=cls.EMA_N_PERIOD))
+            ema.reverse()
+            keltner = big_marketprice.get_keltnerchannel()
+            keltner_low = list(keltner.get(Map.low))
+            keltner_low.reverse()
+            big_keltner_low_above_ema = keltner_low[-1] > ema[-1]
+            vars_map.put(big_keltner_low_above_ema, 'big_keltner_low_above_ema')
+            return big_keltner_low_above_ema
+
         def will_bounce_macd(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -818,7 +828,8 @@ class Icarus(TraderClass):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # 
-        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) \
+            and is_big_keltner_low_above_ema(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map)
         # Repport
@@ -834,6 +845,7 @@ class Icarus(TraderClass):
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
+            f'{key}.big_keltner_low_above_ema': vars_map.get('big_keltner_low_above_ema'),
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
             f'{key}.roc_positive': vars_map.get('roc_positive'),
             f'{key}.roc_bounce': vars_map.get('roc_bounce'),
