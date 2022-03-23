@@ -1041,7 +1041,7 @@ class Icarus(TraderClass):
         """
         file_path = cls.file_path_backtest(active_path)
         dir_path = FileManager.path_to_dir(file_path)
-        files = FileManager.get_files(dir_path)
+        files = FileManager.get_files(dir_path, make_dir=True)
         if len(files) == 0:
             raise Exception(f"There's no backtest file in this directory '{dir_path}'")
         real_file_path = FileManager.get_project_directory() + dir_path + files[-1]
