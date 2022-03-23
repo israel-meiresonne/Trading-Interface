@@ -18,6 +18,7 @@ class IcarusStalker(StalkerClass):
     _STALKER_BOT_SLEEP_TIME = 60            # in second
     _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
     _MARKETPRICE_N_PERIOD = Icarus.get_marketprice_n_period()
+    CHILD_STRATEGY = Icarus
 
     def __init__(self, params: Map):
         """
@@ -116,10 +117,10 @@ class IcarusStalker(StalkerClass):
         pair = market_price.get_pair()
         big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
-        child_ok, child_datas = Icarus.can_buy(market_price, big_marketprice)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice)
         eligible = child_ok
         # Repport
-        key = IcarusStalker._eligible.__name__
+        key = self._eligible.__name__
         repport = {
             f'{key}.child_time': _MF.unix_to_date(market_price.get_time()),
             f'{key}.pair': pair,
@@ -133,7 +134,7 @@ class IcarusStalker(StalkerClass):
 
     def _format_stalk(self, repport: Map) -> dict:
         # Repport
-        key = Icarus._can_buy_indicator.__name__
+        key = self.CHILD_STRATEGY._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
@@ -170,13 +171,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.supertrend[-1]': None
         }
         # Repport
-        key = Icarus.can_buy.__name__
+        key = self.CHILD_STRATEGY.can_buy.__name__
         child_datas = {
             f'{key}.indicator': None,
             **indicator_datas
         }
         # Repport
-        key = IcarusStalker._eligible.__name__
+        key = self._eligible.__name__
         canvas = {
             f'{key}.child_time': None,
             f'{key}.pair': None,
@@ -207,9 +208,9 @@ class IcarusStalker(StalkerClass):
             self._reset_next_reset_allowed_pair()
         return self._allowed_pairs
 
-    @staticmethod
-    def get_bot_sleep_time() -> int:
-        return IcarusStalker._STALKER_BOT_SLEEP_TIME
+    @classmethod
+    def get_bot_sleep_time(cls) -> int:
+        return cls._STALKER_BOT_SLEEP_TIME
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
