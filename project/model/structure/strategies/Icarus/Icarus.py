@@ -394,8 +394,9 @@ class Icarus(TraderClass):
         max_loss = self.get_max_loss()
         can_sell = roi_pos <= max_loss
         return can_sell
-    
-    def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
+
+    @classmethod
+    def _can_sell_indicator(cls, marketprice: MarketPrice) ->  bool:
         """
         def is_buy_period() -> bool:
             period = self.get_period()
