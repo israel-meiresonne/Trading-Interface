@@ -35,7 +35,7 @@ class Icarus(TraderClass):
     EMA_N_PERIOD = 200
     ROC_WINDOW = 15
     _PREDICTIONS = None
-    _FILE_PATH_BACKTEST = f'Icarus/backtest/$path/$session_backtest.csv'
+    _FILE_PATH_BACKTEST = f'$class/backtest/$path/$session_backtest.csv'
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -551,43 +551,43 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION TRY BUY/SELL UP —————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER DOWN ——————————————————————————————————————————
 
-    @staticmethod
-    def get_max_loss() -> float:
-        return Icarus._MAX_LOSS
+    @classmethod
+    def get_max_loss(cls) -> float:
+        return cls._MAX_LOSS
     
-    @staticmethod
-    def get_predictor_period() -> int:
-        return Icarus._PREDICTOR_PERIOD
+    @classmethod
+    def get_predictor_period(cls) -> int:
+        return cls._PREDICTOR_PERIOD
 
-    @staticmethod
-    def get_predictor_n_period() -> int:
-        return Icarus._PREDICTOR_N_PERIOD
+    @classmethod
+    def get_predictor_n_period(cls) -> int:
+        return cls._PREDICTOR_N_PERIOD
 
-    @staticmethod
-    def get_min_roi_predicted() -> float:
-        return Icarus._MIN_ROI_PREDICTED
+    @classmethod
+    def get_min_roi_predicted(cls) -> float:
+        return cls._MIN_ROI_PREDICTED
     
-    @staticmethod
-    def get_prediction_occupation_rate() -> float:
-        return Icarus._PREDICTION_OCCUPATION_RATE
+    @classmethod
+    def get_prediction_occupation_rate(cls) -> float:
+        return cls._PREDICTION_OCCUPATION_RATE
     
-    @staticmethod
-    def get_prediction_occupation_secure_trigger() -> float:
-        return Icarus._PREDICTION_OCCUPATION_SECURE_TRIGGER
+    @classmethod
+    def get_prediction_occupation_secure_trigger(cls) -> float:
+        return cls._PREDICTION_OCCUPATION_SECURE_TRIGGER
     
-    @staticmethod
-    def get_prediction_occupation_reduce() -> float:
-        return Icarus._PREDICTION_OCCUPATION_REDUCE
+    @classmethod
+    def get_prediction_occupation_reduce(cls) -> float:
+        return cls._PREDICTION_OCCUPATION_REDUCE
     
-    @staticmethod
-    def get_min_period() -> int:
+    @classmethod
+    def get_min_period(cls) -> int:
         """
         To get Broker's minimum period
         """
-        return Icarus._MIN_PERIOD
+        return cls._MIN_PERIOD
 
-    @staticmethod
-    def get_periods_required() -> list:
+    @classmethod
+    def get_periods_required(cls) -> list:
         """
         To get list of period used to trade
 
@@ -596,7 +596,7 @@ class Icarus(TraderClass):
         return: list
             List of period used to trade
         """
-        return Icarus._PERIODS_REQUIRRED
+        return cls._PERIODS_REQUIRRED
 
     # ——————————————————————————————————————————— STATIC FUNCTION GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY DOWN —————————————————————————————————————————
@@ -612,11 +612,11 @@ class Icarus(TraderClass):
         #     market_period = child_marketprice.get_period_time()
         #     raise ValueError(f"MarketPrice must have period '{child_period}', instead '{market_period}'")
         # indicator
-        indicator_ok, indicator_datas = Icarus._can_buy_indicator(child_marketprice, big_marketprice)
+        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice)
         # Check
         can_buy = indicator_ok
         # Repport
-        key = Icarus.can_buy.__name__
+        key = cls.can_buy.__name__
         repport = {
             f'{key}.indicator': indicator_ok,
             **indicator_datas
@@ -836,7 +836,7 @@ class Icarus(TraderClass):
         roc = vars_map.get('roc')
         keltner_low = vars_map.get('keltner_low')
         supertrend = vars_map.get(Map.supertrend)
-        key = Icarus._can_buy_indicator.__name__
+        key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
@@ -874,22 +874,22 @@ class Icarus(TraderClass):
         }
         return can_buy_indicator, repport
 
-    @staticmethod
-    def _can_buy_prediction(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    @classmethod
+    def _can_buy_prediction(cls, predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
         child_closes = child_marketprice.get_close()
         # Prediction
         pair = child_marketprice.get_pair()
-        pred_period = Icarus.get_predictor_period()
+        pred_period = cls.get_predictor_period()
         predictor = Predictor(pair, pred_period)
-        max_close_pred = Icarus._predict_max_high(predictor_marketprice, predictor)
+        max_close_pred = cls._predict_max_high(predictor_marketprice, predictor)
         max_roi_pred = _MF.progress_rate(max_close_pred, child_closes)
-        pred_trigger = Icarus.get_min_roi_predicted()
+        pred_trigger = cls.get_min_roi_predicted()
         prediction_ok = max_roi_pred >= pred_trigger
         # Occupation
         predictor_highs = list(predictor_marketprice.get_highs())
         predictor_highs.reverse()
         occup_rate = None
-        occup_trigger = Icarus._PREDICTION_OCCUPATION_REACHED_TRIGGER
+        occup_trigger = cls._PREDICTION_OCCUPATION_REACHED_TRIGGER
         occup_rate_ok = False
         if prediction_ok:
             occup_rate = Predictor.occupation_rate(max_close_pred, predictor_highs[-1], child_closes)
@@ -897,7 +897,7 @@ class Icarus(TraderClass):
         # Check
         can_buy = prediction_ok and occup_rate_ok
         # Repport
-        key = Icarus._can_buy_prediction.__name__
+        key = cls._can_buy_prediction.__name__
         repport = {
             f'{key}.prediction_ok': prediction_ok,
             f'{key}.occup_rate_ok': occup_rate_ok,
@@ -917,7 +917,7 @@ class Icarus(TraderClass):
 
     @classmethod
     def _get_file_path_prediction(cls) -> str:
-        return f'content/storage/Strategy/Icarus/prediction/prediction.json'
+        return f'content/storage/Strategy/{cls.__name__}/prediction/prediction.json'
 
     @classmethod
     def _get_predictions(cls) -> Map:
@@ -965,34 +965,43 @@ class Icarus(TraderClass):
             max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
         return float(max_close_pred)
     
-    @staticmethod
-    def predictor_market_price(bkr: Broker, pair: Pair) -> MarketPrice:
-        period = Icarus.get_predictor_period()
-        n_period = Icarus.get_predictor_n_period()
-        marketprice = Icarus._market_price(bkr, pair, period, n_period)
+    @classmethod
+    def predictor_market_price(cls, bkr: Broker, pair: Pair) -> MarketPrice:
+        period = cls.get_predictor_period()
+        n_period = cls.get_predictor_n_period()
+        marketprice = cls._market_price(bkr, pair, period, n_period)
         return marketprice
 
     # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR UP ————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
 
     @classmethod
-    def file_path_backtest(cls, active_path: bool) -> str:
+    def file_path_backtest(cls, active_path: bool = None) -> str:
         """
         To get path to file where backtest are stored
         """
         dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
         file_path = dir_strategy_storage + cls._FILE_PATH_BACKTEST.replace('$session', Config.get(Config.SESSION_ID))
-        return file_path.replace('$path', 'active') if active_path else file_path.replace('$path', 'stock')
+        file_path = file_path.replace('$class', cls.__name__)
+        if active_path is None:
+            backtest_path = file_path
+        elif active_path:
+            backtest_path = file_path.replace('$path', 'active')
+        elif not active_path:
+            backtest_path = file_path.replace('$path', 'stock')
+        return backtest_path
 
     @classmethod
     def file_path_backtest_test(cls) -> str:
         """
         To get path to file where backtest are stored
         """
-        # f'Icarus/backtest/$path/$session/datas/$session_backtest.csv'
+        # '{class_name}/backtest/$path/$session/datas/$session_backtest.csv'
+        # >>> '{class_name}/backtest/{test_path}/{session_id}/datas/{session_id}_backtest.csv'
         dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
         session_id = Config.get(Config.SESSION_ID)
-        file_path = dir_strategy_storage + cls._FILE_PATH_BACKTEST.replace('$session', session_id)
+        backtest_path = cls.file_path_backtest(active_path=None)
+        file_path = dir_strategy_storage + backtest_path
         file_path = file_path.replace('$path', 'tests')
         paths = file_path.split('/')
         paths.insert(-1, session_id)
@@ -1078,52 +1087,6 @@ class Icarus(TraderClass):
             unban_time = _MF.round_time(buy_time, period) + period
             return unban_time
 
-        def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
-            """
-            def is_buy_period() -> bool:
-                buy_time_rounded = _MF.round_time(buy_time, period)
-                first_open_time = buy_time_rounded + period
-                open_time = marketprice.get_time()
-                return open_time < first_open_time
-
-            def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
-                # RSI
-                rsi = list(marketprice.get_rsis())
-                rsi.reverse()
-                rsi_reached = rsi[-1] > rsi_trigger
-                return rsi_reached
-            """
-
-            def is_histogram_dropping(vars_map: Map) -> bool:
-                # MACD
-                macd_map = marketprice.get_macd()
-                histogram = list(macd_map.get(Map.histogram))
-                histogram.reverse()
-                histogram_dropping = histogram[-1] < 0
-                return histogram_dropping
-
-            def are_macd_signal_negatives(vars_map: Map) -> bool:
-                macd_map = marketprice.get_macd()
-                macd = list(macd_map.get(Map.macd))
-                macd.reverse()
-                signal = list(macd_map.get(Map.signal))
-                signal.reverse()
-                macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
-                return macd_signal_negatives
-
-            def is_tangent_macd_dropping(vars_map: Map) -> bool:
-                macd_map = marketprice.get_macd()
-                macd = list(macd_map.get(Map.macd))
-                macd.reverse()
-                tangent_macd_dropping = macd[-1] <= macd[-2]
-                return tangent_macd_dropping
-
-            vars_map = Map()
-            can_sell = False
-            # Check
-            can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
-            return can_sell
-
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
             BinanceFakeAPI.reset()
             buy_repports = []
@@ -1155,9 +1118,9 @@ class Icarus(TraderClass):
             ])
             i = 0
             Bot.update_trade_index(i)
-            marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=True, **market_params)
+            marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=True, **market_params)
             while isinstance(marketprice, MarketPrice):
-                big_marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **big_market_params)
+                big_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **big_market_params)
                 open_times = list(marketprice.get_times())
                 open_times.reverse()
                 closes = list(marketprice.get_closes())
@@ -1212,7 +1175,7 @@ class Icarus(TraderClass):
                             'buy_date': _MF.unix_to_date(buy_time),
                             'buy_price': exec_price,
                         }
-                elif has_position and can_sell_indicator(marketprice, buy_time):
+                elif has_position and cls._can_sell_indicator(marketprice):
                     # Ban
                     sell_in_buy_period = is_buy_period(marketprice, buy_time, period)
                     unban_time = get_unban_time(buy_time, period) if sell_in_buy_period else 0
@@ -1261,7 +1224,7 @@ class Icarus(TraderClass):
                     buy_time = None
                 i += 1
                 Bot.update_trade_index(i)
-                marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **market_params)
+                marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **market_params)
             print()
             if trades is None:
                 default = {
@@ -1315,7 +1278,7 @@ class Icarus(TraderClass):
 
         for pair in pairs:
             for period in periods:
-                _MF.catch_exception(wrap_trades, Icarus.__name__, repport=True, **{Map.pair: pair, Map.period: period, 'turn': turn})
+                _MF.catch_exception(wrap_trades, cls.__name__, repport=True, **{Map.pair: pair, Map.period: period, 'turn': turn})
                 turn += 1
 
     @staticmethod
@@ -1335,7 +1298,6 @@ class Icarus(TraderClass):
         args_map = Map(agrs)
         market_price = agrs['market_price']
         bkr = self.get_broker()
-        # predictor_marketprice = agrs['predictor_marketprice']
         roi = self.get_wallet().get_roi(bkr)
         has_position = self._has_position()
         closes = list(market_price.get_closes())

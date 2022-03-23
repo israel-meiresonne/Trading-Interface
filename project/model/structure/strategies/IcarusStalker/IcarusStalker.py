@@ -10,7 +10,6 @@ from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
-from model.tools.Predictor import Predictor
 from model.tools.Price import Price
 from model.tools.Wallet import Wallet
 
@@ -20,6 +19,7 @@ class IcarusStalker(StalkerClass):
     _STALKER_BOT_SLEEP_TIME = 1  # in second
     _PAIR_FILTER_MEAN = 40/100
     _PAIR_FILTER_100 = 20/100
+    CHILD_STRATEGY = Icarus
 
     def __init__(self, params: Map):
         """
@@ -117,10 +117,10 @@ class IcarusStalker(StalkerClass):
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
-        child_ok, child_datas = Icarus.can_buy(market_price)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price)
         eligible = child_ok
         # Repport
-        key = IcarusStalker._eligible.__name__
+        key = self._eligible.__name__
         repport = {
             f'{key}.child_time': _MF.unix_to_date(market_price.get_time()),
             f'{key}.pair': pair,
@@ -134,7 +134,7 @@ class IcarusStalker(StalkerClass):
 
     def _format_stalk(self, repport: Map) -> dict:
         # Repport
-        key = Icarus._can_buy_indicator.__name__
+        key = self.CHILD_STRATEGY._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
@@ -171,13 +171,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.supertrend[-1]': None
         }
         # Repport
-        key = Icarus.can_buy.__name__
+        key = self.CHILD_STRATEGY.can_buy.__name__
         child_datas = {
             f'{key}.indicator': None,
             **indicator_datas
         }
         # Repport
-        key = IcarusStalker._eligible.__name__
+        key = self._eligible.__name__
         canvas = {
             f'{key}.child_time': None,
             f'{key}.pair': None,
@@ -190,7 +190,7 @@ class IcarusStalker(StalkerClass):
         return content
 
     def _reset_last_reset_allowed_pair(self) -> int:
-        interval = Icarus.get_predictor_period()
+        interval = self.CHILD_STRATEGY.get_predictor_period()
         unix_time = _MF.get_timestamp()
         self.__last_reset_allowed_pair = _MF.round_time(unix_time, interval)
 
@@ -211,9 +211,9 @@ class IcarusStalker(StalkerClass):
             self._allowed_pairs = allowed_pairs
         return self._allowed_pairs
 
-    @staticmethod
-    def get_bot_sleep_time() -> int:
-        return IcarusStalker._STALKER_BOT_SLEEP_TIME
+    @classmethod
+    def get_bot_sleep_time(cls) -> int:
+        return cls._STALKER_BOT_SLEEP_TIME
 
     @staticmethod
     def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
