@@ -200,7 +200,8 @@ class IcarusStalker(StalkerClass):
         return self.__next_reset_allowed_pair
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
-        if (self._allowed_pairs is None) or (_MF.get_timestamp() >= self.get_next_reset_allowed_pair()):
+        # if (self._allowed_pairs is None) or (_MF.get_timestamp() >= self.get_next_reset_allowed_pair()):
+        if self._allowed_pairs is None:
             allowed_pairs = Icarus.best_pairs()
             self._set_allowed_pairs(allowed_pairs)
             self._reset_next_reset_allowed_pair()
