@@ -1,23 +1,23 @@
+from model.structure.strategies.Flash.Flash import Flash
 from model.structure.strategies.IcarusStalker.IcarusStalker import IcarusStalker
 from model.tools.Map import Map
 
 
 class FlashStalker(IcarusStalker):
+    CHILD_STRATEGY = Flash
+
     def _format_stalk(self, repport: Map) -> dict:
         # Repport
         key = self.CHILD_STRATEGY._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
-            f'{key}.close_above_big_ema': None,
-            f'{key}.big_prev_high_bellow_ema': None,
-            f'{key}.big_keltner_bellow_ema': None,
-            f'{key}.big_prev_close_bellow_keltner': None,
+            f'{key}.close_above_keltner': None,
+            f'{key}.prev_high_bellow_keltner': None,
             f'{key}.macd_historgram_positive': None,
             f'{key}.big_macd_historgram_positive': None,
             f'{key}.closes[-1]': None,
-            f'{key}.high[-1]': None,
-            f'{key}.ema[-1]': None,
-            f'{key}.keltner_high[-1]': None
+            f'{key}.big_2.5_keltner_high[-1]': None,
+            f'{key}.big_1_keltner_high[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
