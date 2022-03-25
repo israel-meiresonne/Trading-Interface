@@ -673,7 +673,7 @@ class Icarus(TraderClass):
             return big_macd_rising
 
         def is_price_bellow_keltner(vars_map: Map) -> bool:
-            keltner = child_marketprice.get_keltnerchannel()
+            keltner = child_marketprice.get_keltnerchannel(original_version=True)
             keltner_high = list(keltner.get(Map.high))
             keltner_high.reverse()
             bellow_keltner = closes[-1] < keltner_high[-1]
@@ -709,7 +709,7 @@ class Icarus(TraderClass):
         def is_price_above_low_keltner(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
-            keltner_low = list(child_marketprice.get_keltnerchannel().get(Map.low))
+            keltner_low = list(child_marketprice.get_keltnerchannel(original_version=True).get(Map.low))
             keltner_low.reverse()
             macd_map = child_marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))

@@ -94,6 +94,8 @@ class MarketPrice(ABC):
     _MACD_FAST = 12
     _MACD_SIGNAL = 9
     _KELTNERC_WINDOW = 20
+    _KELTNERC_MULTIPLE = 2
+    _KELTNERC_MULTIPLE_LIBRARY = 2
     _EMA_N_PERIOD = 10
     _BOLLINGER_WINDOW = 20
     _BOLLINGER_WINDOW_DEV = 2
@@ -184,6 +186,9 @@ class MarketPrice(ABC):
         return self.__pair
 
     def reset_collections(self) -> None:
+        """
+        To reset all collection
+        """
         collections = self._get_collections()
         for key, _ in collections.get_map().items():
             collections.put(None, key)
@@ -643,7 +648,7 @@ class MarketPrice(ABC):
         })
         return macd_map
 
-    def get_keltnerchannel(self, window: int = _KELTNERC_WINDOW) -> Map:
+    def get_keltnerchannel(self, window: int = _KELTNERC_WINDOW, multiple: float = _KELTNERC_MULTIPLE, original_version: bool = False) -> Map:
         k = self.COLLECTION_KELTNERC_MIDDLE
         kelc_middles = self._get_collection(k)
         if kelc_middles is None:
@@ -653,7 +658,7 @@ class MarketPrice(ABC):
             highs.reverse()
             lows = list(self.get_lows())
             lows.reverse()
-            kelc = MarketPrice.keltnerchannel(highs, lows, closes, window)
+            kelc = MarketPrice.keltnerchannel(highs, lows, closes, window, multiple, original_version)
             # Middle
             kelc_middles = kelc.get(Map.middle)
             kelc_middles.reverse()
@@ -1165,8 +1170,8 @@ class MarketPrice(ABC):
         })
         return macd_map
 
-    @staticmethod
-    def keltnerchannel(highs: list, lows: list, closes: list, window: int) -> Map:
+    @classmethod
+    def keltnerchannel(cls, highs: list, lows: list, closes: list, window: int, multiple: float, original_version: bool) -> Map:
         """
         To generate Keltner Channels\n
         Parameters
@@ -1179,6 +1184,10 @@ class MarketPrice(ABC):
             Market's close prices
         window: int
             The number of period to use
+        multiple: float
+            Multiple of middle Keltner
+        original_version: bool
+            True to use original version as the centerline (SMA of typical price) else False to use EMA of close
         Returns
         -------
         indicator: Map
@@ -1190,14 +1199,30 @@ class MarketPrice(ABC):
         pd_closes = pd.Series(np.array(closes))
         pd_highs = pd.Series(np.array(highs))
         pd_lows = pd.Series(np.array(lows))
-        kel_obj = KeltnerChannel(pd_highs,pd_lows,pd_closes, window, original_version=True)
-        hband = kel_obj.keltner_channel_hband().to_list()
-        lband = kel_obj.keltner_channel_lband().to_list()
-        mband = kel_obj.keltner_channel_mband().to_list()
+        kel_obj = KeltnerChannel(pd_highs,pd_lows,pd_closes, window, original_version)
+        # Edit multiple of Middle band
+        """
+        Keltner_middle = EMA
+        ATR = (Keltner_high - EMA)/multiple
+        Keltner_high = EMA + multiple ∗ ATR
+        Keltner_low = EMA - multiple ∗ ATR
+        """
+        library_multiple = cls._KELTNERC_MULTIPLE_LIBRARY
+        hband = kel_obj.keltner_channel_hband()
+        mband = ema = kel_obj.keltner_channel_mband()
+        if multiple != library_multiple:
+            atr = (hband - ema)/library_multiple
+            hband = ema + multiple * atr
+            lband = ema - multiple * atr
+        else:
+            lband = kel_obj.keltner_channel_lband()
+        hband_list = hband.to_list()
+        mband_list = mband.to_list()
+        lband_list = lband.to_list()
         kel_map = Map({
-            Map.high:  hband,
-            Map.low: lband,
-            Map.middle: mband
+            Map.high: hband_list,
+            Map.low: lband_list,
+            Map.middle: mband_list
         })
         return kel_map
 
