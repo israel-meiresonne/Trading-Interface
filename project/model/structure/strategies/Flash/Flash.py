@@ -31,6 +31,19 @@ class Flash(Icarus):
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def is_close_above_keltner(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            mult = cls.KELTNER_LARGE_MULTIPLE_BUY
+            keltner = child_marketprice.get_keltnerchannel(multiple=mult)
+            keltner_high = list(keltner.get(Map.high))
+            keltner_high.reverse()
+            # Check
+            close_above_keltner = closes[-1] > keltner_high[-1]
+            # Put
+            vars_map.put(close_above_keltner, 'close_above_keltner')
+            vars_map.put(keltner_high, f'keltner_high_2.5')
+            return close_above_keltner
+
+        def is_close_above_big_keltner(vars_map: Map) -> bool:
             big_marketprice.reset_collections()
             mult = cls.KELTNER_LARGE_MULTIPLE_BUY
             keltner = big_marketprice.get_keltnerchannel(multiple=mult)
@@ -39,7 +52,7 @@ class Flash(Icarus):
             # Check
             close_above_keltner = closes[-1] > keltner_high[-1]
             # Put
-            vars_map.put(close_above_keltner, 'close_above_keltner')
+            vars_map.put(close_above_keltner, 'close_above_big_keltner')
             vars_map.put(keltner_high, f'big_2.5_keltner_high')
             return close_above_keltner
 
@@ -65,23 +78,26 @@ class Flash(Icarus):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        can_buy_indicator = is_close_above_keltner(vars_map) \
+        can_buy_indicator = is_close_above_keltner(vars_map) and is_close_above_big_keltner(vars_map) \
             and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
         # Repport
-        keltner_high2_5 = vars_map.get('big_2.5_keltner_high')
+        keltner_high2_5 = vars_map.get('keltner_high_2.5')
+        big_keltner_high2_5 = vars_map.get('big_2.5_keltner_high')
         keltner_high1_0 = vars_map.get('big_1_keltner_high')
         big_highs = vars_map.get('big_highs')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.close_above_keltner': vars_map.get('close_above_keltner'),
+            f'{key}.close_above_big_keltner': vars_map.get('close_above_big_keltner'),
             f'{key}.prev_high_bellow_keltner': vars_map.get('prev_high_bellow_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.big_highs[-1]': big_highs[-1] if big_highs is not None else None,
             f'{key}.big_highs[-2]': big_highs[-2] if big_highs is not None else None,
-            f'{key}.big_2.5_keltner_high[-1]': keltner_high2_5[-1] if keltner_high2_5 is not None else None,
+            f'{key}.keltner_high2_5[-1]': keltner_high2_5[-1] if keltner_high2_5 is not None else None,
+            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
             f'{key}.big_1_keltner_high[-1]': keltner_high1_0[-1] if keltner_high1_0 is not None else None,
             f'{key}.big_1_keltner_high[-2]': keltner_high1_0[-2] if keltner_high1_0 is not None else None
         }
@@ -176,10 +192,16 @@ class Flash(Icarus):
                 }
                 buy_repports.append(buy_repport)
                 if can_buy:
+                    keltner_multiple = cls.KELTNER_LARGE_MULTIPLE_BUY
+                    # Normal
+                    marketprice.reset_collections()
+                    keltner_high = marketprice.get_keltnerchannel(multiple=keltner_multiple).get(Map.high)[0]
+                    # Big
                     big_marketprice.reset_collections()
-                    keltner_high = big_marketprice.get_keltnerchannel(multiple=cls.KELTNER_LARGE_MULTIPLE_BUY).get(Map.high)[0]
+                    big_keltner_high = big_marketprice.get_keltnerchannel(multiple=keltner_multiple).get(Map.high)[0]
+                    # Buy
                     buy_time = marketprice.get_time()
-                    exec_price = max([keltner_high, opens[-1]])
+                    exec_price = max([big_keltner_high, opens[-1], keltner_high])
                     min_roi_position = None
                     max_roi_position = None
                     trade = {
