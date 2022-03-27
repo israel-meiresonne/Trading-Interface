@@ -65,10 +65,6 @@ class Flash(Icarus):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        """
-        can_buy_indicator = is_close_above_keltner(vars_map) and is_prev_high_bellow_keltner(vars_map) \
-            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
-        """
         can_buy_indicator = is_close_above_keltner(vars_map) \
             and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
         # Repport
