@@ -16,8 +16,11 @@ class FlashStalker(IcarusStalker):
             f'{key}.macd_historgram_positive': None,
             f'{key}.big_macd_historgram_positive': None,
             f'{key}.closes[-1]': None,
+            f'{key}.big_highs[-1]': None,
+            f'{key}.big_highs[-2]': None,
             f'{key}.big_2.5_keltner_high[-1]': None,
-            f'{key}.big_1_keltner_high[-1]': None
+            f'{key}.big_1_keltner_high[-1]': None,
+            f'{key}.big_1_keltner_high[-2]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
