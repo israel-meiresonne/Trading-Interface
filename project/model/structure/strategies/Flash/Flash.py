@@ -42,7 +42,7 @@ class Flash(Icarus):
             vars_map.put(close_above_keltner, 'close_above_keltner')
             vars_map.put(keltner_high, f'big_2.5_keltner_high')
             return close_above_keltner
-        """
+
         def is_prev_high_bellow_keltner(vars_map: Map) -> bool:
             big_marketprice.reset_collections()
             mult = cls.KELTNER_SMALL_MULTIPLE_BUY
@@ -58,7 +58,6 @@ class Flash(Icarus):
             vars_map.put(highs, f'big_highs')
             vars_map.put(keltner_high, f'big_1_keltner_high')
             return prev_high_bellow_keltner
-        """
 
         def is_macd_historgram_positive(vars_map: Map, marketprice: MarketPrice, repport: bool) -> None:
             macd_map = marketprice.get_macd()
@@ -82,11 +81,7 @@ class Flash(Icarus):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        """
         can_buy_indicator = is_close_above_keltner(vars_map) and is_prev_high_bellow_keltner(vars_map) \
-            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
-        """
-        can_buy_indicator = is_close_above_keltner(vars_map) \
             and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
         # Repport
         keltner_high2_5 = vars_map.get('big_2.5_keltner_high')
