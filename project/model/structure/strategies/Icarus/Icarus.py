@@ -992,11 +992,9 @@ class Icarus(TraderClass):
         """
         # '{class_name}/backtest/$path/$session/datas/$session_backtest.csv'
         # >>> '{class_name}/backtest/{test_path}/{session_id}/datas/{session_id}_backtest.csv'
-        dir_strategy_storage = Config.get(Config.DIR_STRATEGY_STORAGE)
         session_id = Config.get(Config.SESSION_ID)
         backtest_path = cls.file_path_backtest(active_path=None)
-        file_path = dir_strategy_storage + backtest_path
-        file_path = file_path.replace('$path', 'tests')
+        file_path = backtest_path.replace('$path', 'tests')
         paths = file_path.split('/')
         paths.insert(-1, session_id)
         paths.insert(-1, 'datas')
