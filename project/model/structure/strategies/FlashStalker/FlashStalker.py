@@ -11,15 +11,13 @@ class FlashStalker(IcarusStalker):
         key = self.CHILD_STRATEGY._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
-            f'{key}.close_above_keltner': None,
+            f'{key}.close_above_big_keltner': None,
             f'{key}.macd_historgram_positive': None,
             f'{key}.big_macd_historgram_positive': None,
             f'{key}.big_supertrend_rising': None,
             f'{key}.closes[-1]': None,
-            f'{key}.big_2.5_keltner_high[-1]': None,
-            f'{key}.big_1_keltner_high[-1]': None,
-            f'{key}.big_1_keltner_high[-2]': None,
-            f'{key}.big_supertrend[-1]': None
+            f'{key}.big_supertrend[-1]': None,
+            f'{key}.big_keltner_high2_5[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
