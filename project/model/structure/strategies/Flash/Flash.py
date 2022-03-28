@@ -30,18 +30,18 @@ class Flash(Icarus):
 
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        def is_close_above_keltner(vars_map: Map) -> bool:
+        def is_close_above_big_keltner(vars_map: Map) -> bool:
             big_marketprice.reset_collections()
             mult = cls.KELTNER_LARGE_MULTIPLE_BUY
             keltner = big_marketprice.get_keltnerchannel(multiple=mult)
             keltner_high = list(keltner.get(Map.high))
             keltner_high.reverse()
             # Check
-            close_above_keltner = closes[-1] > keltner_high[-1]
+            close_above_big_keltner = closes[-1] > keltner_high[-1]
             # Put
-            vars_map.put(close_above_keltner, 'close_above_keltner')
-            vars_map.put(keltner_high, f'big_2.5_keltner_high')
-            return close_above_keltner
+            vars_map.put(close_above_big_keltner, 'close_above_big_keltner')
+            vars_map.put(keltner_high, f'big_keltner_high2_5')
+            return close_above_big_keltner
 
         def is_macd_historgram_positive(vars_map: Map, marketprice: MarketPrice, repport: bool) -> None:
             macd_map = marketprice.get_macd()
@@ -73,24 +73,21 @@ class Flash(Icarus):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        can_buy_indicator = is_close_above_keltner(vars_map) and is_big_macd_historgram_positive(vars_map) \
+        can_buy_indicator = is_close_above_big_keltner(vars_map) and is_big_macd_historgram_positive(vars_map) \
             and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) and is_big_supertrend_rising(vars_map)
         # Repport
         big_supertrend = vars_map.get('big_supertrend')
-        keltner_high2_5 = vars_map.get('big_2.5_keltner_high')
-        keltner_high1_0 = vars_map.get('big_1_keltner_high')
+        big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.close_above_keltner': vars_map.get('close_above_keltner'),
+            f'{key}.close_above_big_keltner': vars_map.get('close_above_big_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.big_2.5_keltner_high[-1]': keltner_high2_5[-1] if keltner_high2_5 is not None else None,
-            f'{key}.big_1_keltner_high[-1]': keltner_high1_0[-1] if keltner_high1_0 is not None else None,
-            f'{key}.big_1_keltner_high[-2]': keltner_high1_0[-2] if keltner_high1_0 is not None else None,
-            f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None
+            f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None,
+            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None
         }
         return can_buy_indicator, repport
 
