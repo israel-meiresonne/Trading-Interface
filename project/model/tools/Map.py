@@ -1,7 +1,9 @@
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.MyJson import MyJson
 
 
 class Map(MyJson):
+    PREFIX_ID = 'map_'
     # keys
     message = "message"
     index = "index"
@@ -193,8 +195,12 @@ class Map(MyJson):
     stream = "stream"
 
     def __init__(self, my_map: dict = None):
+        self.__id = self.PREFIX_ID + _MF.new_code()
         my_map = {} if my_map is None else dict(my_map)
         self.__map = my_map
+
+    def get_id(self) -> str:
+        return self.__id
 
     def _set_map(self, my_map: dict) -> None:
         self.__map = my_map
