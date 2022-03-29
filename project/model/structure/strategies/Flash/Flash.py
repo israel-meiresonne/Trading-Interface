@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 import pandas as pd
 
@@ -60,13 +61,40 @@ class Flash(Icarus):
             vars_map.put(big_macd_historgram_positive, 'big_macd_historgram_positive')
             return big_macd_historgram_positive
 
+        def have_not_bought_in_macd(vars_map: Map) -> bool:
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Get macd's start and end time
+            macd_swings = _MF.group_swings(macd, signal)
+            now_index = len(macd) - 1
+            interval = macd_swings[now_index]
+            macd_starttime = open_times[interval[0]]
+            macd_endtime = open_times[now_index]
+            # Get macd's buy times
+            buy_times = np.array(cls.get_buy_times(pair))
+            macd_buy_times = buy_times[(buy_times >= macd_starttime) & (buy_times < macd_endtime)]
+            # Check
+            not_bought_in_macd = macd_buy_times.shape[0] == 0
+            # Put
+            vars_map.put(not_bought_in_macd, 'not_bought_in_macd')
+            vars_map.put(_MF.unix_to_date(macd_starttime), 'macd_starttime')
+            vars_map.put(_MF.unix_to_date(macd_endtime), 'macd_endtime')
+            return not_bought_in_macd
+
         vars_map = Map()
+        pair = child_marketprice.get_pair()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
         can_buy_indicator = is_close_above_big_keltner(vars_map) \
-            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
+            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) \
+                and have_not_bought_in_macd(vars_map)
         # Repport
         big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
         key = cls._can_buy_indicator.__name__
@@ -75,6 +103,9 @@ class Flash(Icarus):
             f'{key}.close_above_big_keltner': vars_map.get('close_above_big_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
+            f'{key}.not_bought_in_macd': vars_map.get('not_bought_in_macd'),
+            f'{key}.macd_starttime': vars_map.get('macd_starttime'),
+            f'{key}.macd_endtime': vars_map.get('macd_endtime'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None
         }
@@ -175,6 +206,7 @@ class Flash(Icarus):
                     exec_price = max([keltner_high, opens[-1]])
                     min_roi_position = None
                     max_roi_position = None
+                    cls._add_buy_time(pair, buy_time)
                     trade = {
                         Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                         Map.pair: pair,
