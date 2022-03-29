@@ -134,6 +134,7 @@ class TraderClass(Strategy, MyJson, ABC):
             raise ValueError(f"buy_time must be in second instead '{buy_time}'")
         buy_times = cls.get_buy_times(pair, self)
         buy_times.append(buy_time) if buy_time not in buy_times else None
+        buy_times.sort()
 
     def _reset_marketprices(self) -> None:
         self.__marketprices = None
