@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.Strategy import Strategy
@@ -19,6 +21,7 @@ class TraderClass(Strategy, MyJson, ABC):
     _EXEC_PLACE_SECURE = "EXEC_PLACE_SECURE"
     _EXEC_SELL = "EXEC_SELL"
     _EXEC_CANCEL_SECURE = "EXEC_CANCEL_SECURE"
+    _BUY_TIMES = None
 
     def __init__(self, params: Map):
         """
@@ -34,6 +37,103 @@ class TraderClass(Strategy, MyJson, ABC):
         self.__marketprices = None
         self.__buy_order = None
         self.__secure_order = None
+        self.__buy_times = None
+
+    @classmethod
+    def _set_buy_time_collection(cls, self: 'TraderClass' = None) -> None:
+        cls_buy_time_coll = cls._BUY_TIMES
+        self_is_instance = isinstance(self, TraderClass)
+        self_buy_time_coll = self.__buy_times if self_is_instance else None
+        if isinstance(cls_buy_time_coll, Map) and isinstance(self_buy_time_coll, Map) and (cls_buy_time_coll.get_id() != self_buy_time_coll.get_id()):
+            keys = [*cls_buy_time_coll.get_keys(), *self_buy_time_coll.get_keys()]
+            keys = dict.fromkeys(keys).keys()
+            buy_time_coll = Map()
+            for key in keys:
+                cls_buy_times = cls_buy_time_coll.get(key)
+                self_buy_times = self_buy_time_coll.get(key)
+                buy_times = [
+                    *(cls_buy_times if cls_buy_times is not None else []),
+                    *(self_buy_times if self_buy_times is not None else [])
+                ]
+                cls_buy_time_coll.put(buy_times, key)
+            self.__buy_times = cls_buy_time_coll
+        elif (cls_buy_time_coll is None) and isinstance(self_buy_time_coll, Map):
+            cls._BUY_TIMES = self_buy_time_coll
+        elif isinstance(cls_buy_time_coll, Map) and self_is_instance and (self_buy_time_coll is None):
+            self.__buy_times = cls_buy_time_coll
+        elif (cls_buy_time_coll is None) and (self_buy_time_coll is None):
+            buy_time_coll = Map()
+            cls._BUY_TIMES = buy_time_coll
+            if self_is_instance:
+                self.__buy_times = buy_time_coll
+
+    @classmethod
+    def _get_buy_time_collection(cls, self: 'TraderClass' = None) -> Map:
+        """
+        To get collection of list of buy times
+
+        Parameters:
+        -----------
+        self: TraderClass = None
+            Instance of TraderClass
+
+        Returns:
+        --------
+        return: Map
+            Collection of list of buy times
+            buy_times[Pair.__str__()]:  {list}
+        """
+        cls._set_buy_time_collection(self)  # if (cls._BUY_TIMES is None) or (isinstance(self, TraderClass) and (self.__buy_times is None)) else None
+        return cls._BUY_TIMES
+
+    @classmethod
+    def get_buy_times(cls, pair: Pair, self: 'TraderClass' = None) -> list:
+        """
+        To get list of buy times
+        NOTE: buy times are in second
+
+        Parameters:
+        -----------
+        pair: Pair
+            Pair to get buy times of
+        self: TraderClass = None
+            Instance of TraderClass
+
+        Returns:
+        --------
+        return: list
+            List of buy times
+        """
+        pair_str = pair.__str__()
+        buy_times = cls._get_buy_time_collection(self).get(pair_str)
+        if buy_times is None:
+            buy_times = []
+            cls._get_buy_time_collection(self).put(buy_times, pair_str)
+        return buy_times
+
+    @classmethod
+    def _add_buy_time(cls, pair: Pair, buy_time: int, self: 'TraderClass' = None) -> None:
+        """
+        To add new buy time
+
+        Parameters:
+        -----------
+        pair: Pair
+            Pair to add buy times
+        buy_time: int
+            Unix time (in second)
+        self: TraderClass = None
+            Instance of TraderClass
+        """
+        if (self is not None) and (not isinstance(self, TraderClass)):
+            raise TypeError(f"self must be of type '{TraderClass.__name__}', instead '{type(self)}'")
+        if (not isinstance(buy_time, int)) and (not isinstance(buy_time, float)):
+            raise TypeError(f"buy_time must of type '{int}' or '{float}' instead {type(buy_time)}")
+        date = _MF.catch_exception(_MF.unix_to_date, cls.__name__, repport=True, **{Map.time: buy_time})
+        if not isinstance(date, str):
+            raise ValueError(f"buy_time must be in second instead '{buy_time}'")
+        buy_times = cls.get_buy_times(pair, self)
+        buy_times.append(buy_time) if buy_time not in buy_times else None
 
     def _reset_marketprices(self) -> None:
         self.__marketprices = None
@@ -41,7 +141,6 @@ class TraderClass(Strategy, MyJson, ABC):
     def _get_marketprices(self) -> Map:
         """
         To get collection of MarketPrice
-
         NOTE: marketprices[period{int}] => {MarketPrice}
 
         Returns:
@@ -227,6 +326,7 @@ class TraderClass(Strategy, MyJson, ABC):
                 buy_order = self._new_buy_order(bkr)
                 bkr.execute(buy_order)
                 self._set_buy_order(buy_order)
+                self._add_buy_time(self.get_pair(), (buy_order.get_execution_time()/1000), self)
                 self.get_wallet().buy(buy_order)
             elif execution == self._EXEC_PLACE_SECURE:
                 secure_order = self._new_secure_order(bkr, mkt_prc)

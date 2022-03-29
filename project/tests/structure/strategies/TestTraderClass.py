@@ -3,7 +3,9 @@ import unittest
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.structure.Broker import Broker
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Icarus.Icarus import Icarus
+from model.structure.strategies.TraderClass import TraderClass
 from model.tools.Map import Map
 from model.tools.Order import Order
 from model.tools.Pair import Pair
@@ -13,6 +15,7 @@ from model.tools.Transaction import Transaction
 
 class TestTraderClass(unittest.TestCase):
     def setUp(self) -> None:
+        self.pair = Pair('BTC/USDT')
         self.stg_params1 = Map({
             Map.pair: Pair('DOGE/USDT'),
             Map.period: 60 * 5,
@@ -44,6 +47,73 @@ class TestTraderClass(unittest.TestCase):
             Config.update(Config.STAGE_MODE,
                           init_stage) if init_stage is not None else None
         return self.BROKER
+
+    def test_get_buy_time_collection(self) -> None:
+        strategy1 = self.stg
+        strategy2 = Icarus(self.stg_params1)
+        _cls = strategy2.__class__
+        pair = self.pair
+        # Same collection instance
+        exp1 = _cls._get_buy_time_collection().get_id()
+        result1 = strategy1._get_buy_time_collection(strategy1).get_id()
+        self.assertEqual(exp1, result1)
+        # —— static collection is not set
+        _cls._BUY_TIMES = None
+        exp2 = strategy1._get_buy_time_collection(strategy1).get_id()
+        result2 = _cls._get_buy_time_collection().get_id()
+        self.assertEqual(exp2, result1) # the id still the same that result1
+        self.assertEqual(exp2, result2)
+        # —— self collection is not set
+        exp3 = _cls._get_buy_time_collection()
+        result3 = strategy2._get_buy_time_collection(strategy2).get_id()
+        self.assertEqual(exp3.get_id(), result2)
+        self.assertEqual(exp3.get_id(), result3)
+        # —— static and self are set
+        _cls._BUY_TIMES = exp3.put([1234567], pair.__str__())
+        result4 = strategy1._get_buy_time_collection(strategy1)
+        self.assertEqual(exp3.get_id(), result4.get_id())
+        self.assertListEqual([pair.__str__()], result4.get_keys())
+        # Parent class not affected
+        self.assertIsNone(TraderClass._BUY_TIMES)
+
+    def test_get_buy_times(self) -> None:
+        strategy = self.stg
+        _cls = strategy.__class__
+        pair = self.pair
+        exp1 = _cls.get_buy_times(pair)
+        result1 = strategy.get_buy_times(pair, strategy)
+        self.assertIsInstance(result1, list)
+        self.assertEqual(id(exp1), id(result1))
+        self.assertListEqual(exp1, result1)
+
+    def test_add_buy_time(self) -> None:
+        strategy = self.stg
+        _cls = strategy.__class__
+        pair = self.pair
+        buy_time1 = _MF.get_timestamp()
+        # add
+        exp1 = strategy.get_buy_times(pair, strategy)
+        strategy._add_buy_time(pair, buy_time1, strategy)
+        result1 = _cls.get_buy_times(pair)
+        self.assertListEqual(exp1, result1)
+        self.assertEqual(id(exp1), id(result1))
+        # buy_time is float param is wrong type
+        buy_time2 = _MF.get_timestamp(_MF.TIME_MILLISEC)/1000
+        _cls._add_buy_time(pair, buy_time2)
+        exp2 = exp1
+        result2 = strategy.get_buy_times(pair, strategy)
+        self.assertListEqual(exp2, result2)
+        self.assertEqual(id(exp2), id(result2))
+        # self param is wrong type
+        with self.assertRaises(TypeError):
+            strategy._add_buy_time(pair, _MF.get_timestamp(), 'strategy')
+        # buy_time param is wrong type
+        with self.assertRaises(TypeError):
+            _cls._add_buy_time(pair, 'buy_time')
+        # buy_time param is not unix time
+        buy_time3 = 10**15
+        with self.assertRaises(ValueError):
+            _cls._add_buy_time(pair, buy_time3)
 
     def test_get_marketprice(self) -> None:
         bkr = self.broker_switch(True)
