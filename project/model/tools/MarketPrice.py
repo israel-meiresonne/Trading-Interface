@@ -372,7 +372,7 @@ class MarketPrice(ABC):
             raise ValueError(f"This period '{prd}' don't exist in RSI collection")
         return rsis[prd]
 
-    def get_psar_rsis(self, nb_period: int = _NB_PRD_RSIS) -> tuple:
+    def get_psar_rsis(self, nb_period: int = _NB_PRD_RSIS, step: float = _PSAR_STEP, max_step: float = _PSAR_MAX_STEP) -> tuple:
         k = self.COLLECTION_PSAR_RSI
         psar_rsis = self._get_collection(k)
         if psar_rsis is None:
@@ -389,7 +389,7 @@ class MarketPrice(ABC):
             lows.reverse()
             rsi_lows = MarketPrice.rsis(nb_period, lows)[nb_period-1:]
             # Psar
-            psar_rsis = MarketPrice.psar(rsi_highs, rsi_lows, rsis)
+            psar_rsis = MarketPrice.psar(rsi_highs, rsi_lows, rsis, step=step, max_step=max_step)
             psar_rsis = [
                 *[float('nan') for i in range(nb_period - 1)],
                 *psar_rsis
@@ -602,7 +602,7 @@ class MarketPrice(ABC):
             self._set_collection(k, supers)
         return supers
 
-    def get_psar(self) -> tuple:
+    def get_psar(self, step: float = _PSAR_STEP, max_step: float = _PSAR_MAX_STEP) -> tuple:
         k = self.COLLECTION_PSAR
         psars = self._get_collection(k)
         if psars is None:
@@ -612,7 +612,7 @@ class MarketPrice(ABC):
             highs.reverse()
             lows = list(self.get_lows())
             lows.reverse()
-            psars = MarketPrice.psar(highs, lows, closes)
+            psars = MarketPrice.psar(highs, lows, closes, step=step, max_step=max_step)
             psars.reverse()
             psars = tuple(psars)
             self._set_collection(k, psars)
@@ -914,7 +914,7 @@ class MarketPrice(ABC):
         return tsis
 
     @staticmethod
-    def psar(highs: list, lows: list, closes: list, step: float = _PSAR_STEP, max_step: float = _PSAR_MAX_STEP) -> list:
+    def psar(highs: list, lows: list, closes: list, step: float, max_step: float) -> list:
         """
         To generate the Parabolic Stop and Reverse (PSAR) indicator.\n
         :param highs: Market's high prices.
