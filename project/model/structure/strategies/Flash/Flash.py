@@ -60,23 +60,44 @@ class Flash(Icarus):
             vars_map.put(big_macd_historgram_positive, 'big_macd_historgram_positive')
             return big_macd_historgram_positive
 
+        def is_keltner_above_ema(vars_map: Map) -> bool:
+            # child_marketprice.reset_collections()
+            keltner = child_marketprice.get_keltnerchannel()
+            keltner_middle = list(keltner.get(Map.middle))
+            keltner_middle.reverse()
+            ema = list(child_marketprice.get_ema(n_period=cls.EMA_N_PERIOD))
+            ema.reverse()
+            # Check
+            keltner_above_ema = keltner_middle[-1] > ema[-1]
+            # Put
+            vars_map.put(keltner_above_ema, 'keltner_above_ema')
+            vars_map.put(keltner_middle, 'keltner_middle')
+            vars_map.put(ema, Map.ema)
+            return keltner_above_ema
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
         can_buy_indicator = is_close_above_big_keltner(vars_map) \
-            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
+            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) \
+                and is_keltner_above_ema(vars_map)
         # Repport
         big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
+        keltner_middle = vars_map.get('keltner_middle')
+        ema = vars_map.get( Map.ema)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.close_above_big_keltner': vars_map.get('close_above_big_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
+            f'{key}.keltner_above_ema': vars_map.get('keltner_above_ema'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None
+            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
+            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
+            f'{key}.ema[-1]': ema[-1] if ema is not None else None
         }
         return can_buy_indicator, repport
 
