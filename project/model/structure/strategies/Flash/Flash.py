@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 import pandas as pd
 
@@ -14,6 +15,8 @@ from model.tools.Pair import Pair
 class Flash(Icarus):
     KELTNER_LARGE_MULTIPLE_BUY = 2.5
     KELTNER_SMALL_MULTIPLE_BUY = 1
+    VOLUME_ZERO_N_PERIOD = 10
+    VOLUME_ZERO_RATIO = 0
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice) ->  bool:
@@ -60,22 +63,50 @@ class Flash(Icarus):
             vars_map.put(big_macd_historgram_positive, 'big_macd_historgram_positive')
             return big_macd_historgram_positive
 
+        def is_zero_ratio_bellow_limit(vars_map: Map) -> bool:
+            n_period = cls.VOLUME_ZERO_N_PERIOD
+            ratio_limit = cls.VOLUME_ZERO_RATIO
+            l_volumes = list(child_marketprice.get_volumes(Map.left))
+            l_volumes.reverse()
+            # Evaluate Ration
+            l_volumes_np = np.array(l_volumes)
+            sub_l_volumes_np = l_volumes_np[-n_period:]
+            zero_l_volumes_np = sub_l_volumes_np[sub_l_volumes_np == 0]
+            zero_ratio = zero_l_volumes_np.shape[0]/n_period
+            # Check
+            zero_ratio_bellow_limit = zero_ratio <= ratio_limit
+            # Put
+            vars_map.put(zero_ratio_bellow_limit, 'zero_ratio_bellow_limit')
+            vars_map.put(zero_ratio, 'zero_ratio')
+            vars_map.put(zero_l_volumes_np.shape[0], 'n_zero')
+            vars_map.put(n_period, 'zero_n_period')
+            vars_map.put(ratio_limit, 'zero_ratio_limit')
+            vars_map.put(l_volumes, 'l_volumes')
+            return zero_ratio_bellow_limit
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        can_buy_indicator = is_close_above_big_keltner(vars_map) \
+        can_buy_indicator = is_zero_ratio_bellow_limit(vars_map) and is_close_above_big_keltner(vars_map) \
             and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
         # Repport
+        l_volumes = vars_map.get('l_volumes')
         big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
+            f'{key}.zero_ratio_bellow_limit': vars_map.get('zero_ratio_bellow_limit'),
             f'{key}.close_above_big_keltner': vars_map.get('close_above_big_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
+            f'{key}.zero_ratio': vars_map.get('zero_ratio'),
+            f'{key}.n_zero': vars_map.get('n_zero'),
+            f'{key}.zero_n_period': vars_map.get('zero_n_period'),
+            f'{key}.zero_ratio_limit': vars_map.get('zero_ratio_limit'),
             f'{key}.closes[-1]': closes[-1],
+            f'{key}.l_volumes[-1]': l_volumes[-1] if l_volumes is not None else None,
             f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None
         }
         return can_buy_indicator, repport
