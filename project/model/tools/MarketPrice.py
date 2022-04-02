@@ -39,6 +39,8 @@ class MarketPrice(ABC):
     COLLECTION_HIGHS = "COLLECTION_HIGHS"
     COLLECTION_LOWS = "COLLECTION_LOWS"
     COLLECTION_TIMES = "COLLECTION_TIMES"
+    COLLECTION_VOLUMES_LEFT = "COLLECTION_VOLUMES_LEFT"
+    COLLECTION_VOLUMES_RIGHT = "COLLECTION_VOLUMES_RIGHT"
     COLLECTION_MINS = "COLLECTION_MINS"
     COLLECTION_MAXS = "COLLECTION_MAXS"
     COLLECTION_EXTREMS = "COLLECTION_EXTREMS"
@@ -127,6 +129,8 @@ class MarketPrice(ABC):
             self.COLLECTION_HIGHS: None,
             self.COLLECTION_LOWS: None,
             self.COLLECTION_TIMES: None,
+            self.COLLECTION_VOLUMES_LEFT: None,
+            self.COLLECTION_VOLUMES_RIGHT: None,
             self.COLLECTION_MINS: None,
             self.COLLECTION_MAXS: None,
             self.COLLECTION_EXTREMS: None,
@@ -293,6 +297,35 @@ class MarketPrice(ABC):
         :return: market price's unix time
         """
         pass
+
+    @abstractmethod
+    def get_volumes(self, side: str) -> tuple:
+        """
+        To get trading volumes
+
+        Parameters:
+        -----------
+        side: str
+            Map.left: to get trading volume in left asset
+            Map.right: to get trading volume in right asset
+
+        Raises:
+        -------
+        raise: ValueError
+            If side is not supported
+
+        Returns:
+        --------
+        return: tuple
+            Trading volumes in given asset
+        """
+        pass
+
+    @staticmethod
+    def check_volume_side(side: str) -> bool:
+        if side not in [Map.left, Map.right]:
+            raise ValueError(f"This volume side '{side}' is not supported")
+        return True
 
     def _get_negative_closes(self) -> tuple:
         neg_closes = self._get_collection(self.COLLECTION_NEG_CLOSES)
