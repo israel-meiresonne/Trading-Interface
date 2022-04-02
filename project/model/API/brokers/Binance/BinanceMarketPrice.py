@@ -1,5 +1,6 @@
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
@@ -94,6 +95,16 @@ class BinanceMarketPrice(MarketPrice, MyJson):
         if prd >= len(times):
             raise IndexError(f"This period '{prd}' is out of time collection '{len(times)}'")
         return times[prd]
+
+    def get_volumes(self, side: str) -> tuple:
+        self.check_volume_side(side)
+        key = self.COLLECTION_VOLUMES_LEFT if side == Map.left else self.COLLECTION_VOLUMES_RIGHT
+        volumes = self._get_collection(key)
+        if volumes is None:
+            idx = {Map.left: 5, Map.right: 7}[side]
+            volumes = self._extract_index(idx)
+            self._set_collection(key, volumes)
+        return volumes
 
     def _extract_index(self, idx: int) -> list:
         """
