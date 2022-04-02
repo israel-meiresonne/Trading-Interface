@@ -1,4 +1,5 @@
 from typing import Tuple
+import numpy as np
 
 import pandas as pd
 
@@ -14,6 +15,7 @@ from model.tools.Pair import Pair
 class Flash(Icarus):
     KELTNER_LARGE_MULTIPLE_BUY = 2.5
     KELTNER_SMALL_MULTIPLE_BUY = 1
+    PSAR_STEP = 0.075
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice) ->  bool:
@@ -60,23 +62,64 @@ class Flash(Icarus):
             vars_map.put(big_macd_historgram_positive, 'big_macd_historgram_positive')
             return big_macd_historgram_positive
 
+        def is_edited_psar_rising(vars_map: Map) -> bool:
+            psar = list(child_marketprice.get_psar(step=cls.PSAR_STEP))
+            psar.reverse()
+            # Check
+            edited_psar_rising = MarketPrice.get_psar_trend(closes, psar, -1) == MarketPrice.PSAR_RISING
+            # Put
+            vars_map.put(edited_psar_rising, 'edited_psar_rising')
+            vars_map.put(psar, 'edited_psar')
+            return edited_psar_rising
+
+        def have_not_bought_edited_psar(vars_map: Map) -> bool:
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            psar = list(child_marketprice.get_psar(step=cls.PSAR_STEP))
+            psar.reverse()
+            # Get psar's start and end time
+            psar_swings = _MF.group_swings(closes, psar)
+            now_index = len(psar) - 1
+            interval = psar_swings[now_index]
+            psar_starttime = open_times[interval[0]]
+            psar_endtime = open_times[now_index]
+            # Get psar's buy times
+            buy_times = np.array(cls.get_buy_times(pair))
+            psar_buy_times = buy_times[(buy_times >= psar_starttime) & (buy_times < psar_endtime)]
+            # Check
+            not_bought_edited_psar = psar_buy_times.shape[0] == 0
+            # Put
+            vars_map.put(not_bought_edited_psar, 'not_bought_edited_psar')
+            vars_map.put(_MF.unix_to_date(psar_starttime), 'edited_psar_starttime')
+            vars_map.put(_MF.unix_to_date(psar_endtime), 'edited_psar_endtime')
+            vars_map.put(psar, 'edited_psar')
+            return not_bought_edited_psar
+
         vars_map = Map()
+        pair = child_marketprice.get_pair()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
         can_buy_indicator = is_close_above_big_keltner(vars_map) \
-            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True)
+            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) \
+                and is_edited_psar_rising(vars_map) and have_not_bought_edited_psar(vars_map)
         # Repport
         big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
+        edited_psar = vars_map.get('edited_psar')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.close_above_big_keltner': vars_map.get('close_above_big_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
+            f'{key}.edited_psar_rising': vars_map.get('edited_psar_rising'),
+            f'{key}.not_bought_edited_psar': vars_map.get('not_bought_edited_psar'),
+            f'{key}.edited_psar_starttime': vars_map.get('edited_psar_starttime'),
+            f'{key}.edited_psar_endtime': vars_map.get('edited_psar_endtime'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None
+            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
+            f'{key}.edited_psar[-1]': edited_psar[-1] if edited_psar is not None else None
         }
         return can_buy_indicator, repport
 
@@ -175,6 +218,7 @@ class Flash(Icarus):
                     exec_price = max([keltner_high, opens[-1]])
                     min_roi_position = None
                     max_roi_position = None
+                    cls._add_buy_time(pair, buy_time)
                     trade = {
                         Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                         Map.pair: pair,
