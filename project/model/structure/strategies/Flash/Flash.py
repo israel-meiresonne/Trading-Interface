@@ -134,22 +134,35 @@ class Flash(Icarus):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_rising
 
+        def is_big_psar_rising(vars_map: Map) -> bool:
+            psar = list(child_marketprice.get_psar())
+            psar.reverse()
+            # Check
+            big_psar_rising = MarketPrice.get_psar_trend(big_closes, psar, -1) == MarketPrice.PSAR_RISING
+            # Put
+            vars_map.put(big_psar_rising, 'big_psar_rising')
+            vars_map.put(psar, 'big_psar')
+            return big_psar_rising
+
         vars_map = Map()
         pair = child_marketprice.get_pair()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        big_closes = list(big_marketprice.get_closes())
+        big_closes.reverse()
         # Check
         can_buy_indicator = is_zero_ratio_bellow_limit(vars_map) and is_close_above_big_keltner(vars_map) \
-            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) \
+            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map, child_marketprice, repport=True) \
                 and is_edited_psar_rising(vars_map) and have_not_bought_edited_psar(vars_map) and is_big_supertrend_rising(vars_map) \
-                    and is_supertrend_rising(vars_map)
+                    and is_supertrend_rising(vars_map) and is_big_psar_rising(vars_map)
         # Repport
         l_volumes = vars_map.get('l_volumes')
         big_supertrend = vars_map.get('big_supertrend')
         big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
         edited_psar = vars_map.get('edited_psar')
         supertrend = vars_map.get(Map.supertrend)
+        big_psar = vars_map.get('big_psar')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -161,6 +174,7 @@ class Flash(Icarus):
             f'{key}.not_bought_edited_psar': vars_map.get('not_bought_edited_psar'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
+            f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
             f'{key}.zero_ratio': vars_map.get('zero_ratio'),
             f'{key}.n_zero': vars_map.get('n_zero'),
             f'{key}.zero_n_period': vars_map.get('zero_n_period'),
@@ -168,11 +182,13 @@ class Flash(Icarus):
             f'{key}.edited_psar_starttime': vars_map.get('edited_psar_starttime'),
             f'{key}.edited_psar_endtime': vars_map.get('edited_psar_endtime'),
             f'{key}.closes[-1]': closes[-1],
+            f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.l_volumes[-1]': l_volumes[-1] if l_volumes is not None else None,
             f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
             f'{key}.edited_psar[-1]': edited_psar[-1] if edited_psar is not None else None,
             f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None,
-            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None
+            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+            f'{key}.big_psar[-1]': big_psar[-1] if big_psar is not None else None
         }
         return can_buy_indicator, repport
 
