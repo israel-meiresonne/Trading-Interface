@@ -20,7 +20,7 @@ from model.tools.Wallet import Wallet
 
 
 class StalkerClass(Strategy, MyJson, ABC):
-    _CONST_STALK_FREQUENCY = 30             # in second
+    _STALK_FREQUENCY = 30             # in second
     _STALKER_BOT_EMPTY_SLEEP_TIME = 10      # in second
     _STALKER_BOT_SLEEP_TIME = 10            # in second
     _CONST_MAX_STRATEGY = 20
@@ -847,9 +847,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         from model.structure.Bot import Bot
         return Bot.get_trade_index()
 
-    @staticmethod
-    def get_stalk_frequency() -> int:
-        return StalkerClass._CONST_STALK_FREQUENCY
+    @classmethod
+    def get_stalk_frequency(cls) -> int:
+        return cls._STALK_FREQUENCY
 
     @staticmethod
     def get_blacklist_time() -> float:
