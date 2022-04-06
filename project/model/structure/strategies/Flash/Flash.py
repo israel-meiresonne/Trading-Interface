@@ -135,10 +135,11 @@ class Flash(Icarus):
             return supertrend_rising
 
         def is_big_psar_rising(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
             psar = list(child_marketprice.get_psar())
             psar.reverse()
             # Check
-            big_psar_rising = MarketPrice.get_psar_trend(big_closes, psar, -1) == MarketPrice.PSAR_RISING
+            big_psar_rising = MarketPrice.get_psar_trend(closes, psar, -1) == MarketPrice.PSAR_RISING
             # Put
             vars_map.put(big_psar_rising, 'big_psar_rising')
             vars_map.put(psar, 'big_psar')
