@@ -1,6 +1,9 @@
 from model.structure.strategies.Flash.Flash import Flash
 from model.structure.strategies.IcarusStalker.IcarusStalker import IcarusStalker
 from model.tools.Map import Map
+from model.tools.MyJson import MyJson
+from model.tools.Pair import Pair
+from model.tools.Price import Price
 
 
 class FlashStalker(IcarusStalker):
@@ -53,3 +56,24 @@ class FlashStalker(IcarusStalker):
         }
         content = {key: repport.get(key) for key in canvas}
         return content
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        pair = Pair('?/json')
+        instance = FlashStalker(Map({
+            Map.pair: pair,
+            Map.maximum: None,
+            Map.capital: Price(1, pair.get_right()),
+            Map.rate: 1,
+            Map.strategy: 'FlashStalker',
+            Map.period: 0,
+            Map.param: {
+                Map.maximum: None,
+                Map.capital: 0,
+                Map.rate: 1,
+                Map.period: 0
+            }
+        }))
+        exec(MyJson.get_executable())
+        return instance
