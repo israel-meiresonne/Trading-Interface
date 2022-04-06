@@ -208,10 +208,6 @@ class IcarusStalker(StalkerClass):
         return self._allowed_pairs
 
     @classmethod
-    def get_bot_sleep_time(cls) -> int:
-        return cls._STALKER_BOT_SLEEP_TIME
-
-    @classmethod
     def generate_strategy(cls, stg_class: str, params: Map) -> 'IcarusStalker':
         pair = params.get(Map.pair)
         maximum = params.get(Map.maximum)
