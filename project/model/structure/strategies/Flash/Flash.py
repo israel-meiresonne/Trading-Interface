@@ -28,8 +28,21 @@ class Flash(Icarus):
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
 
+        def is_edited_psar_dropping(vars_map: Map) -> bool:
+            psar = list(marketprice.get_psar(step=cls.PSAR_STEP))
+            psar.reverse()
+            # Check
+            edited_psar_dropping = MarketPrice.get_psar_trend(closes, psar, -1) == MarketPrice.PSAR_DROPPING
+            # Put
+            vars_map.put(edited_psar_dropping, 'edited_psar_dropping')
+            vars_map.put(psar, 'edited_psar')
+            return edited_psar_dropping
+
         vars_map = Map()
-        can_sell = is_tangent_macd_dropping(vars_map)
+        # Close
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        can_sell = is_tangent_macd_dropping(vars_map) or is_edited_psar_dropping(vars_map)
         return can_sell
 
     @classmethod
