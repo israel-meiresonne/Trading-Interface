@@ -9,7 +9,9 @@ from model.structure.strategies.Icarus.Icarus import Icarus
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
+from model.tools.Price import Price
 
 
 class Flash(Icarus):
@@ -399,3 +401,16 @@ class Flash(Icarus):
             rows = buy_repports
             FileManager.write_csv(repport_file_path, fields, rows, overwrite=False, make_dir=True)
         return trades
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Flash(Map({
+            Map.pair: Pair('@json/@json'),
+            Map.maximum: None,
+            Map.capital: Price(1, '@json'),
+            Map.rate: 1,
+            Map.period: 0
+        }))
+        exec(MyJson.get_executable())
+        return instance
