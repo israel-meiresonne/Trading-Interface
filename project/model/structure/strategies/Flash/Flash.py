@@ -121,7 +121,7 @@ class Flash(Icarus):
         def is_big_supertrend_rising(vars_map: Map) -> bool:
             supertrend = list(big_marketprice.get_super_trend())
             supertrend.reverse()
-            big_supertrend_rising = MarketPrice.get_super_trend_trend(closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
+            big_supertrend_rising = MarketPrice.get_super_trend_trend(big_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
             vars_map.put(big_supertrend_rising, 'big_supertrend_rising')
             vars_map.put(supertrend, 'big_supertrend')
             return big_supertrend_rising
