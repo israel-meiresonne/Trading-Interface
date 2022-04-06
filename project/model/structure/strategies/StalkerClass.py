@@ -708,7 +708,7 @@ class StalkerClass(Strategy, MyJson, ABC):
 
     def _get_sleep_time(self) -> int:
         n_stg = len(self.get_active_strategies().get_map())
-        sleep_interval = self.get_bot_sleep_time() if n_stg != 0 else StalkerClass._STALKER_BOT_EMPTY_SLEEP_TIME
+        sleep_interval = self.get_bot_sleep_time() if n_stg != 0 else self._STALKER_BOT_EMPTY_SLEEP_TIME
         unix_time = _MF.get_timestamp()
         time_rounded = _MF.round_time(unix_time, sleep_interval)
         next_rounded_time = time_rounded + sleep_interval
@@ -895,9 +895,9 @@ class StalkerClass(Strategy, MyJson, ABC):
         """
         pass
 
-    @staticmethod
-    def get_bot_sleep_time() -> int:
-        return StalkerClass._STALKER_BOT_SLEEP_TIME
+    @classmethod
+    def get_bot_sleep_time(cls) -> int:
+        return cls._STALKER_BOT_SLEEP_TIME
 
     @staticmethod
     @abstractmethod
