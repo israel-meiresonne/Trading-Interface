@@ -7,7 +7,6 @@ from model.structure.strategies.TraderClass import TraderClass
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
-from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 from model.tools.Wallet import Wallet
@@ -17,8 +16,8 @@ class IcarusStalker(StalkerClass):
     _CONST_MAX_STRATEGY = 5
     _STALKER_BOT_SLEEP_TIME = 60            # in second
     _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
-    _MARKETPRICE_N_PERIOD = Icarus.get_marketprice_n_period()
     CHILD_STRATEGY = Icarus
+    _MARKETPRICE_N_PERIOD = CHILD_STRATEGY.get_marketprice_n_period()
 
     def __init__(self, params: Map):
         """
@@ -110,12 +109,12 @@ class IcarusStalker(StalkerClass):
             self.get_period(),
             self.get_strategy_params().get(Map.period),
             Wallet.get_period(),
-            *Icarus.get_periods_required()
+            *self.CHILD_STRATEGY.get_periods_required()
         ]
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
-        big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
+        big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice)
         eligible = child_ok
@@ -203,7 +202,7 @@ class IcarusStalker(StalkerClass):
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
         # if (self._allowed_pairs is None) or (_MF.get_timestamp() >= self.get_next_reset_allowed_pair()):
         if self._allowed_pairs is None:
-            allowed_pairs = Icarus.best_pairs()
+            allowed_pairs = self.CHILD_STRATEGY.best_pairs()
             self._set_allowed_pairs(allowed_pairs)
             self._reset_next_reset_allowed_pair()
         return self._allowed_pairs
@@ -212,8 +211,8 @@ class IcarusStalker(StalkerClass):
     def get_bot_sleep_time(cls) -> int:
         return cls._STALKER_BOT_SLEEP_TIME
 
-    @staticmethod
-    def generate_strategy(stg_class: str, params: Map) -> 'IcarusStalker':
+    @classmethod
+    def generate_strategy(cls, stg_class: str, params: Map) -> 'IcarusStalker':
         pair = params.get(Map.pair)
         maximum = params.get(Map.maximum)
         capital = params.get(Map.capital)
@@ -227,7 +226,7 @@ class IcarusStalker(StalkerClass):
             Map.strategy: params.get(Map.strategy),
             Map.param: params.get(Map.param)
         })
-        return IcarusStalker(new_params)
+        return cls(new_params)
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
