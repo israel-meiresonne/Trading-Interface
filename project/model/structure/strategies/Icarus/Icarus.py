@@ -11,7 +11,6 @@ from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
-from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Predictor import Predictor
 from model.tools.Price import Price
