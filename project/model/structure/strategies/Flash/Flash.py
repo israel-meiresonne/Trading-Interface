@@ -45,6 +45,14 @@ class Flash(Icarus):
         closes = list(marketprice.get_closes())
         closes.reverse()
         can_sell = is_tangent_macd_dropping(vars_map) or is_edited_psar_dropping(vars_map)
+        def is_tangent_rsi_dropping(vars_map: Map) -> bool:
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            tangent_rsi_dropping = rsi[-1] <= rsi[-2]
+            return tangent_rsi_dropping
+
+        vars_map = Map()
+        can_sell = is_tangent_macd_dropping(vars_map) or is_tangent_rsi_dropping(vars_map) or is_edited_psar_dropping(vars_map)
         return can_sell
 
     @classmethod
