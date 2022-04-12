@@ -26,6 +26,7 @@ class FlashStalker(IcarusStalker):
             f'{key}.big_supertrend_rising': None,
             f'{key}.supertrend_rising': None,
             f'{key}.big_psar_rising': None,
+            f'{key}.rsi_rising': None,
             f'{key}.zero_ratio': None,
             f'{key}.n_zero': None,
             f'{key}.zero_n_period': None,
@@ -39,7 +40,8 @@ class FlashStalker(IcarusStalker):
             f'{key}.edited_psar[-1]': None,
             f'{key}.big_supertrend[-1]': None,
             f'{key}.supertrend[-1]': None,
-            f'{key}.big_psar[-1]': None
+            f'{key}.big_psar[-1]': None,
+            f'{key}.rsi[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
