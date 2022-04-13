@@ -12,6 +12,8 @@ from model.tools.Pair import Pair
 
 
 class Bot(MyJson):
+    _DEBUG = True
+    _VERBOSE = False
     PREFIX_ID = 'bot_'
     _TRADE_INDEX = 0
     _TRADE_INDEX_STOP = 40320
@@ -104,7 +106,7 @@ class Bot(MyJson):
             call_class = self.__class__.__name__
             base_name = self._THREAD_NAME_BOT_BACKUP
             thread, output = _MF.wrap_thread(callback, call_class, base_name, repport=True)
-            _MF.output(_MF.prefix() + output)
+            _MF.output(_MF.prefix() + output) if self._VERBOSE else None
             self.__thread_backup = thread
         return thread
 
@@ -121,10 +123,10 @@ class Bot(MyJson):
         sleep_time = None
         nb_error = 0
         starttime = _MF.get_timestamp()
-        _MF.output(f"{_MF.prefix()}Bot started to trade 🤖")
+        _MF.output(f"{_MF.prefix()}Bot started to trade 🤖") if self._DEBUG else None
         while self.active():
             Bot._set_trade_index(trade_index)
-            _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}")
+            _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}") if self._VERBOSE else None
             try:
                 sleep_time = stg.trade(bkr)
                 nb_error = 0
@@ -140,7 +142,7 @@ class Bot(MyJson):
                 start_date = _MF.unix_to_date(unix_time)
                 end_date = _MF.unix_to_date(unix_time + sleep_time)
                 sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-                _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...")
+                _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...") if self._VERBOSE else None
                 time.sleep(sleep_time)
                 sleep_time = None
             if _stage == Config.STAGE_1:
@@ -152,9 +154,9 @@ class Bot(MyJson):
                 time_per_trade = f"{n_trade/delta_time}(trade/sec.)"
                 trade_time = f"{delta_time/n_trade}(sec./trade)"
                 run_time = _MF.delta_time(0, n_trade*60)
-                _MF.output(_MF.prefix() + _cyan + f"{time_per_trade} — {trade_time} - {run_time}" + _normal)
+                _MF.output(_MF.prefix() + _cyan + f"{time_per_trade} — {trade_time} - {run_time}" + _normal) if self._DEBUG else None
         self.backup()
-        _MF.output(f"{_MF.prefix()}Bot stoped to trade ☠️")
+        _MF.output(f"{_MF.prefix()}Bot stoped to trade ☠️") if self._DEBUG else None
 
     def stop(self) -> None:
         self._set_trading(False)
@@ -198,13 +200,13 @@ class Bot(MyJson):
     def get_index_stop() -> int:
         return Bot._TRADE_INDEX_STOP
 
-    @staticmethod
-    def save_error(error: Exception, from_class: str, nb_error: int = None) -> None:
+    @classmethod
+    def save_error(cls, error: Exception, from_class: str, nb_error: int = None) -> None:
         from traceback import format_exc
         red = "\033[31m"
         normal = "\033[0m"
         _MF.output(f"{_MF.prefix()}{red}Error fromm the '{from_class}' class (nb_error='{nb_error}'): "
-              f"{error.__str__()} {normal}")
+              f"{error.__str__()} {normal}") if cls._DEBUG else None
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
             "thread": _MF.thread_name(),
@@ -230,7 +232,7 @@ class Bot(MyJson):
         self._set_last_backup(_MF.get_timestamp())
         json_str = self.json_encode()
         FileManager.write(backup_path, json_str, binary=False, overwrite=True, make_dir=True)
-        _MF.output(f"{_MF.prefix()}💾 Bot saved! ✅")
+        _MF.output(f"{_MF.prefix()}💾 Bot saved! ✅") if self._VERBOSE else None
         self._reset_thread_backup()
 
     @staticmethod
