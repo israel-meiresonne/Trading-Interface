@@ -1,6 +1,6 @@
 from typing import Tuple
-import numpy as np
 
+import numpy as np
 import pandas as pd
 
 from model.structure.Broker import Broker
@@ -229,6 +229,7 @@ class Flash(Icarus):
     @classmethod
     def backtest_trade_history(cls, pair: Pair, period: int, broker: Broker)  -> pd.DataFrame:
         import sys
+
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.structure.Bot import Bot
 
