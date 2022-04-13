@@ -8,9 +8,9 @@ from model.tools.Price import Price
 
 class FlashStalker(IcarusStalker):
     CHILD_STRATEGY = Flash
-    _STALK_FREQUENCY = 0               # in second
-    _STALKER_BOT_EMPTY_SLEEP_TIME = 0   # in second
-    _STALKER_BOT_SLEEP_TIME = 0         # in second
+    _STALK_FREQUENCY = 0.001               # in second
+    _STALKER_BOT_EMPTY_SLEEP_TIME = 0.001   # in second
+    _STALKER_BOT_SLEEP_TIME = 0.001         # in second
 
     def _format_stalk(self, repport: Map) -> dict:
         # Repport
