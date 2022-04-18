@@ -28,6 +28,7 @@ class Controller:
         """
         To start the application\n
         """
+        Config.label_session_id()
         view = self._get_view()
         home_key = View.MENUS_KEY_HOME
         menu = View.get_menus()
