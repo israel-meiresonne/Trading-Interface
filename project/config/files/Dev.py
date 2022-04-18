@@ -4,7 +4,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 class Dev:
     # Variables
     START_DATE = _MF.unix_to_date(_MF.get_timestamp(), form=_MF.FORMAT_D_H_M_S_FOR_FILE)
-    SESSION_ID = START_DATE
+    SESSION_ID = START_DATE + "_" + _MF.exec_console(command="git branch | egrep '^\*'").replace("* ", "").replace("\n", "")
     # Stage Modes
     STAGE_MODE = None
     # Static Files

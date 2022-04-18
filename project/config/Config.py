@@ -1,10 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any
 
 from model.tools.FileManager import FileManager
-
 from config.files.Dev import Dev
-
 # from config.files.Prod import Prod
 
 
@@ -87,6 +85,18 @@ class Config(ABC):
         old_value = Config.get(key)
         exec(f"{env}.{key} = new_value")
         _env_cls.update(old_value, new_value) if isinstance(new_value, str) and (old_value is not None) else None
+
+    def update_session_id(new_id: str) -> None:
+        """
+        To update session's id
+
+        Parameters:
+        -----------
+        new_id: str
+            The new id
+        """
+        Config.update(Config.SESSION_ID, '@xxx@')
+        Config.update(Config.SESSION_ID, new_id)
 
     @staticmethod
     def get_stage() -> str:
