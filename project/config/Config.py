@@ -132,3 +132,15 @@ class Config(ABC):
         if stage not in expected_stages:
             raise Exception(message.format("' or '".join(expected_stages), stage))
         return True
+
+    def label_session_id() -> str:
+        """
+        To append git branch's name in session's id
+        """
+        from model.structure.database.ModelFeature import ModelFeature as _MF
+        command = "git branch | egrep '^\*'"
+        output = _MF.exec_console(command)
+        branch_name = output.replace("* ", "").replace("\n", "")
+        session_id = Config.get(Config.SESSION_ID)
+        new_session_id = f"{session_id}_{branch_name}"
+        Config.update_session_id(new_session_id)
