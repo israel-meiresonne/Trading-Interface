@@ -1,21 +1,23 @@
-import re as rgx
-import threading
-from abc import abstractmethod
 import datetime
+import re
+import subprocess
+import threading
+import time
+from abc import abstractmethod
 from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
-import time
 from types import FunctionType, MethodType
 from typing import Any, Tuple, Union
 
 import dill
 import numpy as np
 import pandas as pd
-from model.structure.database.ModelAccess import ModelAccess
 import pytz
 from scipy.signal import find_peaks
 from scipy.stats import linregress
+
+from model.structure.database.ModelAccess import ModelAccess
 
 
 class ModelFeature(ModelAccess):
@@ -288,7 +290,7 @@ class ModelFeature(ModelAccess):
         :param string: To string to check
         :return: True if the string match the regex else False
         """
-        return rgx.match(regex, string) is not None
+        return re.match(regex, string) is not None
 
     @staticmethod
     def regex_replace(regex: str, new_str: str, string: str) -> str:
@@ -299,7 +301,7 @@ class ModelFeature(ModelAccess):
         :param string: The string to search in
         :return: The given string with replacement if found
         """
-        new_string = rgx.sub(regex, new_str, string)
+        new_string = re.sub(regex, new_str, string)
         return new_string
 
     @staticmethod
@@ -682,3 +684,22 @@ class ModelFeature(ModelAccess):
         group(equal_df)
         groups = dict(sorted(groups.items(), key=lambda row: row[0]))
         return groups
+
+    @staticmethod
+    def exec_console(command: str) -> str:
+        """
+        To execute console command
+
+        Parameters:
+        -----------
+        command: str
+            Command to execute
+
+        Returns:
+        --------
+        command: str
+            Executed command's output
+        """
+        command = "git branch | egrep '^\*'"
+        output = subprocess.check_output(command, shell=True).decode("utf-8")
+        return output
