@@ -813,12 +813,23 @@ class Icarus(TraderClass):
             vars_map.put(histogram, Map.histogram)
             return will_bounce
 
+        def is_tangent_macd_positive(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Check
+            tangent_macd_positive = macd[-1] > macd[-2]
+            # Put
+            vars_map.put(tangent_macd_positive, 'tangent_macd_positive')
+            vars_map.put(macd, Map.macd)
+            return tangent_macd_positive
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # 
-        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map)
         # Repport
@@ -833,6 +844,7 @@ class Icarus(TraderClass):
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.tangent_macd_positive': vars_map.get('tangent_macd_positive'),
             f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
             f'{key}.roc_positive': vars_map.get('roc_positive'),

@@ -137,6 +137,7 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
+            f'{key}.tangent_macd_positive': None,
             f'{key}.will_macd_bounce': None,
             f'{key}.big_macd_rising': None,
             f'{key}.roc_positive': None,
