@@ -1177,6 +1177,7 @@ class Icarus(TraderClass):
                     exec_price = marketprice.get_close()
                     min_roi_position = None
                     max_roi_position = None
+                    cls._add_buy_time(pair, buy_time)
                     trade = {
                         Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                         Map.pair: pair,
