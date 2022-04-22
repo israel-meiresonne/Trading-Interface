@@ -144,6 +144,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.close_bellow_keltner_high': None,
             f'{key}.closes_above_low_keltner': None,
             f'{key}.big_supertrend_rising': None,
+            f'{key}.big_psar_rising': None,
 
             f'{key}.macd_min_date': None,
             f'{key}.last_min_macd': None,
@@ -161,13 +162,15 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_keltner': None,
 
             f'{key}.closes[-1]': None,
+            f'{key}.big_closes[-1]': None,
             f'{key}.macd[-1]': None,
             f'{key}.signal[-1]': None,
             f'{key}.histogram[-1]': None,
             f'{key}.roc[-1]': None,
             f'{key}.keltner_high[-1]': None,
             f'{key}.keltner_low[-1]': None,
-            f'{key}.supertrend[-1]': None
+            f'{key}.supertrend[-1]': None,
+            f'{key}.big_psar[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
