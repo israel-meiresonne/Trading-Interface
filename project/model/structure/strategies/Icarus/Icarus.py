@@ -861,14 +861,25 @@ class Icarus(TraderClass):
             vars_map.put(macd, Map.macd)
             return tangent_macd_positive
 
+        def is_big_psar_rising(vars_map: Map) -> bool:
+            psar = list(big_marketprice.get_psar())
+            psar.reverse()
+            big_psar_rising = MarketPrice.get_psar_trend(big_closes, psar, -1) == MarketPrice.PSAR_RISING
+            vars_map.put(big_psar_rising, 'big_psar_rising')
+            vars_map.put(psar, 'big_psar')
+            return big_psar_rising
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        big_closes = list(big_marketprice.get_closes())
+        big_closes.reverse()
         # 
         can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
-            and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map)
+            and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
+                and is_big_psar_rising(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         keltner_high = vars_map.get('keltner_high')
@@ -877,6 +888,7 @@ class Icarus(TraderClass):
         roc = vars_map.get('roc')
         keltner_low = vars_map.get('keltner_low')
         supertrend = vars_map.get(Map.supertrend)
+        big_psar = vars_map.get('big_psar')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -889,6 +901,7 @@ class Icarus(TraderClass):
             f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
+            f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
 
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
@@ -906,13 +919,15 @@ class Icarus(TraderClass):
             f'{key}.min_keltner': vars_map.get('min_keltner'),
 
             f'{key}.closes[-1]': closes[-1],
+            f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.roc[-1]': roc[-1] if roc is not None else None,
             f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
-            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None
+            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+            f'{key}.big_psar[-1]': big_psar[-1] if big_psar is not None else None
         }
         return can_buy_indicator, repport
 
