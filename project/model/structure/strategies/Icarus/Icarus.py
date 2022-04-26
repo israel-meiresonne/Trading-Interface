@@ -893,7 +893,7 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # 
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
                 and is_big_psar_rising(vars_map) and is_ema_above_ema200(vars_map)
@@ -913,7 +913,6 @@ class Icarus(TraderClass):
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.tangent_macd_positive': vars_map.get('tangent_macd_positive'),
-            f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
             f'{key}.roc_positive': vars_map.get('roc_positive'),
             f'{key}.roc_bounce': vars_map.get('roc_bounce'),
@@ -922,11 +921,6 @@ class Icarus(TraderClass):
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
             f'{key}.ema_above_ema200': vars_map.get('ema_above_ema200'),
-
-            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
-            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
-            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
-            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
 
             f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
             f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
