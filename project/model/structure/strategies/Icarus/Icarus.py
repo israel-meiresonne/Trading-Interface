@@ -1473,7 +1473,7 @@ class Icarus(TraderClass):
             'can_buy': args_map.get('can_buy'),
             'can_sell': args_map.get('can_sell'),
             # 'indicator_buy': self._can_buy_indicator(market_price)[0],
-            'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
+            # 'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
             Map.rsi: rsis[-1],
             'rsis[-2]': rsis[-2],
             'rsis[-3]': rsis[-3],
