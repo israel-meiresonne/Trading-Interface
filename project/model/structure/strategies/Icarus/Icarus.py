@@ -478,19 +478,20 @@ class Icarus(TraderClass):
                 signal.reverse()
                 supertrend = list(marketprice.get_super_trend())
                 supertrend.reverse()
-                # Get interval
+                # Get Suprtrend interval
                 now_index = len(closes) - 1
                 supertrend_swings = _MF.group_swings(closes, supertrend)
                 start_index = supertrend_swings[now_index][0]
-                end_index = supertrend_swings[now_index][1]
+                # Get MACD interval
+                macd_swings = _MF.group_swings(macd, signal)
+                end_index = macd_swings[now_index][0]
                 # Get peak
-                np.ndarray.max
-                sub_macd_np = np.array(macd[start_index:end_index+1])
-                sub_signal_np = np.array(signal[start_index:end_index+1])
+                sub_macd_np = np.array(macd[start_index:end_index])
+                sub_signal_np = np.array(signal[start_index:end_index])
                 sub_up_macd_np = sub_macd_np[sub_macd_np > sub_signal_np]
-                peak_macd = sub_up_macd_np.max()
+                peak_macd = sub_up_macd_np.max() if sub_up_macd_np.shape[0] > 0 else None
                 # Check
-                macd_bellow_supertrend_peak = macd[-1] < peak_macd
+                macd_bellow_supertrend_peak = macd[-1] < peak_macd if peak_macd is not None else False
             return macd_bellow_supertrend_peak
 
         vars_map = Map()
