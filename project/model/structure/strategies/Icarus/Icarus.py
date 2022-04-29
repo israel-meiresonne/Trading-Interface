@@ -20,6 +20,7 @@ from model.tools.Wallet import Wallet
 class Icarus(TraderClass):
     _MAX_LOSS = -3/100
     _ROI_FLOOR_FIXE = 0.002
+    _MIN_PERIOD = 60
     MARKETPRICE_BUY_BIG_PERIOD = 60*60*6
     MARKETPRICE_BUY_LITTLE_PERIOD = 60*5
     _PREDICTOR_PERIOD = 60 * 60
@@ -29,7 +30,6 @@ class Icarus(TraderClass):
     _PREDICTION_OCCUPATION_SECURE_TRIGGER = 30/100
     _PREDICTION_OCCUPATION_REDUCE = 30/100
     _PREDICTION_OCCUPATION_REACHED_TRIGGER = 50/100
-    _MIN_PERIOD = 60
     _PERIODS_REQUIRRED = [_MIN_PERIOD, MARKETPRICE_BUY_BIG_PERIOD, MARKETPRICE_BUY_LITTLE_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
@@ -388,10 +388,12 @@ class Icarus(TraderClass):
     def can_sell(self, marketprice: MarketPrice) -> bool:
         broker = self.get_broker()
         n_period = self.get_marketprice_n_period()
+        _1min_period = self.get_min_period()
         datas = {
             Map.roi: self.get_wallet().get_roi(broker),
             self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
             self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
+            _1min_period: self.get_marketprice(_1min_period, n_period, broker)
         }
         return self._can_sell_indicator(marketprice, datas)
     
@@ -412,7 +414,8 @@ class Icarus(TraderClass):
             return rsi_reached
         """
 
-        def is_buy_period(vars_map: Map) -> bool:
+        def is_buy_period(vars_map: Map, marketprice: MarketPrice) -> bool:
+            period = marketprice.get_period_time()
             buy_time = max(cls.get_buy_times(pair))
             buy_period = _MF.round_time(buy_time, period)
             open_time = marketprice.get_time()
@@ -465,20 +468,49 @@ class Icarus(TraderClass):
         def can_sell_with_macd_5min(vars_map: Map) -> bool:
             return is_roi_positive(vars_map) and is_ema_bellow_ema200(vars_map) and is_tangent_macd_5min_dropping(vars_map)
 
+        def is_macd_bellow_supertrend_peak(vars_map: Map) -> bool:
+            macd_bellow_supertrend_peak = False
+            if (not is_buy_period(vars_map, marketprice_1min)) and is_tangent_macd_5min_dropping(vars_map):
+                macd_map = marketprice.get_macd()
+                macd = list(macd_map.get(Map.macd))
+                macd.reverse()
+                signal = list(macd_map.get(Map.signal))
+                signal.reverse()
+                supertrend = list(marketprice.get_super_trend())
+                supertrend.reverse()
+                # Get interval
+                now_index = len(closes) - 1
+                supertrend_swings = _MF.group_swings(closes, supertrend)
+                start_index = supertrend_swings[now_index][0]
+                end_index = supertrend_swings[now_index][1]
+                # Get peak
+                np.ndarray.max
+                sub_macd_np = np.array(macd[start_index:end_index+1])
+                sub_signal_np = np.array(signal[start_index:end_index+1])
+                sub_up_macd_np = sub_macd_np[sub_macd_np > sub_signal_np]
+                peak_macd = sub_up_macd_np.max()
+                # Check
+                macd_bellow_supertrend_peak = macd[-1] < peak_macd
+            return macd_bellow_supertrend_peak
+
         vars_map = Map()
         can_sell = False
         # Vars
+        closes = marketprice.get_closes()
         roi = datas[Map.roi]
+        marketprice_1min = datas[cls.get_min_period()]
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         pair = marketprice.get_pair()
-        period = marketprice.get_period_time()
         # Check
-        can_sell = (not is_buy_period(vars_map)) \
-            and (
-                is_histogram_dropping(vars_map)\
-                or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)) \
-                or can_sell_with_macd_5min(vars_map)
+        can_sell = is_macd_bellow_supertrend_peak(vars_map)\
+            or (
+                (not is_buy_period(vars_map, marketprice))\
+                    and (
+                        is_histogram_dropping(vars_map)\
+                        or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))\
+                        or can_sell_with_macd_5min(vars_map)
+                        )
             )
         return can_sell
 
@@ -1198,6 +1230,7 @@ class Icarus(TraderClass):
         unban_time = 0
         big_period = cls.MARKETPRICE_BUY_BIG_PERIOD
         little_period = cls.MARKETPRICE_BUY_LITTLE_PERIOD
+        _1min_period = cls._MIN_PERIOD
         trades = None
         trade = {}
         market_params = {
@@ -1218,10 +1251,17 @@ class Icarus(TraderClass):
             Map.period: little_period,
             'n_period': n_period
             }
+        _1min_market_params = {
+            Map.broker: broker,
+            Map.pair: pair,
+            Map.period: _1min_period,
+            'n_period': n_period
+            }
         broker.add_streams([
             broker.generate_stream(Map({Map.pair: pair, Map.period: period})),
             broker.generate_stream(Map({Map.pair: pair, Map.period: big_period})),
-            broker.generate_stream(Map({Map.pair: pair, Map.period: little_period}))
+            broker.generate_stream(Map({Map.pair: pair, Map.period: little_period})),
+            broker.generate_stream(Map({Map.pair: pair, Map.period: _1min_period}))
         ])
         i = 0
         Bot.update_trade_index(i)
@@ -1229,6 +1269,7 @@ class Icarus(TraderClass):
         while isinstance(marketprice, MarketPrice):
             big_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **big_market_params)
             little_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **little_market_params)
+            _1min_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **_1min_market_params)
             open_times = list(marketprice.get_times())
             open_times.reverse()
             closes = list(marketprice.get_closes())
@@ -1262,7 +1303,8 @@ class Icarus(TraderClass):
                 can_sell_params = {
                     Map.roi: _MF.progress_rate(closes[-1], trade['buy_price']),
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
-                    cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice
+                    cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice,
+                    _1min_period: _1min_marketprice
                 }
             # Try buy/sell
             if (not period_is_ban) and (not has_position):
@@ -1274,7 +1316,7 @@ class Icarus(TraderClass):
                 }
                 buy_repports.append(buy_repport)
                 if can_buy:
-                    buy_time = marketprice.get_time()
+                    buy_time = _1min_marketprice.get_time()
                     exec_price = marketprice.get_close()
                     min_roi_position = None
                     max_roi_position = None
