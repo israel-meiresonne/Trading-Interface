@@ -138,7 +138,6 @@ class IcarusStalker(StalkerClass):
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
             f'{key}.tangent_macd_positive': None,
-            f'{key}.will_macd_bounce': None,
             f'{key}.big_macd_rising': None,
             f'{key}.roc_positive': None,
             f'{key}.roc_bounce': None,
@@ -147,11 +146,6 @@ class IcarusStalker(StalkerClass):
             f'{key}.big_supertrend_rising': None,
             f'{key}.big_psar_rising': None,
             f'{key}.ema_above_ema200': None,
-
-            f'{key}.macd_min_date': None,
-            f'{key}.last_min_macd': None,
-            f'{key}.macd_peak_date': None,
-            f'{key}.last_peak_macd': None,
 
             f'{key}.last_roc_peak_date': None,
             f'{key}.last_roc_peak': None,
