@@ -208,9 +208,13 @@ class IcarusStalker(StalkerClass):
 
     def _get_allowed_pairs(self, bkr: Broker) -> List[Pair]:
         # if (self._allowed_pairs is None) or (_MF.get_timestamp() >= self.get_next_reset_allowed_pair()):
+        # if self._allowed_pairs is None:
+        #     allowed_pairs = self.CHILD_STRATEGY.best_pairs()
+        #     self._set_allowed_pairs(allowed_pairs)
+        #     self._reset_next_reset_allowed_pair()
         if self._allowed_pairs is None:
-            allowed_pairs = self.CHILD_STRATEGY.best_pairs()
-            self._set_allowed_pairs(allowed_pairs)
+            spot_pairs = MarketPrice.get_spot_pairs(bkr.__class__.__name__, self.get_pair().get_right())
+            self._set_allowed_pairs(spot_pairs)
             self._reset_next_reset_allowed_pair()
         return self._allowed_pairs
 
