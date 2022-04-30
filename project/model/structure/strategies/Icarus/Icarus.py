@@ -918,12 +918,25 @@ class Icarus(TraderClass):
             vars_map.put(histogram, Map.histogram)
             return macd_switch_up
 
+        def is_tangent_big_macd_positive(vars_map: Map) -> bool:
+            macd_map = big_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Check
+            tangent_big_macd_positive = macd[-1] > macd[-2]
+            # Put
+            vars_map.put(tangent_big_macd_positive, 'tangent_big_macd_positive')
+            vars_map.put(macd, 'big_macd')
+            return tangent_big_macd_positive
+
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_supertrend_dropping(vars_map) and is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_supertrend_dropping(vars_map)\
+            and is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)\
+                and is_tangent_big_macd_positive(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
@@ -931,6 +944,7 @@ class Icarus(TraderClass):
         big_ema = vars_map.get('big_ema')
         big_ema_200 = vars_map.get('big_ema_200')
         ema_200 = vars_map.get('ema_200')
+        big_macd = vars_map.get('big_macd')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -938,8 +952,10 @@ class Icarus(TraderClass):
             f'{key}.supertrend_dropping': vars_map.get('supertrend_dropping'),
             f'{key}.close_above_ema200': vars_map.get('close_above_ema200'),
             f'{key}.big_ema_above_big_ema200': vars_map.get('big_ema_above_big_ema200'),
+            f'{key}.tangent_big_macd_positive': vars_map.get('tangent_big_macd_positive'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+            f'{key}.big_macd[-1]': big_macd[-1] if big_macd is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.ema_200[-1]': ema_200[-1] if ema_200 is not None else None,
