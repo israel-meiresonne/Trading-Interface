@@ -465,6 +465,22 @@ class Icarus(TraderClass):
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
 
+        def are_macd_signal_negatives(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
+            return macd_signal_negatives
+
+        def is_tangent_macd_dropping(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            tangent_macd_dropping = macd[-1] <= macd[-2]
+            return tangent_macd_dropping
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -476,7 +492,8 @@ class Icarus(TraderClass):
         # Check
         can_sell = (not is_buy_period(vars_map)) \
             and (
-                is_histogram_dropping(vars_map)
+                is_histogram_dropping(vars_map)\
+                or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
             )
         return can_sell
 
