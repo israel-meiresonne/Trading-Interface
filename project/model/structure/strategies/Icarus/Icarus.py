@@ -410,21 +410,6 @@ class Icarus(TraderClass):
             rsi.reverse()
             rsi_reached = rsi[-1] > rsi_trigger
             return rsi_reached
-        """
-
-        def is_buy_period(vars_map: Map) -> bool:
-            buy_time = max(cls.get_buy_times(pair))
-            buy_period = _MF.round_time(buy_time, period)
-            open_time = marketprice.get_time()
-            return open_time == buy_period
-
-        def is_histogram_dropping(vars_map: Map) -> bool:
-            # MACD
-            macd_map = marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            histogram_dropping = histogram[-1] < 0
-            return histogram_dropping
 
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
@@ -464,6 +449,21 @@ class Icarus(TraderClass):
         
         def can_sell_with_macd_5min(vars_map: Map) -> bool:
             return is_roi_positive(vars_map) and is_ema_bellow_ema200(vars_map) and is_tangent_macd_5min_dropping(vars_map)
+        """
+
+        def is_buy_period(vars_map: Map) -> bool:
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, period)
+            open_time = marketprice.get_time()
+            return open_time == buy_period
+
+        def is_histogram_dropping(vars_map: Map) -> bool:
+            # MACD
+            macd_map = marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_dropping = histogram[-1] < 0
+            return histogram_dropping
 
         vars_map = Map()
         can_sell = False
@@ -476,9 +476,7 @@ class Icarus(TraderClass):
         # Check
         can_sell = (not is_buy_period(vars_map)) \
             and (
-                is_histogram_dropping(vars_map)\
-                or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)) \
-                or can_sell_with_macd_5min(vars_map)
+                is_histogram_dropping(vars_map)
             )
         return can_sell
 
@@ -659,16 +657,6 @@ class Icarus(TraderClass):
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
         """
-        def is_ema_rising(vars_map: Map) -> bool:
-            # EMA
-            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema.reverse()
-            ema_rising = closes[-1] > ema[-1]
-            # Put
-            vars_map.put(ema, 'ema')
-            vars_map.put(ema_rising, 'ema_rising')
-            return ema_rising
-
         def is_macd_negative(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -678,9 +666,8 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'macd')
             vars_map.put(macd_negative, 'macd_negative')
             return macd_negative
-        """
 
-        def is_macd_switch_up(vars_map: Map) -> bool:
+        def is_macd_switch_up_offsetted(vars_map: Map) -> bool:
             # MACD
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
@@ -871,83 +858,74 @@ class Icarus(TraderClass):
             vars_map.put(big_psar_rising, 'big_psar_rising')
             vars_map.put(psar, 'big_psar')
             return big_psar_rising
+        """
 
-        def is_ema_above_ema200(vars_map: Map) -> bool:
+        def is_big_ema_above_big_ema200(vars_map: Map) -> bool:
             ema = list(big_marketprice.get_ema())
             ema.reverse()
             big_marketprice.reset_collections()
             ema_200 = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
             ema_200.reverse()
             # Check
-            ema_above_ema200 = ema[-1] > ema_200[-1]
+            big_ema_above_big_ema200 = ema[-1] > ema_200[-1]
             # Put
-            vars_map.put(ema_above_ema200, 'ema_above_ema200')
+            vars_map.put(big_ema_above_big_ema200, 'big_ema_above_big_ema200')
             vars_map.put(ema, 'big_ema')
             vars_map.put(ema_200, 'big_ema_200')
-            return ema_above_ema200
+            return big_ema_above_big_ema200
+
+        def is_close_above_ema200(vars_map: Map) -> bool:
+            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
+            ema.reverse()
+            close_above_ema200 = closes[-1] > ema[-1]
+            # Put
+            vars_map.put(close_above_ema200, 'close_above_ema200')
+            vars_map.put(ema, 'ema_200')
+            return close_above_ema200
+
+        def is_supertrend_dropping(vars_map: Map) -> bool:
+            supertrend = list(child_marketprice.get_super_trend())
+            supertrend.reverse()
+            supertrend_dropping = MarketPrice.get_super_trend_trend(closes, supertrend, -1) == MarketPrice.SUPERTREND_DROPPING
+            vars_map.put(supertrend_dropping, 'supertrend_dropping')
+            vars_map.put(supertrend, Map.supertrend)
+            return supertrend_dropping
+
+        def is_macd_switch_up(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd_switch_up = (histogram[-2] < 0) and (histogram[-1] > 0)
+            # Put
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            vars_map.put(histogram, Map.histogram)
+            return macd_switch_up
 
         vars_map = Map()
         # Close
         closes = list(child_marketprice.get_closes())
         closes.reverse()
-        big_closes = list(big_marketprice.get_closes())
-        big_closes.reverse()
-        # 
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
-            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
-            and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
-                and is_big_psar_rising(vars_map) and is_ema_above_ema200(vars_map)
+        # Check
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_supertrend_dropping(vars_map) and is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
-        keltner_high = vars_map.get('keltner_high')
-        signal = vars_map.get(Map.signal)
         histogram = vars_map.get(Map.histogram)
-        roc = vars_map.get('roc')
-        keltner_low = vars_map.get('keltner_low')
         supertrend = vars_map.get(Map.supertrend)
-        big_psar = vars_map.get('big_psar')
         big_ema = vars_map.get('big_ema')
         big_ema_200 = vars_map.get('big_ema_200')
+        ema_200 = vars_map.get('ema_200')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.tangent_macd_positive': vars_map.get('tangent_macd_positive'),
-            f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
-            f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
-            f'{key}.roc_positive': vars_map.get('roc_positive'),
-            f'{key}.roc_bounce': vars_map.get('roc_bounce'),
-            f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
-            f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
-            f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
-            f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
-            f'{key}.ema_above_ema200': vars_map.get('ema_above_ema200'),
-
-            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
-            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
-            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
-            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
-
-            f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
-            f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
-            f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
-            f'{key}.last_roc_min': vars_map.get('last_roc_min'),
-
-            f'{key}.min_close_date': vars_map.get('min_close_date'),
-            f'{key}.min_close': vars_map.get('min_close'),
-            f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
-            f'{key}.min_keltner': vars_map.get('min_keltner'),
-
+            f'{key}.supertrend_dropping': vars_map.get('supertrend_dropping'),
+            f'{key}.close_above_ema200': vars_map.get('close_above_ema200'),
+            f'{key}.big_ema_above_big_ema200': vars_map.get('big_ema_above_big_ema200'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
-            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.roc[-1]': roc[-1] if roc is not None else None,
-            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
-            f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
-            f'{key}.big_psar[-1]': big_psar[-1] if big_psar is not None else None,
+            f'{key}.ema_200[-1]': ema_200[-1] if ema_200 is not None else None,
             f'{key}.big_ema[-1]': big_ema[-1] if big_ema is not None else None,
             f'{key}.big_ema_200[-1]': big_ema_200[-1] if big_ema_200 is not None else None
         }
