@@ -875,30 +875,6 @@ class Icarus(TraderClass):
             vars_map.put(big_psar_rising, 'big_psar_rising')
             vars_map.put(psar, 'big_psar')
             return big_psar_rising
-        """
-
-        def is_big_ema_above_big_ema200(vars_map: Map) -> bool:
-            ema = list(big_marketprice.get_ema())
-            ema.reverse()
-            big_marketprice.reset_collections()
-            ema_200 = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema_200.reverse()
-            # Check
-            big_ema_above_big_ema200 = ema[-1] > ema_200[-1]
-            # Put
-            vars_map.put(big_ema_above_big_ema200, 'big_ema_above_big_ema200')
-            vars_map.put(ema, 'big_ema')
-            vars_map.put(ema_200, 'big_ema_200')
-            return big_ema_above_big_ema200
-
-        def is_close_above_ema200(vars_map: Map) -> bool:
-            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema.reverse()
-            close_above_ema200 = closes[-1] > ema[-1]
-            # Put
-            vars_map.put(close_above_ema200, 'close_above_ema200')
-            vars_map.put(ema, 'ema_200')
-            return close_above_ema200
 
         def is_supertrend_dropping(vars_map: Map) -> bool:
             supertrend = list(child_marketprice.get_super_trend())
@@ -917,6 +893,32 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             vars_map.put(histogram, Map.histogram)
             return macd_switch_up
+        """
+
+        def is_big_ema_above_big_ema200(vars_map: Map, now_index: int = -1) -> bool:
+            big_marketprice.reset_collections()
+            ema = list(big_marketprice.get_ema())
+            ema.reverse()
+            big_marketprice.reset_collections()
+            ema_200 = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
+            ema_200.reverse()
+            # Check
+            big_ema_above_big_ema200 = ema[now_index] > ema_200[now_index]
+            # Put
+            vars_map.put(big_ema_above_big_ema200, 'big_ema_above_big_ema200')
+            vars_map.put(ema, 'big_ema')
+            vars_map.put(ema_200, 'big_ema_200')
+            return big_ema_above_big_ema200
+
+        def is_close_above_ema200(vars_map: Map, now_index: int = -1) -> bool:
+            big_marketprice.reset_collections()
+            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
+            ema.reverse()
+            close_above_ema200 = closes[now_index] > ema[now_index]
+            # Put
+            vars_map.put(close_above_ema200, 'close_above_ema200')
+            vars_map.put(ema, 'ema_200')
+            return close_above_ema200
 
         def is_tangent_big_macd_positive(vars_map: Map) -> bool:
             macd_map = big_marketprice.get_macd()
@@ -929,17 +931,92 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'big_macd')
             return tangent_big_macd_positive
 
+        def is_macd_histogram_positive(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
+            vars_map.put(histogram, Map.histogram)
+            return macd_histogram_positive
+
+        def have_not_bought_in_macd(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Get macd's start and end time
+            macd_swings = _MF.group_swings(macd, signal)
+            now_index = len(macd) - 1
+            interval = macd_swings[now_index]
+            macd_starttime = open_times[interval[0]] - period   # To include early switch of MACD
+            macd_endtime = open_times[now_index]
+            # Get macd's buy times
+            buy_times = np.array(cls.get_buy_times(pair))
+            macd_buy_times = buy_times[(buy_times >= macd_starttime)]
+            # Check
+            not_bought_in_macd = macd_buy_times.shape[0] == 0
+            # Put
+            vars_map.put(not_bought_in_macd, 'not_bought_in_macd')
+            vars_map.put(_MF.unix_to_date(macd_starttime), 'macd_starttime')
+            vars_map.put(_MF.unix_to_date(macd_endtime), 'macd_endtime')
+            return not_bought_in_macd
+
+        def is_macd_switch_on_dropping_suppertrend(vars_map: Map) -> bool:
+            supertrend = list(child_marketprice.get_super_trend())
+            supertrend.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Find switch point's index
+            macd_swings = _MF.group_swings(macd, signal)
+            now_index = len(macd) - 1
+            switch_index = macd_swings[now_index][0]
+            # Convert switch index for big_marketprice
+            switch_open_time = open_times[switch_index]
+            big_switch_open_time = _MF.round_time(switch_open_time, big_period)
+            big_switch_index = big_open_times.index(big_switch_open_time)
+            # Check
+            supertrend_dropping = MarketPrice.get_super_trend_trend(closes, supertrend, switch_index) == MarketPrice.SUPERTREND_DROPPING
+            repport_map = Map()
+            macd_switch_on_dropping_suppertrend = supertrend_dropping\
+                and is_big_ema_above_big_ema200(repport_map, big_switch_index)\
+                    and is_close_above_ema200(repport_map, switch_index)
+            # Put
+            vars_map.put(macd_switch_on_dropping_suppertrend, 'macd_switch_on_dropping_suppertrend')
+            vars_map.put(_MF.unix_to_date(switch_open_time), 'macd_switch_date')
+            vars_map.put(_MF.unix_to_date(big_switch_open_time), 'big_macd_switch_date')
+            vars_map.put(supertrend, Map.supertrend)
+            vars_map.put(macd, Map.macd)
+            vars_map.put(signal, Map.signal)
+            vars_map.put(repport_map.get('big_ema_above_big_ema200'), 'macd_switch_big_ema_above_big_ema200')
+            vars_map.put(repport_map.get('close_above_ema200'), 'macd_switch_close_above_ema200')
+            return macd_switch_on_dropping_suppertrend
+
         vars_map = Map()
-        # Close
+        # Child
+        pair = child_marketprice.get_pair()
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        open_times = list(child_marketprice.get_times())
+        open_times.reverse()
+        period = child_marketprice.get_period_time()
+        # Big
+        big_open_times = list(big_marketprice.get_times())
+        big_open_times.reverse()
+        big_period = big_marketprice.get_period_time()
         # Check
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_supertrend_dropping(vars_map)\
-            and is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)\
-                and is_tangent_big_macd_positive(vars_map)
+        can_buy_indicator = is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)\
+                and is_tangent_big_macd_positive(vars_map)\
+                    and (is_macd_histogram_positive(vars_map) and have_not_bought_in_macd(vars_map) and is_macd_switch_on_dropping_suppertrend(vars_map))
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
+        signal = vars_map.get(Map.signal)
         supertrend = vars_map.get(Map.supertrend)
         big_ema = vars_map.get('big_ema')
         big_ema_200 = vars_map.get('big_ema_200')
@@ -948,15 +1025,26 @@ class Icarus(TraderClass):
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.supertrend_dropping': vars_map.get('supertrend_dropping'),
             f'{key}.close_above_ema200': vars_map.get('close_above_ema200'),
             f'{key}.big_ema_above_big_ema200': vars_map.get('big_ema_above_big_ema200'),
             f'{key}.tangent_big_macd_positive': vars_map.get('tangent_big_macd_positive'),
+            f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
+            f'{key}.not_bought_in_macd': vars_map.get('not_bought_in_macd'),
+            f'{key}.macd_switch_on_dropping_suppertrend': vars_map.get('macd_switch_on_dropping_suppertrend'),
+
+            f'{key}.macd_starttime': vars_map.get('macd_starttime'),
+            f'{key}.macd_endtime': vars_map.get('macd_endtime'),
+
+            f'{key}.macd_switch_date': vars_map.get('macd_switch_date'),
+            f'{key}.big_macd_switch_date': vars_map.get('big_macd_switch_date'),
+            f'{key}.macd_switch_big_ema_above_big_ema200': vars_map.get('macd_switch_big_ema_above_big_ema200'),
+            f'{key}.macd_switch_close_above_ema200': vars_map.get('macd_switch_close_above_ema200'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
-            f'{key}.big_macd[-1]': big_macd[-1] if big_macd is not None else None,
+            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.big_macd[-1]': big_macd[-1] if big_macd is not None else None,
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.ema_200[-1]': ema_200[-1] if ema_200 is not None else None,
             f'{key}.big_ema[-1]': big_ema[-1] if big_ema is not None else None,
