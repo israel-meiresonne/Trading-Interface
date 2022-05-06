@@ -715,7 +715,7 @@ class Icarus(TraderClass):
             keltner = child_marketprice.get_keltnerchannel(original_version=True)
             keltner_high = list(keltner.get(Map.high))
             keltner_high.reverse()
-            bellow_keltner = closes[-1] < keltner_high[-1]
+            bellow_keltner = (closes[-1] < keltner_high[-1]) and (highs[-2] < keltner_high[-2])
             # Put
             vars_map.put(bellow_keltner, 'close_bellow_keltner_high')
             vars_map.put(keltner_high, 'keltner_high')
@@ -887,9 +887,12 @@ class Icarus(TraderClass):
             return ema_above_ema200
 
         vars_map = Map()
-        # Close
+        # Child
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        highs = list(child_marketprice.get_highs())
+        highs.reverse()
+        # Big
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # 
@@ -939,6 +942,7 @@ class Icarus(TraderClass):
             f'{key}.min_keltner': vars_map.get('min_keltner'),
 
             f'{key}.closes[-1]': closes[-1],
+            f'{key}.highs[-1]': highs[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,

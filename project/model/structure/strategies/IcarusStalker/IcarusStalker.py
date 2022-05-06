@@ -164,6 +164,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_keltner': None,
 
             f'{key}.closes[-1]': None,
+            f'{key}.highs[-1]': None,
             f'{key}.big_closes[-1]': None,
             f'{key}.macd[-1]': None,
             f'{key}.signal[-1]': None,
