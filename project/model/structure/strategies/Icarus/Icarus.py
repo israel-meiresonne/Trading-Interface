@@ -458,12 +458,43 @@ class Icarus(TraderClass):
             return open_time == buy_period
 
         def is_histogram_dropping(vars_map: Map) -> bool:
-            # MACD
             macd_map = marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
+
+        def have_bought_macd_in_positive(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Get bought index
+            now_index = len(macd) - 1
+            macd_swings = _MF.group_swings(macd, signal)
+            macd_start_index = macd_swings[now_index][0]
+            # Get macd start date
+            macd_start_time = open_times[macd_start_index]
+            # Check
+            bought_macd_in_negative = macd[macd_start_index] >= 0
+            # Put
+            vars_map.put(bought_macd_in_negative, 'bought_macd_in_negative')
+            vars_map.put(_MF.unix_to_date(macd_start_time), 'macd_start_time')
+            vars_map.put(macd, Map.macd)
+            vars_map.put(macd, Map.signal)
+            return bought_macd_in_negative
+
+        def is_tangent_5min_macd_historgram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice_5min.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            tangent_5min_macd_historgram_negative = histogram[-1] <= histogram[-2]
+            # Put
+            vars_map.put(tangent_5min_macd_historgram_negative, 'tangent_5min_macd_historgram_negative')
+            vars_map.put(histogram, 'macd_5min')
+            return tangent_5min_macd_historgram_negative
 
         vars_map = Map()
         can_sell = False
@@ -473,11 +504,16 @@ class Icarus(TraderClass):
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         pair = marketprice.get_pair()
         period = marketprice.get_period_time()
+        open_times = list(marketprice.get_times())
+        open_times.reverse()
         # Check
-        can_sell = (not is_buy_period(vars_map)) \
-            and (
-                is_histogram_dropping(vars_map)
-            )
+        if have_bought_macd_in_positive(vars_map):
+            can_sell = is_tangent_5min_macd_historgram_negative(vars_map)
+        else:
+            can_sell = (not is_buy_period(vars_map)) \
+                and (
+                    is_histogram_dropping(vars_map)
+                    )
         return can_sell
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
