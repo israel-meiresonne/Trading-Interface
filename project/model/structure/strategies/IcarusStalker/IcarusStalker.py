@@ -137,16 +137,8 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.macd_switch_up': None,
-            f'{key}.supertrend_dropping': None,
-            f'{key}.close_above_ema200': None,
-            f'{key}.big_ema_above_big_ema200': None,
             f'{key}.closes[-1]': None,
-            f'{key}.macd[-1]': None,
-            f'{key}.histogram[-1]': None,
-            f'{key}.supertrend[-1]': None,
-            f'{key}.ema_200[-1]': None,
-            f'{key}.big_ema[-1]': None,
-            f'{key}.big_ema_200[-1]': None
+            f'{key}.histogram[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__

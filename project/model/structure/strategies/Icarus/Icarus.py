@@ -858,7 +858,6 @@ class Icarus(TraderClass):
             vars_map.put(big_psar_rising, 'big_psar_rising')
             vars_map.put(psar, 'big_psar')
             return big_psar_rising
-        """
 
         def is_big_ema_above_big_ema200(vars_map: Map) -> bool:
             ema = list(big_marketprice.get_ema())
@@ -890,6 +889,7 @@ class Icarus(TraderClass):
             vars_map.put(supertrend_dropping, 'supertrend_dropping')
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_dropping
+        """
 
         def is_macd_switch_up(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
@@ -902,32 +902,19 @@ class Icarus(TraderClass):
             return macd_switch_up
 
         vars_map = Map()
-        # Close
+        # Child
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_supertrend_dropping(vars_map) and is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map)
         # Repport
-        macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
-        supertrend = vars_map.get(Map.supertrend)
-        big_ema = vars_map.get('big_ema')
-        big_ema_200 = vars_map.get('big_ema_200')
-        ema_200 = vars_map.get('ema_200')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
-            f'{key}.supertrend_dropping': vars_map.get('supertrend_dropping'),
-            f'{key}.close_above_ema200': vars_map.get('close_above_ema200'),
-            f'{key}.big_ema_above_big_ema200': vars_map.get('big_ema_above_big_ema200'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
-            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
-            f'{key}.ema_200[-1]': ema_200[-1] if ema_200 is not None else None,
-            f'{key}.big_ema[-1]': big_ema[-1] if big_ema is not None else None,
-            f'{key}.big_ema_200[-1]': big_ema_200[-1] if big_ema_200 is not None else None
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None
         }
         return can_buy_indicator, repport
 
