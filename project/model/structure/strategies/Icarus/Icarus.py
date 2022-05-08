@@ -384,7 +384,7 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION SECURE ORDER UP —————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION CAN SELL DOWN ———————————————————————————————————————————————
 
-    def can_sell(self, marketprice: MarketPrice) -> bool:
+    def can_sell(self, marketprice: MarketPrice) -> Tuple[bool, dict]:
         return self._can_sell_indicator(marketprice)
     
     def _can_sell_roi(self) -> bool:
@@ -394,7 +394,7 @@ class Icarus(TraderClass):
         return can_sell
 
     @classmethod
-    def _can_sell_indicator(cls, marketprice: MarketPrice) ->  bool:
+    def _can_sell_indicator(cls, marketprice: MarketPrice) -> Tuple[bool, dict]:
         """
         def is_buy_period() -> bool:
             period = self.get_period()
@@ -440,7 +440,12 @@ class Icarus(TraderClass):
         can_sell = False
         # Check
         can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
-        return can_sell
+        # Repport
+        key = cls._can_buy_indicator.__name__
+        repport = {
+            f'{key}._can_sell_indicator': can_sell
+        }
+        return can_sell, repport
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         def is_prediction_reached() -> bool:
@@ -520,7 +525,7 @@ class Icarus(TraderClass):
         # max_close_pred = self.get_max_close_predicted()
         # old_max_price = self.get_max_prices()[-1]
         # Evaluate Sell
-        can_sell = self.can_sell(market_price)
+        can_sell, repport = self.can_sell(market_price)
         if can_sell:
             self._sell(executions)
         # else:
@@ -1093,13 +1098,13 @@ class Icarus(TraderClass):
         import sys
 
         buy_repports = []
+        sell_repports = []
         n_period = 300
         fees = broker.get_trade_fee(pair)
         taker_fee_rate = fees.get(Map.taker)
         buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
         pair_merged = pair.format(Pair.FORMAT_MERGED)
         str_period = BinanceAPI.convert_interval(period)
-        unban_time = 0
         big_period = cls.MARKETPRICE_BUY_BIG_PERIOD
         trades = None
         trade = {}
@@ -1146,7 +1151,6 @@ class Icarus(TraderClass):
             sys.stdout.write(f'\r{_MF.prefix()}{_MF.unix_to_date(open_times[-1])}')
             sys.stdout.flush()
             has_position = len(trade) != 0
-            period_is_ban = not (open_times[-1] >= unban_time)
             # Update Max/Min roi
             if has_position:
                 high_roi = _MF.progress_rate(highs[-1], trade['buy_price'])
@@ -1154,8 +1158,7 @@ class Icarus(TraderClass):
                 min_roi_position = low_roi if (min_roi_position is None) or (low_roi < min_roi_position) else min_roi_position
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
             # Try buy/sell
-            if (not period_is_ban) and (not has_position):
-                unban_time = 0
+            if not has_position:
                 can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice)
                 buy_repport = {
                     Map.time: _MF.unix_to_date(open_times[-1]),
@@ -1178,49 +1181,56 @@ class Icarus(TraderClass):
                         'buy_date': _MF.unix_to_date(buy_time),
                         'buy_price': exec_price,
                     }
-            elif has_position and cls._can_sell_indicator(marketprice):
-                # Prepare
-                sell_time = marketprice.get_time()
-                exec_price = marketprice.get_close()
-                # Put
-                trade['sell_time'] = sell_time
-                trade['sell_date'] = _MF.unix_to_date(sell_time)
-                trade['sell_price'] = exec_price
-                trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
-                trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
-                trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
-                trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
-                trade['min_roi_position'] = min_roi_position
-                trade['max_roi_position'] = max_roi_position
-                trade['min_roi'] = None
-                trade['mean_roi'] = None
-                trade['max_roi'] = None
-                trade['mean_win_roi'] = None
-                trade['mean_loss_roi'] = None
-                trade[Map.sum] = None
-                trade['min_sum_roi'] = None
-                trade['max_sum_roi'] = None
-                trade['final_roi'] = None
-                trade[Map.fee] = buy_sell_fee
-                trade['sum_fee'] = None
-                trade['sum_roi_no_fee'] = None
-                trade['start_price'] = None
-                trade['end_price'] = None
-                trade['higher_price'] = None
-                trade['market_performence'] = None
-                trade['max_profit'] = None
-                trade['n_win'] = None
-                trade['win_rate'] = None
-                trade['n_loss'] = None
-                trade['loss_rate'] = None
-                trades = pd.DataFrame([trade], columns=list(trade.keys())) if trades is None else trades.append(trade, ignore_index=True)
-                sum_roi = trades[Map.roi].sum()
-                sum_fee = trades[Map.fee].sum()
-                trades.loc[trades.index[-1], Map.sum] = sum_roi
-                trades.loc[trades.index[-1], f'sum_fee'] = sum_fee
-                trades.loc[trades.index[-1], f'sum_roi_no_fee'] = sum_roi + sum_fee
-                trade = {}
-                buy_time = None
+            elif has_position:
+                can_buy, sell_repport = cls._can_sell_indicator(marketprice)
+                sell_repport = {
+                    Map.time: _MF.unix_to_date(open_times[-1]),
+                    **sell_repport
+                }
+                sell_repports.append(sell_repport)
+                if can_buy:
+                    # Prepare
+                    sell_time = marketprice.get_time()
+                    exec_price = marketprice.get_close()
+                    # Put
+                    trade['sell_time'] = sell_time
+                    trade['sell_date'] = _MF.unix_to_date(sell_time)
+                    trade['sell_price'] = exec_price
+                    trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
+                    trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
+                    trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
+                    trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
+                    trade['min_roi_position'] = min_roi_position
+                    trade['max_roi_position'] = max_roi_position
+                    trade['min_roi'] = None
+                    trade['mean_roi'] = None
+                    trade['max_roi'] = None
+                    trade['mean_win_roi'] = None
+                    trade['mean_loss_roi'] = None
+                    trade[Map.sum] = None
+                    trade['min_sum_roi'] = None
+                    trade['max_sum_roi'] = None
+                    trade['final_roi'] = None
+                    trade[Map.fee] = buy_sell_fee
+                    trade['sum_fee'] = None
+                    trade['sum_roi_no_fee'] = None
+                    trade['start_price'] = None
+                    trade['end_price'] = None
+                    trade['higher_price'] = None
+                    trade['market_performence'] = None
+                    trade['max_profit'] = None
+                    trade['n_win'] = None
+                    trade['win_rate'] = None
+                    trade['n_loss'] = None
+                    trade['loss_rate'] = None
+                    trades = pd.DataFrame([trade], columns=list(trade.keys())) if trades is None else trades.append(trade, ignore_index=True)
+                    sum_roi = trades[Map.roi].sum()
+                    sum_fee = trades[Map.fee].sum()
+                    trades.loc[trades.index[-1], Map.sum] = sum_roi
+                    trades.loc[trades.index[-1], f'sum_fee'] = sum_fee
+                    trades.loc[trades.index[-1], f'sum_roi_no_fee'] = sum_roi + sum_fee
+                    trade = {}
+                    buy_time = None
             i += 1
             Bot.update_trade_index(i)
             marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **market_params)
@@ -1258,6 +1268,11 @@ class Icarus(TraderClass):
             repport_file_path = cls.file_path_backtest_repport(buy_file=True)
             fields = list(buy_repports[0].keys())
             rows = buy_repports
+            FileManager.write_csv(repport_file_path, fields, rows, overwrite=False, make_dir=True)
+        if len(sell_repports) > 0:
+            repport_file_path = cls.file_path_backtest_repport(buy_file=False)
+            fields = list(sell_repports[0].keys())
+            rows = sell_repports
             FileManager.write_csv(repport_file_path, fields, rows, overwrite=False, make_dir=True)
         return trades
 
@@ -1357,7 +1372,7 @@ class Icarus(TraderClass):
             'can_buy': args_map.get('can_buy'),
             'can_sell': args_map.get('can_sell'),
             # 'indicator_buy': self._can_buy_indicator(market_price)[0],
-            'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
+            # 'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
             Map.rsi: rsis[-1],
             'rsis[-2]': rsis[-2],
             'rsis[-3]': rsis[-3],
