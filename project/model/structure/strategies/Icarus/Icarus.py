@@ -1092,16 +1092,6 @@ class Icarus(TraderClass):
         from model.structure.Bot import Bot
         import sys
 
-        def is_buy_period(marketprice: MarketPrice, buy_time: int, period: int) -> bool:
-            buy_time_rounded = _MF.round_time(buy_time, period)
-            first_open_time = buy_time_rounded + period
-            open_time = marketprice.get_time()
-            return open_time < first_open_time
-
-        def get_unban_time(buy_time: int, period: int) -> int:
-            unban_time = _MF.round_time(buy_time, period) + period
-            return unban_time
-
         buy_repports = []
         n_period = 300
         fees = broker.get_trade_fee(pair)
@@ -1189,9 +1179,6 @@ class Icarus(TraderClass):
                         'buy_price': exec_price,
                     }
             elif has_position and cls._can_sell_indicator(marketprice):
-                # Ban
-                sell_in_buy_period = is_buy_period(marketprice, buy_time, period)
-                unban_time = get_unban_time(buy_time, period) if sell_in_buy_period else 0
                 # Prepare
                 sell_time = marketprice.get_time()
                 exec_price = marketprice.get_close()
@@ -1199,7 +1186,6 @@ class Icarus(TraderClass):
                 trade['sell_time'] = sell_time
                 trade['sell_date'] = _MF.unix_to_date(sell_time)
                 trade['sell_price'] = exec_price
-                trade['unban_time'] = _MF.unix_to_date(unban_time) if unban_time > 0 else None
                 trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
                 trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
                 trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
