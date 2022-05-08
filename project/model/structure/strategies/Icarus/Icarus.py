@@ -1335,7 +1335,7 @@ class Icarus(TraderClass):
                         'buy_price': exec_price,
                     }
             elif has_position:
-                can_buy, sell_repport = cls._can_sell_indicator(marketprice)
+                can_buy, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
                     Map.time: _MF.unix_to_date(open_times[-1]),
                     **sell_repport
