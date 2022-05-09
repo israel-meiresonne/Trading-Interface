@@ -462,7 +462,7 @@ class Icarus(TraderClass):
             vars_map.put(_MF.unix_to_date(open_time), 'open_time')
             vars_map.put(_MF.unix_to_date(buy_time), 'buy_time')
             vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
-            return buy_period
+            return its_buy_period
 
         def is_histogram_dropping(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
@@ -476,25 +476,22 @@ class Icarus(TraderClass):
             return histogram_dropping
 
         def have_bought_macd_in_positive(vars_map: Map) -> bool:
+            buy_time = max(cls.get_buy_times(pair))
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
             macd.reverse()
-            signal = list(macd_map.get(Map.signal))
-            signal.reverse()
             # Get bought index
-            now_index = len(macd) - 1
-            macd_swings = _MF.group_swings(macd, signal)
-            macd_start_index = macd_swings[now_index][0]
-            # Get macd start date
-            macd_start_time = open_times[macd_start_index]
+            buy_period = _MF.round_time(buy_time, period)
+            buy_index = open_times.index(buy_period)
             # Check
-            bought_macd_in_negative = macd[macd_start_index] >= 0
+            bought_macd_in_positive = macd[buy_index] >= 0
             # Put
-            vars_map.put(bought_macd_in_negative, 'bought_macd_in_negative')
-            vars_map.put(_MF.unix_to_date(macd_start_time), 'macd_start_time')
+            vars_map.put(bought_macd_in_positive, 'bought_macd_in_positive')
+            vars_map.put(_MF.unix_to_date(buy_time), 'bought_macd_buy_time')
+            vars_map.put(_MF.unix_to_date(buy_period), 'bought_macd_buy_period')
+            vars_map.put(macd[buy_index], 'bought_macd')
             vars_map.put(macd, Map.macd)
-            vars_map.put(macd, Map.signal)
-            return bought_macd_in_negative
+            return bought_macd_in_positive
 
         def is_tangent_5min_macd_historgram_negative(vars_map: Map) -> bool:
             macd_map = marketprice_5min.get_macd()
@@ -524,19 +521,18 @@ class Icarus(TraderClass):
         if have_bought_macd_in_positive(vars_map):
             can_sell = is_tangent_5min_macd_historgram_negative(vars_map)
         else:
-            can_sell = (not is_buy_period(vars_map)) \
+            can_sell = (not is_buy_period(vars_map))\
                 and (
                     is_histogram_dropping(vars_map)
                     )
         # Repport
         macd = vars_map.get(Map.macd)
-        signal = vars_map.get(Map.signal)
         histogram = vars_map.get(Map.histogram)
         histogram_5min = vars_map.get('histogram_5min')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.bought_macd_in_negative': vars_map.get('bought_macd_in_negative'),
+            f'{key}.bought_macd_in_positive': vars_map.get('bought_macd_in_positive'),
             f'{key}.tangent_5min_macd_historgram_negative': vars_map.get('tangent_5min_macd_historgram_negative'),
             f'{key}.its_buy_period': vars_map.get('its_buy_period'),
             f'{key}.histogram_dropping': vars_map.get('histogram_dropping'),
@@ -545,11 +541,12 @@ class Icarus(TraderClass):
             f'{key}.buy_time': vars_map.get('buy_time'),
             f'{key}.buy_period': vars_map.get('buy_period'),
 
-            f'{key}.macd_start_time': vars_map.get('macd_start_time'),
+            f'{key}.bought_macd_buy_time': vars_map.get('bought_macd_buy_time'),
+            f'{key}.bought_macd_buy_period': vars_map.get('bought_macd_buy_period'),
+            f'{key}.bought_macd': vars_map.get('bought_macd'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
-            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.histogram_5min[-1]': histogram_5min[-1] if histogram_5min is not None else None
         }
