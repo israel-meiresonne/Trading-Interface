@@ -542,10 +542,10 @@ class Icarus(TraderClass):
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.its_buy_period': vars_map.get('its_buy_period'),
-            f'{key}.histogram_dropping': vars_map.get('histogram_dropping'),
             f'{key}.bought_macd_in_negative': vars_map.get('bought_macd_in_negative'),
             f'{key}.tangent_1min_macd_historgram_negative': vars_map.get('tangent_1min_macd_historgram_negative'),
+            f'{key}.its_buy_period': vars_map.get('its_buy_period'),
+            f'{key}.histogram_dropping': vars_map.get('histogram_dropping'),
 
             f'{key}.open_time': vars_map.get('open_time'),
             f'{key}.buy_time': vars_map.get('buy_time'),
