@@ -34,6 +34,7 @@ class Icarus(TraderClass):
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
     ROC_WINDOW = 15
+    MACD_PARAMS_1 = {'slow': 100, 'fast': 46, 'signal': 35}
     _PREDICTIONS = None
     _FILE_PATH_BACKTEST = f'$class/backtest/$path/$session_backtest.csv'
 
@@ -462,10 +463,10 @@ class Icarus(TraderClass):
             vars_map.put(_MF.unix_to_date(open_time), 'open_time')
             vars_map.put(_MF.unix_to_date(buy_time), 'buy_time')
             vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
-            return buy_period
+            return its_buy_period
 
         def is_histogram_dropping(vars_map: Map) -> bool:
-            macd_map = marketprice.get_macd()
+            macd_map = marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             # Check
@@ -919,7 +920,7 @@ class Icarus(TraderClass):
         """
 
         def is_macd_switch_up(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd()
+            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             macd_switch_up = (histogram[-2] < 0) and (histogram[-1] > 0)
