@@ -462,7 +462,7 @@ class Icarus(TraderClass):
             vars_map.put(_MF.unix_to_date(open_time), 'open_time')
             vars_map.put(_MF.unix_to_date(buy_time), 'buy_time')
             vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
-            return buy_period
+            return its_buy_period
 
         def is_histogram_dropping(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
