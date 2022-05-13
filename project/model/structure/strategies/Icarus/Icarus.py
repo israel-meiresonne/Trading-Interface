@@ -710,22 +710,6 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'macd_switch_up')
             return macd_switch_up
 
-        def is_big_macd_rising(vars_map: Map) -> bool:
-            macd_map = big_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            signal = list(macd_map.get(Map.signal))
-            signal.reverse()
-            histogram_rising = histogram[-1] > 0
-            macd_rising = macd[-1] > 0
-            signal_rising = signal[-1] > 0
-            big_macd_rising = histogram_rising and macd_rising and signal_rising
-            # Put
-            vars_map.put(big_macd_rising, 'big_macd_rising')
-            return big_macd_rising
-
         def is_price_bellow_keltner(vars_map: Map) -> bool:
             keltner = child_marketprice.get_keltnerchannel(original_version=True)
             keltner_high = list(keltner.get(Map.high))
@@ -797,14 +781,6 @@ class Icarus(TraderClass):
             vars_map.put(signal, Map.signal)
             vars_map.put(histogram, Map.histogram)
             return closes_above_low_keltner
-
-        def is_big_supertrend_rising(vars_map: Map) -> bool:
-            supertrend = list(big_marketprice.get_super_trend())
-            supertrend.reverse()
-            big_supertrend_rising = MarketPrice.get_super_trend_trend(big_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
-            vars_map.put(big_supertrend_rising, 'big_supertrend_rising')
-            vars_map.put(supertrend, Map.supertrend)
-            return big_supertrend_rising
 
         def will_bounce_macd(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
@@ -918,7 +894,6 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_dropping
         """
-
         def is_macd_switch_up(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
@@ -929,20 +904,86 @@ class Icarus(TraderClass):
             vars_map.put(histogram, Map.histogram)
             return macd_switch_up
 
+        def is_big_keltner_low_above_big_ema200(vars_map: Map) -> bool:
+            keltner = big_marketprice.get_keltnerchannel()
+            keltner_low = list(keltner.get(Map.low))
+            keltner_low.reverse()
+            ema = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
+            ema.reverse()
+            # Check
+            big_keltner_low_above_big_ema200 = keltner_low[-1] > ema[-1]
+            # Put
+            vars_map.put(big_keltner_low_above_big_ema200, 'big_keltner_low_above_big_ema200')
+            vars_map.put(keltner_low, 'big_keltner_low')
+            vars_map.put(ema, 'big_ema200')
+            return big_keltner_low_above_big_ema200
+
+        def is_big_macd_histogram_positive(vars_map: Map) -> bool:
+            big_marketprice.reset_collections()
+            macd_map = big_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            big_macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(big_macd_histogram_positive, 'big_macd_histogram_positive')
+            vars_map.put(histogram, 'big_macd_histogram')
+            return big_macd_histogram_positive
+
+        def is_big_edited_macd_histogram_positive(vars_map: Map) -> bool:
+            big_marketprice.reset_collections()
+            macd_map = big_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            big_edited_macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(big_edited_macd_histogram_positive, 'big_edited_macd_histogram_positive')
+            vars_map.put(histogram, 'big_edited_macd_histogram')
+            return big_edited_macd_histogram_positive
+
+        def is_big_supertrend_rising(vars_map: Map) -> bool:
+            supertrend = list(big_marketprice.get_super_trend())
+            supertrend.reverse()
+            # Check
+            big_supertrend_rising = MarketPrice.get_super_trend_trend(big_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
+            # Put
+            vars_map.put(big_supertrend_rising, 'big_supertrend_rising')
+            vars_map.put(supertrend, 'big_supertrend')
+            return big_supertrend_rising
+
         vars_map = Map()
         # Child
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        # Big
+        big_closes = list(big_marketprice.get_closes())
+        big_closes.reverse()
         # Check
-        can_buy_indicator = is_macd_switch_up(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_big_keltner_low_above_big_ema200(vars_map)\
+            and is_big_macd_histogram_positive(vars_map) and is_big_edited_macd_histogram_positive(vars_map)\
+                and is_big_supertrend_rising(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
+        big_macd_histogram = vars_map.get('big_macd_histogram')
+        big_edited_macd_histogram = vars_map.get('big_edited_macd_histogram')
+        big_keltner_low = vars_map.get('big_keltner_low')
+        big_ema200 = vars_map.get('big_ema200')
+        big_supertrend = vars_map.get('big_supertrend')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.big_keltner_low_above_big_ema200': vars_map.get('big_keltner_low_above_big_ema200'),
+            f'{key}.big_macd_histogram_positive': vars_map.get('big_macd_histogram_positive'),
+            f'{key}.big_edited_macd_histogram_positive': vars_map.get('big_edited_macd_histogram_positive'),
+            f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None
+            f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.big_macd_histogram[-1]': big_macd_histogram[-1] if big_macd_histogram is not None else None,
+            f'{key}.big_edited_macd_histogram[-1]': big_edited_macd_histogram[-1] if big_edited_macd_histogram is not None else None,
+            f'{key}.big_keltner_low[-1]': big_keltner_low[-1] if big_keltner_low is not None else None,
+            f'{key}.big_ema200[-1]': big_ema200[-1] if big_ema200 is not None else None,
+            f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None
         }
         return can_buy_indicator, repport
 
