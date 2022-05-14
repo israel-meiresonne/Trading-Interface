@@ -695,6 +695,16 @@ class Icarus(TraderClass):
             vars_map.put(macd_negative, 'macd_negative')
             return macd_negative
 
+        def is_macd_switch_up(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd_switch_up = (histogram[-2] < 0) and (histogram[-1] > 0)
+            # Put
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            vars_map.put(histogram, Map.histogram)
+            return macd_switch_up
+
         def is_macd_switch_up_offsetted(vars_map: Map) -> bool:
             # MACD
             macd_map = child_marketprice.get_macd()
@@ -894,15 +904,15 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_dropping
         """
-        def is_macd_switch_up(vars_map: Map) -> bool:
+        def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
-            macd_switch_up = (histogram[-2] < 0) and (histogram[-1] > 0)
+            edited_macd_histogram_positive = histogram[-1] > 0
             # Put
-            vars_map.put(macd_switch_up, 'macd_switch_up')
-            vars_map.put(histogram, Map.histogram)
-            return macd_switch_up
+            vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
+            vars_map.put(histogram, 'edited_macd_histogram')
+            return edited_macd_histogram_positive
 
         def is_big_keltner_low_above_big_ema200(vars_map: Map) -> bool:
             keltner = big_marketprice.get_keltnerchannel()
@@ -958,11 +968,11 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_macd_switch_up(vars_map) and is_big_keltner_low_above_big_ema200(vars_map)\
+        can_buy_indicator = is_edited_macd_histogram_positive(vars_map) and is_big_keltner_low_above_big_ema200(vars_map)\
             and is_big_macd_histogram_positive(vars_map) and is_big_edited_macd_histogram_positive(vars_map)\
                 and is_big_supertrend_rising(vars_map)
         # Repport
-        histogram = vars_map.get(Map.histogram)
+        edited_macd_histogram = vars_map.get('edited_macd_histogram')
         big_macd_histogram = vars_map.get('big_macd_histogram')
         big_edited_macd_histogram = vars_map.get('big_edited_macd_histogram')
         big_keltner_low = vars_map.get('big_keltner_low')
@@ -971,14 +981,14 @@ class Icarus(TraderClass):
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
             f'{key}.big_keltner_low_above_big_ema200': vars_map.get('big_keltner_low_above_big_ema200'),
             f'{key}.big_macd_histogram_positive': vars_map.get('big_macd_histogram_positive'),
             f'{key}.big_edited_macd_histogram_positive': vars_map.get('big_edited_macd_histogram_positive'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
-            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.edited_macd_histogram[-1]': edited_macd_histogram[-1] if edited_macd_histogram is not None else None,
             f'{key}.big_macd_histogram[-1]': big_macd_histogram[-1] if big_macd_histogram is not None else None,
             f'{key}.big_edited_macd_histogram[-1]': big_edited_macd_histogram[-1] if big_edited_macd_histogram is not None else None,
             f'{key}.big_keltner_low[-1]': big_keltner_low[-1] if big_keltner_low is not None else None,
