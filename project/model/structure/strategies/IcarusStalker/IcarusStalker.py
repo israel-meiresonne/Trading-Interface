@@ -137,7 +137,7 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.edited_macd_histogram_positive': None,
-            f'{key}.big_keltner_low_above_big_ema200': None,
+            f'{key}.big_keltner_high_above_big_ema50': None,
             f'{key}.big_macd_histogram_positive': None,
             f'{key}.big_edited_macd_histogram_positive': None,
             f'{key}.big_supertrend_rising': None,
@@ -146,8 +146,8 @@ class IcarusStalker(StalkerClass):
             f'{key}.edited_macd_histogram[-1]': None,
             f'{key}.big_macd_histogram[-1]': None,
             f'{key}.big_edited_macd_histogram[-1]': None,
-            f'{key}.big_keltner_low[-1]': None,
-            f'{key}.big_ema200[-1]': None,
+            f'{key}.big_keltner_high[-1]': None,
+            f'{key}.big_ema50[-1]': None,
             f'{key}.big_supertrend[-1]': None
         }
         # Repport

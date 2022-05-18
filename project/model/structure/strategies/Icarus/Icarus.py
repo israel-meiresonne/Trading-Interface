@@ -32,7 +32,8 @@ class Icarus(TraderClass):
     _MIN_PERIOD = 60
     _PERIODS_REQUIRRED = [_MIN_PERIOD, MARKETPRICE_BUY_BIG_PERIOD, MARKETPRICE_BUY_LITTLE_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
-    EMA_N_PERIOD = 200
+    EMA200_N_PERIOD = 200
+    EMA50_N_PERIOD = 50
     ROC_WINDOW = 15
     MACD_PARAMS_1 = {'slow': 100, 'fast': 46, 'signal': 35}
     _PREDICTIONS = None
@@ -362,7 +363,7 @@ class Icarus(TraderClass):
         closes = list(marketprice.get_closes())
         closes.reverse()
         # EMA
-        ema = list(marketprice.get_ema(self.EMA_N_PERIOD))
+        ema = list(marketprice.get_ema(self.EMA200_N_PERIOD))
         ema.reverse()
         ema_rising = closes[-1] > ema[-1]
         # Low
@@ -903,16 +904,6 @@ class Icarus(TraderClass):
             vars_map.put(supertrend_dropping, 'supertrend_dropping')
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_dropping
-        """
-        def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            edited_macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
-            vars_map.put(histogram, 'edited_macd_histogram')
-            return edited_macd_histogram_positive
 
         def is_big_keltner_low_above_big_ema200(vars_map: Map) -> bool:
             keltner = big_marketprice.get_keltnerchannel()
@@ -927,6 +918,16 @@ class Icarus(TraderClass):
             vars_map.put(keltner_low, 'big_keltner_low')
             vars_map.put(ema, 'big_ema200')
             return big_keltner_low_above_big_ema200
+        """
+        def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            edited_macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
+            vars_map.put(histogram, 'edited_macd_histogram')
+            return edited_macd_histogram_positive
 
         def is_big_macd_histogram_positive(vars_map: Map) -> bool:
             big_marketprice.reset_collections()
@@ -960,6 +961,20 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, 'big_supertrend')
             return big_supertrend_rising
 
+        def is_big_keltner_high_above_big_ema50(vars_map: Map) -> bool:
+            keltner = big_marketprice.get_keltnerchannel()
+            keltner_high = list(keltner.get(Map.high))
+            keltner_high.reverse()
+            ema = list(big_marketprice.get_ema(cls.EMA50_N_PERIOD))
+            ema.reverse()
+            # Check
+            big_keltner_high_above_big_ema50 = keltner_high[-1] > ema[-1]
+            # Put
+            vars_map.put(big_keltner_high_above_big_ema50, 'big_keltner_high_above_big_ema50')
+            vars_map.put(keltner_high, 'big_keltner_high')
+            vars_map.put(ema, 'big_ema50')
+            return big_keltner_high_above_big_ema50
+
         vars_map = Map()
         # Child
         closes = list(child_marketprice.get_closes())
@@ -968,21 +983,21 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_edited_macd_histogram_positive(vars_map) and is_big_keltner_low_above_big_ema200(vars_map)\
+        can_buy_indicator = is_edited_macd_histogram_positive(vars_map) and is_big_keltner_high_above_big_ema50(vars_map)\
             and is_big_macd_histogram_positive(vars_map) and is_big_edited_macd_histogram_positive(vars_map)\
                 and is_big_supertrend_rising(vars_map)
         # Repport
         edited_macd_histogram = vars_map.get('edited_macd_histogram')
         big_macd_histogram = vars_map.get('big_macd_histogram')
         big_edited_macd_histogram = vars_map.get('big_edited_macd_histogram')
-        big_keltner_low = vars_map.get('big_keltner_low')
-        big_ema200 = vars_map.get('big_ema200')
+        big_keltner_high = vars_map.get('big_keltner_high')
+        big_ema50 = vars_map.get('big_ema50')
         big_supertrend = vars_map.get('big_supertrend')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
-            f'{key}.big_keltner_low_above_big_ema200': vars_map.get('big_keltner_low_above_big_ema200'),
+            f'{key}.big_keltner_high_above_big_ema50': vars_map.get('big_keltner_high_above_big_ema50'),
             f'{key}.big_macd_histogram_positive': vars_map.get('big_macd_histogram_positive'),
             f'{key}.big_edited_macd_histogram_positive': vars_map.get('big_edited_macd_histogram_positive'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
@@ -991,8 +1006,8 @@ class Icarus(TraderClass):
             f'{key}.edited_macd_histogram[-1]': edited_macd_histogram[-1] if edited_macd_histogram is not None else None,
             f'{key}.big_macd_histogram[-1]': big_macd_histogram[-1] if big_macd_histogram is not None else None,
             f'{key}.big_edited_macd_histogram[-1]': big_edited_macd_histogram[-1] if big_edited_macd_histogram is not None else None,
-            f'{key}.big_keltner_low[-1]': big_keltner_low[-1] if big_keltner_low is not None else None,
-            f'{key}.big_ema200[-1]': big_ema200[-1] if big_ema200 is not None else None,
+            f'{key}.big_keltner_high[-1]': big_keltner_high[-1] if big_keltner_high is not None else None,
+            f'{key}.big_ema50[-1]': big_ema50[-1] if big_ema50 is not None else None,
             f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None
         }
         return can_buy_indicator, repport
@@ -1471,7 +1486,7 @@ class Icarus(TraderClass):
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
         # EMA
-        ema = list(market_price.get_ema(self.EMA_N_PERIOD))
+        ema = list(market_price.get_ema(self.EMA200_N_PERIOD))
         ema.reverse()
         # # Prediction
         buy_price = self.get_buy_order().get_execution_price() if has_position else None
