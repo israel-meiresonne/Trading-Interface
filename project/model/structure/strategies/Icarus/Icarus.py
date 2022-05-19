@@ -391,7 +391,7 @@ class Icarus(TraderClass):
         broker = self.get_broker()
         n_period = self.get_marketprice_n_period()
         datas = {
-            Map.roi: self.get_wallet().get_roi(broker),
+            Map.maximum: self.get_max_price(marketprice),
             self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
             self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
         }
@@ -406,10 +406,10 @@ class Icarus(TraderClass):
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
         ROI_TRIGGER = 1/100
-        def is_roi_above_trigger(vars_map: Map) -> bool:
-            roi_above_trigger = roi >= ROI_TRIGGER
-            vars_map.put(roi_above_trigger, 'roi_above_trigger')
-            return roi_above_trigger
+        def is_max_roi_above_trigger(vars_map: Map) -> bool:
+            max_roi_above_trigger = max_roi >= ROI_TRIGGER
+            vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
+            return max_roi_above_trigger
 
         def is_price_switch_down(vars_map: Map) -> bool:
             def price_change(i: int) -> float:
@@ -423,7 +423,7 @@ class Icarus(TraderClass):
         vars_map = Map()
         can_sell = False
         # Vars
-        roi = datas[Map.roi]
+        max_roi = datas[Map.maximum]
         # MarketPrice
         pair = marketprice.get_pair()
         period = marketprice.get_period_time()
@@ -435,12 +435,12 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_roi_above_trigger(vars_map) or is_price_switch_down(vars_map)
+        can_sell = is_max_roi_above_trigger(vars_map) or is_price_switch_down(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
+            f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
             f'{key}.price_switch_down': vars_map.get('price_switch_down'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
@@ -961,7 +961,7 @@ class Icarus(TraderClass):
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
                 can_sell_params = {
-                    Map.roi: _MF.progress_rate(closes[-1], trade['buy_price']),
+                    Map.maximum: max_roi_position,
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
                     cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice
                 }
