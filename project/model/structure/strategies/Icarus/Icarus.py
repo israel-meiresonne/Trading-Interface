@@ -405,107 +405,48 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
-        """
-        def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
-            # RSI
-            rsi = list(marketprice.get_rsis())
-            rsi.reverse()
-            rsi_reached = rsi[-1] > rsi_trigger
-            return rsi_reached
+        ROI_TRIGGER = 1/100
+        def is_roi_above_trigger(vars_map: Map) -> bool:
+            roi_above_trigger = roi >= ROI_TRIGGER
+            vars_map.put(roi_above_trigger, 'roi_above_trigger')
+            return roi_above_trigger
 
-        def are_macd_signal_negatives(vars_map: Map) -> bool:
-            macd_map = marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            signal = list(macd_map.get(Map.signal))
-            signal.reverse()
-            macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
-            return macd_signal_negatives
-
-        def is_tangent_macd_dropping(vars_map: Map) -> bool:
-            macd_map = marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            tangent_macd_dropping = macd[-1] <= macd[-2]
-            return tangent_macd_dropping
-
-        def is_roi_positive(vars_map: Map) -> bool:
-            return roi > 0
-
-        def is_ema_bellow_ema200(vars_map: Map) -> bool:
-            ema = list(marketprice_6h.get_ema())
-            ema.reverse()
-            marketprice_6h.reset_collections()
-            ema_200 = list(marketprice_6h.get_ema(cls.EMA_N_PERIOD))
-            ema_200.reverse()
+        def is_price_switch_down(vars_map: Map) -> bool:
+            def price_change(i: int) -> float:
+                return closes[i] - opens[i]
             # Check
-            ema_bellow_ema200 = ema[-1] <= ema_200[-1]
-            return ema_bellow_ema200
-
-        def is_tangent_macd_5min_dropping(vars_map: Map) -> bool:
-            macd_map = marketprice_5min.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            tangent_macd_5min_dropping = macd[-1] <= macd[-2]
-            return tangent_macd_5min_dropping
-        
-        def can_sell_with_macd_5min(vars_map: Map) -> bool:
-            return is_roi_positive(vars_map) and is_ema_bellow_ema200(vars_map) and is_tangent_macd_5min_dropping(vars_map)
-        """
-
-        def is_buy_period(vars_map: Map) -> bool:
-            buy_time = max(cls.get_buy_times(pair))
-            buy_period = _MF.round_time(buy_time, period)
-            open_time = marketprice.get_time()
-            # Check
-            its_buy_period = open_time == buy_period
+            price_switch_down = price_change(-2) < 0
             # Put
-            vars_map.put(its_buy_period, 'its_buy_period')
-            vars_map.put(_MF.unix_to_date(open_time), 'open_time')
-            vars_map.put(_MF.unix_to_date(buy_time), 'buy_time')
-            vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
-            return its_buy_period
-
-        def is_histogram_dropping(vars_map: Map) -> bool:
-            macd_map = marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            histogram_dropping = histogram[-1] < 0
-            # Put
-            vars_map.put(histogram_dropping, 'histogram_dropping')
-            vars_map.put(histogram, Map.histogram)
-            return histogram_dropping
+            vars_map.put(price_switch_down, 'price_switch_down')
+            return price_switch_down
 
         vars_map = Map()
         can_sell = False
         # Vars
         roi = datas[Map.roi]
-        marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
-        marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
+        # MarketPrice
         pair = marketprice.get_pair()
         period = marketprice.get_period_time()
         closes = list(marketprice.get_closes())
         closes.reverse()
+        opens = list(marketprice.get_opens())
+        opens.reverse()
+        # MarketPrice Xmin
+        marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
+        marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = (not is_buy_period(vars_map)) \
-            and (
-                is_histogram_dropping(vars_map)
-            )
+        can_sell = is_roi_above_trigger(vars_map) or is_price_switch_down(vars_map)
         # Repport
-        histogram = vars_map.get(Map.histogram)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.its_buy_period': vars_map.get('its_buy_period'),
-            f'{key}.histogram_dropping': vars_map.get('histogram_dropping'),
+            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
+            f'{key}.price_switch_down': vars_map.get('price_switch_down'),
 
-            f'{key}.open_time': vars_map.get('open_time'),
-            f'{key}.buy_time': vars_map.get('buy_time'),
-            f'{key}.buy_period': vars_map.get('buy_period'),
+            f'{key}.roi_trigger': ROI_TRIGGER,
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.opens[-1]': opens[-1] if opens is not None else None,
         }
         return can_sell, repport
 
@@ -685,330 +626,42 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        """
-        def is_macd_negative(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            macd_negative = macd[-1] < 0
-            # Put
-            vars_map.put(macd, 'macd')
-            vars_map.put(macd_negative, 'macd_negative')
-            return macd_negative
-
-        def is_macd_switch_up(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            macd_switch_up = (histogram[-2] < 0) and (histogram[-1] > 0)
-            # Put
-            vars_map.put(macd_switch_up, 'macd_switch_up')
-            vars_map.put(histogram, Map.histogram)
-            return macd_switch_up
-
-        def is_macd_switch_up_offsetted(vars_map: Map) -> bool:
-            # MACD
-            macd_map = child_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            histogram_rising = (histogram[-2] > 0) and (histogram[-1] > 0)
-            prev_histogram_dropping = histogram[-3] < 0
-            macd_switch_up = histogram_rising and prev_histogram_dropping
-            # Put
-            vars_map.put(histogram, 'histogram')
-            vars_map.put(histogram_rising, 'histogram_rising')
-            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
-            vars_map.put(macd_switch_up, 'macd_switch_up')
-            return macd_switch_up
-
-        def is_price_bellow_keltner(vars_map: Map) -> bool:
-            keltner = child_marketprice.get_keltnerchannel(original_version=True)
-            keltner_high = list(keltner.get(Map.high))
-            keltner_high.reverse()
-            bellow_keltner = closes[-1] < keltner_high[-1]
-            # Put
-            vars_map.put(bellow_keltner, 'close_bellow_keltner_high')
-            vars_map.put(keltner_high, 'keltner_high')
-            return bellow_keltner
-
-        def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
-            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
-            roc.reverse()
-            roc_positive = roc[-1] > 0
-            vars_map.put(roc_positive, 'roc_positive')
-            return roc_positive
-
-        def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
-            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
-            roc.reverse()
-            open_times = list(marketprice.get_times())
-            open_times.reverse()
-            zeros = np.zeros(len(roc)).tolist()
-            last_min_index = MarketPrice.last_extremum_index(roc, zeros, -1, excludes=[-1])
-            last_peak_index = MarketPrice.last_extremum_index(roc, zeros, 1, excludes=[-1])
-            roc_bounce = abs(roc[last_min_index]) <= 0.5*roc[last_peak_index]
-            vars_map.put(roc_bounce, 'roc_bounce')
-            vars_map.put(_MF.unix_to_date(open_times[last_peak_index]), 'last_roc_peak_date')
-            vars_map.put(roc[last_peak_index], 'last_roc_peak')
-            vars_map.put(_MF.unix_to_date(open_times[last_min_index]), 'last_roc_min_date')
-            vars_map.put(roc[last_min_index], 'last_roc_min')
-            vars_map.put(roc, 'roc')
-            return roc_bounce
-
-        def is_price_above_low_keltner(vars_map: Map) -> bool:
-            open_times = list(child_marketprice.get_times())
-            open_times.reverse()
-            keltner_low = list(child_marketprice.get_keltnerchannel(original_version=True).get(Map.low))
-            keltner_low.reverse()
-            macd_map = child_marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            signal = list(macd_map.get(Map.signal))
-            signal.reverse()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            last_min_index = MarketPrice.last_extremum_index(macd, signal, -1, excludes=[])
-            macd_swing = _MF.group_swings(macd, signal)
-            interval = macd_swing[last_min_index]
-            sub_open_times = open_times[interval[0]:interval[1]+1]
-            # Min Close
-            sub_close = closes[interval[0]:interval[1]+1]
-            min_close = min(sub_close)
-            min_close_open_time = sub_open_times[sub_close.index(min_close)]
-            # Min Keltner
-            sub_keltner_low = keltner_low[interval[0]:interval[1]+1]
-            min_keltner = min(sub_keltner_low)
-            min_keltner_open_time = sub_open_times[sub_keltner_low.index(min_keltner)]
+        def is_price_switch_up(vars_map: Map) -> bool:
+            def price_change(i: int) -> float:
+                return closes[i] - opens[i]
             # Check
-            closes_above_low_keltner = min_close > min_keltner
+            price_change_2 = price_change(-2)
+            price_change_3 = price_change(-3)
+            price_switch_up = (price_change_3 < 0) and (price_change_2 > 0)
             # Put
-            vars_map.put(closes_above_low_keltner, 'closes_above_low_keltner')
-            vars_map.put(_MF.unix_to_date(min_close_open_time), 'min_close_date')
-            vars_map.put(min_close, 'min_close')
-            vars_map.put(_MF.unix_to_date(min_keltner_open_time), 'min_keltner_date')
-            vars_map.put(min_keltner, 'min_keltner')
-            vars_map.put(keltner_low, 'keltner_low')
-            vars_map.put(macd, Map.macd)
-            vars_map.put(signal, Map.signal)
-            vars_map.put(histogram, Map.histogram)
-            return closes_above_low_keltner
-
-        def will_bounce_macd(vars_map: Map) -> bool:
-            def macd_last_minimum_index(macd: list, histogram: list) -> int:
-                neg_macd_indexes = []
-                macd_df = pd.DataFrame({Map.macd: macd, Map.histogram: histogram})
-                neg_macd_df = macd_df[macd_df[Map.macd] < 0]
-                neg_idxs = neg_macd_df.index
-                for i in range(2, neg_macd_df.shape[0]):
-                    i = -i
-                    neg_macd_indexes.append(neg_idxs[i+1]) if abs(i) == 2 else None
-                    if abs(neg_idxs[i] - neg_idxs[i+1]) == 1:
-                        neg_macd_indexes.append(neg_idxs[i])
-                    else:
-                        break
-                last_lows_df = macd_df[macd_df.index.isin(neg_macd_indexes)]
-                last_min_macd = last_lows_df[Map.macd].min()
-                last_min_macd_index = last_lows_df[last_lows_df[Map.macd] == last_min_macd].index[-1]
-                return last_min_macd_index
-
-            def macd_last_peak_index(macd: list, signal: list, histogram: list) -> int:
-                posi_macd_indexes = []
-                macd_df = pd.DataFrame({Map.macd: macd, Map.signal: signal, Map.histogram: histogram})
-                posi_macd_df = macd_df[(macd_df[Map.histogram] > 0) & (macd_df[Map.macd] > 0) & (macd_df[Map.signal] > 0)]
-                posi_indexes = posi_macd_df.index
-                for i in range(2, posi_macd_df.shape[0]):
-                    i = -i
-                    posi_macd_indexes.append(posi_indexes[i+1]) if abs(i) == 2 else None
-                    if abs(posi_indexes[i] - posi_indexes[i+1]) == 1:
-                        posi_macd_indexes.append(posi_indexes[i])
-                    else:
-                        break
-                last_highs_df = macd_df[macd_df.index.isin(posi_macd_indexes)]
-                last_macd_peak = last_highs_df[Map.macd].max()
-                last_macd_peak_index = last_highs_df[last_highs_df[Map.macd] == last_macd_peak].index[-1]
-                return last_macd_peak_index
-
-            open_times = list(child_marketprice.get_times())
-            open_times.reverse()
-            macd_map = child_marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            signal = list(macd_map.get(Map.signal))
-            signal.reverse()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            macd_min_index = macd_last_minimum_index(macd, histogram)
-            last_min_macd = macd[macd_min_index]
-            macd_peak_index = macd_last_peak_index(macd, signal, histogram)
-            last_peak_macd = macd[macd_peak_index]
-            will_bounce = last_peak_macd > abs(last_min_macd)
-            macd_min_date = _MF.unix_to_date(open_times[macd_min_index])
-            macd_peak_date = _MF.unix_to_date(open_times[macd_peak_index])
-            # Put
-            vars_map.put(will_bounce, 'will_macd_bounce')
-            vars_map.put(macd_min_date, 'macd_min_date')
-            vars_map.put(last_min_macd, 'last_min_macd')
-            vars_map.put(macd_peak_date, 'macd_peak_date')
-            vars_map.put(last_peak_macd, 'last_peak_macd')
-            vars_map.put(macd, Map.macd)
-            vars_map.put(signal, Map.signal)
-            vars_map.put(histogram, Map.histogram)
-            return will_bounce
-
-        def is_tangent_macd_positive(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            # Check
-            tangent_macd_positive = macd[-1] > macd[-2]
-            # Put
-            vars_map.put(tangent_macd_positive, 'tangent_macd_positive')
-            vars_map.put(macd, Map.macd)
-            return tangent_macd_positive
-
-        def is_big_psar_rising(vars_map: Map) -> bool:
-            psar = list(big_marketprice.get_psar())
-            psar.reverse()
-            big_psar_rising = MarketPrice.get_psar_trend(big_closes, psar, -1) == MarketPrice.PSAR_RISING
-            vars_map.put(big_psar_rising, 'big_psar_rising')
-            vars_map.put(psar, 'big_psar')
-            return big_psar_rising
-
-        def is_big_ema_above_big_ema200(vars_map: Map) -> bool:
-            ema = list(big_marketprice.get_ema())
-            ema.reverse()
-            big_marketprice.reset_collections()
-            ema_200 = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema_200.reverse()
-            # Check
-            big_ema_above_big_ema200 = ema[-1] > ema_200[-1]
-            # Put
-            vars_map.put(big_ema_above_big_ema200, 'big_ema_above_big_ema200')
-            vars_map.put(ema, 'big_ema')
-            vars_map.put(ema_200, 'big_ema_200')
-            return big_ema_above_big_ema200
-
-        def is_close_above_ema200(vars_map: Map) -> bool:
-            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema.reverse()
-            close_above_ema200 = closes[-1] > ema[-1]
-            # Put
-            vars_map.put(close_above_ema200, 'close_above_ema200')
-            vars_map.put(ema, 'ema_200')
-            return close_above_ema200
-
-        def is_supertrend_dropping(vars_map: Map) -> bool:
-            supertrend = list(child_marketprice.get_super_trend())
-            supertrend.reverse()
-            supertrend_dropping = MarketPrice.get_super_trend_trend(closes, supertrend, -1) == MarketPrice.SUPERTREND_DROPPING
-            vars_map.put(supertrend_dropping, 'supertrend_dropping')
-            vars_map.put(supertrend, Map.supertrend)
-            return supertrend_dropping
-
-        def is_big_keltner_low_above_big_ema200(vars_map: Map) -> bool:
-            keltner = big_marketprice.get_keltnerchannel()
-            keltner_low = list(keltner.get(Map.low))
-            keltner_low.reverse()
-            ema = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema.reverse()
-            # Check
-            big_keltner_low_above_big_ema200 = keltner_low[-1] > ema[-1]
-            # Put
-            vars_map.put(big_keltner_low_above_big_ema200, 'big_keltner_low_above_big_ema200')
-            vars_map.put(keltner_low, 'big_keltner_low')
-            vars_map.put(ema, 'big_ema200')
-            return big_keltner_low_above_big_ema200
-        """
-        def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            edited_macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
-            vars_map.put(histogram, 'edited_macd_histogram')
-            return edited_macd_histogram_positive
-
-        def is_big_macd_histogram_positive(vars_map: Map) -> bool:
-            big_marketprice.reset_collections()
-            macd_map = big_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            big_macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(big_macd_histogram_positive, 'big_macd_histogram_positive')
-            vars_map.put(histogram, 'big_macd_histogram')
-            return big_macd_histogram_positive
-
-        def is_big_edited_macd_histogram_positive(vars_map: Map) -> bool:
-            big_marketprice.reset_collections()
-            macd_map = big_marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            big_edited_macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(big_edited_macd_histogram_positive, 'big_edited_macd_histogram_positive')
-            vars_map.put(histogram, 'big_edited_macd_histogram')
-            return big_edited_macd_histogram_positive
-
-        def is_big_supertrend_rising(vars_map: Map) -> bool:
-            supertrend = list(big_marketprice.get_super_trend())
-            supertrend.reverse()
-            # Check
-            big_supertrend_rising = MarketPrice.get_super_trend_trend(big_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
-            # Put
-            vars_map.put(big_supertrend_rising, 'big_supertrend_rising')
-            vars_map.put(supertrend, 'big_supertrend')
-            return big_supertrend_rising
-
-        def is_big_keltner_high_above_big_ema50(vars_map: Map) -> bool:
-            keltner = big_marketprice.get_keltnerchannel()
-            keltner_high = list(keltner.get(Map.high))
-            keltner_high.reverse()
-            ema = list(big_marketprice.get_ema(cls.EMA50_N_PERIOD))
-            ema.reverse()
-            # Check
-            big_keltner_high_above_big_ema50 = keltner_high[-1] > ema[-1]
-            # Put
-            vars_map.put(big_keltner_high_above_big_ema50, 'big_keltner_high_above_big_ema50')
-            vars_map.put(keltner_high, 'big_keltner_high')
-            vars_map.put(ema, 'big_ema50')
-            return big_keltner_high_above_big_ema50
+            vars_map.put(price_switch_up, 'price_switch_up')
+            vars_map.put(price_change_2, 'price_change_2')
+            vars_map.put(price_change_3, 'price_change_3')
+            return price_switch_up
 
         vars_map = Map()
         # Child
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        opens = list(child_marketprice.get_opens())
+        opens.reverse()
         # Big
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_edited_macd_histogram_positive(vars_map) and is_big_keltner_high_above_big_ema50(vars_map)\
-            and is_big_macd_histogram_positive(vars_map) and is_big_edited_macd_histogram_positive(vars_map)\
-                and is_big_supertrend_rising(vars_map)
+        can_buy_indicator = is_price_switch_up(vars_map)
         # Repport
-        edited_macd_histogram = vars_map.get('edited_macd_histogram')
-        big_macd_histogram = vars_map.get('big_macd_histogram')
-        big_edited_macd_histogram = vars_map.get('big_edited_macd_histogram')
-        big_keltner_high = vars_map.get('big_keltner_high')
-        big_ema50 = vars_map.get('big_ema50')
-        big_supertrend = vars_map.get('big_supertrend')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
-            f'{key}.big_keltner_high_above_big_ema50': vars_map.get('big_keltner_high_above_big_ema50'),
-            f'{key}.big_macd_histogram_positive': vars_map.get('big_macd_histogram_positive'),
-            f'{key}.big_edited_macd_histogram_positive': vars_map.get('big_edited_macd_histogram_positive'),
-            f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
+            f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+
+            f'{key}.price_change_2': vars_map.get('price_change_2'),
+            f'{key}.price_change_3': vars_map.get('price_change_3'),
+
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.big_closes[-1]': big_closes[-1],
-            f'{key}.edited_macd_histogram[-1]': edited_macd_histogram[-1] if edited_macd_histogram is not None else None,
-            f'{key}.big_macd_histogram[-1]': big_macd_histogram[-1] if big_macd_histogram is not None else None,
-            f'{key}.big_edited_macd_histogram[-1]': big_edited_macd_histogram[-1] if big_edited_macd_histogram is not None else None,
-            f'{key}.big_keltner_high[-1]': big_keltner_high[-1] if big_keltner_high is not None else None,
-            f'{key}.big_ema50[-1]': big_ema50[-1] if big_ema50 is not None else None,
-            f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.big_closes[-1]': big_closes[-1]
         }
         return can_buy_indicator, repport
 

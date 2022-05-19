@@ -136,19 +136,14 @@ class IcarusStalker(StalkerClass):
         key = self.CHILD_STRATEGY._can_buy_indicator.__name__
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
-            f'{key}.edited_macd_histogram_positive': None,
-            f'{key}.big_keltner_high_above_big_ema50': None,
-            f'{key}.big_macd_histogram_positive': None,
-            f'{key}.big_edited_macd_histogram_positive': None,
-            f'{key}.big_supertrend_rising': None,
+            f'{key}.price_switch_up': None,
+
+            f'{key}.price_change_2': None,
+            f'{key}.price_change_3': None,
+
             f'{key}.closes[-1]': None,
-            f'{key}.big_closes[-1]': None,
-            f'{key}.edited_macd_histogram[-1]': None,
-            f'{key}.big_macd_histogram[-1]': None,
-            f'{key}.big_edited_macd_histogram[-1]': None,
-            f'{key}.big_keltner_high[-1]': None,
-            f'{key}.big_ema50[-1]': None,
-            f'{key}.big_supertrend[-1]': None
+            f'{key}.opens[-1]': None,
+            f'{key}.big_closes[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
