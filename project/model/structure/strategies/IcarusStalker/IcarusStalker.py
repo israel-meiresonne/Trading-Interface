@@ -137,12 +137,16 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
+            f'{key}.price_above_prev_high': None,
 
-            f'{key}.price_change_2': None,
-            f'{key}.price_change_3': None,
+            f'{key}.switch_up_price_change_2': None,
+            f'{key}.switch_up_price_change_3': None,
+
+            f'{key}.above_prev_high_price_change_2': None,
 
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
+            f'{key}.highs[-1]': None,
             f'{key}.big_closes[-1]': None
         }
         # Repport

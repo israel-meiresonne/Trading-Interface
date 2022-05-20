@@ -420,6 +420,19 @@ class Icarus(TraderClass):
             vars_map.put(price_switch_down, 'price_switch_down')
             return price_switch_down
 
+        def is_buy_period(vars_map: Map) -> bool:
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, period)
+            open_time = marketprice.get_time()
+            # Check
+            its_buy_period = open_time == buy_period
+            # Put
+            vars_map.put(its_buy_period, 'its_buy_period')
+            vars_map.put(_MF.unix_to_date(open_time), 'open_time')
+            vars_map.put(_MF.unix_to_date(buy_time), 'buy_time')
+            vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
+            return its_buy_period
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -435,15 +448,20 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_max_roi_above_trigger(vars_map) or is_price_switch_down(vars_map)
+        can_sell = is_max_roi_above_trigger(vars_map) or ((not is_buy_period(vars_map)) and is_price_switch_down(vars_map))
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
+            f'{key}.its_buy_period': vars_map.get('its_buy_period'),
             f'{key}.price_switch_down': vars_map.get('price_switch_down'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
+
+            f'{key}.open_time': vars_map.get('open_time'),
+            f'{key}.buy_time': vars_map.get('buy_time'),
+            f'{key}.buy_period': vars_map.get('buy_period'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1] if opens is not None else None,
@@ -628,6 +646,7 @@ class Icarus(TraderClass):
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def price_change(i: int) -> float:
             return closes[i] - opens[i]
+
         def is_price_switch_up(vars_map: Map) -> bool:
             # Check
             price_change_2 = price_change(-2)
@@ -635,9 +654,18 @@ class Icarus(TraderClass):
             price_switch_up = (price_change_3 < 0) and (price_change_2 > 0)
             # Put
             vars_map.put(price_switch_up, 'price_switch_up')
-            vars_map.put(price_change_2, 'price_change_2')
-            vars_map.put(price_change_3, 'price_change_3')
+            vars_map.put(price_change_2, 'switch_up_price_change_2')
+            vars_map.put(price_change_3, 'switch_up_price_change_3')
             return price_switch_up
+
+        def is_price_above_prev_high(vars_map: Map) -> bool:
+            # Check
+            price_change_2 = price_change(-2)
+            price_above_prev_high = (price_change_2 < 0) and (highs[-1] >= highs[-2])
+            # Put
+            vars_map.put(price_above_prev_high, 'price_above_prev_high')
+            vars_map.put(price_change_2, 'above_prev_high_price_change_2')
+            return price_above_prev_high
 
         vars_map = Map()
         # Child
@@ -645,22 +673,28 @@ class Icarus(TraderClass):
         closes.reverse()
         opens = list(child_marketprice.get_opens())
         opens.reverse()
+        highs = list(child_marketprice.get_highs())
+        highs.reverse()
         # Big
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map)
+        can_buy_indicator = is_price_switch_up(vars_map) or is_price_above_prev_high(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+            f'{key}.price_above_prev_high': vars_map.get('price_above_prev_high'),
 
-            f'{key}.price_change_2': vars_map.get('price_change_2'),
-            f'{key}.price_change_3': vars_map.get('price_change_3'),
+            f'{key}.switch_up_price_change_2': vars_map.get('switch_up_price_change_2'),
+            f'{key}.switch_up_price_change_3': vars_map.get('switch_up_price_change_3'),
+
+            f'{key}.above_prev_high_price_change_2': vars_map.get('above_prev_high_price_change_2'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
+            f'{key}.highs[-1]': highs[-1],
             f'{key}.big_closes[-1]': big_closes[-1]
         }
         return can_buy_indicator, repport
