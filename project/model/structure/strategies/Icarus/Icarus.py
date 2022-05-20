@@ -411,15 +411,6 @@ class Icarus(TraderClass):
             vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
             return max_roi_above_trigger
 
-        def is_price_switch_down(vars_map: Map) -> bool:
-            def price_change(i: int) -> float:
-                return closes[i] - opens[i]
-            # Check
-            price_switch_down = price_change(-2) < 0
-            # Put
-            vars_map.put(price_switch_down, 'price_switch_down')
-            return price_switch_down
-
         vars_map = Map()
         can_sell = False
         # Vars
@@ -435,13 +426,12 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_max_roi_above_trigger(vars_map) or is_price_switch_down(vars_map)
+        can_sell = is_max_roi_above_trigger(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
-            f'{key}.price_switch_down': vars_map.get('price_switch_down'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
 
