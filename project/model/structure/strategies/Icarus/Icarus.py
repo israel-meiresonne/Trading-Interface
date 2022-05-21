@@ -405,11 +405,34 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
+        """
         ROI_TRIGGER = 1/100
         def is_max_roi_above_trigger(vars_map: Map) -> bool:
             max_roi_above_trigger = max_roi >= ROI_TRIGGER
             vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
             return max_roi_above_trigger
+        """
+        def is_macd_5min_historgram_positive(vars_map: Map) -> bool:
+            macd_map = marketprice_5min.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            macd_5min_historgram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(macd_5min_historgram_positive, 'macd_5min_historgram_positive')
+            vars_map.put(histogram, 'macd_5min_histogram')
+            return macd_5min_historgram_positive
+
+        def is_tangent_macd_5min_historgram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice_5min.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            macd_5min_historgram_negative = histogram[-1] <= histogram[-2]
+            # Put
+            vars_map.put(macd_5min_historgram_negative, 'macd_5min_historgram_negative')
+            vars_map.put(histogram, 'macd_5min_histogram')
+            return macd_5min_historgram_negative
 
         vars_map = Map()
         can_sell = False
@@ -426,17 +449,19 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_max_roi_above_trigger(vars_map)
+        can_sell = is_macd_5min_historgram_positive(vars_map) and is_tangent_macd_5min_historgram_negative(vars_map)
         # Repport
+        macd_5min_histogram = vars_map.get('macd_5min_histogram')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
-
-            f'{key}.roi_trigger': ROI_TRIGGER,
+            f'{key}.macd_5min_historgram_positive': vars_map.get('macd_5min_historgram_positive'),
+            f'{key}.macd_5min_historgram_negative': vars_map.get('macd_5min_historgram_negative'),
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1] if opens is not None else None,
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.macd_5min_histogram[-1]': macd_5min_histogram[-1] if macd_5min_histogram is not None else None,
+            f'{key}.macd_5min_histogram[-2]': macd_5min_histogram[-2] if macd_5min_histogram is not None else None
         }
         return can_sell, repport
 
