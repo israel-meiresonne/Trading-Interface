@@ -618,6 +618,7 @@ class Icarus(TraderClass):
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def price_change(i: int) -> float:
             return closes[i] - opens[i]
+
         def is_price_switch_up(vars_map: Map) -> bool:
             # Check
             price_change_2 = price_change(-2)
