@@ -116,7 +116,9 @@ class IcarusStalker(StalkerClass):
         pair = market_price.get_pair()
         big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
-        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice)
+        little_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_LITTLE_PERIOD
+        little_marketprice = self._get_market_price(broker, pair, little_period)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice)
         eligible = child_ok
         # Repport
         key = self._eligible.__name__
@@ -138,16 +140,24 @@ class IcarusStalker(StalkerClass):
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
             f'{key}.close_3_bellow_keltner_middle_3': None,
+            f'{key}.little_ema50_bellow_little_keltner_middle': None,
+            f'{key}.never_bought_peiod': None,
 
             f'{key}.price_change_2': None,
             f'{key}.price_change_3': None,
+
+            f'{key}.prev_buy_time': None,
+            f'{key}.prev_buy_period': None,
+            f'{key}.prev_open_time': None,
 
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.big_closes[-1]': None,
             f'{key}.keltner_middle[-1]': None,
             f'{key}.keltner_middle[-2]': None,
-            f'{key}.keltner_middle[-3]': None
+            f'{key}.keltner_middle[-3]': None,
+            f'{key}.little_keltner_middle[-1]': None,
+            f'{key}.little_ema50[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__

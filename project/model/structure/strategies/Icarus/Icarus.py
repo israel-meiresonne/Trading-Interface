@@ -411,6 +411,43 @@ class Icarus(TraderClass):
             vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
             return max_roi_above_trigger
 
+        def is_ema50_5min_above_keltner_5min_middle(vars_map: Map) -> bool:
+            little_marketprice = marketprice_5min
+            keltner = little_marketprice.get_keltnerchannel()
+            keltner_middle = list(keltner.get(Map.middle))
+            keltner_middle.reverse()
+            ema = list(little_marketprice.get_ema(cls.EMA50_N_PERIOD))
+            ema.reverse()
+            # Check
+            ema50_5min_above_keltner_5min_middle = ema[-1] > keltner_middle[-1]
+            # Put
+            vars_map.put(ema50_5min_above_keltner_5min_middle, 'ema50_5min_above_keltner_5min_middle')
+            vars_map.put(keltner_middle, 'keltner_5min_middle')
+            vars_map.put(ema, 'ema50_5min')
+            return ema50_5min_above_keltner_5min_middle
+
+        def is_macd_5min_historgram_positive(vars_map: Map) -> bool:
+            macd_map = marketprice_5min.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            macd_5min_historgram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(macd_5min_historgram_positive, 'macd_5min_historgram_positive')
+            vars_map.put(histogram, 'macd_5min_histogram')
+            return macd_5min_historgram_positive
+
+        def is_tangent_macd_5min_historgram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice_5min.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            tangent_macd_5min_historgram_negative = histogram[-1] <= histogram[-2]
+            # Put
+            vars_map.put(tangent_macd_5min_historgram_negative, 'tangent_macd_5min_historgram_negative')
+            vars_map.put(histogram, 'macd_5min_histogram')
+            return tangent_macd_5min_historgram_negative
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -426,17 +463,27 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_max_roi_above_trigger(vars_map)
+        can_sell = is_max_roi_above_trigger(vars_map)\
+            or (is_ema50_5min_above_keltner_5min_middle(vars_map) and is_macd_5min_historgram_positive(vars_map) and is_tangent_macd_5min_historgram_negative(vars_map))
         # Repport
+        keltner_5min_middle = vars_map.get('keltner_5min_middle')
+        ema50_5min = vars_map.get('ema50_5min')
+        macd_5min_histogram = vars_map.get('macd_5min_histogram')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
+            f'{key}.ema50_5min_above_keltner_5min_middle': vars_map.get('ema50_5min_above_keltner_5min_middle'),
+            f'{key}.macd_5min_historgram_positive': vars_map.get('macd_5min_historgram_positive'),
+            f'{key}.tangent_macd_5min_historgram_negative': vars_map.get('tangent_macd_5min_historgram_negative'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1] if opens is not None else None,
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.keltner_5min_middle[-1]': keltner_5min_middle[-1] if keltner_5min_middle is not None else None,
+            f'{key}.ema50_5min[-1]': ema50_5min[-1] if ema50_5min is not None else None,
+            f'{key}.macd_5min_histogram[-1]': macd_5min_histogram[-1] if macd_5min_histogram is not None else None
         }
         return can_sell, repport
 
@@ -602,8 +649,8 @@ class Icarus(TraderClass):
         pass
 
     @classmethod
-    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice)
+    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice, little_marketprice)
         # Check
         can_buy = indicator_ok
         # Repport
@@ -615,7 +662,7 @@ class Icarus(TraderClass):
         return can_buy, repport
 
     @classmethod
-    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def price_change(i: int) -> float:
             return closes[i] - opens[i]
 
@@ -640,34 +687,78 @@ class Icarus(TraderClass):
             vars_map.put(keltner_middle, 'keltner_middle')
             return close_3_bellow_keltner_middle_3
 
+        def is_little_ema50_bellow_little_keltner_middle(vars_map: Map) -> bool:
+            keltner = little_marketprice.get_keltnerchannel()
+            keltner_middle = list(keltner.get(Map.middle))
+            keltner_middle.reverse()
+            ema = list(little_marketprice.get_ema(cls.EMA50_N_PERIOD))
+            ema.reverse()
+            # Check
+            little_ema50_bellow_little_keltner_middle = ema[-1] < keltner_middle[-1]
+            # Put
+            vars_map.put(little_ema50_bellow_little_keltner_middle, 'little_ema50_bellow_little_keltner_middle')
+            vars_map.put(keltner_middle, 'little_keltner_middle')
+            vars_map.put(ema, 'little_ema50')
+            return little_ema50_bellow_little_keltner_middle
+
+        def is_never_bought_peiod(vars_map: Map) -> bool:
+            never_bought_peiod = True
+            buy_times = cls.get_buy_times(pair)
+            if len(buy_times) > 0:
+                buy_time = max(buy_times)
+                buy_period = _MF.round_time(buy_time, period)
+                open_time = child_marketprice.get_time()
+                never_bought_peiod = open_time == buy_period
+                vars_map.put(_MF.unix_to_date(buy_time), 'prev_buy_time')
+                vars_map.put(_MF.unix_to_date(buy_period), 'prev_buy_period')
+                vars_map.put(_MF.unix_to_date(open_time), 'prev_open_time')
+            vars_map.put(never_bought_peiod, 'never_bought_peiod')
+            return never_bought_peiod
+
         vars_map = Map()
         # Child
+        period = child_marketprice.get_period_time()
+        pair = child_marketprice.get_pair()
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         opens = list(child_marketprice.get_opens())
         opens.reverse()
+        # Little
         # Big
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map) and is_close_3_bellow_keltner_middle_3(vars_map)
+        can_buy_indicator = is_price_switch_up(vars_map) and is_close_3_bellow_keltner_middle_3(vars_map)\
+            and (
+                is_little_ema50_bellow_little_keltner_middle(vars_map) or is_never_bought_peiod(vars_map)
+            )
         # Repport
         keltner_middle = vars_map.get('keltner_middle')
+        little_keltner_middle = vars_map.get('little_keltner_middle')
+        little_ema50 = vars_map.get('little_ema50')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.close_3_bellow_keltner_middle_3': vars_map.get('close_3_bellow_keltner_middle_3'),
+            f'{key}.little_ema50_bellow_little_keltner_middle': vars_map.get('little_ema50_bellow_little_keltner_middle'),
+            f'{key}.never_bought_peiod': vars_map.get('never_bought_peiod'),
 
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.price_change_3': vars_map.get('price_change_3'),
+
+            f'{key}.prev_buy_time': vars_map.get('prev_buy_time'),
+            f'{key}.prev_buy_period': vars_map.get('prev_buy_period'),
+            f'{key}.prev_open_time': vars_map.get('prev_open_time'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
             f'{key}.keltner_middle[-2]': keltner_middle[-2] if keltner_middle is not None else None,
-            f'{key}.keltner_middle[-3]': keltner_middle[-3] if keltner_middle is not None else None
+            f'{key}.keltner_middle[-3]': keltner_middle[-3] if keltner_middle is not None else None,
+            f'{key}.little_keltner_middle[-1]': little_keltner_middle[-1] if little_keltner_middle is not None else None,
+            f'{key}.little_ema50[-1]': little_ema50[-1] if little_ema50 is not None else None
         }
         return can_buy_indicator, repport
 
@@ -973,7 +1064,7 @@ class Icarus(TraderClass):
                 }
             # Try buy/sell
             if not has_position:
-                can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice)
+                can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, little_marketprice)
                 buy_repport = {
                     Map.time: _MF.unix_to_date(open_times[-1]),
                     **buy_repport
