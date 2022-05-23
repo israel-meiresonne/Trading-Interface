@@ -141,14 +141,9 @@ class IcarusStalker(StalkerClass):
             f'{key}.price_switch_up': None,
             f'{key}.close_3_bellow_keltner_middle_3': None,
             f'{key}.little_ema50_bellow_little_keltner_middle': None,
-            f'{key}.never_bought_peiod': None,
 
             f'{key}.price_change_2': None,
             f'{key}.price_change_3': None,
-
-            f'{key}.prev_buy_time': None,
-            f'{key}.prev_buy_period': None,
-            f'{key}.prev_open_time': None,
 
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,

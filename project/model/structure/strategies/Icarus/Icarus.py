@@ -391,6 +391,7 @@ class Icarus(TraderClass):
         broker = self.get_broker()
         n_period = self.get_marketprice_n_period()
         datas = {
+            Map.roi: self.get_wallet().get_roi(broker),
             Map.maximum: self.get_max_price(marketprice),
             self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
             self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
@@ -406,10 +407,16 @@ class Icarus(TraderClass):
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
         ROI_TRIGGER = 1/100
+        ROI_TRIGGER_ZERO = 0
         def is_max_roi_above_trigger(vars_map: Map) -> bool:
             max_roi_above_trigger = max_roi >= ROI_TRIGGER
             vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
             return max_roi_above_trigger
+
+        def is_roi_above_trigger_zero(vars_map: Map) -> bool:
+            roi_above_trigger_zero = roi > ROI_TRIGGER_ZERO
+            vars_map.put(roi_above_trigger_zero, 'roi_above_trigger_zero')
+            return roi_above_trigger_zero
 
         def is_ema50_5min_above_keltner_5min_middle(vars_map: Map) -> bool:
             little_marketprice = marketprice_5min
@@ -426,31 +433,10 @@ class Icarus(TraderClass):
             vars_map.put(ema, 'ema50_5min')
             return ema50_5min_above_keltner_5min_middle
 
-        def is_macd_5min_historgram_positive(vars_map: Map) -> bool:
-            macd_map = marketprice_5min.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            macd_5min_historgram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(macd_5min_historgram_positive, 'macd_5min_historgram_positive')
-            vars_map.put(histogram, 'macd_5min_histogram')
-            return macd_5min_historgram_positive
-
-        def is_tangent_macd_5min_historgram_negative(vars_map: Map) -> bool:
-            macd_map = marketprice_5min.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            tangent_macd_5min_historgram_negative = histogram[-1] <= histogram[-2]
-            # Put
-            vars_map.put(tangent_macd_5min_historgram_negative, 'tangent_macd_5min_historgram_negative')
-            vars_map.put(histogram, 'macd_5min_histogram')
-            return tangent_macd_5min_historgram_negative
-
         vars_map = Map()
         can_sell = False
         # Vars
+        roi = datas[Map.roi]
         max_roi = datas[Map.maximum]
         # MarketPrice
         pair = marketprice.get_pair()
@@ -464,26 +450,22 @@ class Icarus(TraderClass):
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
         can_sell = is_max_roi_above_trigger(vars_map)\
-            or (is_ema50_5min_above_keltner_5min_middle(vars_map) and is_macd_5min_historgram_positive(vars_map) and is_tangent_macd_5min_historgram_negative(vars_map))
+            or (is_ema50_5min_above_keltner_5min_middle(vars_map) and is_roi_above_trigger_zero(vars_map))
         # Repport
-        keltner_5min_middle = vars_map.get('keltner_5min_middle')
-        ema50_5min = vars_map.get('ema50_5min')
-        macd_5min_histogram = vars_map.get('macd_5min_histogram')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
-            f'{key}.ema50_5min_above_keltner_5min_middle': vars_map.get('ema50_5min_above_keltner_5min_middle'),
-            f'{key}.macd_5min_historgram_positive': vars_map.get('macd_5min_historgram_positive'),
-            f'{key}.tangent_macd_5min_historgram_negative': vars_map.get('tangent_macd_5min_historgram_negative'),
+            f'{key}.roi_above_trigger_zero': vars_map.get('roi_above_trigger_zero'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
+            f'{key}.max_roi': max_roi,
+
+            f'{key}.roi_trigger_zero': ROI_TRIGGER_ZERO,
+            f'{key}.roi': roi,
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1],
-            f'{key}.keltner_5min_middle[-1]': keltner_5min_middle[-1] if keltner_5min_middle is not None else None,
-            f'{key}.ema50_5min[-1]': ema50_5min[-1] if ema50_5min is not None else None,
-            f'{key}.macd_5min_histogram[-1]': macd_5min_histogram[-1] if macd_5min_histogram is not None else None
+            f'{key}.opens[-1]': opens[-1]
         }
         return can_sell, repport
 
@@ -729,9 +711,7 @@ class Icarus(TraderClass):
         big_closes.reverse()
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_close_3_bellow_keltner_middle_3(vars_map)\
-            and (
-                is_little_ema50_bellow_little_keltner_middle(vars_map) or is_never_bought_peiod(vars_map)
-            )
+            and is_little_ema50_bellow_little_keltner_middle(vars_map)
         # Repport
         keltner_middle = vars_map.get('keltner_middle')
         little_keltner_middle = vars_map.get('little_keltner_middle')
@@ -742,14 +722,9 @@ class Icarus(TraderClass):
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.close_3_bellow_keltner_middle_3': vars_map.get('close_3_bellow_keltner_middle_3'),
             f'{key}.little_ema50_bellow_little_keltner_middle': vars_map.get('little_ema50_bellow_little_keltner_middle'),
-            f'{key}.never_bought_peiod': vars_map.get('never_bought_peiod'),
 
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.price_change_3': vars_map.get('price_change_3'),
-
-            f'{key}.prev_buy_time': vars_map.get('prev_buy_time'),
-            f'{key}.prev_buy_period': vars_map.get('prev_buy_period'),
-            f'{key}.prev_open_time': vars_map.get('prev_open_time'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
@@ -1058,6 +1033,7 @@ class Icarus(TraderClass):
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
                 can_sell_params = {
+                    Map.roi: _MF.progress_rate(closes[-1], trade['buy_price']),
                     Map.maximum: max_roi_position,
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
                     cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice
