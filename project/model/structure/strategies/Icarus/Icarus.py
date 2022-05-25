@@ -635,16 +635,6 @@ class Icarus(TraderClass):
             vars_map.put(price_change_3, 'price_change_3')
             return price_switch_up
 
-        def is_close_3_bellow_keltner_middle_3(vars_map: Map) -> bool:
-            keltner = child_marketprice.get_keltnerchannel()
-            keltner_middle = list(keltner.get(Map.middle))
-            keltner_middle.reverse()
-            close_3_bellow_keltner_middle_3 = closes[-3] < keltner_middle[-3]
-            # Put
-            vars_map.put(close_3_bellow_keltner_middle_3, f'close_3_bellow_keltner_middle_3')
-            vars_map.put(keltner_middle, 'keltner_middle')
-            return close_3_bellow_keltner_middle_3
-
         def is_macd_histogram_positive(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
@@ -680,17 +670,15 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map) and is_close_3_bellow_keltner_middle_3(vars_map)\
+        can_buy_indicator = is_price_switch_up(vars_map)\
             and is_macd_histogram_positive(vars_map) and is_little_edited_macd_histogram_positive(vars_map)
         # Repport
-        keltner_middle = vars_map.get('keltner_middle')
         histogram = vars_map.get(Map.histogram)
         little_edited_macd_histogram = vars_map.get('little_edited_macd_histogram')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
-            f'{key}.close_3_bellow_keltner_middle_3': vars_map.get('close_3_bellow_keltner_middle_3'),
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
             f'{key}.little_edited_macd_histogram_positive': vars_map.get('little_edited_macd_histogram_positive'),
 
@@ -700,9 +688,6 @@ class Icarus(TraderClass):
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
-            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
-            f'{key}.keltner_middle[-2]': keltner_middle[-2] if keltner_middle is not None else None,
-            f'{key}.keltner_middle[-3]': keltner_middle[-3] if keltner_middle is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.little_edited_macd_histogram[-1]': little_edited_macd_histogram[-1] if little_edited_macd_histogram is not None else None
         }

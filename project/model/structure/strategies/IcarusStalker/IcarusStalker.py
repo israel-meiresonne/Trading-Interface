@@ -139,7 +139,6 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
-            f'{key}.close_3_bellow_keltner_middle_3': None,
             f'{key}.macd_histogram_positive': None,
             f'{key}.little_edited_macd_histogram_positive': None,
 
@@ -149,9 +148,6 @@ class IcarusStalker(StalkerClass):
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.big_closes[-1]': None,
-            f'{key}.keltner_middle[-1]': None,
-            f'{key}.keltner_middle[-2]': None,
-            f'{key}.keltner_middle[-3]': None,
             f'{key}.histogram[-1]': None,
             f'{key}.little_edited_macd_histogram[-1]': None
         }
