@@ -141,6 +141,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.price_switch_up': None,
             f'{key}.macd_histogram_positive': None,
             f'{key}.little_edited_macd_histogram_positive': None,
+            f'{key}.edited_macd_histogram_positive': None,
 
             f'{key}.price_change_2': None,
             f'{key}.price_change_3': None,
@@ -149,7 +150,8 @@ class IcarusStalker(StalkerClass):
             f'{key}.opens[-1]': None,
             f'{key}.big_closes[-1]': None,
             f'{key}.histogram[-1]': None,
-            f'{key}.little_edited_macd_histogram[-1]': None
+            f'{key}.little_edited_macd_histogram[-1]': None,
+            f'{key}.edited_macd_histogram_positive[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
