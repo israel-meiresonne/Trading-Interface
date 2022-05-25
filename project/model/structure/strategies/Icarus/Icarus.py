@@ -413,6 +413,17 @@ class Icarus(TraderClass):
             vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
             return max_roi_above_trigger
 
+        def is_macd_histogram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            macd_histogram_negative = histogram[-1] < 0
+            # Put
+            vars_map.put(macd_histogram_negative, 'macd_histogram_negative')
+            vars_map.put(histogram, Map.histogram)
+            return macd_histogram_negative
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -429,19 +440,22 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_max_roi_above_trigger(vars_map)
+        can_sell = is_max_roi_above_trigger(vars_map) or is_macd_histogram_negative(vars_map)
         # Repport
+        histogram = vars_map.get(Map.histogram)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
+            f'{key}.macd_histogram_negative': vars_map.get('macd_histogram_negative'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
             f'{key}.max_roi': max_roi,
             f'{key}.roi': roi,
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1]
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None
         }
         return can_sell, repport
 
