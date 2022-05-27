@@ -692,12 +692,23 @@ class Icarus(TraderClass):
             vars_map.put(histogram, Map.histogram)
             return rsi_above_peak_macd_posive_histogram
 
+        def is_close_above_high_2(vars_map: Map) -> bool:
+            # Check
+            price_change_2 = price_change(-2)
+            close_above_high_2 = (price_change_2 < 0) and (closes[-1] >= highs[-2])
+            # Put
+            vars_map.put(close_above_high_2, 'close_above_high_2')
+            vars_map.put(price_change_2, 'close_above_high_2_price_change_2')
+            return close_above_high_2
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
         pair = child_marketprice.get_pair()
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+        highs = list(child_marketprice.get_highs())
+        highs.reverse()
         opens = list(child_marketprice.get_opens())
         opens.reverse()
         open_times = list(child_marketprice.get_times())
@@ -707,7 +718,7 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map)\
+        can_buy_indicator = (is_price_switch_up(vars_map) or is_close_above_high_2(vars_map))\
             and is_macd_histogram_positive(vars_map) and is_little_edited_macd_histogram_positive(vars_map)\
                 and is_rsi_above_peak_macd_posive_histogram(vars_map)
         # Repport
@@ -720,9 +731,12 @@ class Icarus(TraderClass):
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+            f'{key}.close_above_high_2': vars_map.get('close_above_high_2'),
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
             f'{key}.little_edited_macd_histogram_positive': vars_map.get('little_edited_macd_histogram_positive'),
             f'{key}.rsi_above_peak_macd_posive_histogram': vars_map.get('rsi_above_peak_macd_posive_histogram'),
+
+            f'{key}.close_above_high_2_price_change_2': vars_map.get('close_above_high_2_price_change_2'),
 
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.price_change_3': vars_map.get('price_change_3'),

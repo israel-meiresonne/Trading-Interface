@@ -139,9 +139,12 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
+            f'{key}.close_above_high_2': None,
             f'{key}.macd_histogram_positive': None,
             f'{key}.little_edited_macd_histogram_positive': None,
             f'{key}.rsi_above_peak_macd_posive_histogram': None,
+
+            f'{key}.close_above_high_2_price_change_2': None,
 
             f'{key}.price_change_2': None,
             f'{key}.price_change_3': None,
