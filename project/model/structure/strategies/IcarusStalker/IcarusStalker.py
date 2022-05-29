@@ -143,6 +143,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd_histogram_positive': None,
             f'{key}.little_edited_macd_histogram_positive': None,
             f'{key}.rsi_above_peak_macd_posive_histogram': None,
+            f'{key}.edited_macd_histogram_positive': None,
 
             f'{key}.close_above_high_2_price_change_2': None,
 
@@ -159,6 +160,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd[-1]': None,
             f'{key}.signal[-1]': None,
             f'{key}.histogram[-1]': None,
+            f'{key}.edited_macd_histogram[-1]': None,
             f'{key}.rsi[-1]': None,
             f'{key}.little_edited_macd_histogram[-1]': None
         }
