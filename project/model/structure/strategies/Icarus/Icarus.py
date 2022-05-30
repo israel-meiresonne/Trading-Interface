@@ -406,12 +406,22 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
-        ROI_TRIGGER = 1/100
+        ROI_TRIGGER = 0.3/100
         ROI_TRIGGER_ZERO = 0
-        def is_max_roi_above_trigger(vars_map: Map) -> bool:
-            max_roi_above_trigger = max_roi >= ROI_TRIGGER
-            vars_map.put(max_roi_above_trigger, 'max_roi_above_trigger')
-            return max_roi_above_trigger
+        def is_roi_above_trigger(vars_map: Map) -> bool:
+            roi_above_trigger = roi >= ROI_TRIGGER
+            vars_map.put(roi_above_trigger, 'roi_above_trigger')
+            return roi_above_trigger
+
+        def is_tangent_rsi_negative(vars_map: Map) -> None:
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            # Check
+            tangent_rsi_negative = rsi[-1] < rsi[-2]
+            # Put
+            vars_map.put(tangent_rsi_negative, 'tangent_rsi_negative')
+            vars_map.put(rsi, Map.rsi)
+            return tangent_rsi_negative
 
         vars_map = Map()
         can_sell = False
@@ -429,19 +439,23 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_max_roi_above_trigger(vars_map)
+        can_sell = is_roi_above_trigger(vars_map) and is_tangent_rsi_negative(vars_map)
         # Repport
+        rsi = vars_map.get(Map.rsi)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
+            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
+            f'{key}.tangent_rsi_negative': vars_map.get('tangent_rsi_negative'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
             f'{key}.max_roi': max_roi,
             f'{key}.roi': roi,
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1]
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
+            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None
         }
         return can_sell, repport
 
@@ -635,65 +649,6 @@ class Icarus(TraderClass):
             vars_map.put(price_change_3, 'price_change_3')
             return price_switch_up
 
-        def is_macd_histogram_positive(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            macd_map = child_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
-            vars_map.put(histogram, Map.histogram)
-            return macd_histogram_positive
-
-        def is_little_edited_macd_histogram_positive(vars_map: Map) -> bool:
-            macd_map = little_marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            little_edited_macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(little_edited_macd_histogram_positive, 'little_edited_macd_histogram_positive')
-            vars_map.put(histogram, 'little_edited_macd_histogram')
-            return little_edited_macd_histogram_positive
-
-        def is_rsi_above_peak_macd_posive_histogram(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            rsi = list(child_marketprice.get_rsis())
-            rsi.reverse()
-            macd_map = child_marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            signal = list(macd_map.get(Map.signal))
-            signal.reverse()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            if histogram[-1] <= 0:
-                raise ValueError(f"MACD's histogram must be positive, instead histogram='{histogram[-1]}'")
-            # Get interval
-            now_index = len(macd) - 1
-            macd_swings = _MF.group_swings(macd, signal)
-            start_index = macd_swings[now_index][0]
-            sub_rsi = rsi[start_index:]
-            rsi_peak = max(sub_rsi)
-            # Dates
-            sub_open_times = open_times[start_index:]
-            peak_index = sub_rsi.index(rsi_peak)
-            peak_time = sub_open_times[peak_index]
-            # Check
-            rsi_above_peak_macd_posive_histogram = rsi[-1] >= rsi_peak
-            # Put
-            vars_map.put(rsi_above_peak_macd_posive_histogram, 'rsi_above_peak_macd_posive_histogram')
-            vars_map.put(_MF.unix_to_date(open_times[start_index]), 'rsi_above_peak_start_interval')
-            vars_map.put(_MF.unix_to_date(peak_time), 'rsi_above_peak_peak_date')
-            vars_map.put(rsi_peak, 'rsi_above_peak_rsi_peak')
-            vars_map.put(rsi, Map.rsi)
-            vars_map.put(signal, Map.signal)
-            vars_map.put(macd, Map.macd)
-            vars_map.put(histogram, Map.histogram)
-            return rsi_above_peak_macd_posive_histogram
-
         def is_close_above_high_2(vars_map: Map) -> bool:
             # Check
             price_change_2 = price_change(-2)
@@ -702,18 +657,6 @@ class Icarus(TraderClass):
             vars_map.put(close_above_high_2, 'close_above_high_2')
             vars_map.put(price_change_2, 'close_above_high_2_price_change_2')
             return close_above_high_2
-
-        def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            edited_macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
-            vars_map.put(histogram, 'edited_macd_histogram')
-            return edited_macd_histogram_positive
 
         vars_map = Map()
         # Child
@@ -732,44 +675,22 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = (is_price_switch_up(vars_map) or is_close_above_high_2(vars_map))\
-            and is_macd_histogram_positive(vars_map) and is_little_edited_macd_histogram_positive(vars_map)\
-                and is_rsi_above_peak_macd_posive_histogram(vars_map) and is_edited_macd_histogram_positive(vars_map)
+        can_buy_indicator = (is_price_switch_up(vars_map) or is_close_above_high_2(vars_map))
         # Repport
-        macd = vars_map.get(Map.macd)
-        signal = vars_map.get(Map.signal)
-        histogram = vars_map.get(Map.histogram)
-        rsi = vars_map.get(Map.rsi)
-        little_edited_macd_histogram = vars_map.get('little_edited_macd_histogram')
-        edited_macd_histogram = vars_map.get('edited_macd_histogram')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.close_above_high_2': vars_map.get('close_above_high_2'),
-            f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
-            f'{key}.little_edited_macd_histogram_positive': vars_map.get('little_edited_macd_histogram_positive'),
-            f'{key}.rsi_above_peak_macd_posive_histogram': vars_map.get('rsi_above_peak_macd_posive_histogram'),
-            f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
 
             f'{key}.close_above_high_2_price_change_2': vars_map.get('close_above_high_2_price_change_2'),
 
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.price_change_3': vars_map.get('price_change_3'),
 
-            f'{key}.rsi_above_peak_start_interval': vars_map.get('rsi_above_peak_start_interval'),
-            f'{key}.rsi_above_peak_peak_date': vars_map.get('rsi_above_peak_peak_date'),
-            f'{key}.rsi_above_peak_rsi_peak': vars_map.get('rsi_above_peak_rsi_peak'),
-
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
-            f'{key}.big_closes[-1]': big_closes[-1],
-            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
-            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
-            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.edited_macd_histogram[-1]': edited_macd_histogram[-1] if edited_macd_histogram is not None else None,
-            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
-            f'{key}.little_edited_macd_histogram[-1]': little_edited_macd_histogram[-1] if little_edited_macd_histogram is not None else None
+            f'{key}.big_closes[-1]': big_closes[-1]
         }
         return can_buy_indicator, repport
 
