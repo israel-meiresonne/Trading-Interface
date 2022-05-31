@@ -649,14 +649,16 @@ class Icarus(TraderClass):
             vars_map.put(price_change_3, 'price_change_3')
             return price_switch_up
 
-        def is_close_above_high_2(vars_map: Map) -> bool:
+        def is_price_change_1_above_2(vars_map: Map) -> bool:
             # Check
             price_change_2 = price_change(-2)
-            close_above_high_2 = (price_change_2 < 0) and (closes[-1] >= highs[-2])
+            price_change_1 = price_change(-1)
+            price_change_1_above_2 = (price_change_2 < 0) and (price_change_1 >= abs(price_change_2))
             # Put
-            vars_map.put(close_above_high_2, 'close_above_high_2')
-            vars_map.put(price_change_2, 'close_above_high_2_price_change_2')
-            return close_above_high_2
+            vars_map.put(price_change_1_above_2, 'price_change_1_above_2')
+            vars_map.put(price_change_1, 'price_change_1')
+            vars_map.put(price_change_2, 'price_change_2')
+            return price_change_1_above_2
 
         vars_map = Map()
         # Child
@@ -675,16 +677,15 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = (is_price_switch_up(vars_map) or is_close_above_high_2(vars_map))
+        can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
-            f'{key}.close_above_high_2': vars_map.get('close_above_high_2'),
+            f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
 
-            f'{key}.close_above_high_2_price_change_2': vars_map.get('close_above_high_2_price_change_2'),
-
+            f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.price_change_3': vars_map.get('price_change_3'),
 
