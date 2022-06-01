@@ -684,17 +684,17 @@ class Icarus(TraderClass):
             vars_map.put(histogram, 'min_edited_histogram')
             return min_edited_macd_histogram_positive
 
-        def is_tangent_macd_histogram_positive(vars_map: Map) -> bool:
+        def is_macd_histogram_positive(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             # Check
-            tangent_macd_histogram_positive = histogram[-1] > histogram[-2]
+            macd_histogram_positive = histogram[-1] > 0
             # Put
-            vars_map.put(tangent_macd_histogram_positive, 'tangent_macd_histogram_positive')
+            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
             vars_map.put(histogram, Map.histogram)
-            return tangent_macd_histogram_positive
+            return macd_histogram_positive
 
         vars_map = Map()
         # Child
@@ -715,7 +715,7 @@ class Icarus(TraderClass):
         # Check
         can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
             and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
-                and is_tangent_macd_histogram_positive(vars_map)
+                and is_macd_histogram_positive(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
@@ -727,7 +727,7 @@ class Icarus(TraderClass):
             f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
             f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
             f'{key}.min_edited_macd_histogram_positive': vars_map.get('min_edited_macd_histogram_positive'),
-            f'{key}.tangent_macd_histogram_positive': vars_map.get('tangent_macd_histogram_positive'),
+            f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -737,7 +737,6 @@ class Icarus(TraderClass):
             f'{key}.opens[-1]': opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
             f'{key}.edited_histogram[-1]': edited_histogram[-1] if edited_histogram is not None else None,
             f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None
         }
