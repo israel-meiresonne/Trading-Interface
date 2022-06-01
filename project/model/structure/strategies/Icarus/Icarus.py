@@ -660,6 +660,18 @@ class Icarus(TraderClass):
             vars_map.put(price_change_2, 'price_change_2')
             return price_change_1_above_2
 
+        def is_edited_min_macd_histogram_positive(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            edited_min_macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(edited_min_macd_histogram_positive, 'edited_min_macd_histogram_positive')
+            vars_map.put(histogram, 'min_edited_histogram')
+            return edited_min_macd_histogram_positive
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -677,13 +689,16 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))
+        can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
+            and is_edited_min_macd_histogram_positive(vars_map)
         # Repport
+        min_edited_histogram = vars_map.get('min_edited_histogram')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
+            f'{key}.edited_min_macd_histogram_positive': vars_map.get('edited_min_macd_histogram_positive'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -691,7 +706,8 @@ class Icarus(TraderClass):
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
-            f'{key}.big_closes[-1]': big_closes[-1]
+            f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
         }
         return can_buy_indicator, repport
 
