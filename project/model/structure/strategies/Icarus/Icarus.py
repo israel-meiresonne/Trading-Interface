@@ -21,6 +21,7 @@ class Icarus(TraderClass):
     _MAX_LOSS = -3/100
     _ROI_FLOOR_FIXE = 0.002
     MARKETPRICE_BUY_BIG_PERIOD = 60*60*6
+    MARKETPRICE_BUY_LITTLE_PERIOD = 60*5
     _PREDICTOR_PERIOD = 60 * 60
     _PREDICTOR_N_PERIOD = 100
     _MIN_ROI_PREDICTED = 2/100
@@ -29,7 +30,7 @@ class Icarus(TraderClass):
     _PREDICTION_OCCUPATION_REDUCE = 30/100
     _PREDICTION_OCCUPATION_REACHED_TRIGGER = 50/100
     _MIN_PERIOD = 60
-    _PERIODS_REQUIRRED = [_MIN_PERIOD, MARKETPRICE_BUY_BIG_PERIOD]
+    _PERIODS_REQUIRRED = [_MIN_PERIOD, MARKETPRICE_BUY_BIG_PERIOD, MARKETPRICE_BUY_LITTLE_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
     ROC_WINDOW = 15
@@ -385,7 +386,15 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION CAN SELL DOWN ———————————————————————————————————————————————
 
     def can_sell(self, marketprice: MarketPrice) -> Tuple[bool, dict]:
-        return self._can_sell_indicator(marketprice)
+        broker = self.get_broker()
+        n_period = self.get_marketprice_n_period()
+        datas = {
+            Map.roi: self.get_wallet().get_roi(broker),
+            Map.maximum: self.get_max_price(marketprice),
+            self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
+            self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
+        }
+        return self._can_sell_indicator(marketprice, datas)
     
     def _can_sell_roi(self) -> bool:
         roi_pos = self.get_roi_position()
@@ -394,24 +403,7 @@ class Icarus(TraderClass):
         return can_sell
 
     @classmethod
-    def _can_sell_indicator(cls, marketprice: MarketPrice) -> Tuple[bool, dict]:
-        """
-        def is_buy_period() -> bool:
-            period = self.get_period()
-            buy_time = int(self.get_buy_order().get_execution_time() / 1000)
-            buy_time_rounded = _MF.round_time(buy_time, period)
-            first_open_time = buy_time_rounded + period
-            open_time = marketprice.get_time()
-            return open_time < first_open_time
-
-        def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
-            # RSI
-            rsi = list(marketprice.get_rsis())
-            rsi.reverse()
-            rsi_reached = rsi[-1] > rsi_trigger
-            return rsi_reached
-        """
-
+    def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
         def is_histogram_dropping(vars_map: Map) -> bool:
             # MACD
             macd_map = marketprice.get_macd()
@@ -609,8 +601,8 @@ class Icarus(TraderClass):
         pass
 
     @classmethod
-    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice)
+    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice, little_marketprice, min_marketprice)
         # Check
         can_buy = indicator_ok
         # Repport
@@ -622,29 +614,7 @@ class Icarus(TraderClass):
         return can_buy, repport
 
     @classmethod
-    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        """
-        def is_ema_rising(vars_map: Map) -> bool:
-            # EMA
-            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
-            ema.reverse()
-            ema_rising = closes[-1] > ema[-1]
-            # Put
-            vars_map.put(ema, 'ema')
-            vars_map.put(ema_rising, 'ema_rising')
-            return ema_rising
-
-        def is_macd_negative(vars_map: Map) -> bool:
-            macd_map = child_marketprice.get_macd()
-            macd = list(macd_map.get(Map.macd))
-            macd.reverse()
-            macd_negative = macd[-1] < 0
-            # Put
-            vars_map.put(macd, 'macd')
-            vars_map.put(macd_negative, 'macd_negative')
-            return macd_negative
-        """
-
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def is_macd_switch_up(vars_map: Map) -> bool:
             # MACD
             macd_map = child_marketprice.get_macd()
@@ -1106,6 +1076,8 @@ class Icarus(TraderClass):
         pair_merged = pair.format(Pair.FORMAT_MERGED)
         str_period = BinanceAPI.convert_interval(period)
         big_period = cls.MARKETPRICE_BUY_BIG_PERIOD
+        little_period = cls.MARKETPRICE_BUY_LITTLE_PERIOD
+        min_period = cls.get_min_period()
         trades = None
         trade = {}
         market_params = {
@@ -1114,21 +1086,27 @@ class Icarus(TraderClass):
             Map.period: period,
             'n_period': n_period
             }
-        big_market_params = {
-            Map.broker: broker,
-            Map.pair: pair,
-            Map.period: big_period,
-            'n_period': n_period
-            }
+        #
+        big_market_params = market_params.copy()
+        big_market_params[Map.period] = big_period
+        #
+        little_market_params = market_params.copy()
+        little_market_params[Map.period] = little_period
+        #
+        min_market_params = market_params.copy()
+        min_market_params[Map.period] = min_period
         broker.add_streams([
             broker.generate_stream(Map({Map.pair: pair, Map.period: period})),
-            broker.generate_stream(Map({Map.pair: pair, Map.period: big_period}))
+            broker.generate_stream(Map({Map.pair: pair, Map.period: big_period})),
+            broker.generate_stream(Map({Map.pair: pair, Map.period: little_period}))
         ])
         i = 0
         Bot.update_trade_index(i)
         marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=True, **market_params)
         while isinstance(marketprice, MarketPrice):
             big_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **big_market_params)
+            little_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **little_market_params)
+            min_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **min_market_params)
             open_times = list(marketprice.get_times())
             open_times.reverse()
             closes = list(marketprice.get_closes())
@@ -1157,24 +1135,36 @@ class Icarus(TraderClass):
                 low_roi = _MF.progress_rate(lows[-1], trade['buy_price'])
                 min_roi_position = low_roi if (min_roi_position is None) or (low_roi < min_roi_position) else min_roi_position
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
+                # Can sell params
+                can_sell_params = {
+                    Map.roi: _MF.progress_rate(closes[-1], trade['buy_price']),
+                    Map.maximum: max_roi_position,
+                    cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
+                    cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice,
+                    min_period: min_marketprice
+                }
             # Try buy/sell
+            trade_id = f'{pair_merged}_{str_period}_{i}'
             if not has_position:
-                can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice)
+                can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, little_marketprice, min_marketprice)
                 buy_repport = {
-                    Map.time: _MF.unix_to_date(open_times[-1]),
+                    Map.time: _MF.unix_to_date( min_marketprice.get_time()),
+                   f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
+                    Map.id: trade_id,
                     **buy_repport
                 }
                 buy_repports.append(buy_repport)
                 if can_buy:
-                    buy_time = marketprice.get_time()
+                    buy_time = min_marketprice.get_time()
                     exec_price = marketprice.get_close()
                     min_roi_position = None
                     max_roi_position = None
+                    cls._add_buy_time(pair, buy_time)
                     trade = {
                         Map.date: _MF.unix_to_date(_MF.get_timestamp()),
                         Map.pair: pair,
                         Map.period: str_period,
-                        Map.id: f'{pair_merged}_{str_period}_{i}',
+                        Map.id: trade_id,
                         Map.start: start_date,
                         Map.end: end_date,
                         'buy_time': buy_time,
@@ -1182,9 +1172,11 @@ class Icarus(TraderClass):
                         'buy_price': exec_price,
                     }
             elif has_position:
-                can_buy, sell_repport = cls._can_sell_indicator(marketprice)
+                can_buy, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
-                    Map.time: _MF.unix_to_date(open_times[-1]),
+                    Map.time: _MF.unix_to_date( min_marketprice.get_time()),
+                    f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
+                    Map.id: trade_id,
                     **sell_repport
                 }
                 sell_repports.append(sell_repport)
