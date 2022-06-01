@@ -114,11 +114,16 @@ class IcarusStalker(StalkerClass):
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
+        # Big
         big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
+        # little
         little_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_LITTLE_PERIOD
         little_marketprice = self._get_market_price(broker, pair, little_period)
-        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice)
+        # min
+        min_period = self.CHILD_STRATEGY.get_min_period()
+        min_marketprice = self._get_market_price(broker, pair, min_period)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
         eligible = child_ok
         # Repport
         key = self._eligible.__name__
