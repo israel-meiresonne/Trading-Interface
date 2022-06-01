@@ -114,11 +114,16 @@ class IcarusStalker(StalkerClass):
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
+        # Big
         big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
+        # little
         little_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_LITTLE_PERIOD
         little_marketprice = self._get_market_price(broker, pair, little_period)
-        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice)
+        # min
+        min_period = self.CHILD_STRATEGY.get_min_period()
+        min_marketprice = self._get_market_price(broker, pair, min_period)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
         eligible = child_ok
         # Repport
         key = self._eligible.__name__
@@ -140,14 +145,22 @@ class IcarusStalker(StalkerClass):
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
             f'{key}.price_change_1_above_2': None,
+            f'{key}.min_macd_signal_peak_nearest_than_min': None,
+            f'{key}.tangent_min_macd_positive': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
             f'{key}.price_change_3': None,
 
+            f'{key}.min_macd_signal_peak_date': None,
+            f'{key}.min_macd_signal_min_date': None,
+
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
-            f'{key}.big_closes[-1]': None
+            f'{key}.big_closes[-1]': None,
+            f'{key}.min_macd_signal[-1]': None,
+            f'{key}.min_macd[-1]': None,
+            f'{key}.min_macd[-2]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
