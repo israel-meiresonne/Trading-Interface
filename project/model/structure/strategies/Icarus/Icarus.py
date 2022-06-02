@@ -388,11 +388,13 @@ class Icarus(TraderClass):
     def can_sell(self, marketprice: MarketPrice) -> Tuple[bool, dict]:
         broker = self.get_broker()
         n_period = self.get_marketprice_n_period()
+        min_period = self.get_min_period()
         datas = {
             Map.roi: self.get_wallet().get_roi(broker),
             Map.maximum: self.get_max_price(marketprice),
             self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
             self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
+            min_period: self.get_marketprice(min_period, n_period, broker)
         }
         return self._can_sell_indicator(marketprice, datas)
     
@@ -1144,8 +1146,8 @@ class Icarus(TraderClass):
                     min_period: min_marketprice
                 }
             # Try buy/sell
-            trade_id = f'{pair_merged}_{str_period}_{i}'
             if not has_position:
+                trade_id = f'{pair_merged}_{str_period}_{i}'
                 can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, little_marketprice, min_marketprice)
                 buy_repport = {
                     Map.time: _MF.unix_to_date( min_marketprice.get_time()),
@@ -1174,7 +1176,7 @@ class Icarus(TraderClass):
             elif has_position:
                 can_buy, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
-                    Map.time: _MF.unix_to_date( min_marketprice.get_time()),
+                    Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                     f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
                     Map.id: trade_id,
                     **sell_repport
@@ -1182,7 +1184,7 @@ class Icarus(TraderClass):
                 sell_repports.append(sell_repport)
                 if can_buy:
                     # Prepare
-                    sell_time = marketprice.get_time()
+                    sell_time = min_marketprice.get_time()
                     exec_price = marketprice.get_close()
                     # Put
                     trade['sell_time'] = sell_time
