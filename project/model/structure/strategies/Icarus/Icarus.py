@@ -722,6 +722,42 @@ class Icarus(TraderClass):
             vars_map.put(signal, 'edited_signal')
             return edited_macd_above_peak
 
+        def is_rsi_above_peak_macd_posive_histogram(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            rsi = list(child_marketprice.get_rsis())
+            rsi.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            if histogram[-1] <= 0:
+                raise ValueError(f"MACD's histogram must be positive, instead histogram='{histogram[-1]}'")
+            # Get interval
+            now_index = len(macd) - 1
+            macd_swings = _MF.group_swings(macd, signal)
+            start_index = macd_swings[now_index][0]
+            sub_rsi = rsi[start_index:]
+            rsi_peak = max(sub_rsi)
+            # Dates
+            sub_open_times = open_times[start_index:]
+            peak_index = sub_rsi.index(rsi_peak)
+            peak_time = sub_open_times[peak_index]
+            # Check
+            rsi_above_peak_macd_posive_histogram = rsi[-1] >= rsi_peak
+            # Put
+            vars_map.put(rsi_above_peak_macd_posive_histogram, 'rsi_above_peak_macd_posive_histogram')
+            vars_map.put(_MF.unix_to_date(open_times[start_index]), 'rsi_above_peak_start_interval')
+            vars_map.put(_MF.unix_to_date(peak_time), 'rsi_above_peak_peak_date')
+            vars_map.put(rsi_peak, 'rsi_above_peak_rsi_peak')
+            vars_map.put(rsi, Map.rsi)
+            vars_map.put(signal, Map.signal)
+            vars_map.put(macd, Map.macd)
+            vars_map.put(histogram, Map.histogram)
+            return rsi_above_peak_macd_posive_histogram
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -741,9 +777,13 @@ class Icarus(TraderClass):
         # Check
         can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
             and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
-                and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)
+                and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
+                    and is_rsi_above_peak_macd_posive_histogram(vars_map)
         # Repport
+        macd = vars_map.get(Map.macd)
+        signal = vars_map.get(Map.signal)
         histogram = vars_map.get(Map.histogram)
+        rsi = vars_map.get(Map.rsi)
         edited_histogram = vars_map.get('edited_histogram')
         edited_macd = vars_map.get('edited_macd')
         edited_signal = vars_map.get('edited_signal')
@@ -757,6 +797,7 @@ class Icarus(TraderClass):
             f'{key}.min_edited_macd_histogram_positive': vars_map.get('min_edited_macd_histogram_positive'),
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
             f'{key}.edited_macd_above_peak': vars_map.get('edited_macd_above_peak'),
+            f'{key}.rsi_above_peak_macd_posive_histogram': vars_map.get('rsi_above_peak_macd_posive_histogram'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -765,14 +806,21 @@ class Icarus(TraderClass):
             f'{key}.edited_macd_peak_date': vars_map.get('edited_macd_peak_date'),
             f'{key}.edited_macd_peak': vars_map.get('edited_macd_peak'),
 
+            f'{key}.rsi_above_peak_start_interval': vars_map.get('rsi_above_peak_start_interval'),
+            f'{key}.rsi_above_peak_peak_date': vars_map.get('rsi_above_peak_peak_date'),
+            f'{key}.rsi_above_peak_rsi_peak': vars_map.get('rsi_above_peak_rsi_peak'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.edited_macd[-1]': edited_macd[-1] if edited_macd is not None else None,
             f'{key}.edited_signal[-1]': edited_signal[-1] if edited_signal is not None else None,
             f'{key}.edited_histogram[-1]': edited_histogram[-1] if edited_histogram is not None else None,
-            f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None
+            f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None
         }
         return can_buy_indicator, repport
 
