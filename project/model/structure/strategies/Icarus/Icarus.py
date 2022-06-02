@@ -415,15 +415,15 @@ class Icarus(TraderClass):
             vars_map.put(roi_above_trigger, 'roi_above_trigger')
             return roi_above_trigger
 
-        def is_tangent_rsi_negative(vars_map: Map) -> None:
-            rsi = list(marketprice.get_rsis())
+        def is_min_tangent_rsi_negative(vars_map: Map) -> None:
+            rsi = list(marketprice_1min.get_rsis())
             rsi.reverse()
             # Check
-            tangent_rsi_negative = rsi[-1] < rsi[-2]
+            min_tangent_rsi_negative = rsi[-1] < rsi[-2]
             # Put
-            vars_map.put(tangent_rsi_negative, 'tangent_rsi_negative')
-            vars_map.put(rsi, Map.rsi)
-            return tangent_rsi_negative
+            vars_map.put(min_tangent_rsi_negative, 'min_tangent_rsi_negative')
+            vars_map.put(rsi, 'min_rsi')
+            return min_tangent_rsi_negative
 
         vars_map = Map()
         can_sell = False
@@ -438,17 +438,18 @@ class Icarus(TraderClass):
         opens = list(marketprice.get_opens())
         opens.reverse()
         # MarketPrice Xmin
+        marketprice_1min = datas[cls.get_min_period()]
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
-        can_sell = is_roi_above_trigger(vars_map) and is_tangent_rsi_negative(vars_map)
+        can_sell = is_roi_above_trigger(vars_map) and is_min_tangent_rsi_negative(vars_map)
         # Repport
-        rsi = vars_map.get(Map.rsi)
+        min_rsi = vars_map.get('min_rsi')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
-            f'{key}.tangent_rsi_negative': vars_map.get('tangent_rsi_negative'),
+            f'{key}.min_tangent_rsi_negative': vars_map.get('min_tangent_rsi_negative'),
 
             f'{key}.roi_trigger': ROI_TRIGGER,
             f'{key}.max_roi': max_roi,
@@ -456,8 +457,8 @@ class Icarus(TraderClass):
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
-            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
-            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None
+            f'{key}.min_rsi[-1]': min_rsi[-1] if min_rsi is not None else None,
+            f'{key}.min_rsi[-2]': min_rsi[-2] if min_rsi is not None else None
         }
         return can_sell, repport
 
