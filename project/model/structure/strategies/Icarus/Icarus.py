@@ -639,6 +639,37 @@ class Icarus(TraderClass):
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def price_change(i: int) -> float:
             return closes[i] - opens[i]
+        
+        def is_macd_signal_switch_period(open_times: list, macd: list, signal: list) -> Tuple[bool, dict]:
+            """
+            Parameters:
+            -----------
+            open_times: list
+                Open times of rows in macd and signal list
+            macd: list
+                Macd lines
+            signal: list
+                Signal lines of MACD
+
+            Returns:
+            --------
+            return: Tuple[bool, dict]
+                True if the actual period is the first period
+                since the MACD line has crossed its Signal line else False
+            """
+            macd_swings = _MF.group_swings(macd, signal)
+            now_index = len(macd) - 1
+            start_index = macd_swings[now_index][0]
+            macd_starttime = open_times[start_index]
+            macd_start_period = _MF.round_time(macd_starttime, period)
+            open_period = _MF.round_time(open_times[-1], period)
+            datas = {
+                Map.starttime: _MF.unix_to_date(macd_starttime),
+                Map.period: _MF.unix_to_date(macd_start_period),
+                Map.open: _MF.unix_to_date(open_period),
+            }
+            macd_signal_switch_period = open_period == macd_start_period
+            return macd_signal_switch_period, datas
 
         def is_price_switch_up(vars_map: Map) -> bool:
             # Check
@@ -662,41 +693,68 @@ class Icarus(TraderClass):
             vars_map.put(price_change_2, 'price_change_2')
             return price_change_1_above_2
 
+        def is_macd_histogram_positive(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Check
+            macd_histogram_positive = histogram[-1] > 0
+            macd_signal_switch_period, return_datas = is_macd_signal_switch_period(open_times, macd, signal)
+            # Put
+            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
+            vars_map.put(macd_signal_switch_period, 'macd_signal_switch_period')
+            vars_map.put(return_datas[Map.starttime], 'macd_signal_switch_start_date')
+            vars_map.put(return_datas[Map.period], 'macd_signal_switch_start_period')
+            vars_map.put(return_datas[Map.open], 'macd_signal_switch_now_period')
+            vars_map.put(histogram, Map.histogram)
+            return macd_histogram_positive and (not macd_signal_switch_period)
+
         def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
             # Check
             edited_macd_histogram_positive = histogram[-1] > 0
+            edited_macd_signal_switch_period, return_datas = is_macd_signal_switch_period(open_times, macd, signal)
             # Put
             vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
+            vars_map.put(edited_macd_signal_switch_period, 'edited_macd_signal_switch_period')
+            vars_map.put(return_datas[Map.starttime], 'edited_macd_signal_switch_start_date')
+            vars_map.put(return_datas[Map.period], 'edited_macd_signal_switch_start_period')
+            vars_map.put(return_datas[Map.open], 'edited_macd_signal_switch_now_period')
             vars_map.put(histogram, 'edited_histogram')
-            return edited_macd_histogram_positive
+            return edited_macd_histogram_positive and (not edited_macd_signal_switch_period)
 
         def is_min_edited_macd_histogram_positive(vars_map: Map) -> bool:
             min_marketprice.reset_collections()
             macd_map = min_marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
             # Check
             min_edited_macd_histogram_positive = histogram[-1] > 0
+            min_macd_signal_switch_period, return_datas = is_macd_signal_switch_period(min_open_times, macd, signal)
             # Put
             vars_map.put(min_edited_macd_histogram_positive, 'min_edited_macd_histogram_positive')
+            vars_map.put(min_macd_signal_switch_period, 'min_macd_signal_switch_period')
+            vars_map.put(return_datas[Map.starttime], 'min_macd_signal_switch_start_date')
+            vars_map.put(return_datas[Map.period], 'min_macd_signal_switch_start_period')
+            vars_map.put(return_datas[Map.open], 'min_macd_signal_switch_now_period')
             vars_map.put(histogram, 'min_edited_histogram')
-            return min_edited_macd_histogram_positive
-
-        def is_macd_histogram_positive(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            macd_map = child_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
-            vars_map.put(histogram, Map.histogram)
-            return macd_histogram_positive
+            return min_edited_macd_histogram_positive and (not min_macd_signal_switch_period)
 
         def is_edited_macd_above_peak(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
@@ -736,6 +794,9 @@ class Icarus(TraderClass):
         opens.reverse()
         open_times = list(child_marketprice.get_times())
         open_times.reverse()
+        # Min
+        min_open_times = list(min_marketprice.get_times())
+        min_open_times.reverse()
         # Little
         # Big
         big_closes = list(big_marketprice.get_closes())
@@ -756,8 +817,11 @@ class Icarus(TraderClass):
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
             f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
+            f'{key}.edited_macd_signal_switch_period': vars_map.get('edited_macd_signal_switch_period'),
             f'{key}.min_edited_macd_histogram_positive': vars_map.get('min_edited_macd_histogram_positive'),
+            f'{key}.min_macd_signal_switch_period': vars_map.get('min_macd_signal_switch_period'),
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
+            f'{key}.macd_signal_switch_period': vars_map.get('macd_signal_switch_period'),
             f'{key}.edited_macd_above_peak': vars_map.get('edited_macd_above_peak'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
@@ -766,6 +830,16 @@ class Icarus(TraderClass):
 
             f'{key}.edited_macd_peak_date': vars_map.get('edited_macd_peak_date'),
             f'{key}.edited_macd_peak': vars_map.get('edited_macd_peak'),
+
+            f'{key}.macd_signal_switch_start_date': vars_map.get('macd_signal_switch_start_date'),
+            f'{key}.macd_signal_switch_start_period': vars_map.get('macd_signal_switch_start_period'),
+            f'{key}.macd_signal_switch_now_period': vars_map.get('macd_signal_switch_now_period'),
+            f'{key}.edited_macd_signal_switch_start_date': vars_map.get('edited_macd_signal_switch_start_date'),
+            f'{key}.edited_macd_signal_switch_start_period': vars_map.get('edited_macd_signal_switch_start_period'),
+            f'{key}.edited_macd_signal_switch_now_period': vars_map.get('edited_macd_signal_switch_now_period'),
+            f'{key}.min_macd_signal_switch_start_date': vars_map.get('min_macd_signal_switch_start_date'),
+            f'{key}.min_macd_signal_switch_start_period': vars_map.get('min_macd_signal_switch_start_period'),
+            f'{key}.min_macd_signal_switch_now_period': vars_map.get('min_macd_signal_switch_now_period'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],

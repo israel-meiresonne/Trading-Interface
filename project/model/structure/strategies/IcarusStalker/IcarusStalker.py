@@ -146,8 +146,11 @@ class IcarusStalker(StalkerClass):
             f'{key}.price_switch_up': None,
             f'{key}.price_change_1_above_2': None,
             f'{key}.edited_macd_histogram_positive': None,
+            f'{key}.edited_macd_signal_switch_period': None,
             f'{key}.min_edited_macd_histogram_positive': None,
+            f'{key}.min_macd_signal_switch_period': None,
             f'{key}.macd_histogram_positive': None,
+            f'{key}.macd_signal_switch_period': None,
             f'{key}.edited_macd_above_peak': None,
 
             f'{key}.price_change_1': None,
@@ -156,6 +159,16 @@ class IcarusStalker(StalkerClass):
 
             f'{key}.edited_macd_peak_date': None,
             f'{key}.edited_macd_peak': None,
+
+            f'{key}.macd_signal_switch_start_date': None,
+            f'{key}.macd_signal_switch_start_period': None,
+            f'{key}.macd_signal_switch_now_period': None,
+            f'{key}.edited_macd_signal_switch_start_date': None,
+            f'{key}.edited_macd_signal_switch_start_period': None,
+            f'{key}.edited_macd_signal_switch_now_period': None,
+            f'{key}.min_macd_signal_switch_start_date': None,
+            f'{key}.min_macd_signal_switch_start_period': None,
+            f'{key}.min_macd_signal_switch_now_period': None,
 
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
