@@ -745,6 +745,32 @@ class Icarus(TraderClass):
             vars_map.put(signal, 'min_edited_signal')
             return min_edited_macd_above_peak
 
+        def is_min_macd_above_peak(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Peak
+            now_index = len(macd) - 1
+            macd_swings = _MF.group_swings(macd, signal)
+            start_index = macd_swings[now_index][0]
+            sub_macd = macd[start_index:]
+            macd_peak = max(sub_macd)
+            # Date
+            sub_open_times = min_open_times[start_index:]
+            macd_peak_index = sub_macd.index(macd_peak)
+            # Check
+            min_macd_above_peak = macd[-1] >= macd_peak
+            # Put
+            vars_map.put(min_macd_above_peak, 'min_macd_above_peak')
+            vars_map.put(_MF.unix_to_date(sub_open_times[macd_peak_index]), 'min_macd_peak_date')
+            vars_map.put(macd_peak, 'min_macd_peak')
+            vars_map.put(macd, 'min_macd')
+            vars_map.put(signal, 'min_signal')
+            return min_macd_above_peak
+
         def is_macd_histogram_positive(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd()
@@ -843,12 +869,15 @@ class Icarus(TraderClass):
         can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
             and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
                 and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
-                    and is_min_macd_histogram_positive(vars_map) and is_min_edited_macd_above_peak(vars_map)
+                    and is_min_macd_histogram_positive(vars_map) and is_min_edited_macd_above_peak(vars_map)\
+                        and is_min_macd_above_peak(vars_map)
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
         edited_macd = vars_map.get('edited_macd')
         edited_signal = vars_map.get('edited_signal')
+        min_macd = vars_map.get('min_macd')
+        min_signal = vars_map.get('min_signal')
         min_histogram = vars_map.get('min_histogram')
         min_edited_macd = vars_map.get('min_edited_macd')
         min_edited_signal = vars_map.get('min_edited_signal')
@@ -867,6 +896,7 @@ class Icarus(TraderClass):
             f'{key}.edited_macd_above_peak': vars_map.get('edited_macd_above_peak'),
             f'{key}.min_macd_histogram_positive': vars_map.get('min_macd_histogram_positive'),
             f'{key}.min_edited_macd_above_peak': vars_map.get('min_edited_macd_above_peak'),
+            f'{key}.min_macd_above_peak': vars_map.get('min_macd_above_peak'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -888,6 +918,9 @@ class Icarus(TraderClass):
             f'{key}.min_edited_macd_peak_date': vars_map.get('min_edited_macd_peak_date'),
             f'{key}.min_edited_macd_peak': vars_map.get('min_edited_macd_peak'),
 
+            f'{key}.min_macd_peak_date': vars_map.get('min_macd_peak_date'),
+            f'{key}.min_macd_peak': vars_map.get('min_macd_peak'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
@@ -895,6 +928,8 @@ class Icarus(TraderClass):
             f'{key}.edited_macd[-1]': edited_macd[-1] if edited_macd is not None else None,
             f'{key}.edited_signal[-1]': edited_signal[-1] if edited_signal is not None else None,
             f'{key}.edited_histogram[-1]': edited_histogram[-1] if edited_histogram is not None else None,
+            f'{key}.min_macd[-1]': min_macd[-1] if min_macd is not None else None,
+            f'{key}.min_signal[-1]': min_signal[-1] if min_signal is not None else None,
             f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
             f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
             f'{key}.min_edited_macd[-1]': min_edited_macd[-1] if min_edited_macd is not None else None,
