@@ -693,6 +693,32 @@ class Icarus(TraderClass):
             vars_map.put(price_change_2, 'price_change_2')
             return price_change_1_above_2
 
+        def is_macd_above_peak(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Peak
+            now_index = len(macd) - 1
+            macd_swings = _MF.group_swings(macd, signal)
+            start_index = macd_swings[now_index][0]
+            sub_macd = macd[start_index:]
+            macd_peak = max(sub_macd)
+            # Date
+            sub_open_times = open_times[start_index:]
+            macd_peak_index = sub_macd.index(macd_peak)
+            # Check
+            macd_above_peak = macd[-1] >= macd_peak
+            # Put
+            vars_map.put(macd_above_peak, 'macd_above_peak')
+            vars_map.put(_MF.unix_to_date(sub_open_times[macd_peak_index]), 'macd_peak_date')
+            vars_map.put(macd_peak, 'macd_peak')
+            vars_map.put(macd, Map.macd)
+            vars_map.put(signal, Map.signal)
+            return macd_above_peak
+
         def is_edited_macd_above_peak(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
@@ -870,8 +896,10 @@ class Icarus(TraderClass):
             and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
                 and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
                     and is_min_macd_histogram_positive(vars_map) and is_min_edited_macd_above_peak(vars_map)\
-                        and is_min_macd_above_peak(vars_map)
+                        and is_min_macd_above_peak(vars_map) and is_macd_above_peak(vars_map)
         # Repport
+        macd = vars_map.get(Map.macd)
+        signal = vars_map.get(Map.signal)
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
         edited_macd = vars_map.get('edited_macd')
@@ -897,6 +925,7 @@ class Icarus(TraderClass):
             f'{key}.min_macd_histogram_positive': vars_map.get('min_macd_histogram_positive'),
             f'{key}.min_edited_macd_above_peak': vars_map.get('min_edited_macd_above_peak'),
             f'{key}.min_macd_above_peak': vars_map.get('min_macd_above_peak'),
+            f'{key}.macd_above_peak': vars_map.get('macd_above_peak'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -921,9 +950,14 @@ class Icarus(TraderClass):
             f'{key}.min_macd_peak_date': vars_map.get('min_macd_peak_date'),
             f'{key}.min_macd_peak': vars_map.get('min_macd_peak'),
 
+            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
+            f'{key}.macd_peak': vars_map.get('macd_peak'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.edited_macd[-1]': edited_macd[-1] if edited_macd is not None else None,
             f'{key}.edited_signal[-1]': edited_signal[-1] if edited_signal is not None else None,
