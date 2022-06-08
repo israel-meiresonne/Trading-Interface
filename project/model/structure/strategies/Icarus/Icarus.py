@@ -872,6 +872,21 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'min_macd')
             return min_tangent_macd_positive
 
+        def is_ema50_bellow_keltner_middle(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            keltner = child_marketprice.get_keltnerchannel()
+            keltner_middle = list(keltner.get(Map.middle))
+            keltner_middle.reverse()
+            ema = list(child_marketprice.get_ema(cls.EMA50_N_PERIOD))
+            ema.reverse()
+            # Check
+            ema50_bellow_keltner_middle = ema[-1] < keltner_middle[-1]
+            # Put
+            vars_map.put(ema50_bellow_keltner_middle, 'ema50_bellow_keltner_middle')
+            vars_map.put(keltner_middle, 'keltner_middle')
+            vars_map.put(ema, 'ema50')
+            return ema50_bellow_keltner_middle
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -896,7 +911,8 @@ class Icarus(TraderClass):
             and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
                 and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
                     and is_min_edited_macd_above_peak(vars_map) and is_min_macd_above_peak(vars_map)\
-                        and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)
+                        and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)\
+                            and is_ema50_bellow_keltner_middle(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -909,6 +925,8 @@ class Icarus(TraderClass):
         min_edited_macd = vars_map.get('min_edited_macd')
         min_edited_signal = vars_map.get('min_edited_signal')
         min_edited_histogram = vars_map.get('min_edited_histogram')
+        keltner_middle = vars_map.get('keltner_middle')
+        ema50 = vars_map.get('ema50')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -925,6 +943,7 @@ class Icarus(TraderClass):
             f'{key}.min_macd_above_peak': vars_map.get('min_macd_above_peak'),
             f'{key}.macd_above_peak': vars_map.get('macd_above_peak'),
             f'{key}.min_tangent_macd_positive': vars_map.get('min_tangent_macd_positive'),
+            f'{key}.ema50_bellow_keltner_middle': vars_map.get('ema50_bellow_keltner_middle'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -965,7 +984,9 @@ class Icarus(TraderClass):
             f'{key}.min_signal[-1]': min_signal[-1] if min_signal is not None else None,
             f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
             f'{key}.min_edited_macd[-1]': min_edited_macd[-1] if min_edited_macd is not None else None,
-            f'{key}.min_edited_signal[-1]': min_edited_signal[-1] if min_edited_signal is not None else None
+            f'{key}.min_edited_signal[-1]': min_edited_signal[-1] if min_edited_signal is not None else None,
+            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
+            f'{key}.ema50[-1]': ema50[-1] if ema50 is not None else None
         }
         return can_buy_indicator, repport
 
