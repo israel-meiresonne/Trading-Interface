@@ -152,10 +152,10 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd_histogram_positive': None,
             f'{key}.macd_signal_switch_period': None,
             f'{key}.edited_macd_above_peak': None,
-            f'{key}.min_macd_histogram_positive': None,
             f'{key}.min_edited_macd_above_peak': None,
             f'{key}.min_macd_above_peak': None,
             f'{key}.macd_above_peak': None,
+            f'{key}.min_tangent_macd_positive': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
@@ -194,7 +194,6 @@ class IcarusStalker(StalkerClass):
             f'{key}.edited_histogram[-1]': None,
             f'{key}.min_macd[-1]': None,
             f'{key}.min_signal[-1]': None,
-            f'{key}.min_histogram[-1]': None,
             f'{key}.min_edited_histogram[-1]': None,
             f'{key}.min_edited_macd[-1]': None,
             f'{key}.min_edited_signal[-1]': None
