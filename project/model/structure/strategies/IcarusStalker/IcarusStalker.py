@@ -157,6 +157,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd_above_peak': None,
             f'{key}.min_tangent_macd_positive': None,
             f'{key}.ema50_bellow_keltner_middle': None,
+            f'{key}.ema200_bellow_keltner_middle': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
@@ -199,7 +200,8 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_edited_macd[-1]': None,
             f'{key}.min_edited_signal[-1]': None,
             f'{key}.keltner_middle[-1]': None,
-            f'{key}.ema50[-1]': None
+            f'{key}.ema50[-1]': None,
+            f'{key}.ema200[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
