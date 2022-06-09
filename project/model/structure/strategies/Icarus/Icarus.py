@@ -902,6 +902,14 @@ class Icarus(TraderClass):
             vars_map.put(ema, 'ema200')
             return ema200_bellow_keltner_middle
 
+        def is_big_supertrend_rising(vars_map: Map) -> bool:
+            supertrend = list(big_marketprice.get_super_trend())
+            supertrend.reverse()
+            big_supertrend_rising = MarketPrice.get_super_trend_trend(big_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
+            vars_map.put(big_supertrend_rising, 'big_supertrend_rising')
+            vars_map.put(supertrend, 'big_supertrend')
+            return big_supertrend_rising
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -927,7 +935,8 @@ class Icarus(TraderClass):
                 and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
                     and is_min_edited_macd_above_peak(vars_map) and is_min_macd_above_peak(vars_map)\
                         and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)\
-                            and is_ema50_bellow_keltner_middle(vars_map) and is_ema200_bellow_keltner_middle(vars_map)
+                            and is_ema50_bellow_keltner_middle(vars_map) and is_ema200_bellow_keltner_middle(vars_map)\
+                                and is_big_supertrend_rising(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -943,6 +952,7 @@ class Icarus(TraderClass):
         keltner_middle = vars_map.get('keltner_middle')
         ema50 = vars_map.get('ema50')
         ema200 = vars_map.get('ema200')
+        big_supertrend = vars_map.get('big_supertrend')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -961,6 +971,7 @@ class Icarus(TraderClass):
             f'{key}.min_tangent_macd_positive': vars_map.get('min_tangent_macd_positive'),
             f'{key}.ema50_bellow_keltner_middle': vars_map.get('ema50_bellow_keltner_middle'),
             f'{key}.ema200_bellow_keltner_middle': vars_map.get('ema200_bellow_keltner_middle'),
+            f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -1004,7 +1015,8 @@ class Icarus(TraderClass):
             f'{key}.min_edited_signal[-1]': min_edited_signal[-1] if min_edited_signal is not None else None,
             f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
             f'{key}.ema50[-1]': ema50[-1] if ema50 is not None else None,
-            f'{key}.ema200[-1]': ema200[-1] if ema200 is not None else None
+            f'{key}.ema200[-1]': ema200[-1] if ema200 is not None else None,
+            f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None
         }
         return can_buy_indicator, repport
 
