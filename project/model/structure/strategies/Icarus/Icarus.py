@@ -922,6 +922,29 @@ class Icarus(TraderClass):
             vars_map.put(histogram, 'big_histogram')
             return big_macd_histogram_positive
 
+        def is_macd_started_negative(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            # Get Start index
+            now_index = len(macd) - 1
+            macd_swings = _MF.group_swings(macd, signal)
+            start_index = macd_swings[now_index][0]
+            # Check
+            macd_started_negative = macd[start_index] < 0
+            # Put
+            vars_map.put(macd_started_negative, 'macd_started_negative')
+            vars_map.put(_MF.unix_to_date(open_times[start_index]), 'macd_started_negative_start_date')
+            vars_map.put(macd, Map.macd)
+            vars_map.put(signal, Map.signal)
+            vars_map.put(histogram, Map.histogram)
+            return macd_started_negative
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -943,12 +966,13 @@ class Icarus(TraderClass):
         big_closes.reverse()
         # Check
         can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
-            and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
-                and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
-                    and is_min_edited_macd_above_peak(vars_map) and is_min_macd_above_peak(vars_map)\
-                        and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)\
-                            and is_ema50_bellow_keltner_middle(vars_map) and is_ema200_bellow_keltner_middle(vars_map)\
-                                and is_big_supertrend_rising(vars_map) and is_big_macd_histogram_positive(vars_map)
+            and is_macd_started_negative(vars_map)\
+                and is_edited_macd_histogram_positive(vars_map) and is_min_edited_macd_histogram_positive(vars_map)\
+                    and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
+                        and is_min_edited_macd_above_peak(vars_map) and is_min_macd_above_peak(vars_map)\
+                            and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)\
+                                and is_ema50_bellow_keltner_middle(vars_map) and is_ema200_bellow_keltner_middle(vars_map)\
+                                    and is_big_supertrend_rising(vars_map) and is_big_macd_histogram_positive(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -971,6 +995,7 @@ class Icarus(TraderClass):
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
+            f'{key}.macd_started_negative': vars_map.get('macd_started_negative'),
             f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
             f'{key}.edited_macd_signal_switch_period': vars_map.get('edited_macd_signal_switch_period'),
             f'{key}.min_edited_macd_histogram_positive': vars_map.get('min_edited_macd_histogram_positive'),
@@ -990,6 +1015,8 @@ class Icarus(TraderClass):
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.price_change_3': vars_map.get('price_change_3'),
+
+            f'{key}.macd_started_negative_start_date': vars_map.get('macd_started_negative_start_date'),
 
             f'{key}.edited_macd_peak_date': vars_map.get('edited_macd_peak_date'),
             f'{key}.edited_macd_peak': vars_map.get('edited_macd_peak'),
