@@ -149,7 +149,6 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_price_switch_up': None,
             f'{key}.min_price_change_1_above_2': None,
             f'{key}.edited_macd_histogram_positive': None,
-            f'{key}.macd_histogram_positive': None,
             f'{key}.edited_macd_above_peak': None,
             f'{key}.macd_above_peak': None,
             f'{key}.min_tangent_macd_positive': None,
@@ -157,6 +156,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.ema200_bellow_keltner_middle': None,
             f'{key}.big_supertrend_rising': None,
             f'{key}.big_macd_histogram_positive': None,
+            f'{key}.tangent_macd_positive': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,

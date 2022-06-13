@@ -718,18 +718,6 @@ class Icarus(TraderClass):
             vars_map.put(signal, 'edited_signal')
             return edited_macd_above_peak
 
-        def is_macd_histogram_positive(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            macd_map = child_marketprice.get_macd()
-            histogram = list(macd_map.get(Map.histogram))
-            histogram.reverse()
-            # Check
-            macd_histogram_positive = histogram[-1] > 0
-            # Put
-            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
-            vars_map.put(histogram, Map.histogram)
-            return macd_histogram_positive
-
         def is_edited_macd_histogram_positive(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd(**cls.MACD_PARAMS_1)
@@ -741,6 +729,18 @@ class Icarus(TraderClass):
             vars_map.put(edited_macd_histogram_positive, 'edited_macd_histogram_positive')
             vars_map.put(histogram, 'edited_histogram')
             return edited_macd_histogram_positive
+
+        def is_tangent_macd_positive(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Check
+            tangent_macd_positive = macd[-1] > macd[-2]
+            # Put
+            vars_map.put(tangent_macd_positive, 'tangent_macd_positive')
+            vars_map.put(macd, Map.macd)
+            return tangent_macd_positive
 
         def is_min_tangent_macd_positive(vars_map: Map) -> bool:
             min_marketprice.reset_collections()
@@ -858,10 +858,11 @@ class Icarus(TraderClass):
         # Check
         can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
             and is_min_price_rising(vars_map) and is_edited_macd_histogram_positive(vars_map)\
-                    and is_macd_histogram_positive(vars_map) and is_edited_macd_above_peak(vars_map)\
+                    and is_edited_macd_above_peak(vars_map)\
                         and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)\
                             and is_ema50_bellow_keltner_middle(vars_map) and is_ema200_bellow_keltner_middle(vars_map)\
-                                and is_big_supertrend_rising(vars_map) and is_big_macd_histogram_positive(vars_map)
+                                and is_big_supertrend_rising(vars_map) and is_big_macd_histogram_positive(vars_map)\
+                                    and is_tangent_macd_positive(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -885,7 +886,6 @@ class Icarus(TraderClass):
             f'{key}.min_price_switch_up': vars_map.get('min_price_switch_up'),
             f'{key}.min_price_change_1_above_2': vars_map.get('min_price_change_1_above_2'),
             f'{key}.edited_macd_histogram_positive': vars_map.get('edited_macd_histogram_positive'),
-            f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
             f'{key}.edited_macd_above_peak': vars_map.get('edited_macd_above_peak'),
             f'{key}.macd_above_peak': vars_map.get('macd_above_peak'),
             f'{key}.min_tangent_macd_positive': vars_map.get('min_tangent_macd_positive'),
@@ -893,6 +893,7 @@ class Icarus(TraderClass):
             f'{key}.ema200_bellow_keltner_middle': vars_map.get('ema200_bellow_keltner_middle'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.big_macd_histogram_positive': vars_map.get('big_macd_histogram_positive'),
+            f'{key}.tangent_macd_positive': vars_map.get('tangent_macd_positive'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
