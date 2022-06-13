@@ -754,6 +754,18 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'min_macd')
             return min_tangent_macd_positive
 
+        def is_min_tangent_edited_macd_positive(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Check
+            tangent_edited_macd_positive = macd[-1] > macd[-2]
+            # Put
+            vars_map.put(tangent_edited_macd_positive, 'tangent_edited_macd_positive')
+            vars_map.put(macd, 'min_edited_macd')
+            return tangent_edited_macd_positive
+
         def is_ema50_bellow_keltner_middle(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             keltner = child_marketprice.get_keltnerchannel()
@@ -862,7 +874,7 @@ class Icarus(TraderClass):
                         and is_macd_above_peak(vars_map) and is_min_tangent_macd_positive(vars_map)\
                             and is_ema50_bellow_keltner_middle(vars_map) and is_ema200_bellow_keltner_middle(vars_map)\
                                 and is_big_supertrend_rising(vars_map) and is_big_macd_histogram_positive(vars_map)\
-                                    and is_tangent_macd_positive(vars_map)
+                                    and is_tangent_macd_positive(vars_map) and is_min_tangent_edited_macd_positive(vars_map)
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -877,6 +889,7 @@ class Icarus(TraderClass):
         big_supertrend = vars_map.get('big_supertrend')
         big_histogram = vars_map.get('big_histogram')
         min_keltner_middle = vars_map.get('min_keltner_middle')
+        min_edited_macd = vars_map.get('min_edited_macd')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -894,6 +907,7 @@ class Icarus(TraderClass):
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.big_macd_histogram_positive': vars_map.get('big_macd_histogram_positive'),
             f'{key}.tangent_macd_positive': vars_map.get('tangent_macd_positive'),
+            f'{key}.tangent_edited_macd_positive': vars_map.get('tangent_edited_macd_positive'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -919,6 +933,7 @@ class Icarus(TraderClass):
             f'{key}.edited_signal[-1]': edited_signal[-1] if edited_signal is not None else None,
             f'{key}.edited_histogram[-1]': edited_histogram[-1] if edited_histogram is not None else None,
             f'{key}.min_macd[-1]': min_macd[-1] if min_macd is not None else None,
+            f'{key}.min_edited_macd[-1]': min_edited_macd[-1] if min_edited_macd is not None else None,
             f'{key}.big_histogram[-1]': big_histogram[-1] if big_histogram is not None else None,
             f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
             f'{key}.ema50[-1]': ema50[-1] if ema50 is not None else None,
