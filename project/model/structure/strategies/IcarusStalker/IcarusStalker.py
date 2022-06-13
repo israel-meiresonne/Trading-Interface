@@ -145,16 +145,12 @@ class IcarusStalker(StalkerClass):
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
             f'{key}.price_change_1_above_2': None,
-            f'{key}.macd_started_negative': None,
+            f'{key}.min_price_rising': None,
+            f'{key}.min_price_switch_up': None,
+            f'{key}.min_price_change_1_above_2': None,
             f'{key}.edited_macd_histogram_positive': None,
-            f'{key}.edited_macd_signal_switch_period': None,
-            f'{key}.min_edited_macd_histogram_positive': None,
-            f'{key}.min_macd_signal_switch_period': None,
             f'{key}.macd_histogram_positive': None,
-            f'{key}.macd_signal_switch_period': None,
             f'{key}.edited_macd_above_peak': None,
-            f'{key}.min_edited_macd_above_peak': None,
-            f'{key}.min_macd_above_peak': None,
             f'{key}.macd_above_peak': None,
             f'{key}.min_tangent_macd_positive': None,
             f'{key}.ema50_bellow_keltner_middle': None,
@@ -166,26 +162,12 @@ class IcarusStalker(StalkerClass):
             f'{key}.price_change_2': None,
             f'{key}.price_change_3': None,
 
-            f'{key}.macd_started_negative_start_date': None,
+            f'{key}.min_price_change_1': None,
+            f'{key}.min_price_change_2': None,
+            f'{key}.min_price_change_3': None,
 
             f'{key}.edited_macd_peak_date': None,
             f'{key}.edited_macd_peak': None,
-
-            f'{key}.macd_signal_switch_start_date': None,
-            f'{key}.macd_signal_switch_start_period': None,
-            f'{key}.macd_signal_switch_now_period': None,
-            f'{key}.edited_macd_signal_switch_start_date': None,
-            f'{key}.edited_macd_signal_switch_start_period': None,
-            f'{key}.edited_macd_signal_switch_now_period': None,
-            f'{key}.min_macd_signal_switch_start_date': None,
-            f'{key}.min_macd_signal_switch_start_period': None,
-            f'{key}.min_macd_signal_switch_now_period': None,
-
-            f'{key}.min_edited_macd_peak_date': None,
-            f'{key}.min_edited_macd_peak': None,
-
-            f'{key}.min_macd_peak_date': None,
-            f'{key}.min_macd_peak': None,
 
             f'{key}.macd_peak_date': None,
             f'{key}.macd_peak': None,
@@ -200,15 +182,12 @@ class IcarusStalker(StalkerClass):
             f'{key}.edited_signal[-1]': None,
             f'{key}.edited_histogram[-1]': None,
             f'{key}.min_macd[-1]': None,
-            f'{key}.min_signal[-1]': None,
-            f'{key}.min_edited_histogram[-1]': None,
-            f'{key}.min_edited_macd[-1]': None,
-            f'{key}.min_edited_signal[-1]': None,
             f'{key}.big_histogram[-1]': None,
             f'{key}.keltner_middle[-1]': None,
             f'{key}.ema50[-1]': None,
             f'{key}.ema200[-1]': None,
-            f'{key}.big_supertrend[-1]': None
+            f'{key}.big_supertrend[-1]': None,
+            f'{key}.min_keltner_middle[-1]': None
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
