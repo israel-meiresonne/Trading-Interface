@@ -1023,7 +1023,7 @@ class Icarus(TraderClass):
         return backtest_df
 
     @classmethod
-    def backtest(cls, broker: Broker, starttime: int, endtime: int, periods: list[int], pairs: list[Pair] = None) -> None:
+    def backtest(cls, broker: Broker, starttime: int, endtime: int, periods: list[int], pairs: list[Pair] = None, buy_type: str = Map.close, sell_type: str = Map.close) -> None:
         """
         To backtest Strategy
 
@@ -1039,6 +1039,12 @@ class Icarus(TraderClass):
             Periods to backtest (in second)
         pairs: list[Pair] = None
             Pairs to backtest
+        buy_type: str
+            The price to use as buy price
+        sell_type: str
+            The price to use as sell price
+                - close: to use close price
+                - mean: to use mean of open_price and close_price in period of 1min
         """
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
@@ -1046,7 +1052,7 @@ class Icarus(TraderClass):
         def wrap_trades(pair: Pair, period: int, turn: int) -> None:
             print(_MF.loop_progression(output_starttime, turn, n_turn,f"{pair.__str__().upper()}({BinanceAPI.convert_interval(period)})"))
             BinanceFakeAPI.reset()
-            trades = cls.backtest_trade_history(pair, period, broker).to_dict(orient='records')
+            trades = cls.backtest_trade_history(pair, period, broker, buy_type, sell_type).to_dict(orient='records')
             fields = list(trades[0].keys())
             FileManager.write_csv(file_path, fields, trades, overwrite=False, make_dir=True)
 
@@ -1064,10 +1070,25 @@ class Icarus(TraderClass):
                 turn += 1
 
     @classmethod
-    def backtest_trade_history(cls, pair: Pair, period: int, broker: Broker)  -> pd.DataFrame:
+    def backtest_trade_history(cls, pair: Pair, period: int, broker: Broker, buy_type: str, sell_type: str)  -> pd.DataFrame:
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.structure.Bot import Bot
         import sys
+
+        def get_exec_price(marketprice: MarketPrice, exec_type: str) -> float:
+            if marketprice.get_period_time() != cls.get_min_period():
+                raise ValueError(f"The MarketPrice's period must be 1min, instead '{marketprice.get_period_time()}'sec.")
+            close_prices = list(marketprice.get_closes())
+            close_prices.reverse()
+            if exec_type == Map.mean:
+                open_prices = list(marketprice.get_opens())
+                open_prices.reverse()
+                exec_price = (close_prices[-1] + open_prices[-1])/2
+            elif exec_type == Map.close:
+                exec_price = close_prices[-1]
+            else:
+                raise ValueError(f"This type of execution price '{exec_type}' is not supported")
+            return exec_price
 
         buy_repports = []
         sell_repports = []
@@ -1139,7 +1160,7 @@ class Icarus(TraderClass):
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
                 can_sell_params = {
-                    Map.roi: _MF.progress_rate(closes[-1], trade['buy_price']),
+                    Map.roi: _MF.progress_rate(get_exec_price(min_market_params, sell_type), trade['buy_price']),
                     Map.maximum: max_roi_position,
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
                     cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice,
@@ -1158,7 +1179,7 @@ class Icarus(TraderClass):
                 buy_repports.append(buy_repport)
                 if can_buy:
                     buy_time = min_marketprice.get_time()
-                    exec_price = marketprice.get_close()
+                    exec_price = get_exec_price(min_market_params, buy_type)
                     min_roi_position = None
                     max_roi_position = None
                     cls._add_buy_time(pair, buy_time)
@@ -1185,7 +1206,7 @@ class Icarus(TraderClass):
                 if can_buy:
                     # Prepare
                     sell_time = min_marketprice.get_time()
-                    exec_price = marketprice.get_close()
+                    exec_price = get_exec_price(min_market_params, sell_type)
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
