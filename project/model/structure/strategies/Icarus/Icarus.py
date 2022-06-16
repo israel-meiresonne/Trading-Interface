@@ -1084,7 +1084,7 @@ class Icarus(TraderClass):
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
                 can_sell_params = {
-                    Map.roi: _MF.progress_rate(get_exec_price(min_market_params, sell_type), trade['buy_price']),
+                    Map.roi: _MF.progress_rate(get_exec_price(min_marketprice, sell_type), trade['buy_price']),
                     Map.maximum: max_roi_position,
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
                     cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice,
@@ -1103,7 +1103,7 @@ class Icarus(TraderClass):
                 buy_repports.append(buy_repport)
                 if can_buy:
                     buy_time = min_marketprice.get_time()
-                    exec_price = get_exec_price(min_market_params, buy_type)
+                    exec_price = get_exec_price(min_marketprice, buy_type)
                     min_roi_position = None
                     max_roi_position = None
                     cls._add_buy_time(pair, buy_time)
@@ -1130,7 +1130,7 @@ class Icarus(TraderClass):
                 if can_buy:
                     # Prepare
                     sell_time = min_marketprice.get_time()
-                    exec_price = get_exec_price(min_market_params, sell_type)
+                    exec_price = get_exec_price(min_marketprice, sell_type)
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
