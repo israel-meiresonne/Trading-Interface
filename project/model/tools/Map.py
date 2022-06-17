@@ -55,6 +55,10 @@ class Map(MyJson):
     zero = "zero"
     starttime = "starttime"
     endtime = "endtime"
+    all = "all"
+    stdev = "stdev"
+    positive = "positive"
+    negative = "negative"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
