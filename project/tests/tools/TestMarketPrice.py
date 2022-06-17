@@ -1,9 +1,9 @@
 import unittest
 
 import pandas as pd
+
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
-
 from model.API.brokers.Binance.BinanceMarketPrice import BinanceMarketPrice
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -142,6 +142,9 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         pass
 
     def get_time(self, prd=0) -> int:
+        pass
+
+    def get_volumes(self, side: str) -> tuple:
         pass
 
     def test_reset_collections(self) -> None:
@@ -975,6 +978,40 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         # Wrong  extremum
         with self.assertRaises(ValueError):
             result4 = self.last_extremum_index(values, zeros, 2)
+
+    def test_mean_candle_variation(self) -> None:
+        opens = [10,6,3,10,1,10,5,7,1,3]
+        closes = [4,1,7,1,9,2,3,3,8,8]
+        candle_means = MarketPrice.mean_candle_variation(opens, closes)
+        # Normal usage
+        exp1 = Map({
+            Map.all: {Map.mean: 1.39, Map.stdev: 3.35, Map.number: 10},
+            Map.positive: {Map.mean: 4.5, Map.stdev: 3.49, Map.number: 4},
+            Map.negative: {Map.mean: -0.68, Map.stdev: 0.19, Map.number: 6}
+        })
+        result1 = Map({k: {k2: round(v2, 2) for k2, v2 in v.items()} for k, v in candle_means.get_map().items()})
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
+        # Lists have different size
+        with self.assertRaises(ValueError):
+            MarketPrice.mean_candle_variation(opens[:-3], closes)
+        # Not enougth candle
+        result2 = Map({k: {k2: None for k2, v2 in v.items()} for k, v in candle_means.get_map().items()})
+        {k: [self.assertIsNone(v2) for _, v2 in v.items()] for k, v in result2.get_map().items()}
+
+    def test_mean_candle_sequence(self) -> None:
+        opens = [2,8,9,10,4,11,18,6,12,13,17,4,7,3,2,17,7,16,6,10,4,14]
+        closes = [20,7,11,15,16,1,6,9,8,7,14,18,7,13,13,17,4,2,15,5,7,11]
+        mean_sequences = MarketPrice.mean_candle_sequence(opens, closes)
+        # Normal usage
+        exp1 = Map({
+            Map.positive: 1.43,
+            Map.negative: 1.67
+        })
+        result1 = Map({k: round(v, 2) for k, v in mean_sequences.get_map().items()})
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
+        # Lists have different size
+        with self.assertRaises(ValueError):
+            MarketPrice.mean_candle_sequence(opens[:-3], closes)
 
 
 if __name__ == '__main__':
