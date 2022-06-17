@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Union, List
+import statistics
+from typing import Tuple, Union, List
 
 import numpy as np
 import pandas as pd
@@ -1803,6 +1804,129 @@ class MarketPrice(ABC):
             del in_group
             i -= 1
         return last_peak_index
+
+    @classmethod
+    def mean_candle_variation(cls, open_prices: List[float], close_prices: List[float]) -> Map:
+        """
+        To get mean variation rate of positive and negative candles and their standard deviation
+
+        Parameters:
+        -----------
+        open_prices: List[float]
+            List of open price
+        close_prices: List[float]
+            List of close price
+
+        Raises:
+        -------
+        raise: ValueError
+            If list of open and close pricse have not the same size
+
+        Returns:
+        --------
+        return: Map
+            Map[Map.all][Map.mean]:         {float} # mean variation rate of all candle
+            Map[Map.all][Map.stdev]:        {float} # standard deviation of all candle
+            Map[Map.all][Map.number]:       {int}   # number of candle used
+            —
+            Map[Map.positive][Map.mean]:    {float} # mean variation rate of positive candle
+            Map[Map.positive][Map.stdev]:   {float} # standard deviation of positive candle
+            Map[Map.positive][Map.number]:  {int}   # number of candle used
+            —
+            Map[Map.negative][Map.mean]:    {float} # mean variation rate of negative candle
+            Map[Map.negative][Map.stdev]:   {float} # standard deviation of negative candle
+            Map[Map.negative][Map.number]:  {int}   # number of candle used
+        """
+        def mean_candle(candles: np.ndarray, mean_type: int) -> Tuple[float, float]:
+            result = None
+            std_dev = None
+            n_candle = None
+            if mean_type == 0:
+                sub_candles = candles
+                result = candles.mean()
+            elif mean_type == 1:
+                sub_candles = candles[candles > 0]
+                result = sub_candles.mean()
+            elif mean_type == -1:
+                sub_candles = candles[candles < 0]
+                result = sub_candles.mean()
+            else:
+                raise ValueError(f"This mean type '{mean_type}' is not supported")
+            if sub_candles.shape[0] > 2:
+                result = float(sub_candles.mean())
+                std_dev = float(statistics.stdev(sub_candles))
+                n_candle = sub_candles.shape[0]
+            return result, std_dev, n_candle
+
+        n_open = len(open_prices)
+        n_close = len(close_prices)
+        if n_open != n_close:
+            raise ValueError(f"The list of open and close prices must have the same size, instead '{n_open}'!='{n_close}'")
+        # Make candle
+        open_prices = np.array(open_prices)
+        close_prices = np.array(close_prices)
+        candles = (close_prices - open_prices)/open_prices
+        # Calcul
+        all_var, all_stddev, n_all_candle = mean_candle(candles, 0)
+        pos_var, pos_stddev, n_pos_candle = mean_candle(candles, 1)
+        neg_var, neg_stddev, n_neg_candle = mean_candle(candles, -1)
+        results = Map({
+            Map.all: {Map.mean: all_var, Map.stdev: all_stddev, Map.number: n_all_candle},
+            Map.positive: {Map.mean: pos_var, Map.stdev: pos_stddev, Map.number: n_pos_candle},
+            Map.negative: {Map.mean: neg_var, Map.stdev: neg_stddev, Map.number: n_neg_candle}
+        })
+        return results
+
+    @classmethod
+    def mean_candle_sequence(cls, open_prices: List[float], close_prices: List[float]) -> Map:
+        """
+        To calculate mean number of consecutive positive and negative candles
+
+        Parameters:
+        -----------
+        open_prices: List[float]
+            List of open price
+        close_prices: List[float]
+            List of close price
+
+        Raises:
+        -------
+        raise: ValueError
+            If list of open and close pricse have not the same size
+
+        Returns:
+        --------
+        return: Map
+            Map[Map.positive]: {float}  # Mean number of of consecutive positive candles
+            Map[Map.negative]: {float}  # Mean number of of consecutive positive candles
+        """
+        n_open = len(open_prices)
+        n_close = len(close_prices)
+        if n_open != n_close:
+            raise ValueError(f"The list of open and close prices must have the same size, instead '{n_open}'!='{n_close}'")
+        open_prices = np.array(open_prices)
+        close_prices = np.array(close_prices)
+        candles = (close_prices - open_prices)/open_prices
+        zeros = np.zeros(n_open, dtype=int)
+        candle_swings = _MF.group_swings(candles, zeros)
+        pos_sequence = []
+        neg_sequence = []
+        i = 0
+        while i < n_open:
+            start_index = candle_swings[i][0]
+            end_index = candle_swings[i][1]
+            n_candle = (end_index - start_index + 1)
+            if candles[i] > 0:
+                pos_sequence.append(n_candle)
+            elif candles[i] < 0:
+                neg_sequence.append(n_candle)
+            i = end_index
+            i += 1
+        result = Map({
+            Map.positive: sum(pos_sequence)/len(pos_sequence),
+            Map.negative: sum(pos_sequence)/len(neg_sequence)
+        })
+        return result
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
