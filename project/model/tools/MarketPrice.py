@@ -1922,9 +1922,11 @@ class MarketPrice(ABC):
                 neg_sequence.append(n_candle)
             i = end_index
             i += 1
+        n_pos_sequence = len(pos_sequence)
+        n_neg_sequence = len(neg_sequence)
         result = Map({
-            Map.positive: sum(pos_sequence)/len(pos_sequence),
-            Map.negative: sum(pos_sequence)/len(neg_sequence)
+            Map.positive: sum(pos_sequence)/n_pos_sequence if n_pos_sequence > 0 else 0,
+            Map.negative: sum(pos_sequence)/n_neg_sequence if n_neg_sequence > 0 else 0
         })
         return result
 
