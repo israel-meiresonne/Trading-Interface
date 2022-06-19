@@ -1054,6 +1054,7 @@ class Icarus(TraderClass):
             big_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **big_market_params)
             little_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **little_market_params)
             min_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **min_market_params)
+            # Period
             open_times = list(marketprice.get_times())
             open_times.reverse()
             closes = list(marketprice.get_closes())
@@ -1062,6 +1063,11 @@ class Icarus(TraderClass):
             highs.reverse()
             lows = list(marketprice.get_lows())
             lows.reverse()
+            # Min Period
+            min_highs = list(min_marketprice.get_highs())
+            min_highs.reverse()
+            min_lows = list(min_marketprice.get_lows())
+            min_lows.reverse()
             # Update High/Low price
             if i == 0:
                 higher_price = 0
@@ -1078,8 +1084,8 @@ class Icarus(TraderClass):
             has_position = len(trade) != 0
             # Update Max/Min roi
             if has_position:
-                high_roi = _MF.progress_rate(highs[-1], trade['buy_price'])
-                low_roi = _MF.progress_rate(lows[-1], trade['buy_price'])
+                high_roi = _MF.progress_rate(min_highs[-1], trade['buy_price'])
+                low_roi = _MF.progress_rate(min_lows[-1], trade['buy_price'])
                 min_roi_position = low_roi if (min_roi_position is None) or (low_roi < min_roi_position) else min_roi_position
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
@@ -1095,7 +1101,7 @@ class Icarus(TraderClass):
                 trade_id = f'{pair_merged}_{str_period}_{i}'
                 can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, little_marketprice, min_marketprice)
                 buy_repport = {
-                    Map.time: _MF.unix_to_date( min_marketprice.get_time()),
+                    Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                    f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
                     Map.id: trade_id,
                     **buy_repport
