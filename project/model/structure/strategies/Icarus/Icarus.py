@@ -967,8 +967,9 @@ class Icarus(TraderClass):
             The price to use as buy price
         sell_type: str
             The price to use as sell price
-                - close: to use close price
-                - mean: to use mean of open_price and close_price in period of 1min
+        - close: to use close price
+        - open: to use open price
+        - mean: to use mean of open_price and close_price in period of 1min
         """
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
@@ -1004,12 +1005,14 @@ class Icarus(TraderClass):
                 raise ValueError(f"The MarketPrice's period must be 1min, instead '{marketprice.get_period_time()}'sec.")
             close_prices = list(marketprice.get_closes())
             close_prices.reverse()
+            open_prices = list(marketprice.get_opens())
+            open_prices.reverse()
             if exec_type == Map.mean:
-                open_prices = list(marketprice.get_opens())
-                open_prices.reverse()
                 exec_price = (close_prices[-1] + open_prices[-1])/2
             elif exec_type == Map.close:
                 exec_price = close_prices[-1]
+            elif exec_type == Map.open:
+                exec_price = open_prices[-1]
             else:
                 raise ValueError(f"This type of execution price '{exec_type}' is not supported")
             return exec_price
