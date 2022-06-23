@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 import numpy as np
 
 import pandas as pd
@@ -411,42 +411,63 @@ class Icarus(TraderClass):
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
-        ROI_TRIGGER = 0.3/100
-        ROI_TRIGGER_ZERO = 0
-        def is_roi_above_trigger(vars_map: Map) -> bool:
-            roi_above_trigger = roi >= ROI_TRIGGER
-            vars_map.put(roi_above_trigger, 'roi_above_trigger')
-            return roi_above_trigger
 
-        def is_tangent_rsi_negative(vars_map: Map) -> bool:
-            rsi = list(marketprice.get_rsis())
-            rsi.reverse()
+        def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
+            def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
+                green_index = None
+                i = candles.shape[0] - 1
+                while i > 0:
+                    if candles[i] > 0:
+                        green_index = i
+                        break
+                    i = candle_swings[i][0]
+                    i -= 1
+                return green_index
+
+            def get_last_red_sequence_index(candles: np.ndarray, candle_swings: List[int]) -> int:
+                red_sequence_index = None
+                i = candles.shape[0] - 1
+                while i > 0:
+                    if candles[i] < 0:
+                        red_sequence_index = candle_swings[i][0]
+                        break
+                    i = candle_swings[i][0]
+                    i -= 1
+                return red_sequence_index
+
+            _1min_candles = np.array(_1min_closes) - np.array(_1min_opens)
+            zeros = np.zeros(_1min_candles.shape[0], dtype=int)
+            candle_swings = _MF.group_swings(_1min_candles, zeros)
+            # Get index
+            green_index = get_last_green_candle_index(_1min_candles, candle_swings)
+            red_start_index = get_last_red_sequence_index(_1min_candles, candle_swings)
+            red_end_index = candle_swings[red_start_index][1]
+            # Get times
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, marketprice_1min.get_period_time())
+            green_time = _1min_open_times[green_index]
+            red_time = _1min_open_times[red_start_index]
+            now_period = _1min_open_times[-1]
+            # Price
+            red_sequence = _1min_candles[red_start_index:red_end_index+1]
+            n_negative = sum([1 for v in red_sequence if v < 0])
+            n_sequence = len(red_sequence)
+            if n_negative != n_sequence:
+                raise Exception(f"Red sequence must contain negative value only, instead neg='{n_negative}' & size='{n_sequence}'")
+            sum_red_sequence = sum(red_sequence)
             # Check
-            tangent_rsi_negative = rsi[-1] < rsi[-2]
+            _1min_red_sequence_above_green_candle = (green_time >= buy_period) and (green_time != now_period) and (_1min_candles[-2] < 0)\
+                and (green_time < red_time) and (_1min_candles[green_index] <= abs(sum_red_sequence))
             # Put
-            vars_map.put(tangent_rsi_negative, 'tangent_rsi_negative')
-            vars_map.put(rsi, Map.rsi)
-            return tangent_rsi_negative
-
-        def is_1min_psar_switch_down(vars_map: Map) -> bool:
-            psar = list(marketprice_1min.get_psar())
-            psar.reverse()
-            psar_2_rising = MarketPrice.get_psar_trend(_1min_closes, psar, -2) == MarketPrice.PSAR_RISING
-            psar_1_dropping = MarketPrice.get_psar_trend(_1min_closes, psar, -1) == MarketPrice.PSAR_DROPPING
-            _1min_psar_switch_down = psar_1_dropping and psar_2_rising
-            vars_map.put(_1min_psar_switch_down, '1min_psar_switch_down')
-            vars_map.put(psar, '1min_psar')
-            return _1min_psar_switch_down
-
-        def is_1min_supertrend_switch_down(vars_map: Map) -> bool:
-            supertrend = list(marketprice_1min.get_super_trend())
-            supertrend.reverse()
-            supertrend_2_rising = MarketPrice.get_super_trend_trend(_1min_closes, supertrend, -2) == MarketPrice.SUPERTREND_RISING
-            supertrend_1_dropping = MarketPrice.get_super_trend_trend(_1min_closes, supertrend, -1) == MarketPrice.SUPERTREND_DROPPING
-            _1min_supertrend_switch_down = supertrend_1_dropping and supertrend_2_rising
-            vars_map.put(_1min_supertrend_switch_down, '1min_supertrend_switch_down')
-            vars_map.put(supertrend, '1min_supertrend')
-            return _1min_supertrend_switch_down
+            vars_map.put(_1min_red_sequence_above_green_candle, 'red_sequence_above_green_candle')
+            vars_map.put(_MF.unix_to_date(buy_period), 'red_sequence_above_green_buy_period')
+            vars_map.put(_MF.unix_to_date(green_time), 'red_sequence_above_green_green_date')
+            vars_map.put(_1min_candles[green_index], 'red_sequence_above_green_green_candle')
+            vars_map.put(_MF.unix_to_date(red_time), 'red_sequence_above_green_start_red_date')
+            vars_map.put(_MF.unix_to_date(_1min_open_times[red_end_index]), 'red_sequence_above_green_end_red_date')
+            vars_map.put(sum_red_sequence, 'red_sequence_above_green_sum_red_sequence')
+            vars_map.put(n_sequence, 'red_sequence_above_green_sequence_size')
+            return _1min_red_sequence_above_green_candle
 
         vars_map = Map()
         can_sell = False
@@ -464,37 +485,30 @@ class Icarus(TraderClass):
         marketprice_1min = get_marketprice(cls.get_min_period())
         _1min_closes = list(marketprice_1min.get_closes())
         _1min_closes.reverse()
+        _1min_opens = list(marketprice_1min.get_opens())
+        _1min_opens.reverse()
+        _1min_open_times = list(marketprice_1min.get_times())
+        _1min_open_times.reverse()
         # MarketPrice Xmin
         marketprice_5min = get_marketprice(cls.MARKETPRICE_BUY_LITTLE_PERIOD)
         marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
-        can_sell = (is_roi_above_trigger(vars_map) and is_tangent_rsi_negative(vars_map))\
-            or is_1min_psar_switch_down(vars_map)\
-                or is_1min_supertrend_switch_down(vars_map)
+        can_sell = is_1min_red_sequence_above_green_candle(vars_map)
         # Repport
-        rsi = vars_map.get(Map.rsi)
-        _1min_psar = vars_map.get('1min_psar')
-        _1min_supertrend = vars_map.get('1min_supertrend')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
-            f'{key}.tangent_rsi_negative': vars_map.get('tangent_rsi_negative'),
-            f'{key}.1min_psar_switch_down': vars_map.get('1min_psar_switch_down'),
-            f'{key}.1min_supertrend_switch_down': vars_map.get('1min_supertrend_switch_down'),
-
-            f'{key}.roi_trigger': ROI_TRIGGER,
-            f'{key}.max_roi': max_roi,
-            f'{key}.roi': roi,
+            f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
+            f'{key}.red_sequence_above_green_buy_period': vars_map.get('red_sequence_above_green_buy_period'),
+            f'{key}.red_sequence_above_green_green_date': vars_map.get('red_sequence_above_green_green_date'),
+            f'{key}.red_sequence_above_green_green_candle': vars_map.get('red_sequence_above_green_green_candle'),
+            f'{key}.red_sequence_above_green_start_red_date': vars_map.get('red_sequence_above_green_start_red_date'),
+            f'{key}.red_sequence_above_green_end_red_date': vars_map.get('red_sequence_above_green_end_red_date'),
+            f'{key}.red_sequence_above_green_sum_red_sequence': vars_map.get('red_sequence_above_green_sum_red_sequence'),
+            f'{key}.red_sequence_above_green_sequence_size': vars_map.get('red_sequence_above_green_sequence_size'),
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1],
-            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
-            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None,
-            f'{key}._1min_psar[-1]': _1min_psar[-1] if _1min_psar is not None else None,
-            f'{key}._1min_psar[-2]': _1min_psar[-2] if _1min_psar is not None else None,
-            f'{key}._1min_supertrend[-1]': _1min_supertrend[-1] if _1min_supertrend is not None else None,
-            f'{key}._1min_supertrend[-2]': _1min_supertrend[-2] if _1min_supertrend is not None else None
+            f'{key}.opens[-1]': opens[-1]
         }
         return can_sell, repport
 
