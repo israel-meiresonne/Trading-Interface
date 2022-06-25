@@ -756,13 +756,16 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
+        can_buy_indicator = is_price_switch_up(vars_map) and is_close_2_bellow_keltner_middle_2(vars_map)\
+            and is_min_close_bellow_min_keltner_middle(vars_map)
         # Repport
+        keltner_middle = vars_map.get('keltner_middle')
         min_keltner_middle = vars_map.get('min_keltner_middle')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+            f'{key}.close_2_bellow_keltner_middle_2': vars_map.get('close_2_bellow_keltner_middle_2'),
             f'{key}.min_close_bellow_min_keltner_middle': vars_map.get('min_close_bellow_min_keltner_middle'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
@@ -774,6 +777,7 @@ class Icarus(TraderClass):
             f'{key}.min_closes[-1]': min_closes[-1],
             f'{key}.min_opens[-1]': min_opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
             f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
         }
         return can_buy_indicator, repport
