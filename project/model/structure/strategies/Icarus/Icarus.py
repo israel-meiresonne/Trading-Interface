@@ -688,6 +688,8 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        N_CANDLE = 60
+        TRIGGER_CANDLE_CHANGE = 0.5/100
         def price_change(i: int, open_prices: list[float], close_prices: list[float]) -> float:
             n_open = len(open_prices)
             n_close = len(close_prices)
@@ -732,6 +734,16 @@ class Icarus(TraderClass):
             vars_map.put(keltner_middle, 'min_keltner_middle')
             return min_close_bellow_min_keltner_middle
 
+        def is_mean_candle_change_60_above_trigger(vars_map: Map) -> bool:
+            mean_candle_change = MarketPrice.mean_candle_variation(opens[-N_CANDLE:], closes[-N_CANDLE:])
+            # Check
+            mean_positive_candle = mean_candle_change.get(Map.positive, Map.mean)
+            mean_candle_change_60_above_trigger = mean_positive_candle >= TRIGGER_CANDLE_CHANGE
+            # Put
+            vars_map.put(mean_candle_change_60_above_trigger, 'mean_candle_change_60_above_trigger')
+            vars_map.put(mean_positive_candle, 'mean_candle_change_60_mean_positive_candle')
+            return mean_candle_change_60_above_trigger
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -756,8 +768,8 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map) and is_close_2_bellow_keltner_middle_2(vars_map)\
-            and is_min_close_bellow_min_keltner_middle(vars_map)
+        can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
+            and is_close_2_bellow_keltner_middle_2(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
         # Repport
         keltner_middle = vars_map.get('keltner_middle')
         min_keltner_middle = vars_map.get('min_keltner_middle')
@@ -765,12 +777,15 @@ class Icarus(TraderClass):
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+            f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.close_2_bellow_keltner_middle_2': vars_map.get('close_2_bellow_keltner_middle_2'),
             f'{key}.min_close_bellow_min_keltner_middle': vars_map.get('min_close_bellow_min_keltner_middle'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
             f'{key}.min_price_change_1': vars_map.get('min_price_change_1'),
+
+            f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
