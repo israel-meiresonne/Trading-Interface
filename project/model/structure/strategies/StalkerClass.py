@@ -565,10 +565,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             next_stalk = self.get_next_stalk()
             end_time = _MF.get_timestamp()
             keep_stalkig = self._keep_stalkig()
-            if not keep_stalkig:
-                continue
-            else:
-                try_sleep(next_stalk, end_time)
+            try_sleep(next_stalk, end_time) if keep_stalkig else None
         _MF.output(f"{_MF.prefix()}End Managing Stalking.") if self._DEBUG else None
 
     def _stalk_market(self, broker: Broker) -> None:
