@@ -1825,17 +1825,9 @@ class MarketPrice(ABC):
         Returns:
         --------
         return: Map
-            Map[Map.all][Map.mean]:         {float} # mean variation rate of all candle
-            Map[Map.all][Map.stdev]:        {float} # standard deviation of all candle
-            Map[Map.all][Map.number]:       {int}   # number of candle used
-            —
-            Map[Map.positive][Map.mean]:    {float} # mean variation rate of positive candle
-            Map[Map.positive][Map.stdev]:   {float} # standard deviation of positive candle
-            Map[Map.positive][Map.number]:  {int}   # number of candle used
-            —
-            Map[Map.negative][Map.mean]:    {float} # mean variation rate of negative candle
-            Map[Map.negative][Map.stdev]:   {float} # standard deviation of negative candle
-            Map[Map.negative][Map.number]:  {int}   # number of candle used
+            Map[Map.all | positive | negative][Map.mean]:   {float} # mean variation rate of all | positive | negative candle
+            Map[Map.all | positive | negative][Map.stdev]:  {float} # standard deviation of all | positive | negative candle
+            Map[Map.all | positive | negative][Map.number]: {int}   # number of candle used
         """
         def mean_candle(candles: np.ndarray, mean_type: int) -> Tuple[float, float]:
             result = None
