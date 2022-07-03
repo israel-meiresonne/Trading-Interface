@@ -479,10 +479,17 @@ class Icarus(TraderClass):
         self._reset_max_prices()
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
-        # Evaluate Buy
+        # Big
         big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self.get_marketprice(big_period)
-        can_buy, _ = self.can_buy(market_price, big_marketprice)
+        # little
+        little_period = Icarus.MARKETPRICE_BUY_LITTLE_PERIOD
+        little_marketprice = self.get_marketprice(little_period)
+        # min
+        min_period = Icarus.get_min_period()
+        min_marketprice = self.get_marketprice(min_period)
+        # Check
+        can_buy, buy_repport = self.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
         if can_buy:
             self._buy(executions)
             # self._secure_position(executions)
