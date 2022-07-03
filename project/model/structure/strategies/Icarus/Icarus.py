@@ -506,6 +506,7 @@ class Icarus(TraderClass):
         var_param = vars().copy()
         del var_param['self']
         self.save_move(**var_param)
+        self.save_sell_conditions(repport)
         return executions
 
     # ——————————————————————————————————————————— FUNCTION TRY BUY/SELL UP —————————————————————————————————————————————
@@ -1315,5 +1316,28 @@ class Icarus(TraderClass):
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
         })
         self._print_move(params_map)
+
+    def save_sell_conditions(self, sell_condition: dict) -> None:
+        """
+        To save sell conditions
+
+        Parameters:
+        -----------
+        repport: dict
+            Datas to print
+        """
+        pair = self.get_pair()
+        to_print = {
+           Map.id: self.get_id(),
+           'class': self.__class__.__name__,
+           'nb_trade': self.get_nb_trade(),
+           Map.pair: pair,
+           Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+           **sell_condition
+        }
+        path = Config.get(Config.DIR_SAVE_SELL_CONDITIONS).replace('$pair', pair.format(Pair.FORMAT_UNDERSCORE).upper())
+        fields = list(to_print.keys())
+        rows = [to_print]
+        FileManager.write_csv(path, fields, rows, overwrite=False, make_dir=True)
 
     # ——————————————————————————————————————————— STATIC FUNCTION UP ———————————————————————————————————————————————————
