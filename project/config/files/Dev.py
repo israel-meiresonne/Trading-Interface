@@ -33,6 +33,7 @@ class Dev:
     DIR_SAVE_GLOBAL_MOVES = f'{DIR_SAVE_DATAS}{SESSION_ID}_fb_$class_moves.csv'
     DIR_SAVE_CAPITAL = f'{DIR_SAVE_DATAS}{SESSION_ID}_g_capital_$pair.csv'
     DIR_SAVE_MOVES = f'{DIR_SAVE_DATAS}{SESSION_ID}_h_moves_$pair.csv'
+    DIR_SAVE_SELL_CONDITIONS = f'{DIR_SAVE_DATAS}{SESSION_ID}_ha_sell_conditions_$pair.csv'
     DIR_SAVE_ORDER_ACTIONS = f'{DIR_SAVE_DATAS}{SESSION_ID}_j_order_updates_$pair.csv'
     DIR_SAVE_PERIOD_RANKING = f'{DIR_SAVE_DATAS}{SESSION_ID}_k_period_ranking_$pair.csv'
     DIR_END_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_z————————————————————.csv'
@@ -96,6 +97,7 @@ class Dev:
         Dev.DIR_SAVE_GLOBAL_MOVES =         Dev.DIR_SAVE_GLOBAL_MOVES.replace(old, new)
         Dev.DIR_SAVE_CAPITAL =              Dev.DIR_SAVE_CAPITAL.replace(old, new)
         Dev.DIR_SAVE_MOVES =                Dev.DIR_SAVE_MOVES.replace(old, new)
+        Dev.DIR_SAVE_SELL_CONDITIONS =      Dev.DIR_SAVE_SELL_CONDITIONS.replace(old, new)
         Dev.DIR_SAVE_ORDER_ACTIONS =        Dev.DIR_SAVE_ORDER_ACTIONS.replace(old, new)
         Dev.DIR_SAVE_PERIOD_RANKING =       Dev.DIR_SAVE_PERIOD_RANKING.replace(old, new)
         Dev.DIR_END_BACKUP =                Dev.DIR_END_BACKUP.replace(old, new)
