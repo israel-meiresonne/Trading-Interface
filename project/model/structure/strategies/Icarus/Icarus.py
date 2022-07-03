@@ -484,7 +484,6 @@ class Icarus(TraderClass):
         big_marketprice = self.get_marketprice(big_period)
         can_buy, _ = self.can_buy(market_price, big_marketprice)
         if can_buy:
-            # self._set_max_close_predicted(predictor_marketprice=predictor_marketprice)
             self._buy(executions)
             # self._secure_position(executions)
         # Save
@@ -499,48 +498,11 @@ class Icarus(TraderClass):
         :param market_price: market prices
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
-        def is_new_prediction_higher(old_close: float, new_close) -> bool:
-            return new_close > old_close
-
-        def is_occupation_trigger_reached() -> bool:
-            occup_trigger = self.get_prediction_occupation_secure_trigger()
-            occupation = self.prediction_max_occupation(market_price)
-            return occupation >= occup_trigger
-
-        def is_max_price_higher(old_max_price: float, new_max_price: float) -> bool:
-            return new_max_price > old_max_price
-
-        def is_secure_is_max_loss() -> bool:
-            buy_odr = self.get_buy_order()
-            secure_odr = self._get_secure_order()
-            return secure_odr.get_limit_price().get_value() < buy_odr.get_execution_price().get_value()
         """
-
         executions = Map()
-        # max_close_pred = self.get_max_close_predicted()
-        # old_max_price = self.get_max_prices()[-1]
-        # Evaluate Sell
         can_sell, repport = self.can_sell(market_price)
         if can_sell:
             self._sell(executions)
-        # else:
-        #     new_max_close_pred = self.get_max_close_predicted()
-        #     new_prediction_higher = is_new_prediction_higher(max_close_pred, new_max_close_pred)
-        #     occup_trigger_reached = is_occupation_trigger_reached()
-        #     # secure_is_max_loss = is_secure_is_max_loss()
-        #     has_secure_odr = isinstance(self._get_secure_order(), Order)
-        #     max_price_higher = is_max_price_higher(old_max_price, new_max_price=self.get_max_price(market_price))
-        #     # elif secure_is_max_loss and occup_trigger_reached:
-        #     if (not has_secure_odr) and occup_trigger_reached:
-        #         # Move up occupation secure
-        #         self._secure_position(executions)
-        #     elif has_secure_odr and occup_trigger_reached and new_prediction_higher:
-        #         # Move up occupation secure if new prediction and occup trigger reached
-        #         self._move_up_secure_order(executions)
-        #     elif has_secure_odr and occup_trigger_reached and max_price_higher:
-        #         # Move up occupation secure
-        #         self._move_up_secure_order(executions)
-        # Save
         var_param = vars().copy()
         del var_param['self']
         self.save_move(**var_param)
@@ -1322,8 +1284,6 @@ class Icarus(TraderClass):
         has_position = self._has_position()
         closes = list(market_price.get_closes())
         closes.reverse()
-        rsis = list(market_price.get_rsis())
-        rsis.reverse()
         secure_odr = self._get_secure_order()
         roi_position = self.get_roi_position()
         max_roi = self.max_roi(market_price)
@@ -1333,50 +1293,8 @@ class Icarus(TraderClass):
         """
         can buy
         """
-        # Psar Rsi
-        psar_rsis = list(market_price.get_psar_rsis())
-        psar_rsis.reverse()
-        # Supertrend
-        supertrends = list(market_price.get_super_trend())
-        supertrends.reverse()
-        # Psar
-        psars = list(market_price.get_psar())
-        psars.reverse()
-        # Keltner Buy
-        klc = market_price.get_keltnerchannel()
-        klc_highs = list(klc.get(Map.high))
-        klc_highs.reverse()
-        # MACD
-        macd_map = market_price.get_macd()
-        macds = list(macd_map.get(Map.macd))
-        macds.reverse()
-        signals = list(macd_map.get(Map.signal))
-        signals.reverse()
-        histograms = list(macd_map.get(Map.histogram))
-        histograms.reverse()
-        # EMA
-        ema = list(market_price.get_ema(self.EMA_N_PERIOD))
-        ema.reverse()
-        # # Prediction
+        # Prediction
         buy_price = self.get_buy_order().get_execution_price() if has_position else None
-        # max_close_predicted = self.get_max_close_predicted()
-        # max_close_predicted = self._predict_max_high(predictor_marketprice, self.get_predictor()) if max_close_predicted is None else max_close_predicted
-        # max_roi_predicted = self.max_roi_predicted()
-        # real_max_roi_predicted = self.real_max_roi_predicted()
-        # prediction_occupation_rate = self.get_prediction_occupation_rate()
-        # prediction_strigger = self.get_min_roi_predicted()
-        # if max_roi_predicted is None:
-        #     max_roi_predicted = _MF.progress_rate(max_close_predicted, closes[-1])
-        # max_close_predicted_list = self.get_max_close_predicted_list()
-        # max_roi_predicted_max = None
-        # max_roi_predicted_min = None
-        # n_prediction = len(max_close_predicted_list) if max_close_predicted_list is not None else -1
-        # if has_position and (n_prediction > 0):
-        #     max_roi_predicted_max = _MF.progress_rate(max(max_close_predicted_list), buy_price.get_value())
-        #     max_roi_predicted_min = _MF.progress_rate(min(max_close_predicted_list), buy_price.get_value())
-        # occup_trigger = self.get_prediction_occupation_secure_trigger()
-        # max_occupation = self.prediction_max_occupation(market_price) if has_position else None
-        # occup_reduce_rate = self.get_prediction_occupation_reduce()
         # Map to print
         params_map = Map({
             Map.time: _MF.unix_to_date(market_price.get_time()),
@@ -1387,55 +1305,14 @@ class Icarus(TraderClass):
             'buy_price': buy_price,
             'max_price_id': max_price_id,
             'max_price': max_price,
-            # 'max_close_predicted': max_close_predicted,
             'secure_odr_prc': secure_odr.get_limit_price() if secure_odr is not None else secure_odr,
             'max_loss': _MF.rate_to_str(max_loss),
-            # 'prediction_strigger': _MF.rate_to_str(prediction_strigger),
-            # 'occup_trigger': _MF.rate_to_str(occup_trigger),
-            # 'occup_reduce_rate': _MF.rate_to_str(occup_reduce_rate),
             'has_position': has_position,
             'can_buy': args_map.get('can_buy'),
             'can_sell': args_map.get('can_sell'),
-            # 'indicator_buy': self._can_buy_indicator(market_price)[0],
-            # 'indicator_sell': self._can_sell_indicator(market_price) if has_position else None,
-            Map.rsi: rsis[-1],
-            'rsis[-2]': rsis[-2],
-            'rsis[-3]': rsis[-3],
-            'psar_rsis': psar_rsis[-1],
-            'psar_rsis[-2]': psar_rsis[-2],
-            'psar_rsis[-3]': psar_rsis[-3],
-            'max_rsi': self.get_max_rsi(market_price),
-            # 'max_occupation': _MF.rate_to_str(max_occupation) if has_position else None,
             'roi_position': _MF.rate_to_str(roi_position) if has_position else None,
             Map.roi: _MF.rate_to_str(roi),
             'max_roi': _MF.rate_to_str(max_roi) if has_position else max_roi,
-            # 'max_roi_predicted': _MF.rate_to_str(max_roi_predicted) if max_roi_predicted is not None else max_roi_predicted,
-            # 'max_roi_predicted_max': _MF.rate_to_str(max_roi_predicted_max) if max_roi_predicted_max is not None else max_roi_predicted_max,
-            # 'max_roi_predicted_min': _MF.rate_to_str(max_roi_predicted_min) if max_roi_predicted_min is not None else max_roi_predicted_min,
-            # 'n_prediction': n_prediction,
-            # 'real_max_roi_predicted': _MF.rate_to_str(real_max_roi_predicted) if real_max_roi_predicted is not None else real_max_roi_predicted,
-            # 'prediction_occupation_rate': _MF.rate_to_str(prediction_occupation_rate),
-            'supertrends[-1]': supertrends[-1],
-            'supertrends[-2]': supertrends[-2],
-            'supertrends[-3]': supertrends[-3],
-            'psars[-1]': psars[-1],
-            'psars[-2]': psars[-2],
-            'psars[-3]': psars[-3],
-            'klc_highs[-1]': klc_highs[-1],
-            'klc_highs[-2]': klc_highs[-2],
-            'klc_highs[-3]': klc_highs[-3],
-            'macds[-1]': macds[-1],
-            'macds[-2]': macds[-2],
-            'macds[-3]': macds[-3],
-            'signals[-1]': signals[-1],
-            'signals[-2]': signals[-2],
-            'signals[-3]': signals[-3],
-            'histograms[-1]': histograms[-1],
-            'histograms[-2]': histograms[-2],
-            'histograms[-3]': histograms[-3],
-            'ema[-1]': ema[-1],
-            'ema[-2]': ema[-2],
-            'ema[-3]': ema[-3]
         })
         self._print_move(params_map)
 
