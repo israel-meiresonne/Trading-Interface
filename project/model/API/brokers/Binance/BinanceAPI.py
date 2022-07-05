@@ -422,7 +422,7 @@ class BinanceAPI(ABC):
     # API Constants
     _CONSTANT_DEFAULT_API_KEY_PUBLIC = Config.get(Config.API_KEY_BINANCE_PUBLIC)
     _CONSTANT_DEFAULT_API_KEY_SECRET = Config.get(Config.API_KEY_BINANCE_SECRET)
-    _CONSTANT_DEFAULT_RECVWINDOW = 20 * 1000    # 20 milli-sec.
+    _CONSTANT_DEFAULT_RECVWINDOW = 5000 + 1000
     _CONSTANT_KLINES_DEFAULT_NB_PERIOD = 500
     _EXCHANGE_INFOS = None
     _TRADE_FEES = None
@@ -800,10 +800,10 @@ class BinanceAPI(ABC):
         params: Map
             Request's params to send
         """
-        stamp = _MF.get_timestamp(_MF.TIME_MILLISEC) - 10000
+        stamp = _MF.get_timestamp(_MF.TIME_MILLISEC) - 1000
         params.put(stamp, Map.timestamp)
         time_out = params.get(Map.recvWindow)
-        new_time_out = time_out + 10000 if time_out is not None else BinanceAPI._CONSTANT_DEFAULT_RECVWINDOW
+        new_time_out = time_out + 1000 if time_out is not None else BinanceAPI._CONSTANT_DEFAULT_RECVWINDOW
         params.put(new_time_out, Map.recvWindow)
         sgt = BinanceAPI._generate_signature(api_keys, params.get_map())
         params.put(sgt, Map.signature)
