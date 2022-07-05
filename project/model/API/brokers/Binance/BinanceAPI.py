@@ -24,6 +24,7 @@ class BinanceAPI(ABC):
     ORDER_TEST_PATH = "/api/v3/order/test"
     ORDER_REAL_PATH = "/api/v3/order"
     # Requests Infos (VIP)
+    RQ_API_TIME = "RQ_API_TIME"
     RQ_SYS_STATUS = "RQ_SYS_STATUS"
     RQ_EXCHANGE_INFOS = "RQ_EXCHANGE_INFOS"
     RQ_ACCOUNT_SNAP = "RQ_ACCOUNT_SNAP"
@@ -44,6 +45,7 @@ class BinanceAPI(ABC):
     RQ_ORDER_TAKE_PROFIT_LIMIT = "RQ_ORDER_TAKE_PROFIT_LIMIT"
     RQ_ORDER_LIMIT_MAKER = "RQ_ORDER_LIMIT_MAKER"
     _VIP_REQUESTS = [
+        RQ_API_TIME,
         RQ_SYS_STATUS,
         RQ_EXCHANGE_INFOS, 
         RQ_ACCOUNT_SNAP,
@@ -53,6 +55,14 @@ class BinanceAPI(ABC):
     # Configs
     __PATH_ORDER = None
     _RQ_CONF = {
+        RQ_API_TIME: {
+            Map.signed: False,
+            Map.method: Map.GET,
+            Map.path: "/api/v3/time",
+            Map.weight: 1,
+            Map.mandatory: [],
+            Map.params: []
+        },
         RQ_SYS_STATUS: {
             Map.signed: False,
             Map.method: Map.GET,
@@ -789,8 +799,8 @@ class BinanceAPI(ABC):
         qr_str = "&".join([f"{k}={params[k]}" for k in params])
         return new_hmac(api_keys.get(Map.secret).encode('utf-8'), qr_str.encode('utf-8'), hashlib_sha256).hexdigest()
 
-    @staticmethod
-    def _sign(api_keys: Map, params: Map) -> None:
+    @classmethod
+    def _sign(cls, api_keys: Map, params: Map) -> None:
         """
         To sign the request with the private key and params\n
         Parameters
@@ -800,13 +810,22 @@ class BinanceAPI(ABC):
         params: Map
             Request's params to send
         """
-        stamp = _MF.get_timestamp(_MF.TIME_MILLISEC) - 1000
+        stamp = cls._get_api_time()
         params.put(stamp, Map.timestamp)
         time_out = params.get(Map.recvWindow)
-        new_time_out = time_out + 1000 if time_out is not None else BinanceAPI._CONSTANT_DEFAULT_RECVWINDOW
+        new_time_out = time_out if time_out is not None else cls._CONSTANT_DEFAULT_RECVWINDOW
         params.put(new_time_out, Map.recvWindow)
-        sgt = BinanceAPI._generate_signature(api_keys, params.get_map())
-        params.put(sgt, Map.signature)
+        signature = cls._generate_signature(api_keys, params.get_map())
+        params.put(signature, Map.signature)
+
+    @classmethod
+    def _get_api_time(cls) -> int:
+        """
+        To get API's unix time in millisecond
+        """
+        broker_rsp = BinanceAPI._send_local_request(False, cls.RQ_API_TIME, Map())
+        api_time = int(broker_rsp.get_content()[Map.serverTime])
+        return api_time
 
     @staticmethod
     def request_api(test_mode: bool, public_key: str, secret_key: str, rq: str, params: Map) -> BrokerResponse:
@@ -836,7 +855,7 @@ class BinanceAPI(ABC):
         BinanceAPI._check_params(rq, params)
         # Generate
         rq_kline_time_set = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
-        rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE]
+        rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE, BinanceAPI.RQ_API_TIME]
         if (_stage == Config.STAGE_1) or ((_stage == Config.STAGE_2) and (rq not in rq_excluded)):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             response = BinanceFakeAPI.steal_request(rq, params)

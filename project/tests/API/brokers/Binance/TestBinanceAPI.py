@@ -2,7 +2,9 @@ import unittest
 
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
+from model.tools.Pair import Pair
 
 
 class TestBinanceAPI(unittest.TestCase, BinanceAPI):
@@ -141,6 +143,27 @@ class TestBinanceAPI(unittest.TestCase, BinanceAPI):
 
     def test_will_pass_filter(self) -> None:
         raise Exception("Must implement this test")
+
+    def test_get_api_time(self) -> None:
+        init_stage = Config.get(Config.STAGE_MODE)
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
+        # Stage 1
+        exp1 = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+        result1 = self._get_api_time()
+        self.assertTrue(0 <= (result1 - exp1) < 1000)
+        # Stage 2
+        Config.update(Config.STAGE_MODE, Config.STAGE_2)
+        exp2 = self._get_api_time()
+        self.assertIsInstance(_MF.unix_to_date(exp2/1000, form=_MF.FORMAT_D_H_M_S_MS), str)
+        # Stage 3
+        Config.update(Config.STAGE_MODE, Config.STAGE_3)
+        exp3 = self._get_api_time()
+        self.assertIsInstance(_MF.unix_to_date(exp3/1000, form=_MF.FORMAT_D_H_M_S_MS), str)
+        # Test if sign work
+        fees = self.get_trade_fee(Pair('BTC/USDT'))
+        self.assertIsInstance(fees, Map)
+        # End
+        Config.update(Config.STAGE_MODE, init_stage)
 
 
 if __name__ == "__main__":
