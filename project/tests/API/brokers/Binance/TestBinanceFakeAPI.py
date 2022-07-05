@@ -420,6 +420,13 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
             result = _cls.get_file_path(dir_path)
             self.assertEqual(exp, result)
 
+    def test_request_api_time(self) -> None:
+        _cls = BinanceFakeAPI
+        exp1 = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+        result1 = _cls._request_api_time()
+        self.assertIsInstance(result1[Map.serverTime], int)
+        self.assertTrue(0 <= (result1[Map.serverTime] - exp1) < 1000)
+
     def test_request_exchange_infos(self) -> None:
         _cls = BinanceFakeAPI
         infos = _cls._request_exchange_infos()

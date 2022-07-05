@@ -644,7 +644,9 @@ class BinanceFakeAPI(BinanceAPI):
             if stage != Config.STAGE_1 and stage != Config.STAGE_2
         """
         _cls = BinanceFakeAPI
-        if request == _cls.RQ_EXCHANGE_INFOS:
+        if request == _cls.RQ_API_TIME:
+            datas = _cls._request_api_time()
+        elif request == _cls.RQ_EXCHANGE_INFOS:
             datas = _cls._request_exchange_infos()
         elif request == _cls.RQ_TRADE_FEE:
             datas = _cls._request_trade_fees()
@@ -667,8 +669,15 @@ class BinanceFakeAPI(BinanceAPI):
         response.status_code = 200
         response._content = _MF.json_encode(datas).encode()
         response.request = params
-        # _cls._save_log(request, params)
         return BrokerResponse(response)
+
+    @classmethod
+    def _request_api_time(cls) -> dict:
+        """
+        To get fake API's unix time in millisecond
+        """
+        api_time = {Map.serverTime: _MF.get_timestamp(unit=_MF.TIME_MILLISEC)}
+        return api_time
 
     @staticmethod
     def _request_exchange_infos() -> dict:
