@@ -200,6 +200,27 @@ class IcarusStalker(StalkerClass):
         return self._allowed_pairs
 
     @classmethod
+    def _sort_stalk_marketprices(cls, marketprices: List[MarketPrice]) -> List[MarketPrice]:
+        pair_to_variation = {}
+        pair_to_marketprice = {}
+        n_candle = cls.CHILD_STRATEGY.CANDLE_CHANGE_N_CANDLE
+        # Get variation
+        for marketprice in marketprices:
+            closes = list(marketprice.get_closes())
+            closes.reverse()
+            opens = list(marketprice.get_opens())
+            opens.reverse()
+            pair_str = marketprice.get_pair().__str__()
+            mean_candle_variation = MarketPrice.mean_candle_variation(opens[-n_candle:], closes[-n_candle:])
+            positive_variation = mean_candle_variation.get(Map.positive, Map.mean)
+            pair_to_variation[pair_str] = positive_variation
+            pair_to_marketprice[pair_str] = marketprice
+        # Sort MarketPrice
+        pair_to_variation_sorted = dict(sorted(pair_to_variation.items(), key=lambda row: row[1], reverse=True))
+        new_marketprices = [pair_to_marketprice[pair_str] for pair_str in pair_to_variation_sorted]
+        return new_marketprices
+
+    @classmethod
     def generate_strategy(cls, stg_class: str, params: Map) -> 'IcarusStalker':
         pair = params.get(Map.pair)
         maximum = params.get(Map.maximum)

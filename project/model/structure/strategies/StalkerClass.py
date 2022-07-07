@@ -565,10 +565,7 @@ class StalkerClass(Strategy, MyJson, ABC):
             next_stalk = self.get_next_stalk()
             end_time = _MF.get_timestamp()
             keep_stalkig = self._keep_stalkig()
-            if not keep_stalkig:
-                continue
-            else:
-                try_sleep(next_stalk, end_time)
+            try_sleep(next_stalk, end_time) if keep_stalkig else None
         _MF.output(f"{_MF.prefix()}End Managing Stalking.") if self._DEBUG else None
 
     def _stalk_market(self, broker: Broker) -> None:
@@ -637,20 +634,21 @@ class StalkerClass(Strategy, MyJson, ABC):
         stalk_period = self.get_period()
         n_pair = len(pairs)
         repports = []
+        max_reached = self.max_active_strategies_reached()
+        marketprices = [self._get_market_price(broker, pair, stalk_period) for pair in pairs] if not max_reached else []
+        marketprices = self._sort_stalk_marketprices(marketprices) if len(marketprices) > 0 else marketprices
         i = 1
-        for pair in pairs:
-            max_not_reached = not self.max_active_strategies_reached()
-            eligible = False
-            if max_not_reached:
-                marketprice = self._get_market_price(broker, pair, stalk_period)
-                eligible, repport = self._eligible(marketprice, broker)
-                repports.append(repport)
-            _MF.output(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible: {eligible}" + _normal) if self._VERBOSE else None
-            if max_not_reached and eligible:
+        for marketprice in marketprices:
+            pair = marketprice.get_pair()
+            eligible, repport = self._eligible(marketprice, broker)
+            repports.append(repport)
+            _MF.output(pfx() + _cyan + f"[{i}/{n_pair}]Pair '{pair.__str__().upper()}' eligible?: {eligible}" + _normal) if self._VERBOSE else None
+            if eligible:
                 self._add_active_strategy(pair)
                 _MF.output(pfx() + _green + f"Add new Strategy: '{pair.__str__().upper()}'" + _normal) if self._DEBUG else None
-            if self.max_active_strategies_reached():
-                break
+                max_reached = self.max_active_strategies_reached()
+                if max_reached:
+                    break
             i += 1
         self._save_market_stalk(repports)
 
@@ -942,6 +940,23 @@ class StalkerClass(Strategy, MyJson, ABC):
             Number of thread through which to stalk market
         """
         return StalkerClass._STALK_N_THREAD
+
+    @classmethod
+    def _sort_stalk_marketprices(cls, marketprices: List[MarketPrice]) -> List[MarketPrice]:
+        """
+        To sort MarketPrice to stalk
+
+        Parameters:
+        -----------
+        marketprices: List[MarketPrice]
+            List of MarketPrice to sort
+
+        Returns:
+        --------
+        return: List[MarketPrice]
+            New list of sorted MarketPrice
+        """
+        return marketprices.copy()
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
