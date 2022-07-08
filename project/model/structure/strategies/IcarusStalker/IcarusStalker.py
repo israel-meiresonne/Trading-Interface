@@ -144,11 +144,14 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
             f'{key}.price_switch_up': None,
+            f'{key}.mean_candle_change_60_above_trigger': None,
             f'{key}.min_close_bellow_min_keltner_middle': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
             f'{key}.min_price_change_1': None,
+
+            f'{key}.mean_candle_change_60_mean_positive_candle': None,
 
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
