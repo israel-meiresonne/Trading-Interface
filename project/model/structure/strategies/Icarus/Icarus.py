@@ -411,69 +411,20 @@ class Icarus(TraderClass):
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
-
-        def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
-            def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
-                green_index = None
-                i = candles.shape[0] - 1
-                while i > 0:
-                    if candles[i] > 0:
-                        green_index = i
-                        break
-                    i = candle_swings[i][0]
-                    i -= 1
-                return green_index
-
-            def get_last_red_sequence_index(candles: np.ndarray, candle_swings: List[int]) -> int:
-                red_sequence_index = None
-                i = candles.shape[0] - 1
-                while i > 0:
-                    if candles[i] < 0:
-                        red_sequence_index = candle_swings[i][0]
-                        break
-                    i = candle_swings[i][0]
-                    i -= 1
-                return red_sequence_index
-
-            _1min_candles = np.array(_1min_closes) - np.array(_1min_opens)
-            zeros = np.zeros(_1min_candles.shape[0], dtype=int)
-            candle_swings = _MF.group_swings(_1min_candles, zeros)
-            # Get index
-            green_index = get_last_green_candle_index(_1min_candles, candle_swings)
-            red_start_index = get_last_red_sequence_index(_1min_candles, candle_swings)
-            red_end_index = candle_swings[red_start_index][1]
-            # Get times
-            buy_time = max(cls.get_buy_times(pair))
-            buy_period = _MF.round_time(buy_time, marketprice_1min.get_period_time())
-            green_time = _1min_open_times[green_index]
-            red_time = _1min_open_times[red_start_index]
-            now_period = _1min_open_times[-1]
-            # Price
-            red_sequence = _1min_candles[red_start_index:red_end_index+1]
-            n_negative = sum([1 for v in red_sequence if v < 0])
-            n_sequence = len(red_sequence)
-            if n_negative != n_sequence:
-                raise Exception(f"Red sequence must contain negative value only, instead neg='{n_negative}' & size='{n_sequence}'")
-            sum_red_sequence = sum(red_sequence)
+        def is_histogram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
             # Check
-            _1min_red_sequence_above_green_candle = (green_time >= buy_period) and (green_time != now_period) and (_1min_candles[-2] < 0)\
-                and (green_time < red_time) and (_1min_candles[green_index] <= abs(sum_red_sequence))
+            histogram_negative = histogram[-1] < 0
             # Put
-            vars_map.put(_1min_red_sequence_above_green_candle, 'red_sequence_above_green_candle')
-            vars_map.put(_MF.unix_to_date(buy_period), 'red_sequence_above_green_buy_period')
-            vars_map.put(_MF.unix_to_date(green_time), 'red_sequence_above_green_green_date')
-            vars_map.put(_1min_candles[green_index], 'red_sequence_above_green_green_candle')
-            vars_map.put(_MF.unix_to_date(red_time), 'red_sequence_above_green_start_red_date')
-            vars_map.put(_MF.unix_to_date(_1min_open_times[red_end_index]), 'red_sequence_above_green_end_red_date')
-            vars_map.put(sum_red_sequence, 'red_sequence_above_green_sum_red_sequence')
-            vars_map.put(n_sequence, 'red_sequence_above_green_sequence_size')
-            return _1min_red_sequence_above_green_candle
+            vars_map.put(histogram_negative, 'histogram_negative')
+            vars_map.put(histogram, Map.histogram)
+            return histogram_negative
 
         vars_map = Map()
         can_sell = False
         # Vars
-        roi = datas[Map.roi]
-        max_roi = datas[Map.maximum]
         # MarketPrice
         pair = marketprice.get_pair()
         period = marketprice.get_period_time()
@@ -492,22 +443,17 @@ class Icarus(TraderClass):
         # MarketPrice Xmin
         marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
-        can_sell = is_1min_red_sequence_above_green_candle(vars_map)
+        can_sell = is_histogram_negative(vars_map)
         # Repport
+        histogram = vars_map.get(Map.histogram)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
-            f'{key}.red_sequence_above_green_buy_period': vars_map.get('red_sequence_above_green_buy_period'),
-            f'{key}.red_sequence_above_green_green_date': vars_map.get('red_sequence_above_green_green_date'),
-            f'{key}.red_sequence_above_green_green_candle': vars_map.get('red_sequence_above_green_green_candle'),
-            f'{key}.red_sequence_above_green_start_red_date': vars_map.get('red_sequence_above_green_start_red_date'),
-            f'{key}.red_sequence_above_green_end_red_date': vars_map.get('red_sequence_above_green_end_red_date'),
-            f'{key}.red_sequence_above_green_sum_red_sequence': vars_map.get('red_sequence_above_green_sum_red_sequence'),
-            f'{key}.red_sequence_above_green_sequence_size': vars_map.get('red_sequence_above_green_sequence_size'),
-
+            f'{key}.histogram_negative': vars_map.get('histogram_negative'),
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1]
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None
         }
         return can_sell, repport
 
@@ -654,61 +600,16 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        N_CANDLE = 60
-        TRIGGER_CANDLE_CHANGE = 0.5/100
-        def price_change(i: int, open_prices: list[float], close_prices: list[float]) -> float:
-            n_open = len(open_prices)
-            n_close = len(close_prices)
-            if n_open != n_close:
-                raise ValueError(f"Price lists must have  the same size, instead '{n_open}'!='{n_close}' (open!=close)")
-            return close_prices[i] - open_prices[i]
-
-        def is_price_switch_up(vars_map: Map) -> bool:
+        def is_histogram_switch_positive(vars_map: Map) -> bool:
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
             # Check
-            price_change_1 = price_change(-1, opens, closes)
-            price_change_2 = price_change(-2, opens, closes)
-            min_price_change_1 = price_change(-1, min_opens, min_closes)
-            price_switch_up = (price_change_2 < 0) and (price_change_1 > abs(price_change_2)) and (min_price_change_1 > 0)
+            histogram_switch_positive = (histogram[-1] > 0) and (histogram[-2] < 0)
             # Put
-            vars_map.put(price_switch_up, 'price_switch_up')
-            vars_map.put(price_change_1, 'price_change_1')
-            vars_map.put(price_change_2, 'price_change_2')
-            vars_map.put(min_price_change_1, 'min_price_change_1')
-            return price_switch_up
-
-        def is_close_2_bellow_keltner_middle_2(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            keltner = child_marketprice.get_keltnerchannel()
-            keltner_middle = list(keltner.get(Map.middle))
-            keltner_middle.reverse()
-            # Check
-            close_2_bellow_keltner_middle_2 = closes[-2] < keltner_middle[-2]
-            # Put
-            vars_map.put(close_2_bellow_keltner_middle_2, 'close_2_bellow_keltner_middle_2')
-            vars_map.put(keltner_middle, 'keltner_middle')
-            return close_2_bellow_keltner_middle_2
-
-        def is_min_close_bellow_min_keltner_middle(vars_map: Map) -> bool:
-            min_marketprice.reset_collections()
-            keltner = min_marketprice.get_keltnerchannel()
-            keltner_middle = list(keltner.get(Map.middle))
-            keltner_middle.reverse()
-            # Check
-            min_close_bellow_min_keltner_middle = min_closes[-1] < keltner_middle[-1]
-            # Put
-            vars_map.put(min_close_bellow_min_keltner_middle, 'min_close_bellow_min_keltner_middle')
-            vars_map.put(keltner_middle, 'min_keltner_middle')
-            return min_close_bellow_min_keltner_middle
-
-        def is_mean_candle_change_60_above_trigger(vars_map: Map) -> bool:
-            mean_candle_change = MarketPrice.mean_candle_variation(opens[-N_CANDLE:], closes[-N_CANDLE:])
-            # Check
-            mean_positive_candle = mean_candle_change.get(Map.positive, Map.mean)
-            mean_candle_change_60_above_trigger = mean_positive_candle >= TRIGGER_CANDLE_CHANGE
-            # Put
-            vars_map.put(mean_candle_change_60_above_trigger, 'mean_candle_change_60_above_trigger')
-            vars_map.put(mean_positive_candle, 'mean_candle_change_60_mean_positive_candle')
-            return mean_candle_change_60_above_trigger
+            vars_map.put(histogram_switch_positive, 'histogram_switch_positive')
+            vars_map.put(histogram, Map.histogram)
+            return histogram_switch_positive
 
         vars_map = Map()
         # Child
@@ -734,32 +635,20 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
-            and is_close_2_bellow_keltner_middle_2(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
+        can_buy_indicator = is_histogram_switch_positive(vars_map)
         # Repport
-        keltner_middle = vars_map.get('keltner_middle')
-        min_keltner_middle = vars_map.get('min_keltner_middle')
+        histogram = vars_map.get(Map.histogram)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
-            f'{key}.price_switch_up': vars_map.get('price_switch_up'),
-            f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
-            f'{key}.close_2_bellow_keltner_middle_2': vars_map.get('close_2_bellow_keltner_middle_2'),
-            f'{key}.min_close_bellow_min_keltner_middle': vars_map.get('min_close_bellow_min_keltner_middle'),
-
-            f'{key}.price_change_1': vars_map.get('price_change_1'),
-            f'{key}.price_change_2': vars_map.get('price_change_2'),
-            f'{key}.min_price_change_1': vars_map.get('min_price_change_1'),
-
-            f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
-
+            f'{key}.histogram_switch_positive': vars_map.get('histogram_switch_positive'),
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
             f'{key}.min_closes[-1]': min_closes[-1],
             f'{key}.min_opens[-1]': min_opens[-1],
             f'{key}.big_closes[-1]': big_closes[-1],
-            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
-            f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None
         }
         return can_buy_indicator, repport
 
