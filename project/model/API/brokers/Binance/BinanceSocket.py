@@ -945,6 +945,7 @@ class BinanceSocket(BinanceAPI):
                                 Map.stop: run_stopped
                                 })
                 self._delete_streams(new_streams)
+                self.add_new_streams(new_streams)
                 return None
             # Close last WebSocket
             last_ws = get_last_websocket()
