@@ -316,7 +316,7 @@ class BinanceSocket(BinanceAPI):
             is_success = (status_code is not None) and (status_code == 200)
         except Exception as error:
             _MF.output(_MF.prefix() + '\033[31m' +
-                  "Network error when getting market history" + '\033[0m')
+                  f"Network error when getting market history for stream '{stream}'" + '\033[0m')
             from model.structure.Bot import Bot
             Bot.save_error(error, BinanceSocket.__name__)
             if raise_error:
