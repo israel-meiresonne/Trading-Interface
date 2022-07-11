@@ -520,14 +520,14 @@ class BinanceSocket(BinanceAPI):
 
     def _load_streams(self) -> list:
         """
-        To prepare streams to add in WebSocket
-        1. push this.new_streams in this.streams
-        2. reset this.new_streams
+        To load new streams to open in list of opened stream
+        1. Push this.new_streams in this.streams
+        2. Empty this.new_streams
 
         Returns:
         --------
         return: list
-            List of new streams pushed in this.new_streams
+            List of streams loaded
         """
         new_streams = self.get_new_streams().copy()
         self._reset_new_streams()
