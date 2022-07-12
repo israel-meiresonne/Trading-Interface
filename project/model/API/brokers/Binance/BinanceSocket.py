@@ -326,6 +326,7 @@ class BinanceSocket(BinanceAPI):
             market_history = bkr_rsp.get_content()
             martket_np = np.array(market_history, dtype=np.float64)
             self._get_market_histories().put(martket_np, stream)
+            self._set_market_reset_time(stream)
         # End
         return is_success
 
@@ -778,7 +779,6 @@ class BinanceSocket(BinanceAPI):
         while market_room.next() is not None:
             stream = market_room.next()
             is_success = self._set_market_history(stream, raise_error=False)
-            self._set_market_reset_time(stream) if is_success else None
             market_room.treat_ticket(stream) if stream in market_room.get_tickets() else None
         self._reset_thread_market_update()
 
@@ -792,9 +792,7 @@ class BinanceSocket(BinanceAPI):
         def initialize_market_histories() -> None:
             self._load_streams()
             streams = self.get_streams()
-            for stream in streams:
-                if self._set_market_history(stream, raise_error=True):
-                    self._set_market_reset_time(stream)
+            [self._set_market_history(stream, raise_error=True) for stream in streams]
 
         if self.is_running():
             raise Exception("Connection is already active")
