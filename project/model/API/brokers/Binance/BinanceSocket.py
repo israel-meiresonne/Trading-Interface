@@ -978,8 +978,9 @@ class BinanceSocket(BinanceAPI):
 
             wss = Map(self._get_websockets().get_map().copy())
             ws_ids = wss.get_keys()
-            n_closed = len([self._delete_websocket(ws_id) for ws_id in ws_ids if wss.get(ws_id).is_running()])
+            n_closed = len([self._delete_websocket(ws_id) for ws_id in ws_ids])
             wait_for_close(wss)
+            thd_add_streams = None
             output("E0", **{Map.close: n_closed})
 
         pfx = _MF.prefix
