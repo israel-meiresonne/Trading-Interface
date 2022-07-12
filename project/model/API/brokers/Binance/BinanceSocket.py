@@ -789,7 +789,7 @@ class BinanceSocket(BinanceAPI):
         """
         To establish connection to stream through WebSocket
         """
-        def prepare_market_histories() -> None:
+        def initialize_market_histories() -> None:
             self._load_streams()
             streams = self.get_streams()
             for stream in streams:
@@ -798,7 +798,7 @@ class BinanceSocket(BinanceAPI):
 
         if self.is_running():
             raise Exception("Connection is already active")
-        prepare_market_histories()
+        initialize_market_histories()
         self._turn_on()
         wait_time = 0
         max_wait_time = self.get_run_restart_interval()
