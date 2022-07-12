@@ -341,6 +341,8 @@ class BinanceSocket(BinanceAPI):
         self.check_stream(stream)
         market_histories = self._get_market_histories()
         market_history = market_histories.get(stream)
+        if not isinstance(market_history, np.ndarray):
+            raise Exception(f"Market history don't exist for this stream '{stream}'")
         return market_history.tolist()
 
     def _reset_room_market_update(self) -> None:
