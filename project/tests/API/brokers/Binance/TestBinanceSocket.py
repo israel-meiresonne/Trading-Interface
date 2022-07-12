@@ -117,7 +117,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         # WebSocket no running
         exp1 = Map()
         result1 = bws.urls()
-        self.assertEqual(exp1, result1)
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
         #
         self.assertIsNone(bws.url(streams[0]))
         # WebSocket running
@@ -128,7 +128,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         ws_url = self._generate_url(streams)
         exp3 = Map({ws_id: ws_url})
         result3 = bws.urls()
-        self.assertEqual(exp3, result3)
+        self.assertDictEqual(exp3.get_map(), result3.get_map())
         #
         exp4 = ws_url
         result4 = bws.url(streams[0])
@@ -526,7 +526,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
     # ——————————————————————————————————————————— TEST STATIC FUNCTION UP ——————————————————————————————————————————————
     # ——————————————————————————————————————————— DEBUG DOWN ———————————————————————————————————————————————————————————
 
-    def test_debug_kline_event(self) -> None:
+    def debug_kline_event(self) -> None:
         def get_close(pair_str, period) -> float:
             mkt = MarketPrice.marketprice(bkr, Pair(pair_str), period, n_period=1000)
             return mkt.get_close()
