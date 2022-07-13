@@ -987,9 +987,10 @@ class BinanceSocket(BinanceAPI):
         while self.is_running():
             try:
                 output("A")
-                if (thd_add_streams is None) and (not self._websocket_are_running()):
+                is_adding_new_stream = ((thd_add_streams is not None) and thd_add_streams.is_alive())
+                if (not is_adding_new_stream) and (not self._websocket_are_running()):
                     establish_connection() if (len(self._get_websockets().get_map()) == 0) else maintain_connection()
-                if (len(self.get_new_streams()) > 0) and ((thd_add_streams is None) or (not thd_add_streams.is_alive())):
+                if (len(self.get_new_streams()) > 0) and (not is_adding_new_stream):
                     thd_add_streams = thread_add_streams()
                     thd_add_streams.start()
                 time.sleep(1)
