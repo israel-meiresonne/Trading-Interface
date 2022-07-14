@@ -3,6 +3,7 @@ import time
 from typing import List, Tuple
 
 import numpy as np
+from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
@@ -626,17 +627,8 @@ class BinanceSocket(BinanceAPI):
                     _MF.output(f"{_MF.prefix()}kline: history close[-1] '{market_hists.get(stream)[-1, 4]}'.") if BinanceSocket._VERBOSE else None
                     _MF.output(f"{_MF.prefix()}kline: history close[-2] '{market_hists.get(stream)[-2, 4]}'.") if BinanceSocket._VERBOSE else None
 
-                rq = BinanceAPI.RQ_KLINES
-                symbol = pay_load['s']
-                period_str = pay_load['k']['i']
-                stream = self.generate_stream(rq, symbol, period_str)
-                event_time = pay_load['E']
-                self._set_stream_time(stream, event_time)
-                if self._can_update_market_history(stream) \
-                    and (stream not in self._get_room_market_update().get_tickets()):
-                    self._update_market_history(stream)
-                else:
-                    new_row = [
+                def build_new_row(pay_load: dict) -> np.ndarray:
+                    new_row_list = [
                         pay_load['k']['t'],    # 0.  Open time
                         pay_load['k']['o'],    # 1.  Open Price
                         pay_load['k']['h'],    # 2.  High Price
@@ -650,20 +642,37 @@ class BinanceSocket(BinanceAPI):
                         pay_load['k']['Q'],    # 10. Taker buy quote asset volume
                         pay_load['k']['B'],    # 11. Ignore
                         ]
-                    market_hists = self._get_market_histories()
-                    market_hist = market_hists.get(stream)
-                    new_row = np.array(new_row, dtype=np.float64)
-                    new_row = new_row.reshape((1, market_hist.shape[1]))
+                    new_row = np.array(new_row_list, dtype=np.float64)
+                    shape = (1, len(new_row_list))
+                    new_row = new_row.reshape(shape)
+                    return new_row
+
+                def is_market_history_correct(stream: str, new_row: np.ndarray, market_history: np.ndarray) -> bool:
+                    return self.are_open_times_constant(stream, market_history) and self.is_new_open_time_correct(stream, new_row, market_history)
+
+                rq = BinanceAPI.RQ_KLINES
+                symbol = pay_load['s']
+                period_str = pay_load['k']['i']
+                stream = self.generate_stream(rq, symbol, period_str)
+                event_time = pay_load['E']
+                self._set_stream_time(stream, event_time)
+                new_row = build_new_row(pay_load)
+                market_hists = self._get_market_histories()
+                market_hist = market_hists.get(stream)
+                if (not is_market_history_correct(stream, new_row, market_hist)) or self._can_update_market_history(stream):
+                    self._update_market_history(stream) if (stream not in self._get_room_market_update().get_tickets()) else None
+                else:
                     print(_MF.prefix() + compare_time()) if BinanceSocket._VERBOSE else None
+                    stage = Config.get(Config.STAGE_MODE)
                     if new_row[-1][0] == market_hist[-1][0]:   # compare open time
                         print(_MF.prefix() + f"REPLACE LAST") if BinanceSocket._VERBOSE else None
                         market_hist[-1] = new_row
-                        update_fake_api(stream, symbol, period_str)
+                        update_fake_api(stream, symbol, period_str) if stage == Config.STAGE_2 else None
                     elif new_row[-1][0] > market_hist[-1][0]:
-                        print(_MF.prefix() + f"RESET ALL") if BinanceSocket._VERBOSE else None
+                        print(_MF.prefix() + f"PUSH NEW LINE") if BinanceSocket._VERBOSE else None
                         new_market_hist = np.vstack((market_hist, new_row))
                         market_hists.put(new_market_hist, stream)
-                        update_fake_api(stream, symbol, period_str)
+                        update_fake_api(stream, symbol, period_str) if stage == Config.STAGE_2 else None
                     elif BinanceSocket._VERBOSE:
                         new_date = _MF.unix_to_date(int(new_row[-1][0]/1000))
                         market_date = _MF.unix_to_date(int(market_hist[-1][0]/1000))
@@ -757,18 +766,21 @@ class BinanceSocket(BinanceAPI):
         stream: str
             Stream to update market history for
         """
-        call_room = self._get_room_call_market_update()
-        ticket = call_room.join_room()
-        while not call_room.my_turn(ticket):
-            time.sleep(0.1)
-        if self._can_update_market_history(stream):
-            thread_market = self._get_thread_market_update()
-            market_room = self._get_room_market_update()
-            if thread_market.is_alive():
-                market_room.join_room(stream) if stream not in market_room.get_tickets() else None
-            else:
-                market_room.join_room(stream)
-                thread_market.start()
+        def wait_my_trun() -> Tuple[WaitingRoom, str]:
+            call_room = self._get_room_call_market_update()
+            ticket = call_room.join_room()
+            while not call_room.my_turn(ticket):
+                time.sleep(0.1)
+            return call_room, ticket
+
+        call_room, ticket = wait_my_trun()
+        thread_market = self._get_thread_market_update()
+        market_room = self._get_room_market_update()
+        if thread_market.is_alive():
+            market_room.join_room(stream) if stream not in market_room.get_tickets() else None
+        else:
+            market_room.join_room(stream)
+            thread_market.start()
         call_room.treat_ticket(ticket) if ticket in call_room.get_tickets() else None
 
     def _manage_update_market_histories(self) -> None:
@@ -1013,11 +1025,12 @@ class BinanceSocket(BinanceAPI):
     @staticmethod
     def get_market_reset_interval() -> int:
         """
-        To get time interval between each reset of market history
+        To get time interval between each reset of market history (in second)
 
         Returns:
         --------
         return: int
+            Interval between each reset of market history (in second)
         """
         return BinanceSocket._MARKET_RESET_INTEVAL
 
@@ -1309,5 +1322,59 @@ class BinanceSocket(BinanceAPI):
         separator = _cls.get_url_stream_separator()
         streams = url.replace(base_url, '').replace(single_path, '').replace(combined_path, '').split(separator)
         return streams
+
+    @classmethod
+    def are_open_times_constant(cls, stream: str, market_history: np.ndarray) -> bool:
+        """
+        To check if intervals between each open time of market history are equal to stream's period
+        * Check only the closed candle with open time above the last reset time (=now_unix_time - market_history_reset_interval)
+
+        Parameters:
+        -----------
+        stream: str
+            Stream of given market historry
+        market_history: np.ndarray
+            Market history of given stream
+
+        Returns:
+        --------
+        returns: bool
+            True if interval between each open time are constant else False
+        """
+        open_times_constant = True
+        reset_interval = cls.get_market_reset_interval()
+        _, period_str = cls.split_stream(stream)
+        period = cls.get_interval(period_str)
+        n_period = int(reset_interval/period) + 1
+        if n_period >= 2:
+            period_milli = period * 1000
+            open_times = market_history[-n_period:,0]
+            diff_opens = np.diff(open_times)
+            open_times_constant = diff_opens[diff_opens != period_milli].shape[0] == 0
+        return open_times_constant
+
+    @classmethod
+    def is_new_open_time_correct(cls, stream: str, new_row: np.ndarray, market_history: np.ndarray) -> bool:
+        """
+        To check if the new open time if equal or is the next period of market history's most recent open time
+
+        Parameters:
+        -----------
+        stream: str
+            Stream of given market historry
+        new_row: np.ndarray
+            New candle to add in market history
+        market_history: np.ndarray
+            Market history of given stream
+
+        Returns:
+        --------
+        returns: bool
+            True new candle is correct else False
+        """
+        _, period_str = cls.split_stream(stream)
+        period = cls.get_interval(period_str)
+        period_milli = period * 1000
+        return (new_row[-1,0] == market_history[-1,0]) or (new_row[-1,0] == (market_history[-1,0] + period_milli))
 
     # ——————————————————————————————————————————— STATIC FUNCTION UP ———————————————————————————————————————————————————
