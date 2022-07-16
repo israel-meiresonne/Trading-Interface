@@ -1,7 +1,10 @@
 import threading
 import time
+from typing import Tuple
 import unittest
 from random import random, shuffle
+
+import numpy as np
 
 from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
@@ -18,6 +21,7 @@ from model.tools.WebSocket import WebSocket
 
 class TestBinanceSocket(unittest.TestCase, BinanceSocket):
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_3)
         _MF.OUTPUT = True
         rq = BinanceAPI.RQ_KLINES
         symbol1 = Pair('BTC/USDT').format(Pair.FORMAT_MERGED).lower()
@@ -30,6 +34,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         stream2 = self.generate_stream(rq, symbol2, period_str2)
         stream3 = self.generate_stream(rq, symbol3, period_str3)
         self.streams = streams = [stream1, stream2, stream3]
+        BinanceSocket._NB_INSTANCE = None
         self.bws_single = BinanceSocket([stream1])
         BinanceSocket._NB_INSTANCE = None
         self.bws_multi = BinanceSocket(streams)
@@ -117,7 +122,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         # WebSocket no running
         exp1 = Map()
         result1 = bws.urls()
-        self.assertEqual(exp1, result1)
+        self.assertDictEqual(exp1.get_map(), result1.get_map())
         #
         self.assertIsNone(bws.url(streams[0]))
         # WebSocket running
@@ -128,7 +133,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         ws_url = self._generate_url(streams)
         exp3 = Map({ws_id: ws_url})
         result3 = bws.urls()
-        self.assertEqual(exp3, result3)
+        self.assertDictEqual(exp3.get_map(), result3.get_map())
         #
         exp4 = ws_url
         result4 = bws.url(streams[0])
@@ -276,6 +281,165 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         self.ws_run(ws)
         self.ws_close(ws)
 
+    def test_new_websocket_on_message_kline(self) -> None:
+        def sleep_till_candle_start(period: int) -> None:
+            unix_time = _MF.get_timestamp()
+            last_candle_start = _MF.round_time(unix_time, period)
+            next_candle_start = last_candle_start + period
+            sleep_time = next_candle_start - unix_time
+            time.sleep(sleep_time)
+
+        def test_replacement(stream: str, bws: BinanceSocket, period: int) -> None:
+            wait_time = 60 * 2
+            i = 0
+            screen = None
+            replacement_succed = False
+            sleep_till_candle_start(period)
+            while i < wait_time:
+                market_history = bws._get_market_histories().get(stream)
+                if screen is None:
+                    screen = {
+                        Map.id: id(market_history),
+                        Map.open: market_history[-1,0],
+                        Map.price: market_history[-1,4]
+                    }
+                if (screen[Map.id] != id(market_history)) or (screen[Map.open] != market_history[-1,0]):
+                    screen = None
+                elif (screen[Map.id] == id(market_history)) and (screen[Map.open] == market_history[-1,0]) and (screen[Map.price] == market_history[-1,4]):
+                    replacement_succed = True
+                    break
+                i += 1
+                time.sleep(1)
+            self.assertTrue(replacement_succed)
+
+        def test_push_new_candle(stream: str, bws: BinanceSocket, period: int) -> None:
+            period_milli = period * 1000
+            wait_time = 60 * 5
+            i = 0
+            screen = None
+            push_succed = False
+            sleep_till_candle_start(period)
+            while i < wait_time:
+                market_history = bws._get_market_histories().get(stream)
+                if screen is None:
+                    screen = {
+                        Map.id: id(market_history),
+                        Map.open: market_history[-1,0],
+                        Map.shape: market_history.shape[0]
+                    }
+                if (screen[Map.id] != id(market_history)) and (screen[Map.shape] == market_history.shape[0]):
+                    screen = None
+                elif (screen[Map.id] != id(market_history)) and (screen[Map.shape] < market_history.shape[0])\
+                    and (screen[Map.open] == market_history[-2,0]) and ((screen[Map.open] + period_milli) == market_history[-1,0]):
+                    push_succed = True
+                    break
+                i += 1
+                time.sleep(1)
+            self.assertTrue(push_succed)
+
+        def test_reset_with_time(stream: str, bws: BinanceSocket) -> None:
+            init_reset_interval = BinanceSocket._MARKET_RESET_INTEVAL
+            BinanceSocket._MARKET_RESET_INTEVAL = 1
+            wait_time = 60 * 4
+            screen = None
+            n_reset = 0
+            reset_target = 3
+            i = 0
+            while (i < wait_time) and (n_reset < reset_target):
+                market_history = bws._get_market_histories().get(stream)
+                if screen is None:
+                    screen = {
+                        Map.id: id(market_history),
+                        Map.open: market_history[-1,0],
+                        Map.shape: market_history.shape[0]
+                        }
+                    reset_time = _MF.get_timestamp()
+                    bws._get_market_reset_times().put(reset_time, stream)
+                if (screen[Map.id] != id(market_history)) and (screen[Map.shape] < market_history.shape[0]):
+                    screen = None
+                elif (screen[Map.id] != id(market_history)) and (screen[Map.shape] == market_history.shape[0])\
+                    and (screen[Map.open] == market_history[-1,0]):
+                    n_reset += 1
+                    screen = None
+                i += 1
+                time.sleep(1)
+            self.assertEqual(reset_target, n_reset)
+            BinanceSocket._MARKET_RESET_INTEVAL = init_reset_interval
+
+        def test_reset_with_inconstant_open_times(stream: str, bws: BinanceSocket) -> None:
+            wait_time = 60 * 2
+            screen = None
+            n_reset = 0
+            reset_target = 3
+            i = 0
+            while (i < wait_time) and (n_reset < reset_target):
+                market_history = bws._get_market_histories().get(stream)
+                if screen is None:
+                    screen = {
+                        Map.id: id(market_history),
+                        Map.open: market_history[-1,0],
+                        Map.shape: market_history.shape[0]
+                        }
+                    market_history[-6:-2:2,0] = 0
+                if (screen[Map.id] != id(market_history)) and (screen[Map.shape] < market_history.shape[0]):
+                    screen = None
+                elif (screen[Map.id] != id(market_history)) and (screen[Map.shape] == market_history.shape[0])\
+                    and (screen[Map.open] == market_history[-1,0]):
+                    n_reset += 1
+                    screen = None
+                i += 1
+                time.sleep(1)
+            self.assertEqual(reset_target, n_reset)
+        
+        def test_reset_with_incorrect_new_candle(stream: str, bws: BinanceSocket, period: int) -> None:
+            period_milli = period * 1000
+            wait_time = 60 * 2
+            screen = None
+            n_reset = 0
+            reset_target = 3
+            i = 0
+            while (i < wait_time) and (n_reset < reset_target):
+                market_history = bws._get_market_histories().get(stream)
+                if screen is None:
+                    screen = {
+                        Map.id: id(market_history),
+                        Map.open: market_history[-1,0],
+                        Map.shape: market_history.shape[0]
+                        }
+                    market_history[:,0] = market_history[:,0] + 2*period_milli
+                if (screen[Map.id] != id(market_history)) and (screen[Map.shape] < market_history.shape[0]):
+                    screen = None
+                elif (screen[Map.id] != id(market_history)) and (screen[Map.shape] == market_history.shape[0])\
+                    and (screen[Map.open] == market_history[-1,0]):
+                    n_reset += 1
+                    screen = None
+                i += 1
+                time.sleep(1)
+            self.assertEqual(reset_target, n_reset)
+
+        rq = BinanceAPI.RQ_KLINES
+        symbol = Pair('BTC/USDT').format(Pair.FORMAT_MERGED).lower()
+        period = 60
+        period_str = self.convert_interval(period)
+        stream = self.generate_stream(rq, symbol, period_str)
+        bws = BinanceSocket([stream])
+        bws.run()
+        # Replace most recent row with new price
+        test_replacement(stream, bws, period)
+        # Push new candle
+        test_push_new_candle(stream, bws, period)
+        # Reset market history because of the reset time
+        bws._set_market_history(stream)
+        test_reset_with_time(stream, bws)
+        # Reset market history because of open times are not constant
+        bws._set_market_history(stream)
+        test_reset_with_inconstant_open_times(stream, bws)
+        # Reset market history because of new open time is not correct
+        bws._set_market_history(stream)
+        test_reset_with_incorrect_new_candle(stream, bws, period)
+        # End
+        bws.close()
+
     def test_new_websockets(self) -> None:
         bws = self.bws_multi
         max_stream = self.get_websocket_max_stream()
@@ -304,11 +468,13 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         self.setUp()
         bws = self.bws_multi
         streams = bws.get_streams()
+        init_reset_interval = BinanceSocket._MARKET_RESET_INTEVAL
         BinanceSocket._MARKET_RESET_INTEVAL = -10
         bws._set_market_reset_time(streams[0])
         bws._set_market_reset_time(streams[1])
         self.assertTrue(bws._can_update_market_history(streams[0]))
         self.assertTrue(bws._can_update_market_history(streams[1]))
+        BinanceSocket._MARKET_RESET_INTEVAL = init_reset_interval
 
     def test_update_market_history(self) -> None:
         bws = self.bws_multi
@@ -490,10 +656,8 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         stream_groups = self._group_streams(streams)
         for stream_group in stream_groups:
             n_stream = len(stream_group)
-            # print(f"n_stream='{n_stream}' <= max_stream='{max_stream}'")
             self.assertTrue(n_stream <= max_stream)
             url = self._generate_url(stream_group)
-            # print(f"url='{len(url)}' <= url_max='{url_max}'")
             self.assertTrue(len(url) <= url_max)
 
     def test_generate_url(self) -> None:
@@ -523,10 +687,74 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         with self.assertRaises(TypeError):
             self.url_to_streams(url=15)
 
+    def test_are_open_times_constant(self) -> None:
+        def new_market_history(pair: Pair, period: int) -> Tuple[np.ndarray, str]:
+            period_milli = period * 1000
+            period_str = self.convert_interval(period)
+            symbol = pair.format(Pair.FORMAT_MERGED)
+            stream = self.generate_stream(self.RQ_KLINES, symbol, period_str)
+            market_history = np.array([1602720000000 + i*period_milli for i in range(10)])
+            market_history = market_history.reshape((market_history.shape[0], 1))
+            return stream, market_history
+
+        def delete_row(market_history: np.ndarray) -> np.ndarray:
+            i = int(market_history.shape[0]/2)
+            return np.delete(market_history, i, 0)
+
+        def test(period: int, tests: list = [self.assertTrue, self.assertFalse]) -> None:
+            stream, market_history = new_market_history(pair, period)
+            tests[0](self.are_open_times_constant(stream, market_history))
+            edited_market_history = delete_row(market_history)
+            tests[1](self.are_open_times_constant(stream, edited_market_history))
+
+        pair = Pair('BTC/USDT')
+        # Normal
+        period_1 = 60
+        test(period_1)
+        # period = 5min
+        period_2 = 60 * 5
+        test(period_2)
+        # history's period > reset interval of market history
+        period_3 = 60 * 60 * 6  # 6h
+        test(period_3, tests=[self.assertTrue, self.assertTrue])
+
+    def test_is_new_open_time_correct(self) -> None:
+        def new_market_history(pair: Pair, period: int) -> Tuple[np.ndarray, str]:
+            period_milli = period * 1000
+            period_str = self.convert_interval(period)
+            symbol = pair.format(Pair.FORMAT_MERGED)
+            stream = self.generate_stream(self.RQ_KLINES, symbol, period_str)
+            market_history = np.array([1602720000000 + i*period_milli for i in range(10)])
+            market_history = market_history.reshape((market_history.shape[0], 1))
+            return stream, market_history
+
+        def get_new_row(market_history: np.ndarray) -> np.ndarray:
+            return market_history[-1].copy().reshape((1,1))
+
+        pair = Pair('BTC/USDT')
+        period = 60 * 5
+        period_milli = period * 1000
+        stream, market_history = new_market_history(pair, period)
+        # new_open_time == history_open_time
+        new_row_1 = get_new_row(market_history)
+        self.assertTrue(self.is_new_open_time_correct(stream, new_row_1, market_history))
+        # new_open_time == (history_open_time + period)
+        new_row_2 = get_new_row(market_history)
+        new_row_2[-1,0] = new_row_2[-1,0] + period_milli
+        self.assertTrue(self.is_new_open_time_correct(stream, new_row_2, market_history))
+        # new_open_time == (history_open_time + 2*period)
+        new_row_3 = get_new_row(market_history)
+        new_row_3[-1,0] = (new_row_3[-1,0] + 2*period_milli)
+        self.assertFalse(self.is_new_open_time_correct(stream, new_row_3, market_history))
+        # new_open_time == (history_open_time - period)
+        new_row_4 = get_new_row(market_history)
+        new_row_4[-1,0] = new_row_4[-1,0] - period_milli
+        self.assertFalse(self.is_new_open_time_correct(stream, new_row_4, market_history))
+
     # ——————————————————————————————————————————— TEST STATIC FUNCTION UP ——————————————————————————————————————————————
     # ——————————————————————————————————————————— DEBUG DOWN ———————————————————————————————————————————————————————————
 
-    def test_debug_kline_event(self) -> None:
+    def debug_kline_event(self) -> None:
         def get_close(pair_str, period) -> float:
             mkt = MarketPrice.marketprice(bkr, Pair(pair_str), period, n_period=1000)
             return mkt.get_close()
