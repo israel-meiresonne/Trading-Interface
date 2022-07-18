@@ -30,7 +30,8 @@ class Icarus(TraderClass):
     _PREDICTION_OCCUPATION_REDUCE = 30/100
     _PREDICTION_OCCUPATION_REACHED_TRIGGER = 50/100
     _MIN_PERIOD = 60
-    _PERIODS_REQUIRRED = [_MIN_PERIOD, MARKETPRICE_BUY_BIG_PERIOD, MARKETPRICE_BUY_LITTLE_PERIOD]
+    # _PERIODS_REQUIRRED = [_MIN_PERIOD, MARKETPRICE_BUY_BIG_PERIOD, MARKETPRICE_BUY_LITTLE_PERIOD]
+    _PERIODS_REQUIRRED = [_MIN_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
     EMA200_N_PERIOD = 200
     EMA50_N_PERIOD = 50
@@ -395,8 +396,8 @@ class Icarus(TraderClass):
         datas = {
             Map.roi: self.get_wallet().get_roi(broker),
             Map.maximum: self.get_max_price(marketprice),
-            self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
-            self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
+            # self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
+            # self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
             min_period: self.get_marketprice(min_period, n_period, broker)
         }
         return self._can_sell_indicator(marketprice, datas)
@@ -491,8 +492,8 @@ class Icarus(TraderClass):
         _1min_open_times = list(marketprice_1min.get_times())
         _1min_open_times.reverse()
         # MarketPrice Xmin
-        marketprice_5min = get_marketprice(cls.MARKETPRICE_BUY_LITTLE_PERIOD)
-        marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
+        # marketprice_5min = get_marketprice(cls.MARKETPRICE_BUY_LITTLE_PERIOD)
+        # marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
         can_sell = is_1min_red_sequence_above_green_candle(vars_map)
         # Repport
@@ -551,16 +552,17 @@ class Icarus(TraderClass):
         self._reset_floor_secure_order()
         self._reset_max_close_predicted()
         # Big
-        big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
-        big_marketprice = self.get_marketprice(big_period)
+        # big_period = Icarus.MARKETPRICE_BUY_BIG_PERIOD
+        # big_marketprice = self.get_marketprice(big_period)
         # little
-        little_period = Icarus.MARKETPRICE_BUY_LITTLE_PERIOD
-        little_marketprice = self.get_marketprice(little_period)
+        # little_period = Icarus.MARKETPRICE_BUY_LITTLE_PERIOD
+        # little_marketprice = self.get_marketprice(little_period)
         # min
         min_period = Icarus.get_min_period()
         min_marketprice = self.get_marketprice(min_period)
         # Check
-        can_buy, buy_repport = self.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
+        # can_buy, buy_repport = self.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
+        can_buy, buy_repport = self.can_buy(market_price, min_marketprice)
         if can_buy:
             self._buy(executions)
             # self._secure_position(executions)
@@ -645,8 +647,8 @@ class Icarus(TraderClass):
         pass
 
     @classmethod
-    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
-        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice, little_marketprice, min_marketprice)
+    def can_buy(cls, child_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, min_marketprice)
         # Check
         can_buy = indicator_ok
         # Repport
@@ -658,7 +660,7 @@ class Icarus(TraderClass):
         return can_buy, repport
 
     @classmethod
-    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         N_CANDLE = 60
         TRIGGER_CANDLE_CHANGE = 0.5/100
         def price_change(i: int, open_prices: list[float], close_prices: list[float]) -> float:
@@ -736,8 +738,8 @@ class Icarus(TraderClass):
         min_open_times.reverse()
         # Little
         # Big
-        big_closes = list(big_marketprice.get_closes())
-        big_closes.reverse()
+        # big_closes = list(big_marketprice.get_closes())
+        # big_closes.reverse()
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
             and is_min_close_bellow_min_keltner_middle(vars_map)
@@ -760,7 +762,7 @@ class Icarus(TraderClass):
             f'{key}.opens[-1]': opens[-1],
             f'{key}.min_closes[-1]': min_closes[-1],
             f'{key}.min_opens[-1]': min_opens[-1],
-            f'{key}.big_closes[-1]': big_closes[-1],
+            # f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
         }
         return can_buy_indicator, repport
@@ -1099,7 +1101,7 @@ class Icarus(TraderClass):
             # Try buy/sell
             if not has_position:
                 trade_id = f'{pair_merged}_{str_period}_{i}'
-                can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, little_marketprice, min_marketprice)
+                can_buy, buy_repport = cls.can_buy(marketprice, min_marketprice)
                 buy_repport = {
                     Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                    f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
