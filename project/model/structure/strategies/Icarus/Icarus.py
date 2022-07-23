@@ -412,63 +412,31 @@ class Icarus(TraderClass):
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
-
-        def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
-            def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
-                green_index = None
-                i = candles.shape[0] - 1
-                while i > 0:
-                    if candles[i] > 0:
-                        green_index = i
-                        break
-                    i = candle_swings[i][0]
-                    i -= 1
-                return green_index
-
-            def get_last_red_sequence_index(candles: np.ndarray, candle_swings: List[int]) -> int:
-                red_sequence_index = None
-                i = candles.shape[0] - 1
-                while i > 0:
-                    if candles[i] < 0:
-                        red_sequence_index = candle_swings[i][0]
-                        break
-                    i = candle_swings[i][0]
-                    i -= 1
-                return red_sequence_index
-
-            _1min_candles = np.array(_1min_closes) - np.array(_1min_opens)
-            zeros = np.zeros(_1min_candles.shape[0], dtype=int)
-            candle_swings = _MF.group_swings(_1min_candles, zeros)
-            # Get index
-            green_index = get_last_green_candle_index(_1min_candles, candle_swings)
-            red_start_index = get_last_red_sequence_index(_1min_candles, candle_swings)
-            red_end_index = candle_swings[red_start_index][1]
-            # Get times
-            buy_time = max(cls.get_buy_times(pair))
-            buy_period = _MF.round_time(buy_time, marketprice_1min.get_period_time())
-            green_time = _1min_open_times[green_index]
-            red_time = _1min_open_times[red_start_index]
-            now_period = _1min_open_times[-1]
-            # Price
-            red_sequence = _1min_candles[red_start_index:red_end_index+1]
-            n_negative = sum([1 for v in red_sequence if v < 0])
-            n_sequence = len(red_sequence)
-            if n_negative != n_sequence:
-                raise Exception(f"Red sequence must contain negative value only, instead neg='{n_negative}' & size='{n_sequence}'")
-            sum_red_sequence = sum(red_sequence)
-            # Check
-            _1min_red_sequence_above_green_candle = (green_time >= buy_period) and (green_time != now_period) and (_1min_candles[-2] < 0)\
-                and (green_time < red_time) and (_1min_candles[green_index] <= abs(sum_red_sequence))
+        def can_place_stop_limit_price(vars_map: Map) -> bool:
+            place_stop_limit_price = True
+            # Get Sell Price
+            # Min(Opens(1min)[-2], Closes(1min)[-2])
+            stop_limit_price = min([_1min_opens[-2], _1min_closes[-2]])
             # Put
-            vars_map.put(_1min_red_sequence_above_green_candle, 'red_sequence_above_green_candle')
-            vars_map.put(_MF.unix_to_date(buy_period), 'red_sequence_above_green_buy_period')
-            vars_map.put(_MF.unix_to_date(green_time), 'red_sequence_above_green_green_date')
-            vars_map.put(_1min_candles[green_index], 'red_sequence_above_green_green_candle')
-            vars_map.put(_MF.unix_to_date(red_time), 'red_sequence_above_green_start_red_date')
-            vars_map.put(_MF.unix_to_date(_1min_open_times[red_end_index]), 'red_sequence_above_green_end_red_date')
-            vars_map.put(sum_red_sequence, 'red_sequence_above_green_sum_red_sequence')
-            vars_map.put(n_sequence, 'red_sequence_above_green_sequence_size')
-            return _1min_red_sequence_above_green_candle
+            vars_map.put(place_stop_limit_price, 'place_stop_limit_price')
+            vars_map.put(stop_limit_price, 'stop_limit_price')
+            return place_stop_limit_price
+        
+        def get_buy_period(pair: Pair, period: int) -> int:
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, period)
+            return buy_period
+
+        def is_1min_now_period_above_buy_period(vars_map: Map) -> bool:
+            buy_period = get_buy_period(pair, marketprice_1min.get_period_time())
+            now_period = _1min_open_times[-1]
+            # Check
+            _1min_now_period_above_buy_period = now_period > buy_period
+            # Put
+            vars_map.put(_1min_now_period_above_buy_period, '1min_now_period_above_buy_period')
+            vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
+            vars_map.put(_MF.unix_to_date(now_period), 'now_period')
+            return _1min_now_period_above_buy_period
 
         vars_map = Map()
         can_sell = False
@@ -488,28 +456,34 @@ class Icarus(TraderClass):
         _1min_closes.reverse()
         _1min_opens = list(marketprice_1min.get_opens())
         _1min_opens.reverse()
+        _1min_lows = list(marketprice_1min.get_lows())
+        _1min_lows.reverse()
         _1min_open_times = list(marketprice_1min.get_times())
         _1min_open_times.reverse()
         # MarketPrice Xmin
         marketprice_5min = get_marketprice(cls.MARKETPRICE_BUY_LITTLE_PERIOD)
         marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
-        can_sell = is_1min_red_sequence_above_green_candle(vars_map)
+        can_sell = is_1min_now_period_above_buy_period(vars_map) and can_place_stop_limit_price(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
-            f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
-            f'{key}.red_sequence_above_green_buy_period': vars_map.get('red_sequence_above_green_buy_period'),
-            f'{key}.red_sequence_above_green_green_date': vars_map.get('red_sequence_above_green_green_date'),
-            f'{key}.red_sequence_above_green_green_candle': vars_map.get('red_sequence_above_green_green_candle'),
-            f'{key}.red_sequence_above_green_start_red_date': vars_map.get('red_sequence_above_green_start_red_date'),
-            f'{key}.red_sequence_above_green_end_red_date': vars_map.get('red_sequence_above_green_end_red_date'),
-            f'{key}.red_sequence_above_green_sum_red_sequence': vars_map.get('red_sequence_above_green_sum_red_sequence'),
-            f'{key}.red_sequence_above_green_sequence_size': vars_map.get('red_sequence_above_green_sequence_size'),
+            f'{key}.1min_now_period_above_buy_period': vars_map.get('1min_now_period_above_buy_period'),
+            f'{key}.place_stop_limit_price': vars_map.get('place_stop_limit_price'),
+
+            f'{key}.buy_period': vars_map.get('buy_period'),
+            f'{key}.now_period': vars_map.get('now_period'),
+            Map.stopPrice: vars_map.get('stop_limit_price'),
 
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.opens[-1]': opens[-1]
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.1min_closes[-1]': _1min_closes[-1],
+            f'{key}.1min_closes[-2]': _1min_closes[-2],
+            f'{key}.1min_opens[-1]': _1min_opens[-1],
+            f'{key}.1min_opens[-2]': _1min_opens[-2],
+            f'{key}.1min_lows[-1]': _1min_lows[-1],
+            f'{key}.1min_lows[-2]': _1min_lows[-2]
         }
         return can_sell, repport
 
@@ -580,7 +554,13 @@ class Icarus(TraderClass):
         executions = Map()
         can_sell, repport = self.can_sell(market_price)
         if can_sell:
-            self._sell(executions)
+            # self._sell(executions)
+            secure_order = self._get_secure_order()
+            new_stop_price = repport[Map.stopPrice]
+            if secure_order is None:
+                self._secure_position(executions)
+            elif new_stop_price > secure_order.get_stop_price():
+                self._move_up_secure_order(executions)
         var_param = vars().copy()
         del var_param['self']
         self.save_move(**var_param)
@@ -1125,7 +1105,7 @@ class Icarus(TraderClass):
                         'buy_price': exec_price,
                     }
             elif has_position:
-                can_buy, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
+                can_sell, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
                     Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                     f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
@@ -1133,10 +1113,17 @@ class Icarus(TraderClass):
                     **sell_repport
                 }
                 sell_repports.append(sell_repport)
-                if can_buy:
+                # Stop Limit Order
+                new_sell_stop_limit_price = sell_repport[Map.stopPrice]
+                if new_sell_stop_limit_price is not None:
+                    sell_stop_limit_price = None if 'sell_stop_limit_price' not in vars() else sell_stop_limit_price
+                    sell_stop_limit_price = new_sell_stop_limit_price if (sell_stop_limit_price is None) or (new_sell_stop_limit_price > sell_stop_limit_price) else sell_stop_limit_price
+                if can_sell and (min_lows[-1] <= sell_stop_limit_price):
                     # Prepare
                     sell_time = min_marketprice.get_time()
-                    exec_price = get_exec_price(min_marketprice, sell_type)
+                    # exec_price = get_exec_price(min_marketprice, sell_type)
+                    exec_price = sell_stop_limit_price
+                    sell_stop_limit_price = None
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
