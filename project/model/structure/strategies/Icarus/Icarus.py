@@ -18,7 +18,8 @@ from model.tools.Wallet import Wallet
 
 
 class Icarus(TraderClass):
-    _MAX_LOSS = -0.4/100
+    _MIN_ROI_TRIGGER = -0.2/100
+    _MAX_LOSS = -0.8/100
     _MAX_ROI_DROP_TRIGGER = 1/100
     _MAX_ROI_DROP_RATE = 50/100
     _ROI_FLOOR_FIXE = 0.002
@@ -462,6 +463,12 @@ class Icarus(TraderClass):
             vars_map.put(n_sequence, 'red_sequence_above_green_sequence_size')
             return _1min_red_sequence_above_green_candle
 
+        def is_min_roi_reached(vars_map: Map) -> bool:
+            min_roi_reached = roi <= cls._MIN_ROI_TRIGGER
+            # Put
+            vars_map.put(min_roi_reached, 'min_roi_reached')
+            return min_roi_reached
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -487,7 +494,7 @@ class Icarus(TraderClass):
         # marketprice_5min = get_marketprice(cls.MARKETPRICE_BUY_LITTLE_PERIOD)
         # marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
-        can_sell = is_1min_red_sequence_above_green_candle(vars_map)
+        can_sell = is_1min_red_sequence_above_green_candle(vars_map) or is_min_roi_reached(vars_map)
         can_place_max_drop_limit(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
@@ -501,7 +508,9 @@ class Icarus(TraderClass):
             f'{key}.red_sequence_above_green_end_red_date': vars_map.get('red_sequence_above_green_end_red_date'),
             f'{key}.red_sequence_above_green_sum_red_sequence': vars_map.get('red_sequence_above_green_sum_red_sequence'),
             f'{key}.red_sequence_above_green_sequence_size': vars_map.get('red_sequence_above_green_sequence_size'),
+            f'{key}.min_roi_reached': vars_map.get('min_roi_reached'),
 
+            f'{key}.MIN_ROI_TRIGGER': cls._MIN_ROI_TRIGGER,
             f'{key}.MAX_ROI_DROP_TRIGGER': cls._MAX_ROI_DROP_TRIGGER,
             f'{key}.MAX_ROI_DROP_RATE': cls._MAX_ROI_DROP_RATE,
             f'{key}.buy_price': buy_price,
@@ -1097,7 +1106,7 @@ class Icarus(TraderClass):
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
                 can_sell_params = {
-                    Map.roi: _MF.progress_rate(get_exec_price(min_marketprice, sell_type), trade['buy_price']),
+                    Map.roi: _MF.progress_rate(get_exec_price(min_marketprice, sell_type), trade['buy_price']) - taker_fee_rate,
                     Map.maximum: max_roi_position,
                     Map.buy: trade['buy_price'],
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
