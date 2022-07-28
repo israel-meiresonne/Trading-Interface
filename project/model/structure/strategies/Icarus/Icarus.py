@@ -410,9 +410,9 @@ class Icarus(TraderClass):
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
+        ROI_TRIGGER = 0.2/100
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
-
 
         def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
             def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
@@ -471,6 +471,12 @@ class Icarus(TraderClass):
             vars_map.put(n_sequence, 'red_sequence_above_green_sequence_size')
             return _1min_red_sequence_above_green_candle
 
+        def is_roi_above_trigger(vars_map: Map) -> bool:
+            roi_above_trigger = roi >= ROI_TRIGGER
+            # Put
+            vars_map.put(roi_above_trigger, 'roi_above_trigger')
+            return roi_above_trigger
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -495,12 +501,18 @@ class Icarus(TraderClass):
         # marketprice_5min = get_marketprice(cls.MARKETPRICE_BUY_LITTLE_PERIOD)
         # marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
-        can_sell = is_1min_red_sequence_above_green_candle(vars_map)
+        can_sell = is_roi_above_trigger(vars_map) and is_1min_red_sequence_above_green_candle(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
+            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
             f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
+            
+            f'{key}.ROI_TRIGGER': ROI_TRIGGER,
+            f'{key}.roi': roi,
+            f'{key}.max_roi': max_roi,
+
             f'{key}.red_sequence_above_green_buy_period': vars_map.get('red_sequence_above_green_buy_period'),
             f'{key}.red_sequence_above_green_green_date': vars_map.get('red_sequence_above_green_green_date'),
             f'{key}.red_sequence_above_green_green_candle': vars_map.get('red_sequence_above_green_green_candle'),
