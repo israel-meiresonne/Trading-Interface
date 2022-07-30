@@ -515,6 +515,18 @@ class Icarus(TraderClass):
             vars_map.put(rsi, 'min_rsi')
             return min_tangent_rsi_negative
 
+        def is_tangent_macd_negative(vars_map: Map) -> bool:
+            marketprice.reset_collections()
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Check
+            tangent_macd_negative = macd[-1] < macd[-2]
+            # Put
+            vars_map.put(tangent_macd_negative, 'tangent_macd_negative')
+            vars_map.put(macd, Map.macd)
+            return tangent_macd_negative
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -541,7 +553,7 @@ class Icarus(TraderClass):
         # Check
         can_sell = (is_roi_above_trigger(vars_map) and is_1min_red_sequence_above_green_candle(vars_map))\
             or (
-                (is_supertrend_switch_down(vars_map) or is_psar_switch_down(vars_map))\
+                (is_supertrend_switch_down(vars_map) or is_psar_switch_down(vars_map)) or is_tangent_macd_negative(vars_map)\
                     and is_min_tangent_rsi_negative(vars_map)
             )
         # Repport
@@ -549,12 +561,14 @@ class Icarus(TraderClass):
         supertrend = vars_map.get(Map.supertrend)
         psar = vars_map.get(Map.psar)
         min_rsi = vars_map.get('min_rsi')
+        macd = vars_map.get(Map.macd)
         repport = {
             f'{key}._can_sell_indicator': can_sell,
             f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
             f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
             f'{key}.supertrend_switch_down': vars_map.get('supertrend_switch_down'),
             f'{key}.psar_switch_down': vars_map.get('psar_switch_down'),
+            f'{key}.tangent_macd_negative': vars_map.get('tangent_macd_negative'),
             f'{key}.min_tangent_rsi_negative': vars_map.get('min_tangent_rsi_negative'),
             
             f'{key}.ROI_TRIGGER': ROI_TRIGGER,
@@ -581,6 +595,8 @@ class Icarus(TraderClass):
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
             f'{key}.psar[-1]': psar[-1] if psar is not None else None,
             f'{key}.psar[-2]': psar[-2] if psar is not None else None,
+            f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+            f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.min_rsi[-1]': min_rsi[-1] if min_rsi is not None else None,
             f'{key}.min_rsi[-2]': min_rsi[-2] if min_rsi is not None else None
         }
