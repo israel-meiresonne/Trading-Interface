@@ -166,6 +166,7 @@ class Map(MyJson):
     rsi = "rsi"
     tsi = "tsi"
     supertrend = "supertrend"
+    psar = "psar"
     volume = "volume"
     macd = "macd"
     signal = "signal"
