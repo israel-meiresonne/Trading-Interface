@@ -747,7 +747,7 @@ class Icarus(TraderClass):
             price_change_1 = price_change(-1, opens, closes)
             price_change_2 = price_change(-2, opens, closes)
             min_price_change_1 = price_change(-1, min_opens, min_closes)
-            price_switch_up = (price_change_2 < 0) and (price_change_1 > abs(price_change_2)) and (min_price_change_1 > 0)
+            price_switch_up = (price_change_1 > abs(price_change_2)) and (min_price_change_1 > 0)
             # Put
             vars_map.put(price_switch_up, 'price_switch_up')
             vars_map.put(price_change_1, 'price_change_1')
