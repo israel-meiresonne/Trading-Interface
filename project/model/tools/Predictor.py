@@ -519,7 +519,7 @@ class Predictor(MyJson):
         learn_path += Predictor.get_learn_path(stock_path)
         learn_path = learn_path.replace('$class', Predictor.__name__)
         regex = r'\$pair.*'
-        learn_path = _MF.regex_replace(regex, '', learn_path)
+        learn_path = _MF.regex_replace(learn_path, regex, '')
         return learn_path
 
     @staticmethod
@@ -781,7 +781,7 @@ class Predictor(MyJson):
         """
         exist = False
         file_path = Predictor.history_file_path(pair, period)
-        file_dir = _MF.regex_replace(r'[0-9]+.csv', '', file_path)
+        file_dir = _MF.regex_replace(file_path, r'[0-9]+.csv', '')
         file = file_path.replace(file_dir, '')
         try:
             files = FileManager.get_files(file_dir)
@@ -805,7 +805,7 @@ class Predictor(MyJson):
         history_dir = Config.get(Config.DIR_STORAGE) + \
             Predictor._FILE_PATH_HISTORY
         regex = '\$pair.*'
-        history_dir = _MF.regex_replace(regex, '', history_dir)
+        history_dir = _MF.regex_replace(history_dir, regex, '')
         history_dir = history_dir.replace('$class', Predictor.__name__)
         return history_dir
 

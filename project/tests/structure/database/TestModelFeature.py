@@ -153,7 +153,7 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         string = 'content/v0.01/print/hello/file_test.txt'
         substitu = ''
         exp1 = 'content/v0.01/print/hello/'.replace(string, substitu)
-        result1 = ModelFeature.regex_replace(regex, substitu, string)
+        result1 = ModelFeature.regex_replace(string, regex, substitu)
         self.assertEqual(exp1, result1)
 
     def test_round_time(self) -> None:
