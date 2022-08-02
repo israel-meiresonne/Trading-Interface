@@ -18,7 +18,7 @@ from model.tools.Wallet import Wallet
 
 
 class Icarus(TraderClass):
-    _MAX_LOSS = -3/100
+    _MAX_LOSS = -0.5/100
     _ROI_FLOOR_FIXE = 0.002
     MARKETPRICE_BUY_BIG_PERIOD = 60*60*6
     MARKETPRICE_BUY_LITTLE_PERIOD = 60*5
@@ -340,43 +340,6 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION ROI FLOOR UP ————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
 
-    def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
-        def index_last_rsi_below(rsi_trigger: float) -> int:
-            # RSI
-            rsi = list(marketprice.get_rsis())
-            rsi.reverse()
-            open_times = list(marketprice.get_times())
-            open_times.reverse()
-            period = self.get_period()
-            buy_order = self.get_buy_order()
-            buy_time = buy_order.get_execution_time()/1000
-            buy_open_time = _MF.round_time(buy_time, period)
-            last_index = None
-            for i in range(len(open_times)):
-                i = -i
-                if (open_times[i] < buy_open_time) and (rsi[i] < rsi_trigger):
-                    last_index = i
-                    break
-            return last_index
-
-        # Get values
-        pair = self.get_pair()
-        # Close
-        closes = list(marketprice.get_closes())
-        closes.reverse()
-        # EMA
-        ema = list(marketprice.get_ema(self.EMA200_N_PERIOD))
-        ema.reverse()
-        ema_rising = closes[-1] > ema[-1]
-        # Low
-        lows = list(marketprice.get_lows())
-        lows.reverse()
-        rsi_trigger = 50 if ema_rising else 30
-        i = index_last_rsi_below(rsi_trigger)
-        secure_price_value = lows[i]
-        secure_price = Price(secure_price_value, pair.get_right())
-        return secure_price
-
     def get_buy_unix(self) -> int:
         if not self._has_position():
             raise Exception("Strategy must have position to get buy unix time")
@@ -637,7 +600,7 @@ class Icarus(TraderClass):
         can_buy, buy_repport = self.can_buy(market_price, min_marketprice)
         if can_buy:
             self._buy(executions)
-            # self._secure_position(executions)
+            self._secure_position(executions)
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -1105,6 +1068,7 @@ class Icarus(TraderClass):
         sell_repports = []
         n_period = 300
         fees = broker.get_trade_fee(pair)
+        maker_fee_rate = fees.get(Map.maker)
         taker_fee_rate = fees.get(Map.taker)
         buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
         pair_merged = pair.format(Pair.FORMAT_MERGED)
@@ -1212,7 +1176,7 @@ class Icarus(TraderClass):
                         'buy_price': exec_price,
                     }
             elif has_position:
-                can_buy, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
+                can_sell, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
                     Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                     f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
@@ -1220,15 +1184,25 @@ class Icarus(TraderClass):
                     **sell_repport
                 }
                 sell_repports.append(sell_repport)
-                if can_buy:
+                # Stop Limit Order
+                sell_stop_limit_price = trade['buy_price'] * (1+cls._MAX_LOSS)
+                stop_limit_reached = min_lows[-1] <= sell_stop_limit_price
+                if can_sell or stop_limit_reached:
                     # Prepare
                     sell_time = min_marketprice.get_time()
-                    exec_price = get_exec_price(min_marketprice, sell_type)
+                    # exec_price = get_exec_price(min_marketprice, sell_type)
+                    if can_sell and stop_limit_reached:
+                        exec_price = max(sell_stop_limit_price, get_exec_price(min_marketprice, sell_type))
+                    else:
+                        exec_price = sell_stop_limit_price if stop_limit_reached else get_exec_price(min_marketprice, sell_type)
+                    sell_stop_limit_price = None
+                    stop_limit_fees = taker_fee_rate + maker_fee_rate
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
                     trade['sell_price'] = exec_price
-                    trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
+                    sell_roi = (trade['sell_price']/trade['buy_price'] - 1)
+                    trade[Map.roi] = (sell_roi - maker_fee_rate) if stop_limit_reached else (sell_roi - buy_sell_fee)
                     trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
                     trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
                     trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
@@ -1243,7 +1217,7 @@ class Icarus(TraderClass):
                     trade['min_sum_roi'] = None
                     trade['max_sum_roi'] = None
                     trade['final_roi'] = None
-                    trade[Map.fee] = buy_sell_fee
+                    trade[Map.fee] = stop_limit_fees if stop_limit_reached else buy_sell_fee
                     trade['sum_fee'] = None
                     trade['sum_roi_no_fee'] = None
                     trade['start_price'] = None
