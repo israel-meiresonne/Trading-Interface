@@ -293,15 +293,15 @@ class ModelFeature(ModelAccess):
         return re.match(regex, string) is not None
 
     @staticmethod
-    def regex_replace(regex: str, new_str: str, string: str) -> str:
+    def regex_replace(old_str: str, regex: str, new_str: str) -> str:
         """
         To remplace the regex patern in the given string with a new one\n
+        :param string: The string to edit
         :param regex: The regex
         :param new_str: The replacement
-        :param string: The string to search in
         :return: The given string with replacement if found
         """
-        new_string = re.sub(regex, new_str, string)
+        new_string = re.sub(regex, new_str, old_str)
         return new_string
 
     @staticmethod

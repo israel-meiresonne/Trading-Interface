@@ -744,7 +744,7 @@ class MinMaxStalker(Strategy, MyJson):
                 full_path = path.replace('$broker', _bkr_cls).replace('$pair/', '')
                 pair_folders = FileManager.get_dirs(full_path, make_dir=True)
                 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
-                pair_strs = [BinanceAPI.symbol_to_pair(_MF.regex_replace('%.+$', '', pair_folder))
+                pair_strs = [BinanceAPI.symbol_to_pair(_MF.regex_replace(pair_folder, '%.+$', ''))
                              for pair_folder in pair_folders]
             else:
                 # Stablecoin regex
