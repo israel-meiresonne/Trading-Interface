@@ -275,6 +275,10 @@ class MyJson(ABC):
         pass
 
     def __eq__(self, other) -> bool:
-        self_dict = self.__dict__
-        other_dict = other.__dict__
+        id_key = f'_{self.__class__.__name__}__id'
+        self_dict = self.__dict__.copy()
+        other_dict = other.__dict__.copy()
+        for d in [self_dict, other_dict]:
+            if id_key in d:
+                del d[id_key]
         return (type(self) == type(other)) and (self_dict == other_dict)
