@@ -284,7 +284,8 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
     def test_save_orders(self) -> None:
         _cls = BinanceFakeAPI
         params = self.order_params
-        # 
+        '''
+        # Load orders
         orders = _cls._get_orders()
         last_saved_order = _cls._get_last_saved_orders()
         self.assertEqual(orders, last_saved_order)
@@ -309,6 +310,26 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         result4 = _cls._get_last_saved_orders()
         self.assertEqual(id(new_last_saved_order), id(result4))
         self.assertEqual(new_orders, result4)
+        '''
+        def test(orders: Map) -> None:
+            _cls._save_orders()
+            _MF.wait_while(FileManager.is_writting, False, 5)
+            _cls.reset()
+            loaded_orders = _cls._get_orders()
+            self.assertNotEqual(id(orders), id(loaded_orders))
+            self.assertEqual(orders, loaded_orders)
+            self.assertEqual(orders.get_id(), loaded_orders.get_id())
+
+        # Save empty orders
+        original_orders1 = _cls._get_orders()
+        test(original_orders1)
+        # Save order
+        '''
+        _cls.reset()
+        order = _cls._new_order(params)
+        original_orders2 = _cls._get_orders()
+        test(original_orders2)
+        '''
 
     def test_get_orders(self) -> None:
         self.broker_switch(on=True)

@@ -27,7 +27,7 @@ class BinanceFakeAPI(BinanceAPI):
     _HISTORIES = None
     _INITIAL_INDEXES = None
     _ORDERS = None
-    _LAST_ORDERS_SAVED = None
+    # _LAST_ORDERS_SAVED = None
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION DOWN ———————————————————————————————————
 
@@ -367,13 +367,9 @@ class BinanceFakeAPI(BinanceAPI):
         To save all submitted orders
         """
         orders = cls._get_orders()
-        last_saved_orders = cls._get_last_saved_orders()
-        if orders != last_saved_orders:
-            file_path = cls._get_file_path_load_orders()
-            json_str = orders.json_encode()
-            FileManager.write(file_path, json_str, overwrite=True, make_dir=True)
-            copy_orders = MyJson.json_decode(json_str)
-            cls._set_last_saved_orders(copy_orders, make_copy=False)
+        file_path = cls._get_file_path_load_orders()
+        json_str = orders.json_encode()
+        FileManager.write(file_path, json_str, overwrite=True, make_dir=True)
 
     @classmethod
     def _load_orders(cls) -> Map:
@@ -405,7 +401,7 @@ class BinanceFakeAPI(BinanceAPI):
         """
         if cls._ORDERS is None:
             cls._ORDERS = cls._load_orders()
-            cls._set_last_saved_orders(cls._ORDERS, make_copy=True)
+            # cls._set_last_saved_orders(cls._ORDERS, make_copy=True)
         return cls._ORDERS
 
     @staticmethod
@@ -468,7 +464,7 @@ class BinanceFakeAPI(BinanceAPI):
         if found is not None:
             raise Exception(f"There's already an order with this order_id '{order_id}' (new_order='{id(order)}', found_order='{id(found)}')")
         orders.put(order, merged_pair, order_id)
-
+    '''
     @classmethod
     def _set_last_saved_orders(cls, orders: Map, make_copy: bool = True) -> None:
         """
@@ -495,6 +491,7 @@ class BinanceFakeAPI(BinanceAPI):
             The last saved state of oders
         """
         return cls._LAST_ORDERS_SAVED
+    '''
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION UP —————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
@@ -637,8 +634,8 @@ class BinanceFakeAPI(BinanceAPI):
         _cls._add_order(order)
         return order
 
-    @staticmethod
-    def _update_orders(merged_pair: str) -> None:
+    @classmethod
+    def _update_orders(cls, merged_pair: str) -> None:
         """
         To try to execute all submitted orders
 
@@ -647,13 +644,13 @@ class BinanceFakeAPI(BinanceAPI):
         merged_pair: str
             The pair of orders to update (in merged format)
         """
-        _cls = BinanceFakeAPI
         merged_pair = merged_pair.upper()
-        order_dict = _cls._get_order_dict(merged_pair)
-        market_datas = _cls._actual_market_datas(merged_pair)
+        order_dict = cls._get_order_dict(merged_pair)
+        market_datas = cls._actual_market_datas(merged_pair)
+        executions = []
         for period, order in order_dict.copy().items():
-            order.try_execute(market_datas)
-        _cls._save_orders()
+            executions.append(1) if order.try_execute(market_datas) else None
+        cls._save_orders() if sum(executions) > 0 else None
 
     # ——————————————————————————————————————————— STATIC FUNCTION ORDER UP
     # ——————————————————————————————————————————— STATIC FUNCTION REQUESTS DOWN
@@ -803,17 +800,15 @@ class BinanceFakeAPI(BinanceAPI):
             raise Exception(f"This stage '{stage}' is not supported")
         return kline.tolist()
 
-    @staticmethod
-    def _request_submit_order(params: Map) -> dict:
+    @classmethod
+    def _request_submit_order(cls, params: Map) -> dict:
         """
         To submit order request
         """
-        _cls = BinanceFakeAPI
-        order = _cls._new_order(params)
+        order = cls._new_order(params)
         merged_pair = order.get_attribut(Map.symbol)
-        market_datas = _cls._actual_market_datas(merged_pair)
-        order.try_execute(market_datas)
-        _cls._save_orders()
+        market_datas = cls._actual_market_datas(merged_pair)
+        cls._save_orders() if order.try_execute(market_datas) else None
         return order.to_dict()
 
     @staticmethod
