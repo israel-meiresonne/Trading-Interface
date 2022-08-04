@@ -75,16 +75,37 @@ class BinanceFakeOrder(MyJson):
             raise ValueError(f"This side '{side}' is not supported")
         return isBuyer
 
-    def try_execute(self, market_datas: Map) -> None:
+    def try_execute(self, market_datas: Map) -> bool:
         """
         To try to execute the order
+
+        Parameters:
+        -----------
+        market_datas: Map
+            A row with Market's most recent prices
+
+        Returns:
+        --------
+        return: bool
+            True if the order has been executed else False
         """
         from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
         def limit_reached(is_buyer: bool, close_price: float) -> None:
             limit_price = self.get_attribut(Map.price)
             return (is_buyer and (close_price <= limit_price)) or ((not is_buyer) and (close_price >= limit_price))
 
+        def stop_reached(close_price: float) -> bool:
+            """
+            To stop price is reached
+            NOTE: stop price is reached if market's price come through the stop price
+            """
+            submit_price = self.get_attribut(Map.submit)
+            stop_price = self.get_attribut(Map.stopPrice)
+            is_stop_reached = (close_price <= stop_price) if (submit_price >= stop_price) else (close_price >= stop_price)
+            return is_stop_reached
+
         _api = BinanceFakeAPI
+        executed = False
         if self.get_attribut(Map.status) not in [_api.STATUS_ORDER_NEW, _api.STATUS_ORDER_PARTIALLY]:
             return None
         # Attributs
@@ -95,36 +116,27 @@ class BinanceFakeOrder(MyJson):
         # Check
         if order_type == _api.TYPE_MARKET:
             self._set_attribut(Map.ready, True)
-            self._execute(market_datas)
+            executed = self._execute(market_datas)
         elif order_type == _api.TYPE_STOP_LOSS:
             stop_price = self.get_attribut(Map.stopPrice)
             if (is_buyer and (market_close_price >= stop_price)) or ((not is_buyer) and (market_close_price <= stop_price)):
                 self._set_attribut(Map.ready, True)
-                self._execute(market_datas)
+                executed = self._execute(market_datas)
         elif order_type == _api.TYPE_LIMIT:
             if limit_reached(is_buyer, market_close_price):
                 self._set_attribut(Map.ready, True)
-                self._execute(market_datas)
+                executed = self._execute(market_datas)
         elif order_type == _api.TYPE_STOP_LOSS_LIMIT:
-            def stop_reached(close_price: float) -> bool:
-                """
-                To stop price is reached
-                NOTE: stop price is reached if market's price come through the stop price
-                """
-                submit_price = self.get_attribut(Map.submit)
-                stop_price = self.get_attribut(Map.stopPrice)
-                is_stop_reached = (close_price <= stop_price) if (submit_price >= stop_price) else (close_price >= stop_price)
-                return is_stop_reached
-
             if (not self.get_attribut(Map.ready)) and stop_reached(market_close_price):
                 self._set_attribut(Map.ready, True)
                 stop_price = self.get_attribut(Map.stopPrice)
                 market_datas.put(stop_price, Map.close)
             if self.get_attribut(Map.ready):
                 if limit_reached(is_buyer, market_datas.get(Map.close)):
-                    self._execute(market_datas)
+                    executed = self._execute(market_datas)
         else:
             raise Exception(f"This order type '{order_type}' is not supported")
+        return executed
 
     def _execute(self, market_datas: Map) -> None:
         """
@@ -205,6 +217,7 @@ class BinanceFakeOrder(MyJson):
         self._set_attribut(Map.cummulativeQuoteQty, exec_amount)
         self._set_attribut(Map.updateTime, market_unix_time)
         self._set_attribut(Map.transactTime, market_unix_time)
+        return True
 
     def cancel(self) -> dict:
         """

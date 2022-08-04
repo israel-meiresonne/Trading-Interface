@@ -194,7 +194,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_buy_market_quantity = BinanceFakeOrder(param_buy_market_quantity, market_datas)
         exp1 = order_buy_market_quantity.copy()
-        order_buy_market_quantity.try_execute(market_datas)
+        self.assertTrue(order_buy_market_quantity.try_execute(market_datas))
         self.to_executed_state(exp1, order_buy_market_quantity, param_buy_market_quantity, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: BinanceAPI.TYPE_MARKET,
@@ -213,7 +213,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_buy_market_amount = BinanceFakeOrder(param_buy_market_amount, market_datas)
         exp2 = order_buy_market_amount.copy()
-        order_buy_market_amount.try_execute(market_datas)
+        self.assertTrue(order_buy_market_amount.try_execute(market_datas))
         self.to_executed_state(exp2, order_buy_market_amount, param_buy_market_amount, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: BinanceAPI.TYPE_MARKET,
@@ -232,7 +232,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_sell_market_quantity = BinanceFakeOrder(param_sell_market_quantity, market_datas)
         exp3 = order_sell_market_quantity.copy()
-        order_sell_market_quantity.try_execute(market_datas)
+        self.assertTrue(order_sell_market_quantity.try_execute(market_datas))
         self.to_executed_state(exp3, order_sell_market_quantity, param_sell_market_quantity, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: BinanceAPI.TYPE_MARKET,
@@ -251,7 +251,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_sell_market_amount = BinanceFakeOrder(param_sell_market_amount, market_datas)
         exp4 = order_sell_market_amount.copy()
-        order_sell_market_amount.try_execute(market_datas)
+        self.assertTrue(order_sell_market_amount.try_execute(market_datas))
         self.to_executed_state(exp4, order_sell_market_amount, param_sell_market_amount, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: BinanceAPI.TYPE_MARKET,
@@ -289,7 +289,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj, quantity_obj)
         order1 = BinanceFakeOrder(rq_params1, market_datas)
         exp1 = order1.copy()
-        order1.try_execute(market_datas1)
+        self.assertTrue(order1.try_execute(market_datas1))
         self.to_executed_state(exp1, order1, rq_params1, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -311,7 +311,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj, quantity_obj)
         order2 = BinanceFakeOrder(rq_params2, market_datas)
         exp2 = order2.copy()
-        order2.try_execute(market_datas2)
+        self.assertTrue(order2.try_execute(market_datas2))
         self.to_executed_state(exp2, order2, rq_params2, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -333,7 +333,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj, quantity_obj)
         order3 = BinanceFakeOrder(rq_params3, market_datas)
         exp3 = order3.copy()
-        order3.try_execute(market_datas3)
+        self.assertFalse(order3.try_execute(market_datas3))
         self.compare_order_execution(exp=exp3, result=order3, attribut_types=attribut_types_unexecuted)
         '''
         SELL close > stop
@@ -343,7 +343,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params4 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj, quantity_obj)
         order4 = BinanceFakeOrder(rq_params4, market_datas)
         exp4 = order4.copy()
-        order4.try_execute(market_datas4)
+        self.assertFalse(order4.try_execute(market_datas4))
         self.compare_order_execution(exp=exp4, result=order4, attribut_types=attribut_types_unexecuted)
         '''
         SELL close == stop
@@ -353,7 +353,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params5 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj, quantity_obj)
         order5 = BinanceFakeOrder(rq_params5, market_datas)
         exp5 = order5.copy()
-        order5.try_execute(market_datas5)
+        self.assertTrue(order5.try_execute(market_datas5))
         self.to_executed_state(exp5, order5, rq_params5, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -375,7 +375,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params6 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj, quantity_obj)
         order6 = BinanceFakeOrder(rq_params6, market_datas)
         exp6 = order6.copy()
-        order6.try_execute(market_datas6)
+        self.assertTrue(order6.try_execute(market_datas6))
         self.to_executed_state(exp6, order6, rq_params6, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -413,7 +413,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj, quantity_obj)
         order1 = BinanceFakeOrder(rq_params1, market_datas)
         exp1 = order1.copy()
-        order1.try_execute(market_datas1)
+        self.assertFalse(order1.try_execute(market_datas1))
         self.compare_order_execution(exp=exp1, result=order1, attribut_types=attribut_types_unexecuted)
         '''
         BUY close == limit
@@ -423,7 +423,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj, quantity_obj)
         order2 = BinanceFakeOrder(rq_params2, market_datas)
         exp2 = order2.copy()
-        order2.try_execute(market_datas2)
+        self.assertTrue(order2.try_execute(market_datas2))
         self.to_executed_state(exp2, order2, rq_params2, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -445,7 +445,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj, quantity_obj)
         order3 = BinanceFakeOrder(rq_params3, market_datas)
         exp3 = order3.copy()
-        order3.try_execute(market_datas3)
+        self.assertTrue(order3.try_execute(market_datas3))
         self.to_executed_state(exp3, order3, rq_params3, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -467,7 +467,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params4 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj, quantity_obj)
         order4 = BinanceFakeOrder(rq_params4, market_datas)
         exp4 = order4.copy()
-        order4.try_execute(market_datas4)
+        self.assertTrue(order4.try_execute(market_datas4))
         self.to_executed_state(exp4, order4, rq_params4, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -489,7 +489,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params5 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj, quantity_obj)
         order5 = BinanceFakeOrder(rq_params5, market_datas)
         exp5 = order5.copy()
-        order5.try_execute(market_datas5)
+        self.assertTrue(order5.try_execute(market_datas5))
         self.to_executed_state(exp5, order5, rq_params5, market_datas, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -511,7 +511,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params6 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj, quantity_obj)
         order6 = BinanceFakeOrder(rq_params6, market_datas)
         exp6 = order6.copy()
-        order6.try_execute(market_datas6)
+        self.assertFalse(order6.try_execute(market_datas6))
         self.compare_order_execution(exp=exp6, result=order6, attribut_types=attribut_types_unexecuted)
 
     def __try_execute_stop_limit(self, pair: Pair, quantity_obj: Price, amount_obj: Price, fees_rates: Map, attribut_types: dict, attribut_types_unexecuted: dict) -> None:
@@ -545,7 +545,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj1, quantity=quantity_obj)
         order1 = BinanceFakeOrder(rq_params1, init_market_datas1)
         exp1_1 = order1.copy()
-        order1.try_execute(exec_market_datas1_1)
+        self.assertFalse(order1.try_execute(exec_market_datas1_1))
         self.compare_order_execution(exp=exp1_1, result=order1, attribut_types=attribut_types_unexecuted)
         '''
         BUY FROM (init_close > stop) TO (new_close == stop) AND (close < limit)
@@ -558,7 +558,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj2, quantity=quantity_obj)
         order2 = BinanceFakeOrder(rq_params2, init_market_datas2)
         exp2 = order2.copy()
-        order2.try_execute(exec_market_datas2)
+        self.assertTrue(order2.try_execute(exec_market_datas2))
         self.to_executed_state(exp2, order2, rq_params2, init_market_datas2, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -583,7 +583,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj3, quantity=quantity_obj)
         order3 = BinanceFakeOrder(rq_params3, init_market_datas3)
         exp3 = order3.copy()
-        order3.try_execute(exec_market_datas3)
+        self.assertTrue(order3.try_execute(exec_market_datas3))
         self.to_executed_state(exp3, order3, rq_params3, init_market_datas3, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -608,7 +608,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params4 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj4, quantity=quantity_obj)
         order4 = BinanceFakeOrder(rq_params4, init_market_datas4)
         exp4 = order4.copy()
-        order4.try_execute(exec_market_datas4)
+        self.assertFalse(order4.try_execute(exec_market_datas4))
         self.compare_order_execution(exp=exp4, result=order4, attribut_types=attribut_types_unexecuted)
         '''
         BUY FROM (init_close < stop) TO (new_close == stop) AND (close < limit)
@@ -621,7 +621,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params5 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj5, quantity=quantity_obj)
         order5 = BinanceFakeOrder(rq_params5, init_market_datas5)
         exp5 = order5.copy()
-        order5.try_execute(exec_market_datas5)
+        self.assertTrue(order5.try_execute(exec_market_datas5))
         self.to_executed_state(exp5, order5, rq_params5, init_market_datas5, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
@@ -646,7 +646,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         rq_params6 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj6, quantity=quantity_obj)
         order6 = BinanceFakeOrder(rq_params6, init_market_datas6)
         exp6 = order6.copy()
-        order6.try_execute(exec_market_datas6)
+        self.assertTrue(order6.try_execute(exec_market_datas6))
         self.to_executed_state(exp6, order6, rq_params6, init_market_datas6, exec_datas={
             Map.symbol: merged_pair,
             Map.type: order_type,
