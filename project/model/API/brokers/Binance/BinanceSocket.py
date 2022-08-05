@@ -1,6 +1,7 @@
 import threading
 import time
-from typing import List, Tuple
+from types import FunctionType, MethodType
+from typing import List, Tuple, Union
 
 import numpy as np
 from config.Config import Config
@@ -31,8 +32,15 @@ class BinanceSocket(BinanceAPI):
     _THREAD_NAME_RUN_ADD_STREAM = 'run_add_stream'
     _THREAD_NAME_WEBSOCKET_MANGER = 'websocket_manager'
     _THREAD_NAME_WEBSOCKET_EVENT_HANDLER = 'websocket_event_handler'
+    _THREAD_NAME_WEBSOCKET_EVENT_WAITING = 'websocket_event_waiting'
     _TIMEOUT_RUN_WEBSOCKET = 10
     _TIMEOUT_CLOSE_WEBSOCKET = 10
+    _SLEEP_WAIT_NEW_MESSAGE = 1
+    _SLEEP_WAIT_EVENT_POST = 0.001
+    _SLEEP_WAIT_MARKET_POST = 0.1
+    _SLEEP_RUN_WEBSOCKET = 1
+    _SLEEP_MANAGER_RUN_WEBSOCKET = 1
+    _SLEEP_MANAGER_LOOP = 1
 
     def __init__(self, streams: list):
         if BinanceSocket._NB_INSTANCE is not None:
@@ -49,6 +57,9 @@ class BinanceSocket(BinanceAPI):
         self.__room_call_market_update = None
         self.__market_reset_times = None
         self.__thread_run_manager = None
+        self.__room_post_event = None
+        self.__thread_event_handler = None
+        self.__websocket_messages = None
         self._set_streams(streams)
 
     # ——————————————————————————————————————————— SELF GETTER/SETTER FUNCTION DOWN —————————————————————————————————————
@@ -476,6 +487,61 @@ class BinanceSocket(BinanceAPI):
             self.__thread_run_manager = new_thread
         return self.__thread_run_manager
 
+    def _reset_room_post_event(self) -> None:
+        post_room = self.__room_post_event
+        if post_room is not None:
+            tickets = post_room.get_tickets()
+            [post_room.quit_room(ticket) for ticket in tickets]
+            self.__room_post_event = None
+            del post_room
+
+    def _get_room_post_event(self) -> WaitingRoom:
+        """
+        To get queue where to wait to post event to handle
+
+        Returns:
+        --------
+        reeturn: WaitingRoom
+            Queue where to wait to post event to handle
+        """
+        if self.__room_post_event is None:
+            self.__room_post_event = WaitingRoom('post-websocket-event')
+        return self.__room_post_event
+
+    def _reset_thread_event_handler(self) -> None:
+        self.__thread_event_handler = None
+
+    def _get_thread_event_handler(self, func: Union[FunctionType, MethodType]) -> threading.Thread:
+        """
+        To get thread that mannage update of maket histories\n
+        Returns:
+        --------
+        return: threading.Thread
+            The thread that mannage update of maket histories
+        """
+        if self.__thread_event_handler is None:
+            base_name = self._THREAD_NAME_WEBSOCKET_EVENT_HANDLER
+            new_thread = self._generate_thread(
+                func, base_name, output=True)
+            self.__thread_event_handler = new_thread
+        return self.__thread_event_handler
+
+    def _reset_websocket_messages(self) -> None:
+        self.__websocket_messages = None
+
+    def _get_websocket_messages(self) -> List[str]:
+        """
+        To get list of no treated messages received from websocke
+
+        Return:
+        -------
+        return: List[str]
+            List of no treated messages received from websocke
+        """
+        if self.__websocket_messages is None:
+            self.__websocket_messages = []
+        return self.__websocket_messages
+
     # ——————————————————————————————————————————— SELF GETTER/SETTER FUNCTION UP ———————————————————————————————————————
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ———————————————————————————————————————————————————
     # ——————————————————————————————————————————— OTHER DOWN
@@ -687,19 +753,45 @@ class BinanceSocket(BinanceAPI):
                     raise ValueError(f"on_message: this event '{event}' is not supported (message='{message}')")
 
             def handle_event() -> None:
-                decoded = _MF.json_decode(message)
-                n_row = len(decoded)
-                if (n_row == 2) and (Map.stream in decoded) and (Map.data in decoded):
-                    pay_load = decoded[Map.data]
-                elif 'e' in decoded:
-                    pay_load = decoded
-                else:
-                    raise ValueError(f"on_message: can't handle event's message: '{message}'")
-                event = pay_load['e']
-                root_event(event, pay_load)
+                def extract_payload(decoded: dict) -> Tuple[str, dict]:
+                    n_row = len(decoded)
+                    if (n_row == 2) and (Map.stream in decoded) and (Map.data in decoded):
+                        pay_load = decoded[Map.data]
+                    elif 'e' in decoded:
+                        pay_load = decoded
+                    else:
+                        raise ValueError(f"on_message: can't handle event's message: '{f_message}'")
+                    event = pay_load['e']
+                    return event, pay_load
 
-            base_name = self._THREAD_NAME_WEBSOCKET_EVENT_HANDLER
-            self._generate_thread(handle_event, base_name, output=False).start()
+                f_ws_messages = self._get_websocket_messages()
+                while self.is_running():
+                    if len(f_ws_messages) > 0:
+                        f_message = f_ws_messages.pop(0)
+                        decoded = _MF.json_decode(f_message)
+                        event, pay_load = extract_payload(decoded)
+                        root_event(event, pay_load)
+                    else:
+                        time.sleep(self._SLEEP_WAIT_NEW_MESSAGE)
+                self._reset_thread_event_handler()
+
+            def waiting_room() -> None:
+                def wait_my_trun() -> Tuple[WaitingRoom, str]:
+                    f_post_room = self._get_room_post_event()
+                    f_ticket = f_post_room.join_room()
+                    while not f_post_room.my_turn(f_ticket):
+                        time.sleep(self._SLEEP_WAIT_EVENT_POST)
+                    return f_post_room, f_ticket
+
+                post_room, ticket = wait_my_trun()
+                thread_event = self._get_thread_event_handler(handle_event)
+                ws_messages = self._get_websocket_messages()
+                ws_messages.append(message)
+                thread_event.start() if not thread_event.is_alive() else None
+                post_room.treat_ticket(ticket)
+            
+            base_name = self._THREAD_NAME_WEBSOCKET_EVENT_WAITING
+            self._generate_thread(waiting_room, base_name, output=False).start()
 
         # Create WebSocket
         _normal = '\033[0m'
@@ -770,7 +862,7 @@ class BinanceSocket(BinanceAPI):
             call_room = self._get_room_call_market_update()
             ticket = call_room.join_room()
             while not call_room.my_turn(ticket):
-                time.sleep(0.1)
+                time.sleep(self._SLEEP_WAIT_MARKET_POST)
             return call_room, ticket
 
         call_room, ticket = wait_my_trun()
@@ -818,7 +910,7 @@ class BinanceSocket(BinanceAPI):
                 thread_run = self._get_thread_run_manager()
                 thread_run.start()
             else:
-                time.sleep(1)
+                time.sleep(self._SLEEP_RUN_WEBSOCKET)
             wait_time += 1
 
     def close(self) -> None:
@@ -831,6 +923,9 @@ class BinanceSocket(BinanceAPI):
         self._reset_market_histories()
         self._reset_market_reset_times()
         self._reset_stream_times()
+        self._reset_websocket_messages()
+        self._reset_room_post_event()
+        self._reset_thread_event_handler()
 
     def _manage_run(self) -> None:
         """
@@ -852,7 +947,11 @@ class BinanceSocket(BinanceAPI):
                 n_call = len(self._get_room_call_market_update().get_tickets())
                 # Market Room
                 n_market_reset = len(self._get_room_market_update().get_tickets())
-                msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Call_Room: ({n_call}) == Update_Room: ({n_market_reset})"
+                # Event room
+                n_ws_messages = len(self._get_websocket_messages())
+                n_event = len(self._get_room_post_event().get_tickets())
+                msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Post_Update_Room: ({n_call}) == Update_Room: ({n_market_reset})"
+                msg += f" == Post_Event_Room: '{n_event}' == N_Message: '{n_ws_messages}'"
                 _MF.output(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "B":
                 n_socket = kwargs[Map.websocket]
@@ -907,7 +1006,7 @@ class BinanceSocket(BinanceAPI):
             i = 0
             timeout = self.get_timeout_run_websocket()
             while (not are_running(f_wss, n_wss)) and (i <= timeout):
-                time.sleep(1)
+                time.sleep(self._SLEEP_MANAGER_RUN_WEBSOCKET)
                 i += 1
             if i >= timeout:
                 raise Exception(f"Can't run websockets")
@@ -1005,7 +1104,7 @@ class BinanceSocket(BinanceAPI):
                 if (len(self.get_new_streams()) > 0) and (not is_adding_new_stream):
                     thd_add_streams = thread_add_streams()
                     thd_add_streams.start()
-                time.sleep(1)
+                time.sleep(self._SLEEP_MANAGER_LOOP)
             except Exception as e:
                 close_connection()
                 from model.structure.Bot import Bot

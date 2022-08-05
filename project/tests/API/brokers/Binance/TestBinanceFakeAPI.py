@@ -62,6 +62,14 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
             Config.update(Config.STAGE_MODE, init_stage) if init_stage is not None else None
         return self.BROKER
 
+    def test_get_constant(self) -> None:
+        keys = [self._DIR_STORAGE, self._FILE_LOGS, self._FILE_LOAD_ORDERS, self._DIR_EXCHANGE_INFOS, self._DIR_TRADE_FEES]
+        # Test existing constant
+        [self.assertIsNotNone(self.get_constant(key)) for key in keys]
+        # Test not existing constant
+        with self.assertRaises(ValueError):
+            self.get_constant('invalid_constant')
+
     def test_get_file_path_load_orders(self) -> None:
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
         session_id = Config.get(Config.SESSION_ID)
@@ -276,7 +284,8 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
     def test_save_orders(self) -> None:
         _cls = BinanceFakeAPI
         params = self.order_params
-        # 
+        '''
+        # Load orders
         orders = _cls._get_orders()
         last_saved_order = _cls._get_last_saved_orders()
         self.assertEqual(orders, last_saved_order)
@@ -301,6 +310,26 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         result4 = _cls._get_last_saved_orders()
         self.assertEqual(id(new_last_saved_order), id(result4))
         self.assertEqual(new_orders, result4)
+        '''
+        def test(orders: Map) -> None:
+            _cls._save_orders()
+            _MF.wait_while(FileManager.is_writting, False, 5)
+            _cls.reset()
+            loaded_orders = _cls._get_orders()
+            self.assertNotEqual(id(orders), id(loaded_orders))
+            self.assertEqual(orders, loaded_orders)
+            self.assertEqual(orders.get_id(), loaded_orders.get_id())
+
+        # Save empty orders
+        original_orders1 = _cls._get_orders()
+        test(original_orders1)
+        # Save order
+        '''
+        _cls.reset()
+        order = _cls._new_order(params)
+        original_orders2 = _cls._get_orders()
+        test(original_orders2)
+        '''
 
     def test_get_orders(self) -> None:
         self.broker_switch(on=True)
@@ -410,15 +439,14 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         pass
 
     def test_get_file_path(self) -> None:
-        _cls = BinanceFakeAPI
-        paths = {
-            _cls._DIR_EXCHANGE_INFOS: 'content/storage/BinanceFakeAPI/requests/exchange_infos/2022-01-26_05.52.52_exchange_infos.json',
-            _cls._DIR_TRADE_FEES: 'content/storage/BinanceFakeAPI/requests/trade_fees/2022-01-30_14.56.31_trade_fees.json'
-        }
-        for dir_path, file_path in paths.items():
-            exp = file_path
-            result = _cls.get_file_path(dir_path)
-            self.assertEqual(exp, result)
+        paths = [
+            self.get_constant(self._DIR_EXCHANGE_INFOS),
+            self.get_constant(self._DIR_TRADE_FEES)
+        ]
+        for dir_path in paths:
+            file_path = self.get_file_path(dir_path)
+            content = FileManager.read(file_path)
+            self.assertTrue(len(content) > 0)
 
     def test_request_api_time(self) -> None:
         _cls = BinanceFakeAPI
@@ -434,8 +462,7 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         self.assertTrue(len(infos) > 0)
 
     def test_request_trade_fees(self) -> None:
-        _cls = BinanceFakeAPI
-        fees = _cls._request_trade_fees()
+        fees = self._request_trade_fees()
         self.assertIsInstance(fees, list)
         self.assertTrue(len(fees) > 0)
 
