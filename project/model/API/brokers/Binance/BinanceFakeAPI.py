@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from config.Config import Config
@@ -17,19 +17,51 @@ from requests.models import Response
 
 class BinanceFakeAPI(BinanceAPI):
     # Constants
-    _DIR_STORAGE = Config.get(Config.DIR_STORAGE)
-    _FILE_LOGS = Config.get(Config.DIR_SAVE_FAKE_API_RQ)
-    _FILE_LOAD_ORDERS = Config.get(Config.FILE_FAKE_API_ORDERS)
-    _DIR_EXCHANGE_INFOS = f"{_DIR_STORAGE}BinanceFakeAPI/requests/exchange_infos/"
-    _DIR_TRADE_FEES = f"{_DIR_STORAGE}BinanceFakeAPI/requests/trade_fees/"
-    _HISTORY_TIMES = None
+    _DIR_STORAGE = 'DIR_STORAGE'
+    _FILE_LOGS = 'FILE_LOGS'
+    _FILE_LOAD_ORDERS = 'FILE_LOAD_ORDERS'
+    _DIR_EXCHANGE_INFOS = 'DIR_EXCHANGE_INFOS'
+    _DIR_TRADE_FEES = 'DIR_TRADE_FEES'
     # Variables
+    _HISTORY_TIMES = None
     _HISTORIES = None
     _INITIAL_INDEXES = None
     _ORDERS = None
-    _LAST_ORDERS_SAVED = None
+    # _LAST_ORDERS_SAVED = None
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION DOWN ———————————————————————————————————
+
+    @classmethod
+    def get_constant(cls, name: str) -> Any:
+        """
+        To get class's constant
+
+        Parameters:
+        -----------
+        name: str
+            The name of the constant to get
+
+        Return:
+        -------
+        return: str
+            A class's constant
+        """
+        constant = None
+        if name == cls._DIR_STORAGE:
+            constant = Config.get(Config.DIR_STORAGE)
+        elif name == cls._FILE_LOGS:
+            constant = Config.get(Config.DIR_SAVE_FAKE_API_RQ)
+        elif name == cls._FILE_LOAD_ORDERS:
+            constant = Config.get(Config.FILE_FAKE_API_ORDERS)
+        elif name == cls._DIR_EXCHANGE_INFOS:
+            dir_storage = cls.get_constant(cls._DIR_STORAGE)
+            constant = f"{dir_storage}BinanceFakeAPI/requests/exchange_infos/"
+        elif name == cls._DIR_TRADE_FEES:
+            dir_storage = cls.get_constant(cls._DIR_STORAGE)
+            constant = f"{dir_storage}BinanceFakeAPI/requests/trade_fees/"
+        else:
+            raise ValueError(f"This constant '{name}' don't exist")
+        return constant
 
     @staticmethod
     def reset() -> None:
@@ -53,11 +85,11 @@ class BinanceFakeAPI(BinanceAPI):
         """
         return Config.get(Config.STAGE_MODE)
 
-    @staticmethod
-    def _get_file_path_load_orders() -> str:
-        _cls = BinanceFakeAPI
+    @classmethod
+    def _get_file_path_load_orders(cls) -> str:
         class_name = BinanceFakeAPI.__name__
-        return _cls._FILE_LOAD_ORDERS.replace('$stage', _cls._get_stage()).replace('$class', class_name)
+        file_load_orders = cls.get_constant(cls._FILE_LOAD_ORDERS)
+        return file_load_orders.replace('$stage', cls._get_stage()).replace('$class', class_name)
 
     @classmethod
     def get_history_times(cls) -> Map:
@@ -335,13 +367,9 @@ class BinanceFakeAPI(BinanceAPI):
         To save all submitted orders
         """
         orders = cls._get_orders()
-        last_saved_orders = cls._get_last_saved_orders()
-        if orders != last_saved_orders:
-            file_path = cls._get_file_path_load_orders()
-            json_str = orders.json_encode()
-            FileManager.write(file_path, json_str, overwrite=True, make_dir=True)
-            copy_orders = MyJson.json_decode(json_str)
-            cls._set_last_saved_orders(copy_orders, make_copy=False)
+        file_path = cls._get_file_path_load_orders()
+        json_str = orders.json_encode()
+        FileManager.write(file_path, json_str, overwrite=True, make_dir=True)
 
     @classmethod
     def _load_orders(cls) -> Map:
@@ -373,7 +401,7 @@ class BinanceFakeAPI(BinanceAPI):
         """
         if cls._ORDERS is None:
             cls._ORDERS = cls._load_orders()
-            cls._set_last_saved_orders(cls._ORDERS, make_copy=True)
+            # cls._set_last_saved_orders(cls._ORDERS, make_copy=True)
         return cls._ORDERS
 
     @staticmethod
@@ -436,7 +464,7 @@ class BinanceFakeAPI(BinanceAPI):
         if found is not None:
             raise Exception(f"There's already an order with this order_id '{order_id}' (new_order='{id(order)}', found_order='{id(found)}')")
         orders.put(order, merged_pair, order_id)
-
+    '''
     @classmethod
     def _set_last_saved_orders(cls, orders: Map, make_copy: bool = True) -> None:
         """
@@ -463,6 +491,7 @@ class BinanceFakeAPI(BinanceAPI):
             The last saved state of oders
         """
         return cls._LAST_ORDERS_SAVED
+    '''
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION UP —————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
@@ -605,8 +634,8 @@ class BinanceFakeAPI(BinanceAPI):
         _cls._add_order(order)
         return order
 
-    @staticmethod
-    def _update_orders(merged_pair: str) -> None:
+    @classmethod
+    def _update_orders(cls, merged_pair: str) -> None:
         """
         To try to execute all submitted orders
 
@@ -615,13 +644,13 @@ class BinanceFakeAPI(BinanceAPI):
         merged_pair: str
             The pair of orders to update (in merged format)
         """
-        _cls = BinanceFakeAPI
         merged_pair = merged_pair.upper()
-        order_dict = _cls._get_order_dict(merged_pair)
-        market_datas = _cls._actual_market_datas(merged_pair)
+        order_dict = cls._get_order_dict(merged_pair)
+        market_datas = cls._actual_market_datas(merged_pair)
+        executions = []
         for period, order in order_dict.copy().items():
-            order.try_execute(market_datas)
-        _cls._save_orders()
+            executions.append(1) if order.try_execute(market_datas) else None
+        cls._save_orders() if sum(executions) > 0 else None
 
     # ——————————————————————————————————————————— STATIC FUNCTION ORDER UP
     # ——————————————————————————————————————————— STATIC FUNCTION REQUESTS DOWN
@@ -679,26 +708,26 @@ class BinanceFakeAPI(BinanceAPI):
         api_time = {Map.serverTime: _MF.get_timestamp(unit=_MF.TIME_MILLISEC)}
         return api_time
 
-    @staticmethod
-    def _request_exchange_infos() -> dict:
+    @classmethod
+    def _request_exchange_infos(cls) -> dict:
         """
         To load exchange's infos
         """
-        _cls = BinanceFakeAPI
-        _cls.check_stage(Config.STAGE_1)
-        path = _cls.get_file_path(_cls._DIR_EXCHANGE_INFOS)
+        cls.check_stage(Config.STAGE_1)
+        exchange_dir = cls.get_constant(cls._DIR_EXCHANGE_INFOS)
+        path = cls.get_file_path(exchange_dir)
         content = FileManager.read(path)
         infos = _MF.json_decode(content)
         return infos
 
-    @staticmethod
-    def _request_trade_fees() -> list:
+    @classmethod
+    def _request_trade_fees(cls) -> list:
         """
         To load trade fees
         """
-        _cls = BinanceFakeAPI
-        _cls.check_stage(Config.STAGE_1)
-        path = _cls.get_file_path(_cls._DIR_TRADE_FEES)
+        cls.check_stage(Config.STAGE_1)
+        fees_dir = cls.get_constant(cls._DIR_TRADE_FEES)
+        path = cls.get_file_path(fees_dir)
         content = FileManager.read(path)
         trade_fees = _MF.json_decode(content)
         return trade_fees
@@ -771,17 +800,15 @@ class BinanceFakeAPI(BinanceAPI):
             raise Exception(f"This stage '{stage}' is not supported")
         return kline.tolist()
 
-    @staticmethod
-    def _request_submit_order(params: Map) -> dict:
+    @classmethod
+    def _request_submit_order(cls, params: Map) -> dict:
         """
         To submit order request
         """
-        _cls = BinanceFakeAPI
-        order = _cls._new_order(params)
+        order = cls._new_order(params)
         merged_pair = order.get_attribut(Map.symbol)
-        market_datas = _cls._actual_market_datas(merged_pair)
-        order.try_execute(market_datas)
-        _cls._save_orders()
+        market_datas = cls._actual_market_datas(merged_pair)
+        cls._save_orders() if order.try_execute(market_datas) else None
         return order.to_dict()
 
     @staticmethod
