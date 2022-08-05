@@ -764,9 +764,9 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
             bkr.add_streams([stream])
 
         bkr = self.broker_switch(True)
-        pair = Pair('hard/usdt')
+        pairs = [Pair('btc/usdt'), Pair('eth/usdt'), Pair('doge/usdt'), Pair('bnb/usdt')]
         period = 60
-        stream = bkr.generate_stream(Map({Map.pair: pair, Map.period: period}))
-        bkr.add_streams([stream])
+        streams = [bkr.generate_stream(Map({Map.pair: pair, Map.period: period})) for pair in pairs]
+        bkr.add_streams(streams)
         _MF.console(**vars())
         self.broker_switch(False)
