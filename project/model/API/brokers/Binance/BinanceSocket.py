@@ -35,6 +35,12 @@ class BinanceSocket(BinanceAPI):
     _THREAD_NAME_WEBSOCKET_EVENT_WAITING = 'websocket_event_waiting'
     _TIMEOUT_RUN_WEBSOCKET = 10
     _TIMEOUT_CLOSE_WEBSOCKET = 10
+    _SLEEP_WAIT_NEW_MESSAGE = 1
+    _SLEEP_WAIT_EVENT_POST = 0.001
+    _SLEEP_WAIT_MARKET_POST = 0.1
+    _SLEEP_RUN_WEBSOCKET = 1
+    _SLEEP_MANAGER_RUN_WEBSOCKET = 1
+    _SLEEP_MANAGER_LOOP = 1
 
     def __init__(self, streams: list):
         if BinanceSocket._NB_INSTANCE is not None:
@@ -766,7 +772,7 @@ class BinanceSocket(BinanceAPI):
                         event, pay_load = extract_payload(decoded)
                         root_event(event, pay_load)
                     else:
-                        time.sleep(1)
+                        time.sleep(self._SLEEP_WAIT_NEW_MESSAGE)
                 self._reset_thread_event_handler()
 
             def waiting_room() -> None:
@@ -774,7 +780,7 @@ class BinanceSocket(BinanceAPI):
                     f_post_room = self._get_room_post_event()
                     f_ticket = f_post_room.join_room()
                     while not f_post_room.my_turn(f_ticket):
-                        time.sleep(0.001)
+                        time.sleep(self._SLEEP_WAIT_EVENT_POST)
                     return f_post_room, f_ticket
 
                 post_room, ticket = wait_my_trun()
@@ -856,7 +862,7 @@ class BinanceSocket(BinanceAPI):
             call_room = self._get_room_call_market_update()
             ticket = call_room.join_room()
             while not call_room.my_turn(ticket):
-                time.sleep(0.1)
+                time.sleep(self._SLEEP_WAIT_MARKET_POST)
             return call_room, ticket
 
         call_room, ticket = wait_my_trun()
@@ -904,7 +910,7 @@ class BinanceSocket(BinanceAPI):
                 thread_run = self._get_thread_run_manager()
                 thread_run.start()
             else:
-                time.sleep(1)
+                time.sleep(self._SLEEP_RUN_WEBSOCKET)
             wait_time += 1
 
     def close(self) -> None:
@@ -1000,7 +1006,7 @@ class BinanceSocket(BinanceAPI):
             i = 0
             timeout = self.get_timeout_run_websocket()
             while (not are_running(f_wss, n_wss)) and (i <= timeout):
-                time.sleep(1)
+                time.sleep(self._SLEEP_MANAGER_RUN_WEBSOCKET)
                 i += 1
             if i >= timeout:
                 raise Exception(f"Can't run websockets")
@@ -1098,7 +1104,7 @@ class BinanceSocket(BinanceAPI):
                 if (len(self.get_new_streams()) > 0) and (not is_adding_new_stream):
                     thd_add_streams = thread_add_streams()
                     thd_add_streams.start()
-                time.sleep(1)
+                time.sleep(self._SLEEP_MANAGER_LOOP)
             except Exception as e:
                 close_connection()
                 from model.structure.Bot import Bot
