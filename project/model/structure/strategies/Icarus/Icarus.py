@@ -746,38 +746,24 @@ class Icarus(TraderClass):
             # Check
             price_change_1 = price_change(-1, opens, closes)
             price_change_2 = price_change(-2, opens, closes)
-            min_price_change_1 = price_change(-1, min_opens, min_closes)
-            price_switch_up = (price_change_2 < 0) and (price_change_1 > abs(price_change_2)) and (min_price_change_1 > 0)
+            price_switch_up = (price_change_1 > abs(price_change_2))
             # Put
             vars_map.put(price_switch_up, 'price_switch_up')
             vars_map.put(price_change_1, 'price_change_1')
             vars_map.put(price_change_2, 'price_change_2')
-            vars_map.put(min_price_change_1, 'min_price_change_1')
             return price_switch_up
 
-        def is_close_2_bellow_keltner_middle_2(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            keltner = child_marketprice.get_keltnerchannel()
-            keltner_middle = list(keltner.get(Map.middle))
-            keltner_middle.reverse()
-            # Check
-            close_2_bellow_keltner_middle_2 = closes[-2] < keltner_middle[-2]
-            # Put
-            vars_map.put(close_2_bellow_keltner_middle_2, 'close_2_bellow_keltner_middle_2')
-            vars_map.put(keltner_middle, 'keltner_middle')
-            return close_2_bellow_keltner_middle_2
-
-        def is_min_close_bellow_min_keltner_middle(vars_map: Map) -> bool:
+        def is_min_macd_histogram_switch_up(vars_map: Map) -> bool:
             min_marketprice.reset_collections()
-            keltner = min_marketprice.get_keltnerchannel()
-            keltner_middle = list(keltner.get(Map.middle))
-            keltner_middle.reverse()
+            macd_map = min_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
             # Check
-            min_close_bellow_min_keltner_middle = min_closes[-1] < keltner_middle[-1]
+            min_macd_histogram_switch_up = (histogram[-1] > 0) and (histogram[-2] < 0)
             # Put
-            vars_map.put(min_close_bellow_min_keltner_middle, 'min_close_bellow_min_keltner_middle')
-            vars_map.put(keltner_middle, 'min_keltner_middle')
-            return min_close_bellow_min_keltner_middle
+            vars_map.put(min_macd_histogram_switch_up, 'min_macd_histogram_switch_up')
+            vars_map.put(histogram, 'min_histogram')
+            return min_macd_histogram_switch_up
 
         def is_mean_candle_change_60_above_trigger(vars_map: Map) -> bool:
             mean_candle_change = MarketPrice.mean_candle_variation(opens[-N_CANDLE:], closes[-N_CANDLE:])
@@ -820,25 +806,21 @@ class Icarus(TraderClass):
         min_open_times.reverse()
         # Little
         # Big
-        # big_closes = list(big_marketprice.get_closes())
-        # big_closes.reverse()
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
-            and is_supertrend_rising(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
+        can_buy_indicator = is_price_switch_up(vars_map)\
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
         # Repport
-        min_keltner_middle = vars_map.get('min_keltner_middle')
+        min_histogram = vars_map.get('min_histogram')
         supertrend = vars_map.get(Map.supertrend)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
-            f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
-            f'{key}.min_close_bellow_min_keltner_middle': vars_map.get('min_close_bellow_min_keltner_middle'),
+            f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
-            f'{key}.min_price_change_1': vars_map.get('min_price_change_1'),
 
             f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
 
@@ -848,7 +830,8 @@ class Icarus(TraderClass):
             f'{key}.min_opens[-1]': min_opens[-1],
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
-            f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
+            f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
+            f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None
         }
         return can_buy_indicator, repport
 
