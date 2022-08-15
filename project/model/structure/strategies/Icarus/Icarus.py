@@ -807,7 +807,7 @@ class Icarus(TraderClass):
         # Little
         # Big
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map)\
+        can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
             and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
         # Repport
         min_histogram = vars_map.get('min_histogram')
@@ -816,6 +816,7 @@ class Icarus(TraderClass):
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+            f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
 
