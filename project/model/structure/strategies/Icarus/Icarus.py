@@ -34,6 +34,7 @@ class Icarus(TraderClass):
     _MAX_FLOAT_DEFAULT = -1
     EMA_N_PERIOD = 200
     ROC_WINDOW = 15
+    MACD_PARAMS_1 = {'slow': 100, 'fast': 46, 'signal': 35}
     CANDLE_CHANGE_N_CANDLE = 60
     _PREDICTIONS = None
     _FILE_PATH_BACKTEST = f'$class/backtest/$path/$session_backtest.csv'
