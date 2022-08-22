@@ -59,6 +59,7 @@ class Map(MyJson):
     stdev = "stdev"
     positive = "positive"
     negative = "negative"
+    metric = "metric"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
