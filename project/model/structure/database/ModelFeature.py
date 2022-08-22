@@ -8,7 +8,7 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 from types import FunctionType, MethodType
-from typing import Any, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import dill
 import numpy as np
@@ -419,6 +419,30 @@ class ModelFeature(ModelAccess):
         for col in columns:
             df[col] = df[col].apply(func, args=params) if params is not None else df[col].apply(func)
         return df
+
+    @staticmethod
+    def concat_files(file_paths: List[str]) -> pd.DataFrame:
+        """
+        To load multiple files
+
+        Parameters:
+        -----------
+        file_paths: List[str]
+            List of file path from project's directory to he file to load
+
+        Returns:
+        --------
+        return: int
+            Files concatenated into one Dataframe
+        """
+        from model.tools.FileManager import FileManager
+        project_dir = FileManager.get_project_directory()
+        loaded = None
+        for file_path in file_paths:
+            load_file_path = project_dir + file_path
+            df = pd.read_csv(load_file_path)
+            loaded = df if loaded is None else pd.concat([loaded, df], ignore_index=True)
+        return loaded
 
     def predict_endtime(starttime: int, turn: int, n_turn: int, now_time: int = None) -> int:
         """
