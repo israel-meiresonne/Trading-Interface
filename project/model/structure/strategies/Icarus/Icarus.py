@@ -18,7 +18,7 @@ from model.tools.Wallet import Wallet
 
 
 class Icarus(TraderClass):
-    _MAX_ROI_DROP_TRIGGER = 1/100
+    _MAX_ROI_DROP_TRIGGER = 1.5/100
     _MAX_ROI_DROP_RATE = 50/100
     _MAX_LOSS = -3/100
     _ROI_FLOOR_FIXE = 0.002
