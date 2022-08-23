@@ -735,6 +735,7 @@ class Icarus(TraderClass):
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         N_CANDLE = 60
         TRIGGER_CANDLE_CHANGE = 0.5/100
+        TRIGGE_KELTNER = 0.1/100
         def price_change(i: int, open_prices: list[float], close_prices: list[float]) -> float:
             n_open = len(open_prices)
             n_close = len(close_prices)
@@ -785,6 +786,22 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_rising
 
+        def is_min_keltner_roi_above_trigger(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            keltner_map = min_marketprice.get_keltnerchannel(multiple=1)
+            keltner_low = list(keltner_map.get(Map.low))
+            keltner_low.reverse()
+            keltner_high = list(keltner_map.get(Map.high))
+            keltner_high.reverse()
+            # Check
+            keltner_roi = _MF.progress_rate(keltner_high[-1], keltner_low[-1])
+            min_keltner_roi_above_trigger = keltner_roi >= TRIGGE_KELTNER
+            # Put
+            vars_map.put(min_keltner_roi_above_trigger, 'min_keltner_roi_above_trigger')
+            vars_map.put(keltner_roi, 'keltner_roi')
+            vars_map.put(keltner_map.get_map(), 'min_keltner')
+            return min_keltner_roi_above_trigger
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -808,9 +825,12 @@ class Icarus(TraderClass):
         # Big
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
-            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map) and is_min_keltner_roi_above_trigger(vars_map)
         # Repport
         min_histogram = vars_map.get('min_histogram')
+        keltner_low = vars_map.get('min_keltner', Map.low)
+        keltner_middle = vars_map.get('min_keltner', Map.middle)
+        keltner_high = vars_map.get('min_keltner', Map.high)
         supertrend = vars_map.get(Map.supertrend)
         key = cls._can_buy_indicator.__name__
         repport = {
@@ -819,11 +839,15 @@ class Icarus(TraderClass):
             f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
+            f'{key}.min_keltner_roi_above_trigger': vars_map.get('min_keltner_roi_above_trigger'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
 
             f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
+            
+            f'{key}.TRIGGE_KELTNER': TRIGGE_KELTNER,
+            f'{key}.keltner_roi': vars_map.get('keltner_roi'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
@@ -832,7 +856,10 @@ class Icarus(TraderClass):
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
             f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
-            f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None
+            f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None,
+            f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
+            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
+            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None
         }
         return can_buy_indicator, repport
 
