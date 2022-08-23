@@ -343,39 +343,12 @@ class Icarus(TraderClass):
     # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
 
     def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
-        def index_last_rsi_below(rsi_trigger: float) -> int:
-            # RSI
-            rsi = list(marketprice.get_rsis())
-            rsi.reverse()
-            open_times = list(marketprice.get_times())
-            open_times.reverse()
-            period = self.get_period()
-            buy_order = self.get_buy_order()
-            buy_time = buy_order.get_execution_time()/1000
-            buy_open_time = _MF.round_time(buy_time, period)
-            last_index = None
-            for i in range(len(open_times)):
-                i = -i
-                if (open_times[i] < buy_open_time) and (rsi[i] < rsi_trigger):
-                    last_index = i
-                    break
-            return last_index
-
         # Get values
         pair = self.get_pair()
-        # Close
-        closes = list(marketprice.get_closes())
-        closes.reverse()
-        # EMA
-        ema = list(marketprice.get_ema(self.EMA200_N_PERIOD))
-        ema.reverse()
-        ema_rising = closes[-1] > ema[-1]
-        # Low
-        lows = list(marketprice.get_lows())
-        lows.reverse()
-        rsi_trigger = 50 if ema_rising else 30
-        i = index_last_rsi_below(rsi_trigger)
-        secure_price_value = lows[i]
+        max_roi = self.max_roi(marketprice)
+        buy_price = self.get_buy_order().get_execution_price()
+        # Price
+        secure_price_value = self._get_max_drop_sell_price(buy_price, max_roi)
         secure_price = Price(secure_price_value, pair.get_right())
         return secure_price
 
@@ -397,7 +370,7 @@ class Icarus(TraderClass):
         min_period = self.get_min_period()
         datas = {
             Map.roi: self.get_wallet().get_roi(broker),
-            Map.maximum: self.get_max_price(marketprice),
+            Map.maximum: self.max_roi(marketprice),
             Map.buy: self.get_buy_order().get_execution_price(),
             min_period: self.get_marketprice(min_period, n_period, broker)
         }
@@ -410,7 +383,7 @@ class Icarus(TraderClass):
         return can_sell
 
     @classmethod
-    def _get_max_drop_sell_price(cls, buy_price: float, max_roi: float) -> float:
+    def _get_max_drop_sell_price(cls, buy_price: Price, max_roi: float) -> float:
         sell_price = None
         if max_roi >= cls._MAX_ROI_DROP_TRIGGER:
             sell_price = buy_price * (1+(max_roi*(1-cls._MAX_ROI_DROP_RATE)))
@@ -677,6 +650,12 @@ class Icarus(TraderClass):
         can_sell, repport = self.can_sell(market_price)
         if can_sell:
             self._sell(executions)
+        elif repport[Map.price] is not None:
+            secure_order = self._get_secure_order()
+            if secure_order is None:
+                self._secure_position(executions)
+            elif repport[Map.price] > secure_order.get_limit_price().get_value():
+                self._move_up_secure_order(executions)
         var_param = vars().copy()
         del var_param['self']
         self.save_move(**var_param)
