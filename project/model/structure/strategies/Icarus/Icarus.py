@@ -785,17 +785,17 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_rising
 
-        def is_tangent_macd_histogram_positive(vars_map: Map) -> bool:
-            child_marketprice.reset_collections()
-            macd_map = child_marketprice.get_macd()
+        def is_tangent_min_edited_macd_histogram_positive(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd(**cls.MACD_PARAMS_1)
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             # Check
-            tangent_macd_histogram_positive = histogram[-1] > histogram[-2]
+            tangent_min_edited_macd_histogram_positive = histogram[-1] > histogram[-2]
             # Put
-            vars_map.put(tangent_macd_histogram_positive, 'tangent_macd_histogram_positive')
-            vars_map.put(histogram, Map.histogram)
-            return tangent_macd_histogram_positive
+            vars_map.put(tangent_min_edited_macd_histogram_positive, 'tangent_min_edited_macd_histogram_positive')
+            vars_map.put(histogram, 'min_edited_histogram')
+            return tangent_min_edited_macd_histogram_positive
 
         vars_map = Map()
         # Child
@@ -820,11 +820,11 @@ class Icarus(TraderClass):
         # Big
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
-            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map) and is_tangent_macd_histogram_positive(vars_map)
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map) and is_tangent_min_edited_macd_histogram_positive(vars_map)
         # Repport
         min_histogram = vars_map.get('min_histogram')
+        min_edited_histogram = vars_map.get('min_edited_histogram')
         supertrend = vars_map.get(Map.supertrend)
-        histogram = vars_map.get(Map.histogram)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -832,7 +832,7 @@ class Icarus(TraderClass):
             f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
-            f'{key}.tangent_macd_histogram_positive': vars_map.get('tangent_macd_histogram_positive'),
+            f'{key}.tangent_min_edited_macd_histogram_positive': vars_map.get('tangent_min_edited_macd_histogram_positive'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -845,8 +845,8 @@ class Icarus(TraderClass):
             f'{key}.min_opens[-1]': min_opens[-1],
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
-            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
+            f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
+            f'{key}.min_edited_histogram[-2]': min_edited_histogram[-2] if min_edited_histogram is not None else None,
             f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
             f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None
         }
