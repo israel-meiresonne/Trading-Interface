@@ -785,6 +785,16 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_rising
 
+        def is_min_supertrend_rising(vars_map: Map) -> bool:
+            supertrend = list(min_marketprice.get_super_trend())
+            supertrend.reverse()
+            # Check
+            min_supertrend_rising = MarketPrice.get_super_trend_trend(min_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
+            # Put
+            vars_map.put(min_supertrend_rising, 'min_supertrend_rising')
+            vars_map.put(supertrend, 'min_supertrend')
+            return min_supertrend_rising
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -808,10 +818,11 @@ class Icarus(TraderClass):
         # Big
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
-            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map) and is_min_supertrend_rising(vars_map)
         # Repport
         min_histogram = vars_map.get('min_histogram')
         supertrend = vars_map.get(Map.supertrend)
+        min_supertrend = vars_map.get('min_supertrend')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -819,6 +830,7 @@ class Icarus(TraderClass):
             f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
+            f'{key}.min_supertrend_rising': vars_map.get('min_supertrend_rising'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -831,6 +843,8 @@ class Icarus(TraderClass):
             f'{key}.min_opens[-1]': min_opens[-1],
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
+            f'{key}.min_supertrend[-1]': min_supertrend[-1] if min_supertrend is not None else None,
+            f'{key}.min_supertrend[-2]': min_supertrend[-2] if min_supertrend is not None else None,
             f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
             f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None
         }
