@@ -815,6 +815,14 @@ class Icarus(TraderClass):
             vars_map.put(keltner_map.get_map(), 'min_keltner')
             return min_keltner_roi_above_trigger
 
+        def is_psar_rising(vars_map: Map) -> bool:
+            psar = list(child_marketprice.get_psar())
+            psar.reverse()
+            psar_rising = MarketPrice.get_psar_trend(closes, psar, -1) == MarketPrice.PSAR_RISING
+            vars_map.put(psar_rising, 'psar_rising')
+            vars_map.put(psar, Map.psar)
+            return psar_rising
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -838,7 +846,7 @@ class Icarus(TraderClass):
         # Big
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
-            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map) and is_tangent_macd_histogram_positive(vars_map) and is_min_keltner_roi_above_trigger(vars_map)
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map) and is_tangent_macd_histogram_positive(vars_map) and is_min_keltner_roi_above_trigger(vars_map) and is_psar_rising(vars_map)
         # Repport
         min_histogram = vars_map.get('min_histogram')
         keltner_low = vars_map.get('min_keltner', Map.low)
@@ -846,6 +854,7 @@ class Icarus(TraderClass):
         keltner_high = vars_map.get('min_keltner', Map.high)
         supertrend = vars_map.get(Map.supertrend)
         histogram = vars_map.get(Map.histogram)
+        psar = vars_map.get(Map.psar)
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -855,6 +864,7 @@ class Icarus(TraderClass):
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
             f'{key}.tangent_macd_histogram_positive': vars_map.get('tangent_macd_histogram_positive'),
             f'{key}.min_keltner_roi_above_trigger': vars_map.get('min_keltner_roi_above_trigger'),
+            f'{key}.psar_rising': vars_map.get('psar_rising'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -872,6 +882,8 @@ class Icarus(TraderClass):
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
+            f'{key}.psar[-1]': psar[-1] if psar is not None else None,
+            f'{key}.psar[-2]': psar[-2] if psar is not None else None,
             f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
             f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
