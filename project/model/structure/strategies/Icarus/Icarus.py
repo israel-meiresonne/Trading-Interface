@@ -395,15 +395,6 @@ class Icarus(TraderClass):
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
-        def can_place_max_drop_limit(vars_map: Map) -> bool:
-            # Get
-            stop_limit_price = cls._get_max_drop_sell_price(buy_price, max_roi)
-            place_max_drop_limit = stop_limit_price is not None
-            # Put
-            vars_map.put(place_max_drop_limit, 'place_max_drop_limit')
-            vars_map.put(stop_limit_price, 'stop_limit_price')
-            return place_max_drop_limit
-
         def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
             def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
                 green_index = None
@@ -535,7 +526,6 @@ class Icarus(TraderClass):
                 (is_supertrend_switch_down(vars_map) or is_psar_switch_down(vars_map))\
                     and is_min_tangent_rsi_negative(vars_map)
             )
-        can_place_max_drop_limit(vars_map)
         # Repport
         key = cls._can_buy_indicator.__name__
         supertrend = vars_map.get(Map.supertrend)
@@ -548,7 +538,6 @@ class Icarus(TraderClass):
             f'{key}.supertrend_switch_down': vars_map.get('supertrend_switch_down'),
             f'{key}.psar_switch_down': vars_map.get('psar_switch_down'),
             f'{key}.min_tangent_rsi_negative': vars_map.get('min_tangent_rsi_negative'),
-            f'{key}.place_max_drop_limit': vars_map.get('place_max_drop_limit'),
             
             f'{key}.ROI_TRIGGER': ROI_TRIGGER,
             f'{key}.roi': roi,
@@ -567,8 +556,6 @@ class Icarus(TraderClass):
 
             f'{key}.psar_dropping_1': vars_map.get('psar_dropping_1'),
             f'{key}.psar_rising_2': vars_map.get('psar_rising_2'),
-
-            Map.price: vars_map.get('stop_limit_price'),
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
@@ -650,12 +637,6 @@ class Icarus(TraderClass):
         can_sell, repport = self.can_sell(market_price)
         if can_sell:
             self._sell(executions)
-        elif repport[Map.price] is not None:
-            secure_order = self._get_secure_order()
-            if secure_order is None:
-                self._secure_position(executions)
-            elif repport[Map.price] > secure_order.get_limit_price().get_value():
-                self._move_up_secure_order(executions)
         var_param = vars().copy()
         del var_param['self']
         self.save_move(**var_param)
@@ -1306,29 +1287,10 @@ class Icarus(TraderClass):
                     **sell_repport
                 }
                 sell_repports.append(sell_repport)
-                # Stop Limit Order
-                def get_stop_limit_price(sell_repport: dict, old_sell_stop_limit_price: float) -> float:
-                    stop_limit_price = None
-                    new_sell_stop_limit_price = sell_repport[Map.price]
-                    old_is_None = old_sell_stop_limit_price is None
-                    new_is_None = new_sell_stop_limit_price is None
-                    if (not old_is_None) and (not new_is_None) and (new_sell_stop_limit_price > old_sell_stop_limit_price):
-                        stop_limit_price = new_sell_stop_limit_price
-                    elif (old_is_None) and (not new_is_None):
-                        stop_limit_price = new_sell_stop_limit_price
-                    return stop_limit_price
-                sell_stop_limit_price = None if 'sell_stop_limit_price' not in vars() else sell_stop_limit_price
-                sell_stop_limit_price = get_stop_limit_price(sell_repport, sell_stop_limit_price)
-                stop_limit_reached = (sell_stop_limit_price is not None) and (min_lows[-1] <= sell_stop_limit_price)
-                if can_sell or stop_limit_reached:
+                if can_sell:
                     # Prepare
                     sell_time = min_marketprice.get_time()
-                    # exec_price = get_exec_price(min_marketprice, sell_type)
-                    if can_sell and stop_limit_reached:
-                        exec_price = max(sell_stop_limit_price, get_exec_price(min_marketprice, sell_type))
-                    else:
-                        exec_price = sell_stop_limit_price if stop_limit_reached else get_exec_price(min_marketprice, sell_type)
-                    sell_stop_limit_price = None
+                    exec_price = get_exec_price(min_marketprice, sell_type)
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
