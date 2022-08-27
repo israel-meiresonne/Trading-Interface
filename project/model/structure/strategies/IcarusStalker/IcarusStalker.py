@@ -149,6 +149,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.tangent_macd_histogram_positive': None,
             f'{key}.min_keltner_roi_above_trigger': None,
             f'{key}.psar_rising': None,
+            f'{key}.min_psar_rising': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
@@ -168,6 +169,8 @@ class IcarusStalker(StalkerClass):
             f'{key}.histogram[-2]': None,
             f'{key}.psar[-1]': None,
             f'{key}.psar[-2]': None,
+            f'{key}.min_psar[-1]': None,
+            f'{key}.min_psar[-2]': None,
             f'{key}.min_histogram[-1]': None,
             f'{key}.min_histogram[-2]': None,
             f'{key}.keltner_low[-1]': None,
