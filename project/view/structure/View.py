@@ -1,11 +1,10 @@
 import getpass
 
-from view.ViewInterface import ViewInterface
 from view.tools.Buffer import Buffer
 from model.tools.Map import Map
 
 
-class View(ViewInterface):
+class View:
     FILE_MESSAGE = "message"
     FILE_ERROR = "error"
     WORD_END = "end"
