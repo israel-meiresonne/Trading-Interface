@@ -2,7 +2,7 @@ from config.Config import Config
 from model.structure.Log import Log
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
-from view.View import View
+from view.Console.View import View
 
 
 class Controller:
