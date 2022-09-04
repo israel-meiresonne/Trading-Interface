@@ -2,7 +2,7 @@ from config.Config import Config
 from model.structure.Log import Log
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
-from view.structure.View import View
+from view.View import View
 
 
 class Controller:
@@ -233,7 +233,7 @@ class Controller:
                 no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
                 stg_params = {
                     Map.maximum: None,
-                    Map.capital: vw.input(message="Enter initial capital to use:", type_func="float"),
+                    Map.capital: vw.input(message="Enter initial capital to use:", type_func=float),
                     Map.rate: 1,
                     Map.strategy: no_selected_stgs[vw.menu(f"Choose the child Strategy for your main Strategy '{stg}':",
                                                            no_selected_stgs)],
@@ -248,7 +248,7 @@ class Controller:
                 no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
                 stg_params = {
                         Map.maximum: None,
-                        Map.capital: vw.input(message="Enter initial capital to use:", type_func="float"),
+                        Map.capital: vw.input(message="Enter initial capital to use:", type_func=float),
                         Map.rate: 1,
                         Map.period: 60 * 15,
                         Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
