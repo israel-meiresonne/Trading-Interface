@@ -1,3 +1,5 @@
+from types import MethodType
+from typing import Dict
 from config.Config import Config
 from model.structure.Log import Log
 from model.tools.FileManager import FileManager
@@ -6,9 +8,50 @@ from view.Console.View import View
 
 
 class Controller:
+    TXT_CANCEL = "cancel"
+    MENUS = None
+    MENUS_HOME = "home"
+
     def __init__(self):
         self.model = Log()
         self.view = View()
+
+    def _set_session(self) -> None:
+        view = self._get_view()
+        session_dir = Config.get(Config.DIR_SESSIONS)
+        session_ids = FileManager.get_dirs(session_dir, make_dir=True)
+        if len(session_ids) == 0:
+            view.output("There's no session to load!", is_error=True)
+            return None
+        menu_1 = {'No': False, 'Yes': True}
+        options = list(menu_1.keys())
+        load_session = menu_1[options[view.menu("Do you want to load a session?", options)]]
+        if load_session:
+            end_word = self.TXT_CANCEL
+            load_options = [end_word, *session_ids]
+            message = f"Select a session ID (or '{end_word}' to end the loading process):"
+            entry = load_options[view.menu(message, load_options)]
+            Config.update(Config.SESSION_ID, entry) if entry != self.TXT_CANCEL else None
+
+    def _set_stage(self) -> None:
+        view = self._get_view()
+        stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
+        stage = stage_modes[view.menu("Choose the stage mode:", stage_modes)]
+        Config.update(Config.STAGE_MODE, stage)
+
+
+    def get_menus(self) -> dict:
+        if self.MENUS is None:
+            self.MENUS = {
+                self.MENUS_HOME: {
+                    "quit":         self.quit,
+                    "new Bot":      self.new_bot,
+                    "start Bot":    self.start_bot,
+                    "stop Bot":     self.stop_bot,
+                    "stop Bots":    self.stop_bots
+                }
+            }
+        return self.MENUS
 
     def _get_model(self) -> Log:
         """
@@ -30,9 +73,8 @@ class Controller:
         """
         Config.label_session_id()
         view = self._get_view()
-        home_key = View.MENUS_KEY_HOME
-        menu = View.get_menus()
-        options = menu[home_key][View.MENUS_KEY_OPTION]
+        option_to_func = self.get_menus()[self.MENUS_HOME]
+        options = list(option_to_func.keys())
         self._set_session()
         self._set_stage()
         FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}], make_dir=True)
@@ -40,42 +82,13 @@ class Controller:
         end = False
         while not end:
             i = view.menu("Menu:", options)
-            fc = menu[home_key][View.MENUS_KEY_FUNC][i]
-            end = eval("self." + fc + "()")
+            func = option_to_func[options[i]]
+            end = func()
 
     def quit(self) -> bool:
         self.stop_bots()
         self._get_model().close_brokers()
         return True
-
-    def _set_session(self) -> None:
-        view = self._get_view()
-        session_dir = Config.get(Config.DIR_SESSIONS)
-        session_ids = FileManager.get_dirs(session_dir, make_dir=True)
-        if len(session_ids) == 0:
-            view.output(View.FILE_ERROR, "There's no session to load!")
-            return None
-        menu_1 = {'No': False, 'Yes': True}
-        options = list(menu_1.keys())
-        load_session = menu_1[options[view.menu("Do you want to load a session?", options)]]
-        if not isinstance(load_session, bool):
-            raise Exception(f"Wrong type: load_session='{load_session}({type(load_session)})'")
-        if load_session:
-            end_word = View.WORD_END
-            load_options = [end_word, *session_ids]
-            end = False
-            message = f"Select a session ID (or '{end_word}' to end the loading process):"
-            while not end:
-                entry = load_options[view.menu(message, load_options)]
-                session_id = entry if entry in session_ids else None
-                end = (session_id is not None) or (entry == end_word)
-            Config.update(Config.SESSION_ID, session_id) if session_id is not None else None
-
-    def _set_stage(self) -> None:
-        view = self._get_view()
-        stage_modes = [Config.STAGE_1, Config.STAGE_2, Config.STAGE_3]
-        stage = stage_modes[view.menu("Choose the stage mode:", stage_modes)]
-        Config.update(Config.STAGE_MODE, stage)
 
     def new_bot(self):
         _stage = Config.get(Config.STAGE_MODE)
@@ -90,63 +103,7 @@ class Controller:
             stg = stgs[vw.menu("Choose a Strategy:", stgs)]
             pair_codes = md.list_paires(bkr)
             pair_code = pair_codes[vw.menu("Choose the Pair to trade:", pair_codes)]
-            if stg == 'MinMax':
-                configs = Map({
-                    bkr: {
-                        Map.public: api_pb,
-                        Map.secret: api_sk,
-                        Map.test_mode: False
-                    },
-                    stg: {
-                        Map.maximum: None,
-                        Map.capital: 1000,
-                        Map.rate: 1,
-                        Map.period: 60 * 5
-                    }
-                })
-            elif stg == 'MinMaxFloor':
-                configs = Map({
-                    bkr: {
-                        Map.public: api_pb,
-                        Map.secret: api_sk,
-                        Map.test_mode: False
-                    },
-                    stg: {
-                        Map.maximum: None,
-                        Map.capital: 20,
-                        Map.rate: 1,
-                        Map.period: 60 * 60,
-                        Map.green: {
-                            Map.period: 60 * 15
-                        },
-                        Map.red: {
-                            Map.period: 60 * 5
-                        }
-                    }
-                })
-            elif stg == 'Stalker':
-                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
-                configs = Map({
-                    bkr: {
-                        Map.public: api_pb,
-                        Map.secret: api_sk,
-                        Map.test_mode: False
-                    },
-                    stg: {
-                        Map.maximum: None,
-                        Map.capital: 1000,  # 6100,
-                        Map.rate: 1,
-                        # Map.period: 60 * 60,
-                        Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:", no_selected_stgs)],
-                        Map.param: {
-                            Map.maximum: None,
-                            Map.capital: 1000,
-                            Map.rate: 1,
-                            Map.period: 60 * 5,
-                        }
-                    }
-                })
-            elif stg == 'Icarus':
+            if stg == 'Icarus':
                 configs = Map({
                     bkr: {
                         Map.public: api_pb,
@@ -225,26 +182,7 @@ class Controller:
                 Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
             }
             configs.put(bkr_params, bkr)
-            if stg == 'MinMax':
-                raise Exception(f"Strategy '{stg}' no available in for this stage '{_stage}'.")
-            elif stg == 'MinMaxFloor':
-                raise Exception(f"Strategy '{stg}' no available in for this stage '{_stage}'.")
-            elif stg == 'Stalker':
-                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
-                stg_params = {
-                    Map.maximum: None,
-                    Map.capital: vw.input(message="Enter initial capital to use:", type_func=float),
-                    Map.rate: 1,
-                    Map.strategy: no_selected_stgs[vw.menu(f"Choose the child Strategy for your main Strategy '{stg}':",
-                                                           no_selected_stgs)],
-                    Map.param: {
-                        Map.maximum: None,
-                        Map.capital: None,
-                        Map.rate: 1,
-                        Map.period: 60 * 5,
-                    }
-                }
-            elif stg == 'IcarusStalker':
+            if stg == 'IcarusStalker':
                 no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
                 stg_params = {
                         Map.maximum: None,
@@ -267,7 +205,7 @@ class Controller:
             raise Exception(f"Unknown stage '{_stage}'.")
         configs.put(pair_code, stg, Map.pair)
         bot = md.create_bot(bkr, stg, pair_code, configs)
-        vw.output(View.FILE_MESSAGE, f"✅ new Bot created: '{bot}'")
+        vw.output(f"✅ new Bot created: '{bot}'")
 
     def start_bot(self) -> None:
         model = self._get_model()
@@ -276,11 +214,11 @@ class Controller:
         bot_ids = bots.get_keys()
         bot_refs = [bots.get(bot_id).__str__() for bot_id in bot_ids]
         if len(bot_ids) <= 0:
-            view.output(View.FILE_ERROR, "You have no Bot created")
+            view.output("You have no Bot created", is_error=True)
             return None
         bot_id = bot_ids[view.menu("Choose the Bot to start:", bot_refs)]
         model.start_bot(bot_id)
-        view.output(View.FILE_MESSAGE, f"✅ Bot started: {bot_id}!")
+        view.output(f"✅ Bot started: {bot_id}!")
 
     def stop_bot(self) -> None:
         model = self._get_model()
@@ -288,12 +226,13 @@ class Controller:
         bots = model.get_bots()
         bot_ids = bots.get_keys()
         bot_menu = [bot.__str__() for bot in list(bots.get_map().values())]
-        bot_menu.insert(0, view.WORD_END)
+        bot_menu.insert(0, self.TXT_CANCEL)
         choice_index = view.menu("Select the Bot to stop:", bot_menu)
         if choice_index > 0:
             bot_id = bot_ids[choice_index-1]
             model.stop_bot(bot_id)
-            view.output(View.FILE_MESSAGE, f"❌ Bot stopped: {bot_id}!")
+            view.output(f"❌ Bot stopped: {bot_id}!")
 
     def stop_bots(self):
         pass
+
