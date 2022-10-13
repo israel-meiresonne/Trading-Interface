@@ -205,7 +205,7 @@ class Bot(MyJson):
         from traceback import format_exc
         red = "\033[31m"
         normal = "\033[0m"
-        _MF.output(f"{_MF.prefix()}{red}Error fromm the '{from_class}' class (nb_error='{nb_error}'): "
+        _MF.output(f"{_MF.prefix()}{red}Error from the '{from_class}' class (nb_error='{nb_error}'): "
               f"{error.__str__()} {normal}") if cls._DEBUG else None
         rows = [{
             Map.date: _MF.unix_to_date(_MF.get_timestamp()),
