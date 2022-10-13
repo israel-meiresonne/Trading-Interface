@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import statistics
-from typing import Tuple, Union, List
+from typing import Callable, Dict, Tuple, Union, List
 
 import numpy as np
 import pandas as pd
@@ -96,6 +96,7 @@ class MarketPrice(ABC):
     _MACD_SLOW = 26
     _MACD_FAST = 12
     _MACD_SIGNAL = 9
+    MACD_PARAMS_1 = {'slow': 100, 'fast': 46, 'signal': 35}
     _KELTNERC_WINDOW = 20
     _KELTNERC_MULTIPLE = 2
     _KELTNERC_MULTIPLE_LIBRARY = 2
@@ -1172,6 +1173,104 @@ class MarketPrice(ABC):
             trend = MarketPrice.MARKET_TREND_DROPPING
         return trend
 
+    @classmethod
+    def analyse_market(cls, broker: 'Broker', pairs: List[Pair], periods: List[int], endtime: int = None, starttime: int = None, n_period: int = None, marketprices: Map = None) -> Dict[int, pd.DataFrame]:
+        """
+        To get analyse of market's trend
+
+        Parameters:
+        -----------
+        broker: 'Broker'
+            Access to a Broker API
+        pairs: List[Pair]
+            Pairs analyse
+        periods: List[int]
+            Periods to analyse
+        endtime: int = None
+            Most recent time (in second) that edge the interval to analyse
+        starttime: int = None
+            Older time that (in second) edge the interval to analyse
+        n_period: int = None
+            Number of period to analyse (to set only if starttime is not set)
+        marketprices: Map = None
+            MarketPrice to reuse instead of request new price
+            marketprices[Pair.hash()][period{int}] -> {MarketPrice}
+
+        Returns:
+        --------
+        return: Dict[int, pd.DataFrame]
+            Analyse of market's trend
+        """
+        def join_df(pair: Pair, base_df: pd.DataFrame, to_join: pd.DateOffset) -> pd.DataFrame:
+            if base_df.shape[0] == 0:
+                base_df = pd.DataFrame({pair: to_join[pair]}, index=to_join.index)
+            else:
+                base_df = base_df.join(to_join)
+            return base_df
+        
+        def ge_marketprice(marketprices: Map, pair: Pair, period: int, endtime: int = None, starttime: int = None, n_period: int = None) -> MarketPrice:
+            marketprice = marketprices.get(pair, period)
+            if marketprice is None:
+                if endtime is None:
+                    endtime = _MF.round_time(unix_time, period)
+                if (starttime is None) and (n_period is None):
+                    n_period = broker.get_max_n_period()
+                marketprice_df = cls.marketprices(broker, pair, period, endtime=endtime, starttime=starttime, n_period=n_period)
+                marketprice_list = marketprice_df.to_numpy().tolist()
+                marketprice = cls.new_marketprice(broker.__class__, marketprice_list, pair, period)
+                marketprices.put(marketprice, pair, period)
+            return marketprice
+        
+        def catch_error() -> MarketPrice:
+            return _MF.catch_exception(ge_marketprice, MarketPrice.__name__, **{'marketprices': marketprices, 'pair': pair, 'period': period, 'endtime': endtime, 'starttime': starttime, 'n_period': n_period})
+
+        marketprices = marketprices if marketprices is not None else Map()
+        unix_time = _MF.get_timestamp()
+        analyses = {}
+        for period in periods:
+            supertrends_df = pd.DataFrame()
+            closes_df = pd.DataFrame()
+            for pair in pairs:
+                marketprice = catch_error()
+                if (marketprice is None) or (len(marketprice.get_times()) == 0):
+                    continue
+                open_times = list(marketprice.get_times())
+                open_times.reverse()
+                closes = list(marketprice.get_closes())
+                closes.reverse()
+                supertrends = list(marketprice.get_super_trend())
+                supertrends.reverse()
+                # Close
+                new_closes_df = pd.DataFrame({pair: closes}, index=open_times)
+                closes_df = join_df(pair, closes_df, new_closes_df)
+                # Supertrend
+                new_supertrends_df = pd.DataFrame({pair: supertrends}, index=open_times)
+                supertrends_df = join_df(pair, supertrends_df, new_supertrends_df)
+            # Supertrend str
+            supertrends_str_df = pd.DataFrame(columns=closes_df.columns, index=closes_df.index)
+            supertrends_str_df[closes_df.columns] = ''
+            supertrends_str_df[(closes_df > supertrends_df)] = MarketPrice.SUPERTREND_RISING
+            supertrends_str_df[(closes_df < supertrends_df)] = MarketPrice.SUPERTREND_DROPPING
+            # Record analyse
+            # ••• prepare
+            period_str = broker.period_to_str(period)
+            analyse_df = pd.DataFrame([], index=supertrends_str_df.index)
+            # ••• build market dates
+            market_dates = [_MF.unix_to_date(open_time) for open_time in list(analyse_df.index)]
+            market_dates_df = pd.DataFrame({Map.date: market_dates}, index=analyse_df.index)
+            # ••• build rows to print
+            analyse_df[Map.date] = _MF.unix_to_date(_MF.get_timestamp())
+            analyse_df['market_date'] = market_dates_df[Map.date]
+            analyse_df[Map.period] = period_str
+            analyse_df['n_pair'] = supertrends_str_df.shape[1]
+            analyse_df['n_rise'] = supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_RISING].count(axis=1)
+            analyse_df['rise_rate'] = analyse_df['n_rise']/analyse_df['n_pair']
+            analyse_df['n_drop'] = supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_DROPPING].count(axis=1)
+            analyse_df['drop_rate'] = analyse_df['n_drop']/analyse_df['n_pair']
+            # ••• put
+            analyses[period] = analyse_df
+        return analyses
+
     @staticmethod
     def macd(closes: list, slow: int, fast: int, signal: int) -> Map:
         """
@@ -1386,7 +1485,7 @@ class MarketPrice(ABC):
         return bkr_rq.get_market_price()
 
     @staticmethod
-    def marketprices(broker: 'Broker', pair: Pair, period: int, endtime: int, starttime: int = None, n_history: int = None) -> pd.DataFrame:
+    def marketprices(broker: 'Broker', pair: Pair, period: int, endtime: int, starttime: int = None, n_period: int = None) -> pd.DataFrame:
         """
         To request recurisively market history from starttime (older) to endtime (recent)
         NOTE: if there's not enough period between starttime and endtime, market history already downloaded is returned
@@ -1405,8 +1504,8 @@ class MarketPrice(ABC):
             The most recent open time (in second)
         starttime: int
             The older open time (in second)
-        n_history: int
-            The number of history to retrieve
+        n_period: int
+            The number of period to retrieve
 
         Raise
         ------
@@ -1415,19 +1514,19 @@ class MarketPrice(ABC):
         raise: Exception
             starttime is after or equal endtime
         raise: Exception
-            if starttime and n_history are both None
+            if starttime and n_period are both None
         raise: Exception
-            if starttime and n_history are both set
+            if starttime and n_period are both set
 
         Returns
         -------
             The market history from starttime (older) to endtime (recent)
         """
         unix_time = _MF.get_timestamp()
-        if starttime == n_history == None:
-            raise ValueError(f"starttime and n_history can't both be None")
-        if (starttime != None) and (n_history != None):
-            raise ValueError(f"starttime '{starttime}' and n_history '{n_history}' can't both be set")
+        if starttime == n_period == None:
+            raise ValueError(f"starttime and n_period can't both be None")
+        if (starttime != None) and (n_period != None):
+            raise ValueError(f"starttime '{starttime}' and n_period '{n_period}' can't both be set")
         if (starttime is not None) and (not isinstance(starttime, int)):
             raise ValueError(f"Param 'starttime' must be type int, instead '{type(starttime)}'")
         if not isinstance(endtime, int):
@@ -1437,7 +1536,7 @@ class MarketPrice(ABC):
         if (starttime is not None) and (starttime >= endtime):
             raise Exception(f"The starttime must be before than endtime, instead starttime'{starttime}' >= endtime'{endtime}'")
         if starttime is None:
-            starttime = endtime - (n_history * period)
+            starttime = endtime - (n_period * period)
         starttime = _MF.round_time(starttime, period) - period
         max_n_period = broker.get_max_n_period()
         endtime = _MF.round_time(endtime, period)
@@ -1921,6 +2020,35 @@ class MarketPrice(ABC):
             Map.negative: sum(pos_sequence)/n_neg_sequence if n_neg_sequence > 0 else 0
         })
         return result
+
+    @classmethod
+    def new_marketprice(cls, broker: Callable, marketprice_list: List[List[float]], pair: Pair, period: int) -> 'MarketPrice':
+        """
+        To instantiate a MarketPrice object for the given Broker
+
+        Parameters:
+        -----------
+        broker: Callable
+            Class of Broker used to get prices
+        marketprice_list: List[list]
+            List of prices
+        pair: Pair
+            Pair used to get prices
+        period: int
+            Period used to get prices
+
+        Returns:
+        --------
+        return: MarketPrice
+            MarketPrice object for the given Broker
+        """
+        class_name = f"{broker.__name__}{MarketPrice.__name__}"
+        import_exec = _MF.get_import(class_name)
+        exec(import_exec)
+        period_str = broker.period_to_str(period)
+        market_class = eval(class_name)
+        marketprice = market_class(marketprice_list, period_str, pair)
+        return marketprice
 
     @staticmethod
     def _save_market(market_price: 'MarketPrice') -> None:
