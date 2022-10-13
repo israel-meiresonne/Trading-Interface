@@ -27,7 +27,6 @@ class BinanceFakeAPI(BinanceAPI):
     _HISTORIES = None
     _INITIAL_INDEXES = None
     _ORDERS = None
-    # _LAST_ORDERS_SAVED = None
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION DOWN ———————————————————————————————————
 
@@ -446,8 +445,8 @@ class BinanceFakeAPI(BinanceAPI):
             raise ValueError(f"There's not order with this order_id '{order_id}'")
         return order
 
-    @staticmethod
-    def _add_order(order: BinanceFakeOrder) -> None:
+    @classmethod
+    def _add_order(cls, order: BinanceFakeOrder) -> None:
         """
         To add new order
 
@@ -456,42 +455,14 @@ class BinanceFakeAPI(BinanceAPI):
         order: BinanceFakeOrder
             The order to add
         """
-        _cls = BinanceFakeAPI
         merged_pair = order.get_attribut(Map.symbol)
-        orders = _cls._get_orders()
+        orders = cls._get_orders()
         order_id = order.get_attribut(Map.orderId)
         found = orders.get(merged_pair, order_id)
         if found is not None:
             raise Exception(f"There's already an order with this order_id '{order_id}' (new_order='{id(order)}', found_order='{id(found)}')")
         orders.put(order, merged_pair, order_id)
-    '''
-    @classmethod
-    def _set_last_saved_orders(cls, orders: Map, make_copy: bool = True) -> None:
-        """
-        To set last saved state of oders
-
-        Parameters:
-        -----------
-        orders: Map
-            Last orders saved
-        make_copy: bool = True
-            Set True to make a deep copy of orders else False
-        """
-        cls._LAST_ORDERS_SAVED = orders.copy() if make_copy else orders
-
-    @classmethod
-    def _get_last_saved_orders(cls) -> Map:
-        """
-        To get last saved state of oders
-        NOTE: it's a copy of last orders loaded or saved
-
-        Returns:
-        --------
-        return: Map
-            The last saved state of oders
-        """
-        return cls._LAST_ORDERS_SAVED
-    '''
+        cls._save_orders()
 
     # ——————————————————————————————————————————— STATIC GETTER/SETTER FUNCTION UP —————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
@@ -578,15 +549,15 @@ class BinanceFakeAPI(BinanceAPI):
         """
         def get_most_recent_row(merged_pair: str) -> np.ndarray:
             broker_name = BinanceAPI.__name__.replace('API', '')
-            periods = MarketPrice.history_periods(broker_name)
+            periods = MarketPrice.history_periods(broker_name) if stage == Config.STAGE_1 else list(_cls.get_intervals().get_map().values())
             min_period = min(periods)
             history = BinanceFakeAPI._get_market_history(merged_pair, min_period)
             idx = _cls._index(min_period)
             return history[idx], min_period
 
         _cls = BinanceFakeAPI
-        recent_row, min_period = get_most_recent_row(merged_pair)
         stage = Config.get_stage()
+        recent_row, min_period = get_most_recent_row(merged_pair)
         if stage == Config.STAGE_1:
             actual_time = recent_row[0]
         elif  stage == Config.STAGE_2:
@@ -808,7 +779,7 @@ class BinanceFakeAPI(BinanceAPI):
         order = cls._new_order(params)
         merged_pair = order.get_attribut(Map.symbol)
         market_datas = cls._actual_market_datas(merged_pair)
-        cls._save_orders() if order.try_execute(market_datas) else None
+        order.try_execute(market_datas)
         return order.to_dict()
 
     @staticmethod
