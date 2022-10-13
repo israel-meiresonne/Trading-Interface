@@ -48,6 +48,20 @@ class TestPair(unittest.TestCase, Pair):
         exp = (self.lsbl + self._get_separator() + self.rsbl).lower()
         self.assertEqual(exp, self.pr.__str__())
 
+    def test__hash__(self) -> None:
+        pair1_str = 'btc/usdt'
+        pair1 = Pair(pair1_str)
+        #
+        exp1 = pair1_str.__hash__()
+        result1 = pair1.__hash__()
+        self.assertEqual(exp1, result1)
+        #
+        exp1_2 = {pair1_str: pair1}
+        result1_2 = {pair1: pair1}
+        self.assertDictEqual(exp1_2, result1_2)
+        self.assertEqual(result1_2[pair1], pair1)
+        self.assertEqual(result1_2[pair1_str], pair1)
+
 
 if __name__ == "__main__":
     unittest.main
