@@ -1013,6 +1013,38 @@ class TestMarketPrice(unittest.TestCase, MarketPrice):
         with self.assertRaises(ValueError):
             MarketPrice.mean_candle_sequence(opens[:-3], closes)
 
+    def test_analyse_market(self) -> None:
+        broker = self.broker_switch(True, Config.STAGE_2)
+        pairs = [self.pair1, Pair('DOGE/USDT')]
+        periods = [broker.PERIOD_5MIN, broker.PERIOD_6H]
+        # No dates
+        marketprices = Map()
+        analyse1 = MarketPrice.analyse_market(broker, pairs, periods, marketprices=marketprices)
+        self.assertEqual(sum([1 if period in analyse1 else 0 for period in periods]), len(periods))
+        self.assertIsInstance(analyse1[periods[0]], pd.DataFrame)
+        self.assertTrue(len(marketprices.get_map()))
+        # Start annd end date
+        endtime2 = 1661806318
+        starttime2 = 1661627797
+        analyse2 = MarketPrice.analyse_market(broker, pairs, periods, endtime=endtime2, starttime=starttime2)
+        exp2 = _MF.unix_to_date(_MF.round_time(endtime2, periods[-1]))
+        result2 = analyse2[periods[-1]].iloc[-1,1]
+        self.assertEqual(sum([1 if period in analyse2 else 0 for period in periods]), len(periods))
+        self.assertIsInstance(analyse2[periods[0]], pd.DataFrame)
+        self.assertEqual(exp2, result2)
+        # End
+        self.broker_switch(on=False)
+
+    def test_new_marketprice(self) -> None:
+        broker = self.broker_switch(on=True)
+        market = self.bnc_list_u_u
+        pair = self.pair1
+        period = broker.PERIOD_1MIN
+        marketprice = MarketPrice.new_marketprice(Binance, market, pair, period)
+        self.assertIsInstance(marketprice, BinanceMarketPrice)
+        self.assertEqual(pair, marketprice.get_pair())
+        self.broker_switch(on=False)
+
 
 if __name__ == '__main__':
     unittest.main
