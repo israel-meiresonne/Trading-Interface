@@ -448,7 +448,7 @@ class BinanceAPI(ABC):
     _TRADE_FEES[symbol{str}][Map.maker]:      {float}
     """
     _SYMBOL_TO_PAIR = None
-    _EXCLUDE_ASSET = ['bchsv']
+    _EXCLUDE_ASSET = ['bchsv', 'bttc/usdt']
     # Variables
     _ORDER_RQ_REGEX = r'^RQ_ORDER.*$'
     _TEST_MODE = None
@@ -848,19 +848,27 @@ class BinanceAPI(ABC):
         broker_response: BrokerResponse
             Binance's API response
         """
+        def call_fake_api() -> BrokerResponse:
+            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
+            response = BinanceFakeAPI.steal_request(rq, params)
+            return response
+
         # Prepare
         _stage = Config.get(Config.STAGE_MODE)
         api_keys = BinanceAPI.format_api_keys(public_key, secret_key)
         # Check
         BinanceAPI._check_params(rq, params)
         # Generate
-        rq_kline_time_set = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
+        rq_is_kline = rq == BinanceAPI.RQ_KLINES
+        time_in_params = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
         rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE, BinanceAPI.RQ_API_TIME]
-        if (_stage == Config.STAGE_1) or ((_stage == Config.STAGE_2) and (rq not in rq_excluded)):
-            from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-            response = BinanceFakeAPI.steal_request(rq, params)
-        elif (rq == BinanceAPI.RQ_KLINES) and (not rq_kline_time_set):
+        if (_stage == Config.STAGE_1):
+            response = call_fake_api()
+        elif (_stage == Config.STAGE_2) and rq_is_kline and (not time_in_params):
             response = BinanceAPI._socket_market_history(test_mode, rq, params)
+            # response = call_fake_api()
+        elif (_stage == Config.STAGE_2) and (not rq_is_kline) and (rq not in rq_excluded):
+            response = call_fake_api()
         else:
             response = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
         return response
