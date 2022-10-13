@@ -8,6 +8,7 @@ from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
+from model.tools.Wallet import Wallet
 
 
 class Orders(Order, MyJson):
@@ -124,7 +125,7 @@ class Orders(Order, MyJson):
         self.__sum = None
         self.__has_position = None
 
-    def update(self, bkr: Broker) -> list:
+    def update(self, bkr: Broker, wallet: Wallet = None) -> list:
         """
         To update Orders
 
@@ -132,8 +133,8 @@ class Orders(Order, MyJson):
         -----------
         bkr: Broker
             Access to a Broker's API
-        market: MarketPrice
-            Market's prices
+        wallet: Wallet = None
+            Wallet to update with Order just executed
 
         Returns:
         --------
@@ -149,6 +150,16 @@ class Orders(Order, MyJson):
         self._update_stage_3(bkr)
         # Get new execution
         executed = [odr_id for odr_id in pending if self.get_order(odr_id=odr_id).get_status() == Order.STATUS_COMPLETED]
+        # Update wallet
+        for odr_id in executed:
+            odr = self.get_order(odr_id=odr_id)
+            move = odr.get_move()
+            if move == Order.MOVE_BUY:
+                wallet.buy(odr)
+            elif move == Order.MOVE_SELL:
+                wallet.sell(odr)
+            else:
+                raise ValueError(f"This Order move '{move}' is not supported")
         # End
         return executed
 
