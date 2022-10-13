@@ -81,11 +81,14 @@ class Pair(MyJson):
         return instance
 
     def __eq__(self, other):
-        return self.get_left() == other.get_left() and \
-               self.get_right() == other.get_right()
+        return self.get_left() == other.get_left() if isinstance(other, Pair) else other\
+            and self.get_right() == other.get_right() if isinstance(other, Pair) else other
 
     def __str__(self) -> str:
-        return self.get_left().get_symbol() + self.SEPARATOR + self.get_right().get_symbol()
+        return self.format(self.FORMAT_SLASH)
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __hash__(self) -> int:
+        return self.__str__().__hash__()
