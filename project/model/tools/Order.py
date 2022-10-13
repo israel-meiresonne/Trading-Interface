@@ -16,7 +16,7 @@ class Order(Request, Transaction, MyJson, ABC):
     TYPE_LIMIT = "_set_limit"
     TYPE_STOP = "_set_stop_loss"
     TYPE_STOP_LIMIT = "_set_stop_limit"
-    ODR_TYPES = [
+    TYPES = [
         TYPE_MARKET,
         TYPE_LIMIT,
         TYPE_STOP,
@@ -208,7 +208,7 @@ class Order(Request, Transaction, MyJson, ABC):
         return self.__broker_id
 
     def _set_type(self, odr_type: str) -> None:
-        if odr_type not in self.ODR_TYPES:
+        if odr_type not in self.TYPES:
             raise ValueError(f"This Order type '{odr_type}' is not supported")
         self.__type = odr_type
 
@@ -510,7 +510,7 @@ class Order(Request, Transaction, MyJson, ABC):
 
     @staticmethod
     def generate_broker_order(broker_class: str, order_type: str, params: Map) -> 'Order':
-        if order_type not in Order.ODR_TYPES:
+        if order_type not in Order.TYPES:
             raise ValueError(f"This Order type '{order_type}' is not supported.")
         odr_class = broker_class + Order.__name__
         exec(f"from model.API.brokers.{broker_class}.{odr_class} import {odr_class}")
