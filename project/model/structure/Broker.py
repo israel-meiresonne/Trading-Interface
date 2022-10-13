@@ -9,8 +9,14 @@ from model.tools.Order import Order
 from config.Config import Config
 from model.tools.Pair import Pair
 
-
 class Broker(ABC):
+    PERIOD_1MIN =   60
+    PERIOD_5MIN =   PERIOD_1MIN * 5
+    PERIOD_15MIN =  PERIOD_1MIN * 15
+    PERIOD_30MIN =  PERIOD_1MIN * 30
+    PERIOD_1H =     PERIOD_1MIN * 60
+    PERIOD_6H =     PERIOD_1H * 6
+
     @abstractmethod
     def is_active(self) ->  bool:
         """
@@ -113,6 +119,44 @@ class Broker(ABC):
         -------
         stream: str
             Broker stream
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def generate_streams(cls, pairs: Pair, periods: List[int]) -> List[str]:
+        """
+        To generate Broker streams
+
+        Parameters
+        ----------
+        pairs: Pair
+            Pair to combine with period
+        periods: List[int]
+            Period to combine with pairs
+
+        Returns
+        -------
+        stream: str
+            Broker streams
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def period_to_str(cls, period: int) -> str:
+        """
+        To convert period into strig format
+
+        Parameters:
+        -----------
+        period: int
+            Period to convert
+
+        Returns:
+        --------
+        return: str
+            Period in string format
         """
         pass
 
