@@ -108,6 +108,16 @@ class Binance(Broker, MyJson):
         stream = BinanceAPI.generate_stream(rq, symbol, period_str)
         return stream
 
+    @classmethod
+    def generate_streams(cls, pairs: Pair, periods: List[int]) -> List[str]:
+        streams = []
+        [[streams.append(cls.generate_stream(Map({Map.pair: pair, Map.period: period}))) for period in periods] for pair in pairs]
+        return streams
+
+    @classmethod
+    def period_to_str(cls, period: int) -> str:
+        return BinanceAPI.convert_interval(period)
+
     @staticmethod
     def close() -> None:
         BinanceAPI.close_socket()
