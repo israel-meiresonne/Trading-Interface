@@ -8,7 +8,7 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 from types import FunctionType, MethodType
-from typing import Any, List, Tuple, Union
+from typing import Any, Callable, List, Tuple, Union
 
 import dill
 import numpy as np
@@ -390,9 +390,7 @@ class ModelFeature(ModelAccess):
     
     @staticmethod
     def progress_rate(new_value: float, old_value: float) -> float:
-        if (new_value < 0) or (old_value <= 0):
-            raise ValueError(f"Don't respect contraint '(new_value'{new_value}' < 0) or (old_value'{old_value}' <= 0)'")
-        return new_value / old_value - 1
+        return (new_value - old_value) / old_value
     
     @staticmethod
     def df_apply(df: pd.DataFrame, columns: list, func, params: list = None) -> pd.DataFrame:
@@ -589,6 +587,7 @@ class ModelFeature(ModelAccess):
             end = cmd == 'quit'
             try:
                 rtn = eval(cmd) if not end else None
+                exec(cmd) if not end else None
                 print(pfx() + ex + f"{rtn}") if rtn is not None else None
             except Exception as e:
                 print(e)
@@ -630,18 +629,18 @@ class ModelFeature(ModelAccess):
         **kwargs: dict[str, Any]
             Parameters for callback function
         """
-        if (not isinstance(callback, FunctionType)) and (not isinstance(callback, MethodType)):
-            raise TypeError(f"The callback must be of type '{FunctionType}' or '{MethodType}', instead '{type(callback)}'")
-        if not isinstance(timeout, int):
-            raise TypeError(f"The timeout must be of type '{int}', instead '{type(timeout)}'")
+        if (not isinstance(callback, FunctionType)) and (not isinstance(callback, MethodType)) and (not isinstance(callback, Callable)):
+            raise TypeError(f"The callback must be of type '{' or '.join([FunctionType, MethodType, Callable])}', instead '{callback}(type={type(callback)})'")
+        if not isinstance(timeout*0+0.5, float):
+            raise TypeError(f"The timeout must be of type '{float}', instead '{timeout}(type={type(timeout)})'")
         if (to_raise is not None) and (not isinstance(to_raise, Exception)):
-            raise TypeError(f"The exception to raise must be of type '{Exception}', instead '{type(to_raise)}'")
+            raise TypeError(f"The exception to raise must be of type '{Exception}', instead '{Exception}(type={type(to_raise)})'")
         i = 0
         while (callback(**kwargs) != value) and (i < timeout):
             i += 1
             time.sleep(1)
         if (to_raise is not None) and (i >= timeout):
-            raise to_raise()
+            raise to_raise
 
     @staticmethod
     def update_speed_test(speed_test: 'Map', test_name: str, starttime: int = None, endtime: int = None) -> None:
@@ -727,3 +726,58 @@ class ModelFeature(ModelAccess):
         command = "git branch | egrep '^\*'"
         output = subprocess.check_output(command, shell=True).decode("utf-8")
         return output
+
+    @staticmethod
+    def is_nan(value) -> bool:
+        """
+        To check if value is NAN
+
+        Parameters:
+        -----------
+        value: Any
+            Value to check
+
+        Returns:
+        --------
+        return: bool
+            True if value is NAN else False
+        """
+        return value != value
+
+    @staticmethod
+    def get_import(class_name: str) -> str:
+        """
+        To get import instruction of the given class
+
+        Parameters
+        ----------
+        class_name: str
+            Name of the class to import
+
+        Returns
+        -------
+        import_str: str
+            Import instruction of the given class
+        """
+        from model.tools.MyJson import MyJson
+        return MyJson.get_import(class_name)
+
+    @classmethod
+    def sleep_time(cls, unix_time: int, interval: int) -> int:
+        """
+        To get time to sleep before the next interval
+
+        parameters:
+        -----------
+        unix_time: int
+            Unix time in second
+        interval: int
+
+        Returns:
+        --------
+        return: int
+            Time to sleep before the next interval
+        """
+        sleep_time = cls.round_time(unix_time, interval) + interval - unix_time
+        return sleep_time
+
