@@ -413,6 +413,14 @@ class Wallet(MyJson):
         return Pair(asset, wallet_asset) if asset is not None else Pair(wallet_asset, wallet_asset)
     
     def assets(self, attribute: str = ATTR_POSITONS) -> list[Asset]:
+        """
+        To get list of Asset for witch a position exist
+
+        Returns:
+        --------
+        return: list[Asset]
+            List of Asset for witch a position exist
+        """
         pair_strs = self._get_positions(attribute)
         assets = [Pair(pair_str).get_left() for pair_str in pair_strs.get_keys()]
         return assets
