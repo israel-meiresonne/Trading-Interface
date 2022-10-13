@@ -75,6 +75,7 @@ class BinanceSocket(BinanceAPI):
         To set BinanceSocket's connection status to 'no active'
         """
         self.__running = False
+        BinanceSocket._NB_INSTANCE = None
 
     def is_running(self) -> bool:
         """
@@ -896,7 +897,15 @@ class BinanceSocket(BinanceAPI):
         def initialize_market_histories() -> None:
             self._load_streams()
             streams = self.get_streams()
-            [self._set_market_history(stream, raise_error=True) for stream in streams]
+            starttime = _MF.get_timestamp()
+            n_turn = len(streams)
+            turn = 0
+            for stream in streams:
+                if self._DEBUG:
+                    turn += 1
+                    out = _MF.loop_progression(starttime, turn, n_turn, message=f'initialize market history {stream}')
+                    _MF.output(out)
+                self._set_market_history(stream, raise_error=True)
 
         if self.is_running():
             raise Exception("Connection is already active")
