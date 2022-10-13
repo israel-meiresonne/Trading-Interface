@@ -60,6 +60,14 @@ class Map(MyJson):
     positive = "positive"
     negative = "negative"
     metric = "metric"
+    link = "link"
+    spot = "spot"
+    position = "position"
+    residue = "residue"
+    option = "option"
+    cancel = "cancel"
+    value = "value"
+    algo = "algo"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
