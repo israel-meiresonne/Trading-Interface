@@ -20,6 +20,12 @@ class Dev:
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
     FILE_OUTPUT = f'{DIR_ACTUAL_SESSION}outs/{START_DATE}_output.txt'
+    # View
+    DIR_VIEW = f'{DIR_ACTUAL_SESSION}view/'
+    DIR_VIEW_HAND = f'{DIR_VIEW}Hand/'
+    FILE_VIEW_HAND_STALK = f'{DIR_VIEW_HAND}trade/{SESSION_ID}_stalk_view.csv'
+    FILE_VIEW_HAND_POSITION = f'{DIR_VIEW_HAND}trade/{SESSION_ID}_position_view.csv'
+    FILE_VIEW_HAND_MARKET_TREND = f'{DIR_VIEW_HAND}analyse/$period/{SESSION_ID}_$period_market_trend_view.csv'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/orders/{SESSION_ID}_orders.json'
@@ -38,6 +44,7 @@ class Dev:
     DIR_SAVE_PERIOD_RANKING = f'{DIR_SAVE_DATAS}{SESSION_ID}_k_period_ranking_$pair.csv'
     DIR_END_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_z————————————————————.csv'
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
+    FILE_SAVE_HAND = f'{DIR_DATABASE}$id/{START_DATE}||$id||hand_backup.json'
     # Storage
     DIR_STORAGE = 'content/storage/'
     FILE_PATH_MARKET_HISTORY = f'{DIR_STORAGE}MarketPrice/histories/$stock_path/$broker/$pair/$period.csv'
@@ -47,7 +54,8 @@ class Dev:
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
     PREDICTOR_PATH_LEARN = '$class/learns/$stock_path/$pair/$period/$price_type/'
     # Constants
-    CONST_STABLECOINS = ['bidr', 'busd', 'dai', 'fei', 'frax', 'gusd', 'husd', 'idrt', 'lusd', 'pax', 'rsr', 'susd', 'tribe', 'tusd', 'usdc', 'usdn', 'usdp', 'usds', 'usdsb', 'usdt', 'usdx', 'ust', 'vai', 'xsgd']
+    MAIN_STABLECOINS = ['busd', 'dai', 'usdc', 'usdt']
+    CONST_STABLECOINS = [*MAIN_STABLECOINS, 'bidr', 'fei', 'frax', 'gusd', 'husd', 'idrt', 'lusd', 'pax', 'rsr', 'susd', 'tribe', 'tusd', 'usdn', 'usdp', 'usds', 'usdsb', 'usdx', 'ust', 'vai', 'xsgd']
     CONST_FIATS = [
         'aed', 'afn', 'all', 'amd', 'ang', 'aoa', 'ars', 'aud', 'awg', 'azn', 'bam', 'bbd', 'bdt', 'bgn', 'bhd', 
         'bif', 'bmd', 'bnd', 'bob', 'bov', 'brl', 'bsd', 'btn', 'bwp', 'byn', 'bzd', 'cad', 'cdf', 'che', 'chf', 
@@ -102,3 +110,9 @@ class Dev:
         Dev.DIR_SAVE_PERIOD_RANKING =       Dev.DIR_SAVE_PERIOD_RANKING.replace(old, new)
         Dev.DIR_END_BACKUP =                Dev.DIR_END_BACKUP.replace(old, new)
         Dev.DIR_SAVE_TOP_ASSET =            Dev.DIR_SAVE_TOP_ASSET.replace(old, new)
+        Dev.DIR_VIEW =                      Dev.DIR_VIEW.replace(old, new)
+        Dev.DIR_VIEW_HAND =                 Dev.DIR_VIEW_HAND.replace(old, new)
+        Dev.FILE_VIEW_HAND_STALK =          Dev.FILE_VIEW_HAND_STALK.replace(old, new)
+        Dev.FILE_VIEW_HAND_POSITION =       Dev.FILE_VIEW_HAND_POSITION.replace(old, new)
+        Dev.FILE_SAVE_HAND =                Dev.FILE_SAVE_HAND.replace(old, new)
+        Dev.FILE_VIEW_HAND_MARKET_TREND =   Dev.FILE_VIEW_HAND_MARKET_TREND.replace(old, new)
