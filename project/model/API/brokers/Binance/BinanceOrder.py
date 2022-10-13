@@ -103,6 +103,7 @@ class BinanceOrder(Order):
                 Map.symbol: merged_pair,
                 Map.side: side,
                 Map.type: BinanceAPI.TYPE_LIMIT,
+                Map.timeInForce: BinanceAPI.TIME_FRC_GTC,
                 Map.quantity: quantity.get_value(),
                 Map.price: limit_price.get_value(),
                 Map.quoteOrderQty: None,
