@@ -3,6 +3,7 @@ from collections import Iterable
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.FileManager import FileManager
@@ -11,6 +12,8 @@ from model.tools.FileManager import FileManager
 class MyJson(ABC):
     _TOKEN_CLASS_NAME = '@class_name'
     _TOKEN_ITERABLE = '@'
+    _KEY_DICT_TYPE = '@dict_type'
+    _KEY_DICT_VALUE = '@dict_value'
     _REGEX_REPLACE_ATTRIBUTE = f'^.+{_TOKEN_CLASS_NAME}'
     _EXECUTABLE_json_instantiate = None
     _EXECUTABLE_test_json_encode_decode = None
@@ -70,12 +73,20 @@ class MyJson(ABC):
     def __encode_iterable(iterable_value: Iterable) -> Iterable:
         iter_type = type(iterable_value)
         iterable_value = iterable_value.copy() if not isinstance(iterable_value, tuple) else iterable_value
+        key_dict_type = MyJson._KEY_DICT_TYPE
+        key_dict_value = MyJson._KEY_DICT_VALUE
         if iter_type == dict:
             value_encoded = {}
+            value_encoded[key_dict_type] = dict.__name__
             for key, value in iterable_value.items():
                 iter_token = MyJson._TOKEN_ITERABLE
                 json_key = f"{key.__class__.__name__}{iter_token}{key}"
                 value_encoded[json_key] = MyJson.__root_encoding(value)
+        elif iter_type == pd.DataFrame:
+            value_encoded = {}
+            value_encoded[key_dict_type] = pd.DataFrame.__name__
+            iterable_value_dict = iterable_value.to_dict('records')
+            value_encoded[key_dict_value] = MyJson.__encode_iterable(iterable_value_dict)
         elif (iter_type == list) or (iter_type == tuple):
             iter_name = iter_type.__name__
             value_encoded = [iter_name]
@@ -211,13 +222,23 @@ class MyJson(ABC):
     def __decode_iterable(iterable_value: Iterable) -> Iterable:
         iterable_value_copy = iterable_value.copy()
         iter_type = type(iterable_value_copy)
+        key_dict_type = MyJson._KEY_DICT_TYPE
+        key_dict_value = MyJson._KEY_DICT_VALUE
         if iter_type == dict:
             value_decoded = {}
-            for json_key, value in iterable_value_copy.items():
-                iter_token = MyJson._TOKEN_ITERABLE
-                key_type, str_key = json_key.split(iter_token)
-                key = eval(f"{key_type}(str_key)")
-                value_decoded[key] = MyJson._root_decoding(value)
+            dict_type = iterable_value_copy[key_dict_type]
+            if dict_type == dict.__name__:
+                del iterable_value_copy[key_dict_type]
+                for json_key, value in iterable_value_copy.items():
+                    iter_token = MyJson._TOKEN_ITERABLE
+                    key_type, str_key = json_key.split(iter_token)
+                    key = eval(f"{key_type}(str_key)")
+                    value_decoded[key] = MyJson._root_decoding(value)
+            elif dict_type == pd.DataFrame.__name__:
+                dict_value = MyJson.__decode_iterable(iterable_value_copy[key_dict_value])
+                value_decoded = pd.DataFrame(dict_value)
+            else:
+                raise ValueError(f"This dict type '{dict_type}' is not supported")
         elif iter_type == list:
             list_type = iterable_value_copy[0]
             del iterable_value_copy[0]
@@ -254,7 +275,8 @@ class MyJson(ABC):
         class_name = object_dic[_class_token]
         import_exec = MyJson.get_import(class_name)
         exec(import_exec)
-        instnace = eval(f"{class_name}.json_instantiate({object_dic})")
+        class_ref = eval(class_name)
+        instnace = class_ref.json_instantiate(object_dic)
         return instnace
 
     @staticmethod
