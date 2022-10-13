@@ -33,3 +33,17 @@ class TestAsset(unittest.TestCase, Asset):
         self.assertTrue(a3 != self.a1)
         self.assertNotEqual(id(a3), id(self.a1))
 
+    def test__hash__(self) -> None:
+        asset1_str = 'btc'
+        asset = Asset(asset1_str)
+        #
+        exp1 = asset1_str.__hash__()
+        result1 = asset.__hash__()
+        self.assertEqual(exp1, result1)
+        #
+        exp1_2 = {asset1_str: asset}
+        result1_2 = {asset: asset}
+        self.assertDictEqual(exp1_2, result1_2)
+        self.assertEqual(result1_2[asset], asset)
+        self.assertEqual(result1_2[asset1_str], asset)
+

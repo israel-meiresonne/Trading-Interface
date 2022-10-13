@@ -20,11 +20,14 @@ class Asset(MyJson):
         return instance
 
     def __eq__(self, other):
-        return self.get_symbol() == other.get_symbol() and\
-               self.get_name() == other.get_name()
+        return self.get_symbol() == other.get_symbol() if isinstance(other, Asset) else other\
+               and self.get_name() == other.get_name() if isinstance(other, Asset) else other
 
     def __str__(self) -> str:
         return self.get_symbol()
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __hash__(self) -> int:
+        return self.__str__().__hash__()
