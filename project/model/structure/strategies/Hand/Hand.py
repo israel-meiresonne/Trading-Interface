@@ -539,20 +539,29 @@ class Hand(MyJson):
         """
         To manage positions
         """
-        def update() -> None:
-            self._update_orders()
-            positions = self.get_positions().copy()
-            [self._try_submit(position) for _, position in positions.items() if not position.is_submitted()]
-            self._repport_positions()
-            [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
-            self.backup()
-
         while self.is_position_on():
-            _MF.catch_exception(update, Hand.__name__)
+            _MF.catch_exception(self.update_positions, Hand.__name__)
             sleep_interval = self._SLEEP_POSITION_VIEW if len(self.get_positions()) > 0 else self._SLEEP_POSITION
             sleep_time = _MF.sleep_time(_MF.get_timestamp(), sleep_interval)
             time.sleep(sleep_time)
         self._reset_thread_position()
+
+    def update_positions(self) -> None:
+        """
+        To update positions states with thier states in Broker's API
+        ### Update steps:
+        - Update states of submitted Order
+        - Submit new Order to Broker's API
+        - Record positions states
+        - Move closed position to list of closed position
+        - Backup Hand if there's any change
+        """
+        self._update_orders()
+        positions = self.get_positions().copy()
+        [self._try_submit(position) for _, position in positions.items() if not position.is_submitted()]
+        self._repport_positions()
+        [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
+        self.backup()
 
     def _repport_positions(self) -> None:
         def print_row(file_path: str, rows: List[dict], overwrite: bool, make_dir: bool) -> None:
