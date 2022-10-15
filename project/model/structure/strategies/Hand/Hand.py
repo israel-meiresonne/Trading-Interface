@@ -40,8 +40,8 @@ class Hand(MyJson):
     _STALK_FUNCTIONS =  None
 
     def __init__(self, capital: Price, broker_class: Callable) -> None:
-        self.__id =                     self.PREFIX_ID + _MF.new_code()
-        self.__settime =                _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+        self.__id =                     None
+        self.__settime =                None
         self.__broker_class =           None
         self.__broker =                 None
         self.__wallet =                 None
@@ -58,14 +58,22 @@ class Hand(MyJson):
         self.__market_analyse_on =      False
         self.__thread_market_analyse =  None
         self.__backup =                 None
+        self._set_id()
+        self._set_settime()
         self._set_wallet(capital)
         self._set_broker_class(broker_class)
         self.set_max_position(self._MAX_POSITION)
 
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN ——————————————————————————————————————————
 
+    def _set_id(self) -> str:
+        self.__id = self.PREFIX_ID + _MF.new_code()
+
     def get_id(self) -> str:
         return self.__id
+
+    def _set_settime(self) -> str:
+        self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
 
     def get_settime(self) -> int:
         """
@@ -132,9 +140,14 @@ class Hand(MyJson):
         if not isinstance(max_position, int):
             raise TypeError(f"The max number of position must be of type '{int}', instead '{max_position}(type={type(max_position)})'")
         n_position = len(self.get_positions())
+        old_max = self.get_max_position()
+        if old_max is not None:
+            remaining = old_max - n_position
+            if remaining <= 0:
+                raise Exception(f"Can't update max position when there's no free position remaining (remaining='{remaining}', max_position='{old_max}')")
         min_max_position = max([1, n_position])
         if max_position < min_max_position:
-            raise Exception(f"The max number of position must respect 'max_position >= '{min_max_position}', instead max_position='{max_position}'")
+            raise ValueError(f"The max number of position must respect 'max_position >= '{min_max_position}', instead max_position='{max_position}'")
         self.__max_position = max_position
 
     def get_max_position(self) -> int:

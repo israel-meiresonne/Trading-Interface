@@ -114,15 +114,27 @@ class TestHand(unittest.TestCase, Hand):
         hand.set_broker(broker)
         pair1 = self.pair1
         pair2 = self.pair2
+        pair3 = Pair('ETH/USDT')
         hand.set_broker(broker)
-        streams = [broker.generate_stream(Map({Map.period: period_1min, Map.pair: pair})) for pair in [pair1, pair2]]
+        streams = [broker.generate_stream(Map({Map.period: period_1min, Map.pair: pair})) for pair in [pair1, pair2, pair3]]
         broker.add_streams(streams)
+        # Success
+        exp1 = 3
+        hand.set_max_position(exp1)
+        result1 = hand.get_max_position()
+        self.assertEqual(exp1, result1)
+        # Max is float
         with self.assertRaises(TypeError):
             hand.set_max_position(4.5)
+        # New max is bellow the number of position holds
         hand.buy(pair1, Order.TYPE_MARKET)
         hand.buy(pair2, Order.TYPE_MARKET)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             hand.set_max_position(1)
+        # Don't remain empty position
+        hand.buy(pair3, Order.TYPE_MARKET)
+        with self.assertRaises(Exception):
+            hand.set_max_position(10)
         # End
         self.broker_switch(on=False, stage=Config.STAGE_2)
 
