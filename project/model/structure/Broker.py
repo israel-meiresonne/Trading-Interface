@@ -160,6 +160,24 @@ class Broker(ABC):
         """
         pass
 
+    @classmethod
+    @abstractmethod
+    def str_to_period(cls, period_str: str) -> int:
+        """
+        To convert period from strig format to second
+
+        Parameters:
+        -----------
+        period_str: str
+            String to convert
+
+        Returns:
+        --------
+        return: int
+            Period in second
+        """
+        pass
+
     @staticmethod
     @abstractmethod
     def close() -> None:
