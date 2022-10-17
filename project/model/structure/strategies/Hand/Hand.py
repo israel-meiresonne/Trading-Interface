@@ -321,6 +321,13 @@ class Hand(MyJson):
         self._remove_position(pair)
         self._add_closed_position(position)
 
+    def _move_closed_positions(self, positions: Dict[str, HandTrade] = None) -> None:
+        """
+        To loop move of closed positions
+        """
+        positions = self.get_positions().copy() if positions is None else positions
+        [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
+
     def _reset_orders_map(self) -> None:
         self.__orders = None
 
@@ -508,6 +515,33 @@ class Hand(MyJson):
                 ]
         return Hand._STALK_FUNCTIONS
 
+    def get_broker_pairs(self) -> List[Pair]:
+        """
+        To get list of pair available from Broker's API
+
+        Returns:
+        --------
+        return: List[Pair]
+            List of pair available from Broker's API
+        """
+        broker_class = self.get_broker_class()
+        fiat_asset = self.get_wallet().get_initial().get_asset()
+        spot_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
+        return spot_pairs
+
+    def _get_stalk_pairs(self) -> List[Pair]:
+        """
+        To get list of pair to stalk
+
+        Returns:
+        --------
+        return: List[Pair]
+            List of pair to stalk
+        """
+        spot_pairs = self.get_broker_pairs()
+        pair_positions = list(self.get_positions().keys())
+        return [spot_pair for spot_pair in spot_pairs if spot_pair.__str__() not in pair_positions]
+
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
     # ••• FUNCTION SELF MANAGE ATTRIBUTS DOWN
@@ -573,7 +607,8 @@ class Hand(MyJson):
         positions = self.get_positions().copy()
         [self._try_submit(position) for _, position in positions.items() if not position.is_submitted()]
         self._repport_positions()
-        [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
+        # [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
+        self._move_closed_positions(positions)
         self.backup()
 
     def _repport_positions(self) -> None:
@@ -848,19 +883,6 @@ class Hand(MyJson):
         new_positions = self.get_new_positions()
         no_treated = new_positions[new_positions[Map.buy].isna()]
         no_treated.to_csv(project_dir + file_path, index=False)
-
-    def _get_stalk_pairs(self) -> List[Pair]:
-        """
-        To get list of pair to stalk
-
-        Returns:
-        --------
-        return: List[Pair]
-            List of pair to stalk
-        """
-        spot_pairs = self.get_broker_pairs()
-        pair_positions = list(self.get_positions().keys())
-        return [spot_pair for spot_pair in spot_pairs if spot_pair.__str__() not in pair_positions]
 
     def _stalk_market(self) -> List[Pair]:
         """
@@ -1357,20 +1379,6 @@ class Hand(MyJson):
 
     # ••• FUNCTION SELF BUY/SELL CONDITION UP
     # ••• FUNCTION SELF OTHERS DOWN
-
-    def get_broker_pairs(self) -> List[Pair]:
-        """
-        To get list of pair available from Broker's API
-
-        Returns:
-        --------
-        return: List[Pair]
-            List of pair available from Broker's API
-        """
-        broker_class = self.get_broker_class()
-        fiat_asset = self.get_wallet().get_initial().get_asset()
-        spot_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
-        return spot_pairs
 
     def add_streams(self) -> None:
         """
