@@ -225,7 +225,7 @@ class Hand(MyJson):
     def _reset_new_positions(self) -> None:
         self.__new_positions = None
 
-    def get_new_positions(self) -> pd.DataFrame:
+    def get_propositions(self) -> pd.DataFrame:
         """
         To get list of new pair proposd to trade
 
@@ -243,7 +243,7 @@ class Hand(MyJson):
             self.__new_positions = new_positions = pd.DataFrame(columns=[Map.date, Map.pair, Map.link, Map.buy])
         return new_positions
 
-    def _add_new_position(self, pair: Pair) -> None:
+    def _add_proposition(self, pair: Pair) -> None:
         """
         To add a new pair in list of pairs proposed to trade
         NOTE: add new row only if all row with the given pair have all their columns completed
@@ -254,7 +254,7 @@ class Hand(MyJson):
             Pair to add
         """
         pair_str = pair.__str__()
-        new_positions = self.get_new_positions()
+        new_positions = self.get_propositions()
         n_no_treadted = new_positions[new_positions[Map.buy].isna() & (new_positions[Map.pair] == pair_str)].shape[0]
         if n_no_treadted == 0:
             new_row = {
@@ -265,7 +265,7 @@ class Hand(MyJson):
             }
             self.__new_positions = new_positions.append(new_row, ignore_index=True)
 
-    def _mark_new_position(self, pair: Pair, have_bought: bool) -> None:
+    def _mark_proposition(self, pair: Pair, have_bought: bool) -> None:
         """
         To mark if a proposed position has been bought
         NOTE: only mark the most recent row
@@ -277,7 +277,7 @@ class Hand(MyJson):
         have_bought: bool
             Set True to mark pair as bought else False
         """
-        new_positions = self.get_new_positions()
+        new_positions = self.get_propositions()
         pair_index = list(new_positions.loc[new_positions[Map.buy].isna() & (new_positions[Map.pair] == pair.__str__())].index)
         if len(pair_index) > 0:
             new_positions.loc[pair_index[-1], Map.buy] = have_bought
@@ -857,7 +857,7 @@ class Hand(MyJson):
         """
         def stalk() -> None:
             new_pairs = self._stalk_market()
-            [self._add_new_position(pair) for pair in new_pairs] if len(new_pairs) > 0 else None
+            [self._add_proposition(pair) for pair in new_pairs] if len(new_pairs) > 0 else None
             self._update_stalk_file()
 
         while self.is_stalk_on():
@@ -878,9 +878,9 @@ class Hand(MyJson):
             input_pd = load_file[~load_file[Map.buy].isna()]
             if input_pd.shape[0] > 0:
                 input_indexes = list(input_pd.index)
-                [self._mark_new_position(Pair(input_pd.loc[input_index,Map.pair]), bool(input_pd.loc[input_index,Map.buy])) for input_index in input_indexes]
+                [self._mark_proposition(Pair(input_pd.loc[input_index,Map.pair]), bool(input_pd.loc[input_index,Map.buy])) for input_index in input_indexes]
         # Print untreadted
-        new_positions = self.get_new_positions()
+        new_positions = self.get_propositions()
         no_treated = new_positions[new_positions[Map.buy].isna()]
         no_treated.to_csv(project_dir + file_path, index=False)
 
@@ -1274,7 +1274,7 @@ class Hand(MyJson):
         self._try_submit(trade)
         # Mark as bought
         self._add_position(trade)
-        self._mark_new_position(pair, True)
+        self._mark_proposition(pair, True)
         self._repport_positions()
         self.backup()
 
