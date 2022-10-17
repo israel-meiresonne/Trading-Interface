@@ -379,7 +379,9 @@ class Hand(MyJson):
             raise TypeError(f"The stalk status must be of type '{bool}', instead '{on}({type(on)})'")
         self.__is_stalk_on = on
         self._get_thread_stalk().start() if on and (not self._get_thread_stalk().is_alive()) else None
-        _MF.wait_while(self._get_thread_stalk().is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop stalk is out")) if not on else None
+        if not on:
+            _MF.wait_while(self._get_thread_stalk().is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop stalk is out"))
+            self._reset_thread_stalk()
 
     def is_stalk_on(self) -> bool:
         """
@@ -424,7 +426,9 @@ class Hand(MyJson):
             raise TypeError(f"The running status of thread that manage positions must be of type '{bool}', instead '{on}({type(on)})'")
         self.__is_position_on = on
         self._get_thread_position().start() if on and (not self._get_thread_position().is_alive()) else None
-        _MF.wait_while(self._get_thread_position().is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop management of positions is out")) if not on else None
+        if not on:
+            _MF.wait_while(self._get_thread_position().is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop management of positions is out"))
+            self._reset_thread_position()
 
     def is_position_on(self) -> bool:
         """
@@ -469,7 +473,9 @@ class Hand(MyJson):
             raise TypeError(f"The running status of thread that analyse market must be of type '{bool}', instead '{on}({type(on)})'")
         self.__market_analyse_on = on
         self._get_thread_market_analyse().start() if on and (not self._get_thread_market_analyse().is_alive()) else None
-        _MF.wait_while(self._get_thread_market_analyse().is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop market's analyse is out")) if not on else None
+        if not on:
+            _MF.wait_while(self._get_thread_market_analyse().is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop market's analyse is out"))
+            self._reset_thread_market_analyse()
 
     def is_market_analyse_on(self) -> bool:
         """
@@ -591,7 +597,6 @@ class Hand(MyJson):
             sleep_interval = self._SLEEP_POSITION_VIEW if len(self.get_positions()) > 0 else self._SLEEP_POSITION
             sleep_time = _MF.sleep_time(_MF.get_timestamp(), sleep_interval)
             time.sleep(sleep_time)
-        self._reset_thread_position()
 
     def update_positions(self) -> None:
         """
@@ -864,7 +869,6 @@ class Hand(MyJson):
             _MF.catch_exception(stalk, Hand.__name__)
             sleep_time = _MF.sleep_time(_MF.get_timestamp(), self._SLEEP_STALK)
             time.sleep(sleep_time)
-        self._reset_thread_stalk()
 
     def _update_stalk_file(self) -> None:
         file_path = Config.get(Config.FILE_VIEW_HAND_STALK)
@@ -1163,7 +1167,6 @@ class Hand(MyJson):
             _MF.catch_exception(self._analyse_market, Hand.__name__, **{'marketprices': Map()})
             sleep_time = _MF.sleep_time(_MF.get_timestamp(), self._SLEEP_MARKET_ANALYSE)
             time.sleep(sleep_time)
-        self._reset_thread_market_analyse()
 
     def _analyse_market(self, marketprices: Map) -> None:
         """
