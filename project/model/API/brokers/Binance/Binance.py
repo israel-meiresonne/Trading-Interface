@@ -118,6 +118,10 @@ class Binance(Broker, MyJson):
     def period_to_str(cls, period: int) -> str:
         return BinanceAPI.convert_interval(period)
 
+    @classmethod
+    def str_to_period(cls, period_str: str) -> int:
+        return BinanceAPI.get_interval(period_str)
+
     @staticmethod
     def close() -> None:
         BinanceAPI.close_socket()
