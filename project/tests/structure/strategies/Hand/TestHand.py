@@ -166,42 +166,42 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(ValueError):
             hand._remove_position(hand_trade1.get_buy_order().get_pair())
 
-    def test_get_add_mark_new_positions(self) -> None:
+    def test_get_add_mark_propositions(self) -> None:
         hand = self.hand
         pair1 = Pair('ETH/USDT')
         pair2 = Pair('BNB/USDT')
         # Get positions
-        new_positions = hand.get_new_positions()
+        new_positions = hand.get_propositions()
         self.assertIsInstance(new_positions, pd.DataFrame)
         # Add position
         # ••• Pair don't exist in
-        hand._add_new_position(pair1)
-        hand._add_new_position(pair2)
+        hand._add_proposition(pair1)
+        hand._add_proposition(pair2)
         exp1 = [pair1.__str__(), pair2.__str__()]
-        result1 = list(hand.get_new_positions()[Map.pair])
+        result1 = list(hand.get_propositions()[Map.pair])
         self.assertListEqual(exp1, result1)
         # ••• Pair exist in
-        hand._add_new_position(pair1)
-        hand._add_new_position(pair2)
+        hand._add_proposition(pair1)
+        hand._add_proposition(pair2)
         exp1_2 = exp1
-        result1_2 = list(hand.get_new_positions()[Map.pair])
+        result1_2 = list(hand.get_propositions()[Map.pair])
         self.assertListEqual(exp1_2, result1_2)
         # ••• Existing columns of Pair are complet
-        hand._mark_new_position(pair1, True)
-        hand._mark_new_position(pair2, False)
-        hand._add_new_position(pair1)
-        hand._add_new_position(pair2)
+        hand._mark_proposition(pair1, True)
+        hand._mark_proposition(pair2, False)
+        hand._add_proposition(pair1)
+        hand._add_proposition(pair2)
         exp1_3 = [*exp1, *exp1]
-        result1_3 = list(hand.get_new_positions()[Map.pair])
+        result1_3 = list(hand.get_propositions()[Map.pair])
         self.assertListEqual(exp1_3, result1_3)
         # Mark new position
         exp3 = [True, False, None, None]
-        result3 = list(hand.get_new_positions()[Map.buy])
+        result3 = list(hand.get_propositions()[Map.buy])
         self.assertListEqual(exp3, result3)
         # ••• Mark last added
-        hand._mark_new_position(pair2, True)
+        hand._mark_proposition(pair2, True)
         exp3_2 = [True, False, None, True]
-        result3_2 = list(hand.get_new_positions()[Map.buy])
+        result3_2 = list(hand.get_propositions()[Map.buy])
         self.assertListEqual(exp3_2, result3_2)
 
     def test_get_add_move_closed_positions(self) -> None:
@@ -504,9 +504,9 @@ class TestHand(unittest.TestCase, Hand):
         hand._get_orders_map()
         pair3 = Pair('BNB/USDT')
         pair4 = Pair('ETH/USDT')
-        hand._add_new_position(pair3)
-        hand._add_new_position(pair4)
-        hand._mark_new_position(pair4, have_bought=True)
+        hand._add_proposition(pair3)
+        hand._add_proposition(pair4)
+        hand._mark_proposition(pair4, have_bought=True)
         #
         original_obj = hand
         # test_exec = self.get_executable_test_json_encode_decode()
@@ -517,8 +517,8 @@ class TestHand(unittest.TestCase, Hand):
         original_obj.reset_broker()
         original_obj._reset_orders_map()
         original_obj._reset_backup()
-        exp1 = original_obj.get_new_positions().to_dict('records')
-        result1 = decoded_obj.get_new_positions().to_dict('records')
+        exp1 = original_obj.get_propositions().to_dict('records')
+        result1 = decoded_obj.get_propositions().to_dict('records')
         self.assertListEqual(exp1, result1)
         original_obj._reset_new_positions()
         decoded_obj._reset_new_positions()
@@ -553,6 +553,6 @@ class TestHand(unittest.TestCase, Hand):
     def test_get_path_file_market_trend(self) -> None:
         session_id = Config.get(Config.SESSION_ID)
         period_str = '1h'
-        exp = f'content/sessions/running/{session_id}/view/Hand/{period_str}/{session_id}_{period_str}_market_trend_view.csv'
+        exp = f'content/sessions/running/{session_id}/view/Hand/analyse/{period_str}/{session_id}_{period_str}_market_trend_view.csv'
         result = self.get_path_file_market_trend(period_str)
         self.assertEqual(exp, result)
