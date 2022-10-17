@@ -138,6 +138,26 @@ class TestHand(unittest.TestCase, Hand):
         # End
         self.broker_switch(on=False, stage=Config.STAGE_2)
 
+    def test_is_max_position_reached(self) -> None:
+        broker = self.broker_switch(on=True, stage=Config.STAGE_2)
+        period_1min = Broker.PERIOD_1MIN
+        hand = self.hand
+        hand.set_broker(broker)
+        hand.set_max_position(2)
+        pair1 = self.pair1
+        pair2 = self.pair2
+        hand.set_broker(broker)
+        streams = [broker.generate_stream(Map({Map.period: period_1min, Map.pair: pair})) for pair in [pair1, pair2]]
+        broker.add_streams(streams)
+        # Still free position
+        self.assertFalse(hand.is_max_position_reached())
+        # Positions are fulled
+        hand.buy(pair1, Order.TYPE_MARKET)
+        hand.buy(pair2, Order.TYPE_MARKET)
+        self.assertTrue(hand.is_max_position_reached())
+        # End
+        self.broker_switch(on=False, stage=Config.STAGE_2)
+
     def test_get_add_remove_positions(self) -> None:
         hand = self.hand
         hand_trade1 = self.hand_trade1
