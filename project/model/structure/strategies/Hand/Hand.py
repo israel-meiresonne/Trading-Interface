@@ -161,6 +161,19 @@ class Hand(MyJson):
         """
         return self.__max_position
 
+    def is_max_position_reached(self) -> bool:
+        """
+        To check if the max number of position allowed is reached
+
+        Returns:
+        --------
+        return: bool
+            True if the max number of position allowed is reached else False
+        """
+        max_position = self.get_max_position()
+        n_position = len(self.get_positions())
+        return n_position >= max_position
+
     def get_positions(self) -> Dict[str, HandTrade]:
         """
         To get collection of pairs being trade
@@ -1255,7 +1268,7 @@ class Hand(MyJson):
         if pair.get_right() != self.get_wallet().get_initial().get_asset():
             r_asset_exp = self.get_wallet().get_initial().get_asset()
             raise ValueError(f"The pair to buy's right Asset must be '{r_asset_exp.__str__().upper()}', instead '{pair.__str__().upper()}'")
-        if len(self.get_positions()) >= self.get_max_position():
+        if self.is_max_position_reached():
             raise Exception(f"The max number of position allowed '{self.get_max_position()}' is already reached")
         # Order
         broker_class_str = self.get_broker_class()
