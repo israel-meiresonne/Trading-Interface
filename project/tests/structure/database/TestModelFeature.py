@@ -1,12 +1,37 @@
 import unittest
-from math import pi as _pi
 
 import pandas as pd
 
-from model.structure.database.ModelFeature import ModelFeature
+from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
-class TestModelFeature(unittest.TestCase, ModelFeature):
+class TestModelFeature(unittest.TestCase, _MF):
+    def test_get_import(self) -> None:
+        imports = _MF._get_imports()
+        for class_name, import_exec in imports:
+            exec(import_exec)
+            # print(f"Class '{class_name}' imported with success ✅")
+
+    def test_path_to_import(self) -> None:
+        # Normal
+        file_paths1 = [
+            'path/to/my/python/Class.py',
+            'path/to/my/python/Class/Class2.py'
+            ]
+        exp1 = {
+            'Class': 'from path.to.my.python.Class import Class',
+            'Class2': 'from path.to.my.python.Class.Class2 import Class2'
+            }
+        result1 = _MF.path_to_import(file_paths1)
+        self.assertDictEqual(exp1, result1)
+        # Two with same same
+        file_paths2 = [
+            *file_paths1,
+            file_paths1[-1]
+        ]
+        with self.assertRaises(Exception):
+            result1 = _MF.path_to_import(file_paths2)
+
     def test_get_timestamp(self) -> None:
         raise Exception("Must implement this test")
 
@@ -153,14 +178,14 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
         string = 'content/v0.01/print/hello/file_test.txt'
         substitu = ''
         exp1 = 'content/v0.01/print/hello/'.replace(string, substitu)
-        result1 = ModelFeature.regex_replace(string, regex, substitu)
+        result1 = _MF.regex_replace(string, regex, substitu)
         self.assertEqual(exp1, result1)
 
     def test_round_time(self) -> None:
         unix_time = 1620458043  # 2021-05-08 09:14:03
         interval = 60 * 15
         exp1 = 1620457200       # 2021-05-08 09:00:00
-        result1 = ModelFeature.round_time(unix_time, interval)
+        result1 = _MF.round_time(unix_time, interval)
         self.assertEqual(exp1, result1)
     
     def test_df_apply(self) -> None:
@@ -192,5 +217,8 @@ class TestModelFeature(unittest.TestCase, ModelFeature):
             8: [6,9],
             9: [6,9]
         }
-        result1 = ModelFeature.group_swings(values, compares)
+        result1 = _MF.group_swings(values, compares)
         self.assertDictEqual(exp1, result1)
+
+
+
