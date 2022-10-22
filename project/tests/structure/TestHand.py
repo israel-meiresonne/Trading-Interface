@@ -8,7 +8,7 @@ from config.Config import Config
 from model.API.brokers.Binance.Binance import Binance
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
-from model.structure.strategies.Hand.Hand import Hand
+from model.structure.Hand import Hand
 from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.HandTrade import HandTrade
@@ -102,10 +102,27 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(ValueError):
             Hand(self.capital, 'not_callable')
 
-    def test_set_broker(self) -> None:
+    def test_set_get_reset_broker(self) -> None:
+        broker = self.broker_switch(on=True, stage=Config.STAGE_2)
         hand = self.hand
+        # Get
+        # ••• Not set
+        with self.assertRaises(Exception):
+            hand.get_broker()
+        # ••• Set
+        hand.set_broker(broker)
+        exp2 = broker
+        result2 = hand.get_broker()
+        self.assertEqual(exp2, result2)
+        # ••• Reset
+        hand.reset_broker()
+        with self.assertRaises(Exception):
+            hand.get_broker()
+        # broker is wrong type
         with self.assertRaises(TypeError):
             hand.set_broker('no_broker')
+        # End
+        self.broker_switch(on=False)
 
     def test_set_max_position(self) -> None:
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
@@ -503,7 +520,7 @@ class TestHand(unittest.TestCase, Hand):
         _MF.wait_while(FileManager.is_writting,  False, 10, to_raise=Exception("Time out to wait end of writting"))
         # Backup exist
         hand_id = hand.get_id()
-        loaded = self.load(hand_id)
+        loaded = hand.load(hand_id)
         self.assertEqual(hand._get_backup(), loaded.json_encode())
         # Backup don't exist
         with self.assertRaises(Exception):

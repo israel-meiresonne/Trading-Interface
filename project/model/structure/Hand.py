@@ -64,15 +64,15 @@ class Hand(MyJson):
         self._set_broker_class(broker_class)
         self.set_max_position(self._MAX_POSITION)
 
-    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN ——————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN —————————————————————————————————————————
 
-    def _set_id(self) -> str:
+    def _set_id(self) -> None:
         self.__id = self.PREFIX_ID + _MF.new_code()
 
     def get_id(self) -> str:
         return self.__id
 
-    def _set_settime(self) -> str:
+    def _set_settime(self) -> None:
         self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
 
     def get_settime(self) -> int:
@@ -120,7 +120,10 @@ class Hand(MyJson):
         return: Broker
             Access to a broker's API
         """
-        return self.__broker
+        broker = self.__broker
+        if broker is None:
+            raise Exception("The broker attribut must be set before access")
+        return broker
 
     def _set_wallet(self, initial: Price) -> None:
         self.__wallet = Wallet(initial)
@@ -561,8 +564,8 @@ class Hand(MyJson):
         pair_positions = list(self.get_positions().keys())
         return [spot_pair for spot_pair in spot_pairs if spot_pair.__str__() not in pair_positions]
 
-    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
-    # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ———————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SELF DOWN ——————————————————————————————————————————————————
     # ••• FUNCTION SELF MANAGE ATTRIBUTS DOWN
 
     def _position_capital(self) -> Price:
@@ -855,7 +858,7 @@ class Hand(MyJson):
         global_rows = get_global_rows(positions)
         print_row(file_path_global, global_rows, overwrite=False, make_dir=True)
         # save position states
-        file_path_position = Config.get(Config.DIR_SAVE_GLOBAL_MOVES).replace('$class', Hand.__name__)
+        file_path_position = Config.get(Config.DIR_SAVE_GLOBAL_MOVES).replace('$class', self.__class__.__name__)
         position_rows = get_position_rows(positions)
         position_rows_dict = position_rows.to_dict('records')
         print_row(file_path_position, position_rows_dict, overwrite=False, make_dir=True) if position_rows.shape[0] > 0 else None
@@ -1410,7 +1413,6 @@ class Hand(MyJson):
                 ]
             streams = _MF.remove_duplicates(streams)
             return streams
-
         broker_pairs = self.get_broker_pairs()
         required_periods = self._REQUIRED_PERIODS
         broker = self.get_broker()
@@ -1434,7 +1436,7 @@ class Hand(MyJson):
                 attributes[attribute] = None
             if isinstance(value, Map) and (len(value.get_map()) > 0) and isinstance(value.get(value.get_keys()[-1]), Orders):
                 attributes[attribute] = None
-            if 'backup' in attribute:
+            if Map.backup in attribute:
                 attributes[attribute] = None
         return attributes
 
@@ -1448,8 +1450,8 @@ class Hand(MyJson):
             self._set_backup(json_str)
 
     # ••• FUNCTION SELF OTHERS UP
-    # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
-    # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SELF UP ————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
 
     @classmethod
     def get_path_file_backup(cls, hand_id: str) -> str:
@@ -1468,7 +1470,7 @@ class Hand(MyJson):
         """
         stage = Config.get(Config.STAGE_MODE)
         file_pattern = Config.get(Config.FILE_SAVE_HAND)
-        hand_file_path = file_pattern.replace('$stage', stage).replace('$class', Hand.__name__).replace('$id', hand_id)
+        hand_file_path = file_pattern.replace('$stage', stage).replace('$class', cls.__name__).replace('$id', hand_id)
         return hand_file_path
 
     @classmethod
@@ -1499,7 +1501,7 @@ class Hand(MyJson):
         """
         hand_file_path = cls.get_path_file_backup(hand_id)
         hand_dir_path = FileManager.path_to_dir(hand_file_path)
-        backup_files = _MF.catch_exception(FileManager.get_files, Hand.__name__, **{Map.path: hand_dir_path})
+        backup_files = _MF.catch_exception(FileManager.get_files, cls.__name__, **{Map.path: hand_dir_path})
         if (backup_files is None) or len(backup_files) == 0:
             raise Exception(f"There's not Hand backup with this id '{hand_id}'")
         most_recent_file_path = hand_dir_path + backup_files[-1]
@@ -1627,4 +1629,4 @@ class Hand(MyJson):
         exec(MyJson.get_executable())
         return instance
 
-    # ——————————————————————————————————————————— STATIC FUNCTION UP ———————————————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION UP ——————————————————————————————————————————————————
