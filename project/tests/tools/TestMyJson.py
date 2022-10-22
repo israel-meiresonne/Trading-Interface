@@ -11,23 +11,6 @@ class TestMyJson(unittest.TestCase):
         self.price = Price(19, 'USDT')
         self.map1 = Map({'k1': 'v1'})
 
-    def test_get_import(self) -> None:
-        # Check import of class file
-        exp1 = 'from model.structure.strategies.MinMax.MinMax import MinMax'
-        result1 = MyJson.get_import('MinMax')
-        self.assertEqual(exp1, result1)
-        # Check import of class folder
-        exp2 = 'from model.structure.strategies.Icarus.Icarus import Icarus'
-        result2 = MyJson.get_import('Icarus')
-        self.assertEqual(exp2, result2)
-        # Execute all import
-        imports = MyJson.get_imports()
-        for class_name, import_exec in imports.get_map().items():
-            if class_name == 'Paire':
-                continue
-            exec(import_exec)
-            print(f"Class '{class_name}' imported with success ✅")
-
     def test_json_encode(self) -> None:
         prc = self.price
         json_str = prc.json_encode()
@@ -51,7 +34,6 @@ class TestMyJson(unittest.TestCase):
             self.assertNotEqual(id(obj), id(obj_copy))
             self.assertEqual(obj, obj_copy)
             self.assertDictEqual(obj_dict, obj_copy.__dict__)
-
         test(self.price)
         test(self.map1)
 
@@ -75,7 +57,6 @@ class TestMyJson(unittest.TestCase):
             self.assertDictEqual(obj1.__dict__, obj1_copy)
             self.assertDictEqual(obj2.__dict__, obj2_copy)
             self.assertDictEqual(obj3.__dict__, obj3_copy)
-
         # Object with an attribut 'id'
         map1 = Map({'k1': 'v1'})
         map2 = Map({'k1': 'v1'})
