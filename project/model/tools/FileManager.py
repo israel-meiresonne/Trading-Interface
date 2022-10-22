@@ -1,7 +1,7 @@
 from pickle import Pickler, Unpickler
 from csv import DictReader
 from csv import DictWriter
-from abc import ABC, abstractmethod
+from abc import ABC
 from os import path as os_path, remove as os_remove, walk
 from pathlib import Path
 import re as rgx
@@ -225,7 +225,7 @@ class FileManager(ABC):
                 writer.writerow(row)
 
     @staticmethod
-    def get_files(path: str, extension: bool = True, special: bool = False, make_dir: bool = False) -> list:
+    def get_files(path: str, extension: bool = True, special: bool = False, make_dir: bool = False) -> List[str]:
         """
         To list files of a directory
         NOTE: files are sorted low to hight following their name
@@ -262,7 +262,7 @@ class FileManager(ABC):
         return files
 
     @staticmethod
-    def get_dirs(path: str, special: bool = False, make_dir: bool = False) -> list[str]:
+    def get_dirs(path: str, special: bool = False, make_dir: bool = False) -> List[str]:
         """
          To list directories of a directory\n
          :param path: the path of the directory
@@ -271,6 +271,7 @@ class FileManager(ABC):
          :param make_dir: Set True create missing directory else False to raise error if miss directory
          :return: list of directories
          """
+        path = path + '/' if path[-1] != '/' else path
         project_dir = FileManager.get_project_directory()
         FileManager.make_directory(path) if make_dir else None
         _, drs, _ = next(walk(project_dir + path))
@@ -335,3 +336,52 @@ class FileManager(ABC):
         """
         full_path = FileManager.get_project_directory() + path
         Path(full_path).rmdir()
+
+    @classmethod
+    def map_dir(cls, start_dir_path: str, file_regex: str = None, folder_regex: str = None) -> List[str]:
+        """
+        To get recursively file path of all files in the given directory
+
+        Parameters:
+        -----------
+        start_dir_path: str
+            Path of the directory to start from
+            NOTE: Must be relative to the project's directory
+        file_regex: str
+            Regular expression that must match all file returned
+            - r'.+'             -> will return all file found
+            - r'^[\d]+\w\.csv'  -> will return files starting with a number followed by one letter and with the extension '.csv'
+        
+        folder_regex: str
+            Regular expression that must match name of each folder to keep
+
+        Returns:
+        --------
+        return: List[str]
+            List of file path
+            NOTE: paths are sorted in ascending order
+        """
+        concat_dir_path = start_dir_path
+        file_paths = cls._rec_map_dir(concat_dir_path, file_regex, folder_regex)
+        file_paths.sort()
+        return file_paths
+
+    @classmethod
+    def _rec_map_dir(cls, concat_dir_path: str, file_regex: str = None, folder_regex: str = None) -> List[str]:
+        def filter(regex: str, strings: List[str]) -> List[str]:
+            return [string for string in strings if _MF.regex_match(regex, string)]
+        # Files
+        new_files = cls.get_files(concat_dir_path, special=True)
+        filtered_files = new_files if file_regex is None else filter(file_regex, new_files)
+        file_paths = [concat_dir_path + filtered_file for filtered_file in filtered_files]
+        # Directories
+        new_dirs = cls.get_dirs(concat_dir_path, special=True)
+        filtered_dirs = new_dirs if folder_regex is None else filter(folder_regex, new_dirs)
+        for filtered_dir in filtered_dirs:
+            new_concat_dir_path = f'{concat_dir_path}{filtered_dir}/'
+            file_paths = [
+                *file_paths,
+                *cls._rec_map_dir(new_concat_dir_path, file_regex, folder_regex)
+                ]
+        return file_paths
+

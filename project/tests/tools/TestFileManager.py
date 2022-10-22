@@ -1,4 +1,6 @@
+import shutil
 import time
+from typing import List
 import unittest
 
 from model.tools.FileManager import FileManager
@@ -82,3 +84,58 @@ class TestFileManager(unittest.TestCase, FileManager):
             FileManager.path_to_dir('path/to/my/dir/')
         with self.assertRaises(ValueError):
             FileManager.path_to_dir('file_without_path.ext')
+
+    def test_map_dir(self) -> None:
+        def func_file_paths(base_path: str, dirs: List[str], files: List[str]) -> List[str]:
+            concat_path = base_path
+            file_paths = rec_file_paths(concat_path, dirs, files)
+            return file_paths
+        def rec_file_paths(concat_path: str, dirs: List[str], files: List[str]) -> List[str]:
+            file_paths = [concat_path + file for file in files]
+            new_dirs = dirs[1:] if len(dirs) > 0 else dirs
+            for dir in new_dirs:
+                new_concat_path = concat_path + dir
+                file_paths = [
+                    *file_paths,
+                    *rec_file_paths(new_concat_path, new_dirs, files)
+                ]
+            return file_paths
+        start_dir_path = 'to_delete/'
+        dirs = [
+            start_dir_path,
+            'dir123/',
+            '.hidden/',
+            'dir.py/'
+        ]
+        files = [
+            f'File1.py',
+            f'.gitigore1'
+        ]
+        file_paths = func_file_paths(start_dir_path, dirs, files)
+        file_paths.sort()
+        [FileManager.write(file_path, 'to_delete', make_dir=True) for file_path in file_paths]
+        _MF.wait_while(FileManager.is_writting, False, 60*2, Exception(f"write time out"))
+        # No filter
+        exp1 = file_paths
+        result1 = FileManager.map_dir(start_dir_path)
+        self.assertListEqual(exp1, result1)
+        # Filter file
+        regex2 = r'.*\.py'
+        exp2 = [file_path for file_path in file_paths if file_path.split('/')[-1] == files[0]]
+        result2 = FileManager.map_dir(start_dir_path, file_regex=regex2)
+        self.assertListEqual(exp2, result2)
+        # Filter folder
+        regex3 = r'^\..*'
+        exp3 = [file_path for file_path in file_paths if 0 not in [1 if sib_dir+'/' == dirs[2] else 0 for sib_dir in file_path.split('/')[1:-1]]]
+        result3 = FileManager.map_dir(start_dir_path, folder_regex=regex3)
+        self.assertListEqual(exp3, result3)
+        # Filter file and folder
+        regex_file4 = regex2
+        regex_folder4 = regex3
+        exp4 = [file_path for file_path in exp3 if file_path in exp2]
+        exp4.sort()
+        result4 = FileManager.map_dir(start_dir_path, file_regex=regex_file4, folder_regex=regex_folder4)
+        self.assertListEqual(exp4, result4)
+        # End
+        shutil.rmtree(start_dir_path)
+
