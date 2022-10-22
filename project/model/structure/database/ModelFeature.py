@@ -8,7 +8,7 @@ from json import dumps as json_encode
 from json import loads as json_decode
 from random import shuffle
 from types import FunctionType, MethodType
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import dill
 import numpy as np
@@ -28,10 +28,139 @@ class ModelFeature(ModelAccess):
     FORMAT_D_H_M_S = '%Y-%m-%d %H:%M:%S'
     FORMAT_D_H_M_S_FOR_FILE = '%Y-%m-%d_%H.%M.%S'
     TIME_ZONE_UTC = 'UTC'
+    _IMPORTS = None
+    _REGEX_FILE_PYTHON = r'^.+\.py$'
+    _IMPORT_ROOTS = ['model/']
+    # Styles
+    S_NORMAL =          '\033[0m'
+    S_BOLD =            '\033[1m'
+    S_FAINT =           '\033[2m'
+    S_ITALIC =          '\033[3m'
+    S_UNDERLINE =       '\033[4m'
+    # Colors
+    C_BLACK =           '\033[30m'
+    C_RED =             '\033[31m'
+    C_GREEN =           '\033[32m'
+    C_YELLOW =          '\033[33m'
+    C_BLUE =            '\033[34m'
+    C_MAGENTA =         '\033[35m'
+    C_CYAN =            '\033[36m'
+    C_LIGHT_GRAY =      '\033[37m'
+    C_GRAY =            '\033[90m'
+    C_LIGHT_RED =       '\033[91m'
+    C_LIGHT_GREEN =     '\033[92m'
+    C_LIGHT_YELLOW =    '\033[93m'
+    C_LIGHT_BLUE =      '\033[94m'
+    C_LIGHT_MAGENTA =   '\033[95m'
+    C_LIGHT_CYAN =      '\033[96m'
+    C_WHITE =           '\033[97m'
+    # Background
+    B_BLACK =           '\033[40m'
+    B_RED =             '\033[41m'
+    B_GREEN =           '\033[42m'
+    B_YELLOW =          '\033[43m'
+    B_BLUE =            '\033[44m'
+    B_MAGENTA =         '\033[45m'
+    B_CYAN =            '\033[46m'
+    B_LIGHT_GRAY =      '\033[47m'
+    B_GRAY =            '\033[100m'
+    B_LIGHT_RED =       '\033[101m'
+    B_LIGHT_GREEN =     '\033[102m'
+    B_LIGHT_YELLOW =    '\033[103m'
+    B_LIGHT_BLUE =      '\033[104m'
+    B_LIGHT_MAGENTA =   '\033[105m'
+    B_LIGHT_CYAN =      '\033[106m'
+    B_WHITE =           '\033[107m'
+    STYLES = [S_NORMAL, S_BOLD, S_FAINT, S_ITALIC, S_UNDERLINE,
+    C_BLACK, C_RED, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN, 
+    C_LIGHT_GRAY, C_GRAY, C_LIGHT_RED, C_LIGHT_GREEN, C_LIGHT_YELLOW, 
+    C_LIGHT_BLUE, C_LIGHT_MAGENTA, C_LIGHT_CYAN, C_WHITE, B_BLACK, 
+    B_RED, B_GREEN, B_YELLOW, B_BLUE, B_MAGENTA, B_CYAN, B_LIGHT_GRAY, 
+    B_GRAY, B_LIGHT_RED, B_LIGHT_GREEN, B_LIGHT_YELLOW, B_LIGHT_BLUE, 
+    B_LIGHT_MAGENTA, B_LIGHT_CYAN, B_WHITE
+    ]
 
     @abstractmethod
     def __init__(self):
         pass
+
+    @staticmethod
+    def _set_imports() -> None:
+        from model.tools.FileManager import FileManager
+        imports = {}
+        import_roots = ModelFeature._IMPORT_ROOTS
+        file_regex = ModelFeature._REGEX_FILE_PYTHON
+        for import_root in import_roots:
+            start_dir_path = import_root
+            file_paths = FileManager.map_dir(start_dir_path, file_regex=file_regex)
+            new_imports = ModelFeature.path_to_import(file_paths)
+            imports = {
+                **imports,
+                **new_imports
+            }
+        ModelFeature._IMPORTS = imports
+
+    @staticmethod
+    def _get_imports() -> Dict[str, str]:
+        if ModelFeature._IMPORTS is None:
+            ModelFeature._set_imports()
+        return ModelFeature._IMPORTS
+
+    @classmethod
+    def get_import(cls, class_name: str) -> str:
+        """
+        To get import instruction of the given class
+
+        Parameters
+        ----------
+        class_name: str
+            Name of the class to import
+
+        Returns
+        -------
+        import_str: str
+            Import instruction of the given class
+        """
+        imports = cls._get_imports()
+        if class_name not in imports:
+            raise ValueError(f"Import instruction for this class '{class_name}' don't exist")
+        return imports[class_name]
+
+    @classmethod
+    def path_to_import(cls, file_paths: List[str]) -> Dict[str, str]:
+        """
+        To convert file paths to Python import
+
+
+        Parameters:
+        -----------
+        file_paths: List[str]
+            List of path from project's directory to the target file
+
+        Returns:
+        --------
+        return: Dict[str, str]
+            List of Python import
+            dict[class_name{str}] -> import_to_exec{str}
+
+        Examples:
+        ---------
+        >>> file_paths = ['path/to/my/python/Class.py']
+        >>> _MF.path_to_import(file_paths)
+        {'Class': 'path.to.my.python.Class import Class'}
+        """
+        from model.tools.FileManager import FileManager
+        path_to_import = {}
+        for file_path in file_paths:
+            dir_path = FileManager.path_to_dir(file_path)
+            # Class name
+            file = file_path.replace(dir_path, '')
+            class_name = file.split('.')[0]
+            # Import
+            if class_name in path_to_import:
+                raise Exception(f"Two class can't have the same name '{class_name}'")
+            path_to_import[class_name] = f"from {dir_path.replace('/', '.')}{class_name} import {class_name}"
+        return path_to_import
 
     @staticmethod
     def get_timestamp(unit=TIME_SEC) -> int:
@@ -744,24 +873,6 @@ class ModelFeature(ModelAccess):
         """
         return value != value
 
-    @staticmethod
-    def get_import(class_name: str) -> str:
-        """
-        To get import instruction of the given class
-
-        Parameters
-        ----------
-        class_name: str
-            Name of the class to import
-
-        Returns
-        -------
-        import_str: str
-            Import instruction of the given class
-        """
-        from model.tools.MyJson import MyJson
-        return MyJson.get_import(class_name)
-
     @classmethod
     def sleep_time(cls, unix_time: int, interval: int) -> int:
         """
@@ -781,3 +892,6 @@ class ModelFeature(ModelAccess):
         sleep_time = cls.round_time(unix_time, interval) + interval - unix_time
         return sleep_time
 
+    @classmethod
+    def sleep(cls, sleep_time: int) -> None:
+        time.sleep(sleep_time)
