@@ -68,6 +68,8 @@ class Map(MyJson):
     cancel = "cancel"
     value = "value"
     algo = "algo"
+    backup = "backup"
+    menu = "menu"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
