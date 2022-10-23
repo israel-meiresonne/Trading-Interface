@@ -1,204 +1,334 @@
-import threading
-import time
+from threading import Thread
+from typing import Callable, Dict, List
 
 from config.Config import Config
-from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Broker import Broker
-from model.structure.Strategy import Strategy
+from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.structure.strategies.Strategy import Strategy
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
+from model.tools.Price import Price
 
 
 class Bot(MyJson):
-    _DEBUG = True
-    _VERBOSE = False
-    PREFIX_ID = 'bot_'
-    _TRADE_INDEX = 0
-    _TRADE_INDEX_STOP = 40320
-    _THREAD_NAME_BOT_BACKUP = 'bot_backup'
+    _DEBUG =                True
+    _VERBOSE =              False
+    PREFIX_ID =             'bot_'
+    _TRADE_INDEX =          0
+    _TRADE_INDEX_STOP =     40320
+    _THREAD_TRADE =         'trade'
+    _THREAD_BACKUP =        'bot_backup'
+    _TIMEOUT_THREAD_STOP =  60*2
 
-    def __init__(self, bkr: str, stg: str, configs: Map):
-        """
-        To create a new Bot\n
-        :param bkr: name of a supported Broker
-        :param stg: name of a supported Strategy
-        :param configs: holds additional configs for the Bot
-                    configs[{Broker}]   => {dict} Broker configs
-                    configs[{Strategy}] => {dict} Strategy's configs
-        """
-        super().__init__()
-        self.__id = Bot.PREFIX_ID + _MF.new_code()
-        self.__settime = _MF.get_timestamp(_MF.TIME_MILLISEC)
-        self.__trading = False
-        self.__broker = Broker.retrieve(bkr, Map(configs.get(bkr)))
-        self.__strategy = None
-        self._set_strategy(stg, configs)
-        self.__pair = self.__strategy.get_pair()
-        self.__last_backup = None
-        self.__thread_backup = None
+    def __init__(self, capital: Price, strategy_class: Callable, broker_class: Callable, pair: Pair = None):
+        self.__id =                 None
+        self.__settime =            None
+        self.__strategy =            None
+        self.__threads =            None
+        self.__backup =             None
+        self._set_id()
+        self._set_settime()
+        self._set_strategy(strategy_class, capital, broker_class, pair)
+        self._set_threads()
 
-    def _set_strategy(self, stg_class: str, params: Map) -> None:
-        # Put Pair
-        pair_str = params.get(stg_class, Map.pair)
-        params.put(Pair(pair_str), stg_class, Map.pair)
-        exec(f"from model.structure.strategies.{stg_class}.{stg_class} import {stg_class}")
-        self.__strategy = eval(f"{stg_class}.generate_strategy(stg_class, Map(params.get(stg_class)))")
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER DOWN ——————————————————————————————————————————
+
+    def _set_id(self) -> None:
+        self.__id = self.PREFIX_ID + _MF.new_code()
 
     def get_id(self) -> str:
         return self.__id
 
+    def _set_settime(self) -> str:
+        self.__settime = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+
     def get_settime(self) -> int:
-        return self.__settime
-
-    def _set_trading(self, is_trading: bool) -> None:
-        self.__trading = is_trading
-
-    def is_trading(self) -> bool:
         """
-        To check if Bot is trading
+        To get the creation time in millisecond
 
         Returns:
         --------
-        return: bool
-            True if Bot is trading else False
+        return: int
+            The creation time in millisecond
         """
-        return self.__trading
+        return self.__settime
 
-    def get_broker(self) -> Broker:
-        return self.__broker
+    def _set_strategy(self, strategy_class: Callable, capital: Price, broker_class: Callable, pair: Pair = None) -> None:
+        self.__strategy = strategy_class(capital, broker_class, pair)
 
     def get_strategy(self) -> Strategy:
         return self.__strategy
 
-    def get_pair(self) -> Pair:
-        return self.__pair
+    def _set_threads(self) -> None:
+        self.__threads = {
+            self._THREAD_TRADE:  {
+                Map.status: False,
+                Map.thread: None,
+                Map.callback: self._manage_trade.__name__
+            },
+            self._THREAD_BACKUP: {
+                Map.status: False,
+                Map.thread: None,
+                Map.callback: self._manage_backup.__name__
+            }
+        }
 
-    def _set_last_backup(self, last_backup: int) -> None:
-        self.__last_backup = last_backup
-
-    def get_last_backup(self) -> int:
+    def _get_threads(self) -> Dict[str, Thread]:
         """
-        To get the last time Bot have been backup\n
-        Returns
-        -------
-        last_backup: int
-            The last time Bot have been backup
-        """
-        return self.__last_backup
-
-    def _reset_thread_backup(self) -> None:
-        self.__thread_backup = None
-
-    def _get_thread_backup(self) -> threading.Thread:
-        """
-        To get thread that run Bot's back up
+        To get list of thread managed
 
         Returns:
         --------
-        return: threading.Thread
-            The thread that run Bot's back up
+        return: List[Thread]
+            List of thread managed
         """
-        thread = self.__thread_backup
-        if (thread is None) or (not thread.is_alive()):
-            callback = self.backup
-            call_class = self.__class__.__name__
-            base_name = self._THREAD_NAME_BOT_BACKUP
-            thread, output = _MF.wrap_thread(callback, call_class, base_name, repport=True)
-            _MF.output(_MF.prefix() + output) if self._VERBOSE else None
-            self.__thread_backup = thread
+        return self.__threads
+
+    def _get_thread_callback(self, thread_name: str) -> Callable:
+        callback_str = self._get_threads()[thread_name][Map.callback]
+        return eval(f'self.{callback_str}')
+
+    def _reset_thread(self, thread_name: str) -> None:
+        self._get_threads()[thread_name][Map.thread] = None
+
+    def _get_thread(self, thread_name: str) -> Thread:
+        """
+        To get the thread of the given name
+
+        Parameters:
+        -----------
+        thread_name: str
+            The base name of the thread to get
+
+        Returns:
+        --------
+        return: List[Thread]
+            Thread of the given name
+        """
+        threads = self._get_threads()
+        thread = threads[thread_name][Map.thread]
+        if thread is None:
+            callback = self._get_thread_callback(thread_name)
+            thread, output = _MF.wrap_thread(callback, self.__class__.__name__, thread_name)
+            threads[thread_name][Map.thread] = thread
+            _MF.output(output) if self._VERBOSE else None
         return thread
+
+    def _set_thread_on(self, thread_name: str, on: bool) -> None:
+        """
+        To start or stop thread of the given name
+
+        Parameters:
+        -----------
+        thread_name: str
+            The base name of the thread to start/stop
+        on: bool
+            Set True to start the thread else False to stop it
+        """
+        if not isinstance(on, bool):
+            raise TypeError(f"The thread state must be of type '{bool}', instead '{on}({type(on)})'")
+        self._get_threads()[thread_name][Map.status] = on
+        thread = self._get_thread(thread_name)
+        if on:
+            thread.start() if not thread.is_alive() else None
+        elif not on and thread.is_alive():
+            _MF.wait_while(thread.is_alive, False, self._TIMEOUT_THREAD_STOP, Exception(f"Time to stop thread '{thread.name}' is out"))
+            self._reset_thread(thread_name)
+
+    def _is_thread_on(self, thread_name: str) -> bool:
+        return self._get_threads()[thread_name][Map.status]
+
+    def set_broker(self, broker: Broker) -> None:
+        self.get_strategy().set_broker(broker)
+
+    def _set_backup(self, backup: str) -> None:
+        if not isinstance(backup, str):
+            raise TypeError(f"The backup must be of type '{str}', instead '{type(backup)}'")
+        self.__backup = backup
+
+    def _reset_backup(self) -> None:
+        self.__backup = None
+
+    def _get_backup(self) -> str:
+        return self.__backup
+
+    # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
 
     def start(self) -> None:
         """
-        To start trade\n
+        To start trading
         """
-        self._set_trading(True)
-        _stage = Config.get(Config.STAGE_MODE)
-        bkr = self.get_broker()
-        stg = self.get_strategy()
-        bot_id = self.get_id()
-        trade_index = Bot.get_trade_index()
-        sleep_time = None
-        nb_error = 0
-        starttime = _MF.get_timestamp()
-        _MF.output(f"{_MF.prefix()}Bot started to trade 🤖") if self._DEBUG else None
-        while self.active():
-            Bot._set_trade_index(trade_index)
-            _MF.output(f"{_MF.prefix()}Bot '{bot_id}' Trade n°'{trade_index}' — {_MF.unix_to_date(_MF.get_timestamp())}") if self._VERBOSE else None
-            try:
-                sleep_time = stg.trade(bkr)
-                nb_error = 0
-                trade_index += 1
-                thread_backup = self._get_thread_backup()
-                thread_backup.start() if not thread_backup.is_alive() else None
-            except Exception as error:
-                nb_error += 1
-                self.save_error(error, Bot.__name__, nb_error)
-            if _stage != Config.STAGE_1:
-                sleep_time = sleep_time if sleep_time is not None else Strategy.get_bot_sleep_time()
-                unix_time = _MF.get_timestamp()
-                start_date = _MF.unix_to_date(unix_time)
-                end_date = _MF.unix_to_date(unix_time + sleep_time)
-                sleep_time_str = f"{int(sleep_time / 60)}min.{sleep_time % 60}sec."
-                _MF.output(f"{_MF.prefix()}Bot '{bot_id}' sleep for '{sleep_time_str}' till '{start_date}'->'{end_date}'...") if self._VERBOSE else None
-                time.sleep(sleep_time)
-                sleep_time = None
-            if _stage == Config.STAGE_1:
-                _normal = '\033[0m'
-                _cyan = '\033[36m'
-                endtime = _MF.get_timestamp()
-                n_trade = trade_index
-                delta_time = endtime - starttime
-                time_per_trade = f"{n_trade/delta_time}(trade/sec.)"
-                trade_time = f"{delta_time/n_trade}(sec./trade)"
-                run_time = _MF.delta_time(0, n_trade*60)
-                _MF.output(_MF.prefix() + _cyan + f"{time_per_trade} — {trade_time} - {run_time}" + _normal) if self._DEBUG else None
-        self.backup()
-        _MF.output(f"{_MF.prefix()}Bot stoped to trade ☠️") if self._DEBUG else None
+        self._set_thread_on(self._THREAD_TRADE, on=True)
 
     def stop(self) -> None:
-        self._set_trading(False)
-
-    def active(self) -> bool:
         """
-        To check if Bot still trading
+        To stop trading
+        """
+        self._set_thread_on(self._THREAD_TRADE, on=False)
+
+    def _manage_trade(self) -> None:
+        """
+        To manage trade
+        """
+        def keep_looping(trade_index: int, stop_index: int) -> bool:
+            can_loop = self._is_thread_on(self._THREAD_TRADE)
+            if stage == Config.STAGE_1:
+                can_loop = can_loop and (trade_index < stop_index)
+            return can_loop
+        stage = Config.get(Config.STAGE_MODE)
+        trade_index = self.get_trade_index()
+        stop_index = self.get_index_stop()
+        prefix = _MF.prefix
+        bot_id = self.get_id()
+        # Start Strategy
+        strategy = self.get_strategy()
+        strategy.add_streams()
+        strategy.set_stalk_on(on=True)
+        """
+        strategy.set_position_on(on=True)
+        strategy.set_market_analyse_on(on=True)
+        """
+        # Prepare loop
+        starttime = _MF.get_timestamp()
+        while keep_looping(trade_index, stop_index):
+            Bot._set_trade_index(trade_index)
+            _MF.output(prefix() + f"Bot '{bot_id}' Trade n°'{trade_index}'")
+            sleep_interval = _MF.catch_exception(strategy.trade, self.__class__.__name__)
+            if sleep_interval is not None:
+                trade_index += 1
+                self.backup()
+            unix_time = _MF.get_timestamp()
+            if stage in [Config.STAGE_2, Config.STAGE_3]:
+                sleep_time = _MF.sleep_time(unix_time, sleep_interval)
+                sleep_message = f"Bot sleep for {sleep_time}sec. from '{_MF.unix_to_date(unix_time)}' to '{_MF.unix_to_date(unix_time + sleep_time)}'" if self._DEBUG else None
+                _MF.output(prefix() + sleep_message)
+                _MF.sleep(sleep_time)
+            elif stage == Config.STAGE_1:
+                loop_message = f"{(stop_index - trade_index)/(unix_time - starttime)}(trade/sec.)"
+                _MF.output(_MF.loop_progression(starttime, trade_index, stop_index, loop_message))
+            else:
+                raise Exception(f"Unkown stage '{stage}'")
+        self.backup()
+        self._reset_thread(self._THREAD_TRADE)
+        strategy.set_stalk_on(on=False)
+        """
+        strategy.set_position_on(on=True)
+        strategy.set_market_analyse_on(on=True)
+        """
+        _MF.output(prefix() + "Bot stopped ☠️")
+
+    def _manage_backup(self) -> None:
+        """
+        To manage backup
+        """
+        self.backup()
+
+    def _json_encode_to_dict(self) -> dict:
+        attributes = self.__dict__.copy()
+        for attribute, value in attributes.items():
+            if Map.backup in attribute:
+                attributes[attribute] = None
+        return attributes
+
+    def backup(self, force: bool = False) -> None:
+        backup = self._get_backup()
+        json_str = self.json_encode()
+        if force or (backup != json_str):
+            bot_id = self.get_id()
+            bot_file_path = self.get_path_file_backup(bot_id)
+            FileManager.write(bot_file_path, json_str, overwrite=True, make_dir=True)
+            self._set_backup(json_str)
+
+    # ——————————————————————————————————————————— FUNCTION SELF UP —————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
+
+    @classmethod
+    def get_path_file_backup(cls, bot_id: str) -> str:
+        """
+        To get file path to where Bot are stored
 
         Returns:
         --------
-        return: bool
-            True if Bot still trading else False
+        return: str
+            File path to where Bot are stored
         """
-        stop_index = self.get_index_stop()
-        trade_index = self.get_trade_index()
-        _stage = Config.get_stage()
-        if (_stage == Config.STAGE_1) and (stop_index is not None) and (trade_index > stop_index):
-            active = False
-        else:
-            active = True
-        active = self.is_trading() and active
-        return active
+        file_pattern = Config.get(Config.FILE_SAVE_BOT)
+        stage = Config.get(Config.STAGE_MODE)
+        path_file = file_pattern.replace('$id', bot_id).replace('$stage', stage).replace('$class', cls.__name__)
+        return path_file
 
-    @staticmethod
-    def _set_trade_index(index: int) -> None:
+    @classmethod
+    def get_path_dir_hands(cls) -> str:
+        """
+        To get path directory to where all Bot are stored
+        """
+        fake_id = "fake_id"
+        bot_file_path = cls.get_path_file_backup(fake_id)
+        splitted = bot_file_path.split('/')
+        path_dir_bots = '/'.join(splitted[:-2]) + '/'
+        return path_dir_bots
+
+    @classmethod
+    def list_bot_ids(cls) -> List[str]:
+        """
+        To list id of Bot available to load
+
+        Returns:
+        --------
+        return: List[str]
+            List id of Bot available to load
+        """
+        path_dir_bots = cls.get_path_dir_hands()
+        bot_ids = FileManager.get_dirs(path_dir_bots, make_dir=True)
+        return bot_ids
+
+    @classmethod
+    def load(cls, bot_id: str) -> 'Bot':
+        """
+        To load the most recent backup
+
+        Parameters:
+        -----------
+        bot_id: str
+            ID of the Bot to load
+
+        Returns:
+        --------
+        return: Bot
+            Bot of the given ID
+        """
+        file_path = cls.get_path_file_backup(bot_id)
+        dir_path = FileManager.path_to_dir(file_path)
+        backup_files = _MF.catch_exception(FileManager.get_files, cls.__name__, **{Map.path: dir_path})
+        if (backup_files is None) or len(backup_files) == 0:
+            raise Exception(f"There's not '{cls.__name__}' backup with this id '{bot_id}'")
+        most_recent_file_path = dir_path + backup_files[-1]
+        json_str = FileManager.read(most_recent_file_path)
+        bot = MyJson.json_decode(json_str)
+        return bot
+
+    @classmethod
+    def _set_trade_index(cls, index: int) -> None:
         if not isinstance(index, int):
             raise TypeError(f"The trade index must be of type '{int}', instead '{type(index)}'")
-        Bot._TRADE_INDEX = index
+        cls._TRADE_INDEX = index
 
-    @staticmethod
-    def update_trade_index(index: int) -> None:
+    @classmethod
+    def update_trade_index(cls, index: int) -> None:
         if Config.get_stage() != Config.STAGE_1:
             raise Exception(f"The trade index can be update only in stage '{Config.STAGE_1}', instead '{Config.get_stage()}'")
-        Bot._set_trade_index(index)
+        cls._set_trade_index(index)
 
-    @staticmethod
-    def get_trade_index() -> int:
-        return Bot._TRADE_INDEX
+    @classmethod
+    def get_trade_index(cls) -> int:
+        return cls._TRADE_INDEX
 
-    @staticmethod
-    def get_index_stop() -> int:
-        return Bot._TRADE_INDEX_STOP
+    @classmethod
+    def get_index_stop(cls) -> int:
+        return cls._TRADE_INDEX_STOP
 
     @classmethod
     def save_error(cls, error: Exception, from_class: str, nb_error: int = None) -> None:
@@ -222,47 +352,24 @@ class Bot(MyJson):
         overwrite = False
         FileManager.write_csv(path, fields, rows, overwrite, make_dir=True)
 
-    def backup(self) -> None:
-        _stage = Config.get(Config.STAGE_MODE)
-        _start_date = Config.get(Config.START_DATE)
-        path = Config.get(Config.DIR_DATABASE)
-        file_name = f"{_start_date}|" + Config.get(Config.FILE_NAME_BOT_BACKUP).replace('$bot_ref', self.__str__())
-        save_dir_path = path.replace('$stage', _stage).replace('$class', Bot.__name__)
-        backup_path = f"{save_dir_path}{self.get_id()}/{file_name}"
-        self._set_last_backup(_MF.get_timestamp())
-        json_str = self.json_encode()
-        FileManager.write(backup_path, json_str, binary=False, overwrite=True, make_dir=True)
-        _MF.output(f"{_MF.prefix()}💾 Bot saved! ✅") if self._VERBOSE else None
-        self._reset_thread_backup()
-
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
-        bkr = 'Binance'
-        stg = 'MinMax'
-        instance = Bot(bkr, stg, Map({
-            bkr: {
-                Map.public: '@json',
-                Map.secret: '@json',
-                Map.test_mode: True
-            },
-            stg: {
-                Map.pair: '@json/@json',
-                Map.maximum: None,
-                Map.capital: 1,
-                Map.rate: 1,
-                Map.period: 0
-            }
-        }))
+        instance = Bot.__new__(Bot)
         exec(MyJson.get_executable())
         return instance
+
+    # ——————————————————————————————————————————— STATIC FUNCTION UP ———————————————————————————————————————————————————
+    # ——————————————————————————————————————————— OVERWRITE PYTHON DOWN ————————————————————————————————————————————————
 
     def __str__(self) -> str:
         date = _MF.unix_to_date(int(self.get_settime() / 1000), _MF.FORMAT_D_H_M_S_FOR_FILE)
         bot_id = self.get_id()
-        bkr_cls = self.get_broker().__class__.__name__
-        stg_cls = self.get_strategy().__class__.__name__
-        return f"{date}|{bot_id}|{bkr_cls}|{stg_cls}"
+        broker_str = self.get_strategy().get_broker_class()
+        strategy_str = self.get_strategy().__class__.__name__
+        return f"{date}|{bot_id}|{broker_str}|{strategy_str}"
 
     def __repr__(self) -> str:
         return self.__str__() + f"({id(self)})"
+
+    # ——————————————————————————————————————————— OVERWRITE PYTHON UP ——————————————————————————————————————————————————

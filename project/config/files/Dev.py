@@ -9,7 +9,6 @@ class Dev:
     STAGE_MODE = None
     # Static Files
     DIR_HISTORIC_BNB = 'tests/datas/structure/strategies/MinMax/historic-BNB-2021.03.26 00.52.00.csv'
-    FILE_NAME_BOT_BACKUP = '$bot_ref_bot_backup.json'
     FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE = 'content/executable/model/tools/MyJson/json_instantiate.py'
     FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE = 'content/executable/model/tools/MyJson/test_json_encode_decode.py'
     # Static paths
@@ -45,6 +44,7 @@ class Dev:
     DIR_END_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_z————————————————————.csv'
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
     FILE_SAVE_HAND = f'{DIR_DATABASE}$id/{START_DATE}||$id||hand_backup.json'
+    FILE_SAVE_BOT = f'{DIR_DATABASE}$id/{START_DATE}||$id||bot_backup.json'
     # Storage
     DIR_STORAGE = 'content/storage/'
     FILE_PATH_MARKET_HISTORY = f'{DIR_STORAGE}MarketPrice/histories/$stock_path/$broker/$pair/$period.csv'
@@ -116,3 +116,4 @@ class Dev:
         Dev.FILE_VIEW_HAND_POSITION =       Dev.FILE_VIEW_HAND_POSITION.replace(old, new)
         Dev.FILE_SAVE_HAND =                Dev.FILE_SAVE_HAND.replace(old, new)
         Dev.FILE_VIEW_HAND_MARKET_TREND =   Dev.FILE_VIEW_HAND_MARKET_TREND.replace(old, new)
+        Dev.FILE_SAVE_BOT =                 Dev.FILE_SAVE_BOT.replace(old, new)
