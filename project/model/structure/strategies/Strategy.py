@@ -10,6 +10,7 @@ from model.tools.Price import Price
 class Strategy(Hand, ABC):
     PREFIX_ID =     "strategy_"
     _SLEEP_TRADE =  10
+    _MAX_POSITION = 5
 
     def __init__(self, capital: Price, broker_class: Callable, pair: Pair = None) -> None:
         self.__pair =           None

@@ -10,7 +10,6 @@ from model.tools.Pair import Pair
 
 class Solomon(Strategy):
     PREFIX_ID =             'solomon_'
-    _MAX_POSITION =         5
     KELTER_SUPPORT =        None
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
