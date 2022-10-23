@@ -2,38 +2,34 @@ import unittest
 
 from config.Config import Config
 from model.structure.Bot import Bot
-from model.tools.Map import Map
+from model.structure.Broker import Broker
+from model.structure.strategies.Strategy import Strategy
+from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Pair import Pair
+from model.tools.Price import Price
 
 
 class TestBot(unittest.TestCase, Bot):
     def setUp(self) -> None:
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
-        self.bkr = "Binance"
-        self.stg = "MinMax"
-        self.pair_str = "BTC/USDT"
-        self.pair = Pair(self.pair_str)
-        self.bkr_params = {
-            Map.public: 'public_key',
-            Map.secret: 'secret_key',
-            Map.test_mode: True
-        }
-        self.stg_params = {
-            Map.pair: self.pair_str,
-            Map.maximum: 1000000,
-            Map.capital: 15000,
-            Map.rate: 0.9,
-            Map.period: 60
-        }
-        self.bot1 = Bot(self.bkr, self.stg, Map({
-            self.bkr: self.bkr_params,
-            self.stg: self.stg_params
-        }))
+        # Import Strategy
+        strategy_name = Strategy.list_strategies()[0]
+        exec(_MF.get_import(strategy_name))
+        strategy_class = eval(strategy_name)
+        # Import Broker
+        broker_name = Broker.list_brokers()[0]
+        exec(_MF.get_import(broker_name))
+        broker_class = eval(broker_name)
+        # Bor1
+        self.capital1 = capital1 = Price(1000, 'USDT')
+        self.pair1 = pair1 = Pair('BTC', capital1.get_asset())
+        self.bot1 = bot1 = Bot(capital1, strategy_class, broker_class)
+        self.bot2 = bot2 = Bot(capital1, strategy_class, broker_class, pair1)
 
     def test_json_encode_decode(self) -> None:
-        original_obj = self.bot1
-        test_exec = self.get_executable_test_json_encode_decode()
-        exec(test_exec)
+        for original_obj in [self.bot1, self.bot2]:
+            test_exec = self.get_executable_test_json_encode_decode()
+            exec(test_exec)
 
 
 if __name__ == '__main__':
