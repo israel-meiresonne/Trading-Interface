@@ -12,12 +12,12 @@ from view.Console.View import View
 
 
 class Controller:
-    TXT_CANCEL = "cancel"
-    CANCEL = "CANCEL"
-    MENUS_MAIN = None
-    MENUS_HAND = None
-    MENUS_VARS = None
-    OPTIONS_BOOLEAN = {'No': False, 'Yes': True}
+    CANCEL =            "CANCEL"
+    MENUS =             None
+    MENU_MAIN =         "MENU_MAIN"
+    MENU_HAND =         "MENU_HAND"
+    MENUS_VARS =        None
+    OPTIONS_BOOLEAN =   {'No': False, 'Yes': True}
 
     def __init__(self):
         self.model = Log()
@@ -34,11 +34,11 @@ class Controller:
         options = list(menu_1.keys())
         load_session = menu_1[options[view.menu("Do you want to load a session?", options)]]
         if load_session:
-            end_word = self.TXT_CANCEL
+            end_word = self.CANCEL
             load_options = [end_word, *session_ids]
             message = f"Select a session ID (or '{end_word}' to end the loading process):"
             entry = load_options[view.menu(message, load_options)]
-            Config.update(Config.SESSION_ID, entry) if entry != self.TXT_CANCEL else None
+            Config.update(Config.SESSION_ID, entry) if entry != self.CANCEL else None
 
     def _set_stage(self) -> None:
         view = self._get_view()
@@ -60,22 +60,26 @@ class Controller:
         """
         return self.view
 
-    def get_menus_main(self) -> dict:
-        if self.MENUS_MAIN is None:
-            self.MENUS_MAIN = {
-                Map.message: "Main menu:",
+    def get_menu(self, menu_name: str) -> dict:
+        if self.MENUS is None:
+            self.MENUS = {}
+        menus = self.MENUS
+        if (menu_name == self.MENU_MAIN) and (menu_name not in menus):
+            menu = {
+                Map.menu: "Main menu:",
                 Map.option: {
                     "Manage Bots": {
-                        Map.message: "Bot menu:",
+                        Map.menu: "Bot menu:",
                         Map.option: {
                             "new Bot":      self.new_bot,
                             "start Bot":    self.start_bot,
                             "stop Bot":     self.stop_bot,
-                            "stop Bots":    self.stop_bots
+                            "stop Bots":    self.stop_bots,
+                            "Unload Bots": self.unload_bots
                             }
                     },
                     "Manage Hands": {
-                        Map.message: "Hand menu:",
+                        Map.menu: "Hand menu:",
                         Map.option: {
                             "New Hand": self.new_hand,
                             "Select Hand": self.manage_hand,
@@ -83,7 +87,7 @@ class Controller:
                             }
                         },
                     "Settings": {
-                        Map.message: "Application settings:",
+                        Map.menu: "Application settings:",
                         Map.option: {
                             "Stop Bots": self.stop_bots,
                             "Stop Hands": self.stop_hands,
@@ -92,12 +96,10 @@ class Controller:
                     }
                 }
             }
-        return self.MENUS_MAIN
-
-    def get_menus_hand(self) -> dict:
-        if self.MENUS_HAND is None:
-            self.MENUS_HAND = {
-                Map.message: "Choose a Hand action:",
+            menus[menu_name] = menu
+        elif (menu_name == self.MENU_HAND) and (menu_name not in menus):
+            menu = {
+                Map.menu: "put_hand_id",
                 Map.option: {
                     "Start Hand": self.start_hand,
                     "Buy position": self.buy_hand_position,
@@ -107,7 +109,10 @@ class Controller:
                     "Stop Hand": self.stop_hand
                 }
             }
-        return self.MENUS_HAND
+            menus[menu_name] = menu
+        else:
+            raise ValueError(f"This menue '{menu_name}' don't exist")
+        return menus[menu_name].copy()
 
     def reset_menu_vars(self) -> dict:
         self.MENUS_VARS = None
@@ -116,6 +121,22 @@ class Controller:
         if self.MENUS_VARS is None:
             self.MENUS_VARS = {}
         return self.MENUS_VARS
+
+    def exist_menu_var(self, key: str) -> bool:
+        """
+        To check if the key exist in menu's vars
+
+        Parameters:
+        -----------
+        key: str
+            The key to check
+
+        Returns:
+        --------
+        return: bool
+            True if the key exist else False
+        """
+        return key in self._get_menu_vars()
 
     def get_menu_var(self, key: str) -> dict:
         menu_vars = self._get_menu_vars()
@@ -144,10 +165,12 @@ class Controller:
         self._set_stage()
         FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}], make_dir=True)
         FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}], make_dir=True)
-        menus = self.get_menus_main()
+        menus = self.get_menu(self.MENU_MAIN)
         quit_message="Are sure you want to close the application?:"
         self.menu_wrap(quit_message, menus)
         self.quit()
+
+    # ——————————————————————————————————————————— FUNCTION MENU DOWN ——————————————————————————————————————————————————
 
     def menu_wrap(self, quit_message: str, to_wrap_menu: dict) -> None:
         end = False
@@ -156,33 +179,56 @@ class Controller:
             end = self.ask_confirmation(quit_message)
 
     def menu(self, menu: dict) -> None:
-        def repport_error(callback: Callable, **kwargs) -> None:
+        def repport_error(view: View, callback: Callable, **kwargs) -> None:
             returned = None
             try:
                 returned = callback(**kwargs)
             except Exception as e:
                 from model.structure.Bot import Bot
                 Bot.save_error(e, Controller.__name__)
-                view.output(f"Error raised: {e}", is_error=True)
+                view.output(f"⛔️ Fatal Error raised: {e}", richs=[view.S_BOLD, view.C_RED])
             return returned
-
+        def push_menu(separator: str, menu_name: str) -> str:
+            if not self.exist_menu_var(Map.menu):
+                self.add_menu_var(Map.menu, menu_name)
+            else:
+                menu_path = self.get_menu_var(Map.menu)
+                self.delete_menu_var(Map.menu)
+                new_menu_path = f'{menu_path}{separator}{menu_name}'
+                self.add_menu_var(Map.menu, new_menu_path)
+            return self.get_menu_var(Map.menu)
+        def remove_menu(separator: str) -> None:
+            menu_path = self.get_menu_var(Map.menu)
+            new_menu_path = separator.join(menu_path.split(separator)[:-1])
+            self.delete_menu_var(Map.menu)
+            self.add_menu_var(Map.menu, new_menu_path)
+        def ouput_menu_path(view: View, separator: str, menu_path: str) -> None:
+            menu_path
+            menu_path_split = menu_path.split(separator)
+            menu_path_split[-1] = view.S_UNDERLINE + menu_path_split[-1]
+            new_menu_path = separator.join(menu_path_split)
+            view.output(new_menu_path, richs=[view.B_CYAN, view.C_BLACK, view.S_BOLD])
         view = self._get_view()
         end = False
-        message = menu[Map.message]
+        separator = ' > '
+        menu_name = menu[Map.menu]
+        menu_path = push_menu(separator, menu_name)
         options = {
             Map.cancel: lambda : self.CANCEL,
             **menu[Map.option]
             }
         options_keys = list(options.keys())
         while (end != True) and (end != self.CANCEL):
-            key = options_keys[view.menu(message, options_keys)]
+            ouput_menu_path(view, separator, menu_path)
+            key = options_keys[view.menu(menu_name, options_keys)]
             option = options[key]
             if type(option) == dict:
-                repport_error(self.menu, **{'menu': option})
+                repport_error(view, self.menu, **{'menu': option})
             elif callable(option):
-                end = repport_error(option)
+                end = repport_error(view, option)
             else:
                 raise Exception(f"Unkwon option '{option}(type={type(option)})'")
+        remove_menu(separator)
 
     def quit(self) -> None:
         model = self._get_model()
@@ -200,169 +246,94 @@ class Controller:
     def close_brokers(self) -> None:
         self._get_model().close_brokers()
 
-    # ——————————————————————————————————————————— FUNCTION MENU DOWN ———————————————————————————————————————————————————
-    # ——————————————————————————————————————————— FUNCTION MENU UP —————————————————————————————————————————————————————
-    # ——————————————————————————————————————————— FUNCTION BOTS DOWN ———————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION MENU UP ————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION BOTS DOWN ——————————————————————————————————————————————————
 
-    def new_bot(self):
-        _stage = Config.get(Config.STAGE_MODE)
-        md = self._get_model()
-        vw = self._get_view()
-        # params
-        if (_stage == Config.STAGE_1) or (_stage == Config.STAGE_2):
-            api_pb = Config.get(Config.API_KEY_BINANCE_PUBLIC)
-            api_sk = Config.get(Config.API_KEY_BINANCE_SECRET)
-            bkr = 'Binance'
-            stgs = md.list_strategies()
-            stg = stgs[vw.menu("Choose a Strategy:", stgs)]
-            pair_codes = md.list_paires(bkr)
-            pair_code = pair_codes[vw.menu("Choose the Pair to trade:", pair_codes)]
-            if stg == 'Icarus':
-                configs = Map({
-                    bkr: {
-                        Map.public: api_pb,
-                        Map.secret: api_sk,
-                        Map.test_mode: False
-                    },
-                    stg: {
-                        Map.maximum: None,
-                        Map.capital: 1000,
-                        Map.rate: 1,
-                        Map.period: 60 * 15
-                    }
-                })
-            elif stg == 'IcarusStalker':
-                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
-                configs = Map({
-                    bkr: {
-                        Map.public: api_pb,
-                        Map.secret: api_sk,
-                        Map.test_mode: False
-                    },
-                    stg: {
-                        Map.maximum: None,
-                        Map.capital: 1000,
-                        Map.rate: 1,
-                        Map.period: 60 * 15,
-                        Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
-                                                               no_selected_stgs)],
-                        Map.param: {
-                            Map.maximum: None,
-                            Map.capital: -1,
-                            Map.rate: 1,
-                            Map.period: 60 * 15,
-                        }
-                    }
-                })
-            elif stg == 'FlashStalker':
-                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
-                configs = Map({
-                    bkr: {
-                        Map.public: api_pb,
-                        Map.secret: api_sk,
-                        Map.test_mode: False
-                    },
-                    stg: {
-                        Map.maximum: None,
-                        Map.capital: 1000,
-                        Map.rate: 1,
-                        Map.period: 60,
-                        Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
-                                                               no_selected_stgs)],
-                        Map.param: {
-                            Map.maximum: None,
-                            Map.capital: -1,
-                            Map.rate: 1,
-                            Map.period: 60,
-                        }
-                    }
-                })
-            else:
-                raise Exception(f"Must implement menu for this Strategy '{stg}'.")
-        elif _stage == Config.STAGE_3:
-            bkrs = md.list_brokers()
-            stgs = md.list_strategies()
-            bkr = bkrs[vw.menu("Choose a Broker:", bkrs)]
-            stg = stgs[vw.menu("Choose a Strategy:", stgs)]
-            pair_codes = md.list_paires(bkr)
-            pair_code = pair_codes[vw.menu("Choose a Pair to trade:", pair_codes)]
-            # configs
-            bkr_modes = {"Test mode": True, "Real mode": False}
-            bkr_modes_ks = list(bkr_modes.keys())
-            configs = Map()
-            bkr_params = {
-                Map.public: vw.input(message=f"Enter the public key for {bkr}:", secure=True),
-                Map.secret: vw.input(message=f"Enter the secret key for {bkr}:", secure=True),
-                Map.test_mode: bkr_modes[bkr_modes_ks[vw.menu("Choose the Broker mode:", bkr_modes_ks)]]
-            }
-            configs.put(bkr_params, bkr)
-            if stg == 'IcarusStalker':
-                no_selected_stgs = [class_name for class_name in stgs if class_name != stg]
-                stg_params = {
-                        Map.maximum: None,
-                        Map.capital: vw.input(message="Enter initial capital to use:", type_func=float),
-                        Map.rate: 1,
-                        Map.period: 60 * 15,
-                        Map.strategy: no_selected_stgs[vw.menu(f"Choose the Strategy to use in '{stg}' Strategy:",
-                                                               no_selected_stgs)],
-                        Map.param: {
-                            Map.maximum: None,
-                            Map.capital: -1,
-                            Map.rate: 1,
-                            Map.period: 60 * 15,
-                        }
-                    }
-            else:
-                raise Exception(f"Must implement menu for this Strategy '{stg}'.")
-            configs.put(stg_params, stg)
-        else:
-            raise Exception(f"Unknown stage '{_stage}'.")
-        configs.put(pair_code, stg, Map.pair)
-        bot = md.create_bot(bkr, stg, pair_code, configs)
-        vw.output(f"✅ new Bot created: '{bot}'")
+    def new_bot(self) -> None:
+        def pair_menu() -> str:
+            pair_message = f"How many Pair do you want to trade with the new Bot:"
+            pair_options = [
+                'Trade with one Pair only',
+                'Trade with all available Pair'
+            ]
+            pair_option = pair_options[view.menu(pair_message, pair_options)]
+            pair_str = input_pair() if pair_option == pair_options[0] else None
+            return pair_str
+        def input_pair() -> str:
+            while True:
+                pair = view.input(f"Enter the Pair to use in new Bot (format: 'Asset/{asset_str.upper()}'):", type_func=Pair)
+                if pair.get_right().__str__() == asset_str.lower():
+                    break
+                else:
+                    view.output(f"The Pair must be in format 'Asset/{asset_str.upper()}' (with '{asset_str.upper()}' as right Asset)!", is_error=True)
+            return pair.__str__()
+        model = self._get_model()
+        view = self._get_view()
+        # Prepare vars
+        brokers = model.list_brokers()
+        strategies = model.list_strategies()
+        stablecoins = model.list_main_stablecoins()
+        params = {}
+        # Input
+        params['capital_num'] = view.input("Enter capital for the new Bot:", type_func=float)
+        params['asset_str'] = asset_str = stablecoins[view.menu("Choose an Asset in witch to express Bot's capital:", stablecoins)]
+        params['strategy_str'] = strategy_str = strategies[view.menu("Choose the Strategy to use with the new Bot:", strategies)]
+        params['broker_str'] = brokers[view.menu("Choose a Broker for the new Bot:", brokers)]
+        params['pair_str'] = pair_menu()
+        # End
+        can_submit = self.ask_confirmation(f"Are you sur you want create a new Bot:\n{pd.DataFrame([params])}\n")
+        if can_submit:
+            bot_id = model.new_bot(**params)
+            view.output(f"New Bot created: '{bot_id}'", is_success=True)
 
     def start_bot(self) -> None:
         model = self._get_model()
         view = self._get_view()
-        bots = model.get_bots()
-        bot_ids = bots.get_keys()
-        bot_refs = [bots.get(bot_id).__str__() for bot_id in bot_ids]
-        if len(bot_ids) <= 0:
-            view.output("You have no Bot created", is_error=True)
+        bot_ids = model.list_bot_ids()
+        if len(bot_ids) == 0:
+            view.output("There is not Bot to start!", is_error=True)
             return None
-        bot_id = bot_ids[view.menu("Choose the Bot to start:", bot_refs)]
-        model.start_bot(bot_id)
-        view.output(f"✅ Bot started: {bot_id}!")
+        options = [self.CANCEL, *bot_ids]
+        option = bot_id = options[view.menu(f"Select the Bot to start:", options)]
+        if option != options[0]:
+            broker_name = model.get_bot_attribut(bot_id, Map.broker)
+            params = self.input_broker(broker_name)
+            model.start_bot(bot_id, **params)
+            view.output(f"Bot started: '{bot_id}'", is_success=True)
 
     def stop_bot(self) -> None:
         model = self._get_model()
         view = self._get_view()
-        bots = model.get_bots()
-        bot_ids = bots.get_keys()
-        bot_menu = [bot.__str__() for bot in list(bots.get_map().values())]
-        bot_menu.insert(0, self.TXT_CANCEL)
-        choice_index = view.menu("Select the Bot to stop:", bot_menu)
-        if choice_index > 0:
-            bot_id = bot_ids[choice_index-1]
+        bot_ids = model.list_bot_ids()
+        options = [self.CANCEL, *bot_ids]
+        option = bot_id = options[view.menu(f"Select the Bot to stop:", options)]
+        if option != options[0]:
             model.stop_bot(bot_id)
-            view.output(f"❌ Bot stopped: {bot_id}!")
+            view.output(f"Bot stopped: '{bot_id}'", is_success=True)
 
-    def stop_bots(self):
-        pass
+    def stop_bots(self) -> None:
+        # can_stop = self.ask_confirmation("Are you sur you want to stop all Bots?")
+        # if can_stop:
+        self._get_model().stop_bots()
+        self._get_view().output(f"Stopped all Bot", is_success=True)
 
-    # ——————————————————————————————————————————— FUNCTION BOTS UP —————————————————————————————————————————————————————
-    # ——————————————————————————————————————————— FUNCTION HAND DOWN ———————————————————————————————————————————————————
+    def unload_bots(self) -> None:
+        can_unload = self.ask_confirmation("Are you sur you want to unload all Bots?")
+        if can_unload:
+            self._get_model().resset_bots()
+            self._get_view().output("Bot unloaded!", is_success=True)
+
+    # ——————————————————————————————————————————— FUNCTION BOTS UP ————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION HAND DOWN ——————————————————————————————————————————————————
 
     def new_hand(self) -> None:
         view = self._get_view()
         model = self._get_model()
         brokers = model.list_brokers()
-        stablecoins = Config.get(Config.MAIN_STABLECOINS)
-        stablecoins = [stablecoin.upper() for stablecoin in stablecoins]
-        stablecoins.sort()
+        stablecoins = model.list_main_stablecoins()
         params = {
             Map.capital: view.input("Enter capital for the new Hand:", type_func=float),
-            Map.asset: stablecoins[view.menu("Choose an Asset in witch to express Hand's capital:", stablecoins)],
+            'asset_str': stablecoins[view.menu("Choose an Asset in witch to express Hand's capital:", stablecoins)],
             'broker_class': brokers[view.menu("Choose a Broker for the new Hand:", brokers)]
         }
         can_submit = self.ask_confirmation(f"Are you sur you want create a new Hand:\n{pd.DataFrame([params])}\n")
@@ -375,7 +346,6 @@ class Controller:
             hand_id = hand_ids[view.menu("Select a Hand to trade with:", hand_ids)]
             self.add_menu_var(Map.id, hand_id)
             return hand_id
-
         view = self._get_view()
         model = self._get_model()
         hand_ids = model.list_hand_ids()
@@ -385,7 +355,8 @@ class Controller:
         # Select Hand
         hand_id = select_hand_id()
         # Manage Hand
-        hand_menus = self.get_menus_hand()
+        hand_menus = self.get_menu(self.MENU_HAND)
+        hand_menus[Map.menu] = f"Hand '{hand_id}'"
         quit_message = f"Are you sur you whant to quit Hand '{hand_id}'?"
         self.menu_wrap(quit_message, hand_menus)
         self.reset_menu_vars()
@@ -398,19 +369,8 @@ class Controller:
         model = self._get_model()
         view = self._get_view()
         hand_id = self.get_menu_var(Map.id)
-        if Config.get(Config.STAGE_MODE) == Config.STAGE_3:
-            broker_name = model.get_hand_attribut(hand_id, Map.broker)
-            params = {
-                'public_key': view.input(f"Enter the public key to access {broker_name}'s API:"),
-                'secret_key': view.input(f"Enter the secret key to access {broker_name}'s API:", secure=True),
-                'is_test_mode': self.ask_confirmation(f"Access {broker_name}'s API in test mode?")
-                }
-        else:
-            params = {
-                'public_key': '-',
-                'secret_key': '-',
-                'is_test_mode': False
-                }
+        broker_name = model.get_hand_attribut(hand_id, Map.broker)
+        params = self.input_broker(broker_name)
         model.start_hand(hand_id, **params)
         view.output("Hand started!", is_success=True)
 
@@ -554,7 +514,7 @@ class Controller:
         view = self._get_view()
         hand_id = self.get_menu_var(Map.id)
         setting_menu = {
-            Map.message: 'Hand settings',
+            Map.menu: 'Hand settings',
             Map.option:{
                 "Show settings": show_setting,
                 "Update max position allowed": update_max_position
@@ -564,6 +524,27 @@ class Controller:
 
     def stop_hands(self) -> None:
         self._get_model().stop_hands()
+        view = self._get_view()
+        view.output(f"Stopped all Hand", is_success=True)
 
-    # ——————————————————————————————————————————— FUNCTION HAND UP —————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION HAND UP ————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION HAND DOWN ——————————————————————————————————————————————————
+
+    def input_broker(self, broker_name: str) -> dict:
+        view = self._get_view()
+        if Config.get(Config.STAGE_MODE) == Config.STAGE_3:
+            params = {
+                'public_key': view.input(f"Enter the public key to access {broker_name}'s API:"),
+                'secret_key': view.input(f"Enter the secret key to access {broker_name}'s API:", secure=True),
+                'is_test_mode': self.ask_confirmation(f"Access {broker_name}'s API in test mode?")
+                }
+        else:
+            params = {
+                'public_key': '-',
+                'secret_key': '-',
+                'is_test_mode': False
+                }
+        return params
+
+    # ——————————————————————————————————————————— FUNCTION HAND UP ————————————————————————————————————————————————————
 
