@@ -4,118 +4,143 @@ from model.ModelInterface import ModelInterface
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Bot import Bot
 from model.structure.Broker import Broker
-from model.structure.Strategy import Strategy
-from model.structure.strategies.Hand.Hand import Hand
-from model.tools.FileManager import FileManager
+from model.structure.Hand import Hand
+from model.structure.strategies.Strategy import Strategy
 from model.tools.Map import Map
-from model.tools.MyJson import MyJson
 from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
 class Log(ModelInterface, _MF):
-    PREFIX_ID = 'log_'
-    _BOT_THREADS = None
-
     def __init__(self):
-        super().__init__(Log.PREFIX_ID)
+        super().__init__()
         self.__bots =   None
         self.__hands =  None
 
-    def get_log_id(self):
-        return self.log_id
+    # ——————————————————————————————————————————— FUNCTION BOT DOWN ———————————————————————————————————————————————————
 
-    def _set_bots(self):
-        self.__bots = Map()
-        _stage = Config.get(Config.STAGE_MODE)
-        path = Config.get(Config.DIR_DATABASE)
-        bot_id_dir = path.replace('$stage', _stage).replace('$class', Bot.__name__)
-        bot_id_folders = FileManager.get_dirs(bot_id_dir, make_dir=True)
-        for bot_id_folder in bot_id_folders:
-            bot_backup_dir = f"{bot_id_dir}{bot_id_folder}/"
-            bot_backup_files = FileManager.get_files(bot_backup_dir)
-            for bot_backup_file in bot_backup_files:
-                bot_file_path = bot_backup_dir + bot_backup_file
-                json_str = FileManager.read(bot_file_path, binary=False)
-                bot = MyJson.json_decode(json_str)
-                bot_id = bot.get_id()
-                if (self.__bots is not None) and (bot_id in self.get_bots().get_keys()):
-                    bot_in = self.get_bot(bot_id)
-                    new_is_newest = bot.get_last_backup() > bot_in.get_last_backup()
-                    self._add_bot(bot) if new_is_newest else None
-                else:
-                    self._add_bot(bot)
+    def resset_bots(self) -> None:
+        self.__bots = None
 
-    def _add_bot(self, bot: Bot) -> None:
-        self.get_bots().put(bot, bot.get_id())
-
-    def get_bots(self) -> Map:
+    def _get_bots(self) -> Dict[str, Bot]:
         """
-         To get Log's set of Bot\n
-         @:return\n
-            dict: set of Bot
-        """
-        self._set_bots() if self.__bots is None else None
-        return self.__bots
+        To get collection of Bot
 
-    def get_bot(self, bot_id: str) -> Bot:
-        """
-        To get the Bot with the given id\n
-        :param bot_id: a Bot's id
-        :return: the Bot of the given id
-        """
-        bots = self.get_bots()
-        if bot_id not in bots.get_keys():
-            raise Exception(f"There's no Bot with this id '{bot_id}'")
-        return bots.get(bot_id)
+        Returns:
+        --------
+        return: Dict[str, Bot]
+            Collection of Bot
 
-    def create_bot(self, broker: str, strategy: str, pair_str: str, configs: Map) -> Bot:
-        configs = Map() if configs is None else configs
-        ks = configs.get_keys()
-        configs.put(Map(), broker) if broker not in ks else None
-        configs.put(Map(), strategy) if strategy not in ks else None
-        bot = Bot(broker, strategy, configs)
+            bots[bot_id{str}] -> {Bot}
+        """
+        bots = self.__bots
+        if bots is None:
+            self.__bots = bots = {}
+        return bots
+
+    def new_bot(self, capital_num: float, asset_str: str, strategy_str: str, broker_str: str, pair_str: str = None) -> str:
+        exec(_MF.get_import(broker_str))
+        exec(_MF.get_import(strategy_str))
+        broker_class = eval(broker_str)
+        strategy_class = eval(strategy_str)
+        capital = Price(capital_num, asset_str)
+        pair = Pair(pair_str) if pair_str is not None else None
+        bot = Bot(capital, strategy_class, broker_class, pair)
         self._add_bot(bot)
         bot.backup()
+        return bot.get_id()
+
+    def _get_bot(self, bot_id: str) -> Bot:
+        """
+        To get the Bot
+
+        Parameters:
+        -----------
+        bot_id: str
+            ID of the Bot to get
+
+        Returns:
+        --------
+        return: Bot
+            Bot of thee given ID
+        """
+        bots = self._get_bots()
+        if bot_id not in bots:
+            bot = Bot.load(bot_id)
+            self._add_bot(bot)
+        bot = bots[bot_id]
         return bot
 
-    def start_bot(self, bot_id: str) -> None:
-        bot = self.get_bot(bot_id)
-        base_name = bot_id
-        thread, output = _MF.generate_thread(bot.start, base_name, n_code=None)
-        thread.start()
-        self.get_bot_threads().put(thread, bot_id)
-        _MF.output(_MF.prefix() + output)
+    def _add_bot(self, bot: Bot) -> None:
+        bots = self._get_bots()
+        bot_id = bot.get_id()
+        if bot_id in bots:
+            raise ValueError(f"This Bot '{bot_id}' already exist in list of Bot")
+        bots[bot_id] = bot
+
+    def start_bot(self, bot_id: str, public_key: str, secret_key: str, is_test_mode: bool) -> None:
+        bot = self._get_bot(bot_id)
+        broker_class = bot.get_strategy().get_broker_class()
+        broker_params = Map({
+            Map.public: public_key,
+            Map.secret: secret_key,
+            Map.test_mode: is_test_mode
+        })
+        broker = Broker.retrieve(broker_class, broker_params)
+        bot.set_broker(broker)
+        bot.start()
+        bot.backup()
 
     def stop_bot(self, bot_id: str) -> None:
-        bot = self.get_bot(bot_id)
-        bot.stop()
-        bot_thread = self.get_bot_threads().get(bot_id)
-        bot_thread.join() if (bot_thread is not None) and bot_thread.is_alive() else None
+        self._get_bot(bot_id).stop()
 
     def stop_bots(self):
-        pass
+        bots = self._get_bots()
+        [self.stop_bot(bot_id) for bot_id in bots]
 
+    def set_bot_attribut(self, bot_id: str, attribut: str, value: Any) -> None:
+        bot = self._get_hand(bot_id)
+        if None:
+            pass
+        else:
+            raise ValueError(f"Unkwon attribut from '{bot.__class__.__name__}' '{attribut}'")
+
+    def get_bot_attribut(self, bot_id: str, attribut: str) -> Any:
+        value = None
+        bot = self._get_bot(bot_id)
+        if attribut == Map.broker:
+            value = bot.get_strategy().get_broker_class()
+        elif attribut == Map.market:
+            value = bot.get_strategy().get_broker_pairs()
+        else:
+            raise ValueError(f"Unkwon attribut from '{bot.__class__.__name__}' '{attribut}'")
+        return value
+
+    @classmethod
+    def list_bot_ids(cls) -> List[str]:
+        return Bot.list_bot_ids()
+
+    # ——————————————————————————————————————————— FUNCTION BOT UP —————————————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION HAND DOWN ——————————————————————————————————————————————————
 
-    def  resset_hands(self) -> None:
+    def resset_hands(self) -> None:
         self.__hands = None
-
-    def new_hand(self, capital: float, asset: str, broker_class: str) -> str:
-        import_exec = _MF.get_import(broker_class)
-        exec(import_exec)
-        broker_class = eval(broker_class)
-        capital = Price(capital, asset)
-        hand = Hand(capital, broker_class)
-        self._add_hand(hand)
-        hand.backup()
-        return hand.get_id()
 
     def _get_hands(self) -> Dict[str, Hand]:
         if self.__hands is None:
             self.__hands = {}
         return self.__hands
+
+    def new_hand(self, capital: float, asset_str: str, broker_class: str) -> str:
+        import_exec = _MF.get_import(broker_class)
+        exec(import_exec)
+        broker_class = eval(broker_class)
+        capital = Price(capital, asset_str)
+        hand = Hand(capital, broker_class)
+        self._add_hand(hand)
+        hand.backup()
+        return hand.get_id()
 
     def _get_hand(self, hand_id: str) -> Hand:
         hands = self._get_hands()
@@ -128,6 +153,8 @@ class Log(ModelInterface, _MF):
     def _add_hand(self, hand: Hand) -> None:
         hands = self._get_hands()
         hand_id = hand.get_id()
+        if hand_id in hands:
+            raise ValueError(f"This Hand '{hand_id}' already exist in list of Hand")
         hands[hand_id] = hand
 
     def start_hand(self, hand_id: str, public_key: str, secret_key: str, is_test_mode: bool) -> None:
@@ -160,18 +187,18 @@ class Log(ModelInterface, _MF):
     def buy_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, buy_function: str = None) -> None:
         hand = self._get_hand(hand_id)
         pair = Pair(pair)
-        r_asset = pair.get_right()
-        stop = Price(stop, r_asset) if stop is not None else None
-        limit = Price(limit, r_asset) if limit is not None else None
+        r_asset_str = pair.get_right()
+        stop = Price(stop, r_asset_str) if stop is not None else None
+        limit = Price(limit, r_asset_str) if limit is not None else None
         buy_function = buy_function if buy_function is not None else None
         hand.buy(pair, order_type, stop, limit, buy_function)
 
     def sell_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, sell_function: str = None) -> None:
         hand = self._get_hand(hand_id)
         pair = Pair(pair)
-        r_asset = pair.get_right()
-        stop = Price(stop, r_asset) if stop is not None else None
-        limit = Price(limit, r_asset) if limit is not None else None
+        r_asset_str = pair.get_right()
+        stop = Price(stop, r_asset_str) if stop is not None else None
+        limit = Price(limit, r_asset_str) if limit is not None else None
         sell_function = sell_function if sell_function is not None else None
         hand.sell(pair, order_type, stop, limit, sell_function)
 
@@ -180,7 +207,7 @@ class Log(ModelInterface, _MF):
         pair = Pair(pair)
         hand.cancel(pair)
 
-    def set_hand_attribut(self, hand_id: str, attribut: str, value: Any) -> Any:
+    def set_hand_attribut(self, hand_id: str, attribut: str, value: Any) -> None:
         hand = self._get_hand(hand_id)
         if attribut == Map.maximum:
             hand.set_max_position(value)
@@ -226,26 +253,6 @@ class Log(ModelInterface, _MF):
 
     # ——————————————————————————————————————————— FUNCTION HAND UP ————————————————————————————————————————————————————
 
-    @classmethod
-    def get_bot_threads(cls) -> Map:
-        """
-        To get thread running Bot with the given id
-
-        Parameters:
-        -----------
-        bot_id: str
-            ID of Bot to get thread of
-
-        Returns:
-        --------
-        return: dict[str, threading.Thread]
-            All thread running bot
-            dict[bot_id{str}]:  {Thread}
-        """
-        if cls._BOT_THREADS is None:
-            cls._BOT_THREADS = Map()
-        return cls._BOT_THREADS
-
     @staticmethod
     def list_brokers():
         return Broker.list_brokers()
@@ -258,6 +265,22 @@ class Log(ModelInterface, _MF):
     @staticmethod
     def list_strategies():
         return Strategy.list_strategies()
+
+    @classmethod
+    def list_main_stablecoins(cls) -> List[str]:
+        """
+        To get list of main stablecoin allowed
+
+        Returns:
+        --------
+        return: List[str]
+            List of main stablecoin allowed
+            NOTE: stablecoins are in upper case and sorted in ascending order
+        """
+        stablecoins = Config.get(Config.MAIN_STABLECOINS)
+        stablecoins = [stablecoin.upper() for stablecoin in stablecoins]
+        stablecoins.sort()
+        return stablecoins
 
     @classmethod
     def close_brokers(cls) -> None:
