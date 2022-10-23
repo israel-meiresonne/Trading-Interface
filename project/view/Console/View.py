@@ -1,14 +1,58 @@
 import getpass
-from typing import Any
+from typing import Any, List
 
 
 class View:
-    SEPARATOR = "——————————————————————————————"
-    C_NORMAL =  '\033[0m'
-    C_YELLOW =  '\033[33m'
-    C_PURPLE =  '\033[35m'
-    C_RED =     '\033[31m'
-    C_GREEN =   '\033[32m'
+    SEPARATOR =         "——————————————————————————————"
+    REGEX_RICH =        r'^\\033\[([0-4]|(3|4|9|10)[0-7]){1}m'
+    # Styles
+    S_NORMAL =          '\033[0m'
+    S_BOLD =            '\033[1m'
+    S_FAINT =           '\033[2m'
+    S_ITALIC =          '\033[3m'
+    S_UNDERLINE =       '\033[4m'
+    # Colors
+    C_BLACK =           '\033[30m'
+    C_RED =             '\033[31m'
+    C_GREEN =           '\033[32m'
+    C_YELLOW =          '\033[33m'
+    C_BLUE =            '\033[34m'
+    C_MAGENTA =         '\033[35m'
+    C_CYAN =            '\033[36m'
+    C_LIGHT_GRAY =      '\033[37m'
+    C_GRAY =            '\033[90m'
+    C_LIGHT_RED =       '\033[91m'
+    C_LIGHT_GREEN =     '\033[92m'
+    C_LIGHT_YELLOW =    '\033[93m'
+    C_LIGHT_BLUE =      '\033[94m'
+    C_LIGHT_MAGENTA =   '\033[95m'
+    C_LIGHT_CYAN =      '\033[96m'
+    C_WHITE =           '\033[97m'
+    # Background
+    B_BLACK =           '\033[40m'
+    B_RED =             '\033[41m'
+    B_GREEN =           '\033[42m'
+    B_YELLOW =          '\033[43m'
+    B_BLUE =            '\033[44m'
+    B_MAGENTA =         '\033[45m'
+    B_CYAN =            '\033[46m'
+    B_LIGHT_GRAY =      '\033[47m'
+    B_GRAY =            '\033[100m'
+    B_LIGHT_RED =       '\033[101m'
+    B_LIGHT_GREEN =     '\033[102m'
+    B_LIGHT_YELLOW =    '\033[103m'
+    B_LIGHT_BLUE =      '\033[104m'
+    B_LIGHT_MAGENTA =   '\033[105m'
+    B_LIGHT_CYAN =      '\033[106m'
+    B_WHITE =           '\033[107m'
+    STYLES = [S_NORMAL, S_BOLD, S_FAINT, S_ITALIC, S_UNDERLINE,
+    C_BLACK, C_RED, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN, 
+    C_LIGHT_GRAY, C_GRAY, C_LIGHT_RED, C_LIGHT_GREEN, C_LIGHT_YELLOW, 
+    C_LIGHT_BLUE, C_LIGHT_MAGENTA, C_LIGHT_CYAN, C_WHITE, B_BLACK, 
+    B_RED, B_GREEN, B_YELLOW, B_BLUE, B_MAGENTA, B_CYAN, B_LIGHT_GRAY, 
+    B_GRAY, B_LIGHT_RED, B_LIGHT_GREEN, B_LIGHT_YELLOW, B_LIGHT_BLUE, 
+    B_LIGHT_MAGENTA, B_LIGHT_CYAN, B_WHITE
+    ]
 
     def input(self, message: str = None, type_func: Any = None, secure: bool = False) -> Any:
         """
@@ -29,7 +73,7 @@ class View:
             The input typed
         """
         message = message + "\n" if message is not None else ""
-        input_sufix = f'{self.C_PURPLE}>>>{self.C_NORMAL} '
+        input_sufix = f'{self.C_MAGENTA}>>>{self.S_NORMAL} '
         if secure:
             entry = getpass.getpass(message + input_sufix)
         else:
@@ -85,7 +129,7 @@ class View:
         self.output(self.SEPARATOR)
         return index
 
-    def output(self, out: Any, is_error: bool = False, is_success: bool = False) -> None:
+    def output(self, out: Any, is_error: bool = False, is_success: bool = False, richs: List[str] = None) -> None:
         """
         To display datas
 
@@ -96,11 +140,18 @@ class View:
         is_error: bool = False
             Set True to display error message else False
         """
+        if richs:
+            for rich in richs:
+                if rich not in self.STYLES:
+                    raise ValueError(f"This style '{rich}' is not supported")
+            style = ''.join(richs)
+            print(style + out + self.S_NORMAL)
+            return None
         if is_success:
-            print(self.C_GREEN + out + self.C_NORMAL)
+            print(self.C_GREEN + out + self.S_NORMAL)
             return None
         if is_error:
-            print(self.C_RED + out + self.C_NORMAL)
+            print(self.C_LIGHT_RED + out + self.S_NORMAL)
             return None
         print(out)
 
