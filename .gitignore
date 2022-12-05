@@ -31,6 +31,7 @@ project/tests/datas/tools/TestPredictor/
 project/venv/
 project/env/
 project/dev_env/
+project/env*/
 project/trash/
 project/draft.py
 project/start_*
