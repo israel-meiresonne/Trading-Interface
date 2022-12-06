@@ -55,7 +55,7 @@ class Strategy(Hand, ABC):
 
     def set_sleep_trade(self, sleep_time: float) -> None:
         if not isinstance(sleep_time, (int, float)):
-            raise TypeError(f"The trade's sleep time most be of types {' or '.join((int, float))}, intsead '{sleep_time}(type={sleep_time})'")
+            raise TypeError(f"The trade's sleep time most be of types {' or '.join((int, float))}, intsead '{sleep_time}(type={type(sleep_time)})'")
         self.__sleep_trade = sleep_time
 
     def get_sleep_trade(self) -> float:
