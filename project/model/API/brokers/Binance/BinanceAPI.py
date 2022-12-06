@@ -1090,18 +1090,18 @@ class BinanceAPI(ABC):
             rsp = rq_delete(url, headers=headers)
         else:
             raise Exception(f"The request method {method} is not supported")
-        bkr_rsp = BrokerResponse(rsp)
+        broker_response = BrokerResponse(rsp)
         # Manage weight
         try:
             if rq != _cls.RQ_EXCHANGE_INFOS:
                 _cls._add_weight(rq)
-                _cls._update_limits(rq, bkr_rsp)
+                _cls._update_limits(rq, broker_response)
         except Exception as error:
             _cls._save_response(rq, params, rsp)
             raise error
         # Backup Down
         _cls._save_response(rq, params, rsp)
-        return bkr_rsp
+        return broker_response
 
     @staticmethod
     def _socket_market_history(test_mode: bool, rq: str, params: Map) -> BrokerResponse:
@@ -1123,7 +1123,7 @@ class BinanceAPI(ABC):
             else:
                 limit = BinanceAPI._CONSTANT_KLINES_DEFAULT_NB_PERIOD
                 new_market_historic = market_historic[-limit:]
-            rsp.status_code = 200
+            rsp.status_code = BrokerResponse.STATUS_CODE_SUCCESS
             rsp.reason = 'OK'
             rsp._content = _MF.json_encode(new_market_historic).encode()
             rsp.url = socket.url(stream)

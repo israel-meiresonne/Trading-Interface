@@ -4,10 +4,12 @@ from types import FunctionType, MethodType
 from typing import List, Tuple, Union
 
 import numpy as np
+
 from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
+from model.tools.RequestResponse import RequestResponse
 from model.tools.WaitingRoom import WaitingRoom
 from model.tools.WebSocket import WebSocket
 
@@ -326,7 +328,7 @@ class BinanceSocket(BinanceAPI):
             })
             bkr_rsp = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
             status_code = bkr_rsp.get_status_code()
-            is_success = (status_code is not None) and (status_code == 200)
+            is_success = (status_code is not None) and (status_code == RequestResponse.STATUS_CODE_SUCCESS)
         except Exception as error:
             _MF.output(_MF.prefix() + '\033[31m' +
                   f"Network error when getting market history for stream '{stream}'" + '\033[0m')
@@ -660,6 +662,7 @@ class BinanceSocket(BinanceAPI):
             New WebSocket using given streams
         """
         from websocket import WebSocketApp
+
         from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
 
         def on_open(socket: WebSocketApp) -> None:
