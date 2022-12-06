@@ -12,12 +12,16 @@ from view.Console.View import View
 
 
 class Controller:
-    CANCEL =            "CANCEL"
-    MENUS =             None
-    MENU_MAIN =         "MENU_MAIN"
-    MENU_HAND =         "MENU_HAND"
-    MENUS_VARS =        None
-    OPTIONS_BOOLEAN =   {'No': False, 'Yes': True}
+    CANCEL =                    "CANCEL"
+    MENUS =                     None
+    MENU_MAIN =                 "MENU_MAIN"
+    MENU_HAND =                 "MENU_HAND"
+    MENUS_SUPPORTED =           [MENU_MAIN, MENU_HAND]
+    MENUS_VARS =                None
+    MENUS_VAR_HEADER =          Map.header
+    MENUS_HEADER_SEPARATOR =    ' > '
+    MENUS_KEEP_VARS =           [MENUS_VAR_HEADER]
+    OPTIONS_BOOLEAN =           {'No': False, 'Yes': True}
 
     def __init__(self):
         self.model = Log()
@@ -61,6 +65,8 @@ class Controller:
         return self.view
 
     def get_menu(self, menu_name: str) -> dict:
+        if menu_name not in self.MENUS_SUPPORTED:
+            raise ValueError(f"This menue '{menu_name}' is not supported")
         if self.MENUS is None:
             self.MENUS = {}
         menus = self.MENUS
@@ -75,23 +81,23 @@ class Controller:
                             "start Bot":    self.start_bot,
                             "stop Bot":     self.stop_bot,
                             "stop Bots":    self.stop_bots,
-                            "Unload Bots": self.unload_bots
+                            "Unload Bots":  self.unload_bots
                             }
                     },
                     "Manage Hands": {
                         Map.menu: "Hand menu:",
                         Map.option: {
-                            "New Hand": self.new_hand,
-                            "Select Hand": self.manage_hand,
+                            "New Hand":     self.new_hand,
+                            "Select Hand":  self.manage_hand,
                             "Unload Hands": self.unload_hands
                             }
                         },
                     "Settings": {
                         Map.menu: "Application settings:",
                         Map.option: {
-                            "Stop Bots": self.stop_bots,
-                            "Stop Hands": self.stop_hands,
-                            "Close Brokers": self.close_brokers
+                            "Stop Bots":        self.stop_bots,
+                            "Stop Hands":       self.stop_hands,
+                            "Close Brokers":    self.close_brokers
                         }
                     }
                 }
@@ -101,21 +107,24 @@ class Controller:
             menu = {
                 Map.menu: "put_hand_id",
                 Map.option: {
-                    "Start Hand": self.start_hand,
-                    "Buy position": self.buy_hand_position,
-                    "Sell position": self.sell_hand_position,
-                    "Cancel position": self.cancel_hand_position,
-                    "Settings": self.hand_setting,
-                    "Stop Hand": self.stop_hand
+                    "Start Hand":       self.start_hand,
+                    "Buy position":     self.buy_hand_position,
+                    "Sell position":    self.sell_hand_position,
+                    "Cancel position":  self.cancel_hand_position,
+                    "Settings":         self.hand_setting,
+                    "Stop Hand":        self.stop_hand
                 }
             }
             menus[menu_name] = menu
-        else:
-            raise ValueError(f"This menue '{menu_name}' don't exist")
         return menus[menu_name].copy()
 
     def reset_menu_vars(self) -> dict:
-        self.MENUS_VARS = None
+        menu_vars = self._get_menu_vars()
+        menu_var_keys = list(menu_vars.keys())
+        for menu_var_key in menu_var_keys:
+            if menu_var_key not in self.MENUS_KEEP_VARS:
+                menu_vars[menu_var_key] = None
+                del menu_vars[menu_var_key]
 
     def _get_menu_vars(self) -> dict:
         if self.MENUS_VARS is None:
@@ -188,31 +197,31 @@ class Controller:
                 Bot.save_error(e, Controller.__name__)
                 view.output(f"⛔️ Fatal Error raised: {e}", richs=[view.S_BOLD, view.C_RED])
             return returned
-        def push_menu(separator: str, menu_name: str) -> str:
-            if not self.exist_menu_var(Map.menu):
-                self.add_menu_var(Map.menu, menu_name)
+        def push_header(separator: str, menu_name: str) -> str:
+            if not self.exist_menu_var(menu_header_key):
+                self.add_menu_var(menu_header_key, menu_name)
             else:
-                menu_path = self.get_menu_var(Map.menu)
-                self.delete_menu_var(Map.menu)
-                new_menu_path = f'{menu_path}{separator}{menu_name}'
-                self.add_menu_var(Map.menu, new_menu_path)
-            return self.get_menu_var(Map.menu)
+                menu_header = self.get_menu_var(menu_header_key)
+                new_menu_header = f'{menu_header}{separator}{menu_name}'
+                self.delete_menu_var(menu_header_key)
+                self.add_menu_var(menu_header_key, new_menu_header)
+            return self.get_menu_var(menu_header_key)
         def remove_menu(separator: str) -> None:
-            menu_path = self.get_menu_var(Map.menu)
-            new_menu_path = separator.join(menu_path.split(separator)[:-1])
-            self.delete_menu_var(Map.menu)
-            self.add_menu_var(Map.menu, new_menu_path)
-        def ouput_menu_path(view: View, separator: str, menu_path: str) -> None:
-            menu_path
-            menu_path_split = menu_path.split(separator)
-            menu_path_split[-1] = view.S_UNDERLINE + menu_path_split[-1]
-            new_menu_path = separator.join(menu_path_split)
-            view.output(new_menu_path, richs=[view.B_CYAN, view.C_BLACK, view.S_BOLD])
+            menu_header = self.get_menu_var(menu_header_key)
+            new_menu_header = f'{separator}'.join(menu_header.split(separator)[:-1])
+            self.delete_menu_var(menu_header_key)
+            self.add_menu_var(menu_header_key, new_menu_header) if len(new_menu_header) > 0 else None
+        def ouput_menu_path(view: View, separator: str, menu_header: str) -> None:
+            menu_header_split = menu_header.split(separator)
+            menu_header_split[-1] = view.B_LIGHT_GREEN + menu_header_split[-1]
+            new_menu_header = separator.join(menu_header_split)
+            view.output(new_menu_header, richs=[view.B_GRAY, view.C_BLACK, view.S_BOLD])
         view = self._get_view()
+        menu_header_key = self.MENUS_VAR_HEADER
         end = False
-        separator = ' > '
+        separator = self.MENUS_HEADER_SEPARATOR
         menu_name = menu[Map.menu]
-        menu_path = push_menu(separator, menu_name)
+        menu_path = push_header(separator, menu_name)
         options = {
             Map.cancel: lambda : self.CANCEL,
             **menu[Map.option]
@@ -232,7 +241,7 @@ class Controller:
 
     def quit(self) -> None:
         model = self._get_model()
-        self.stop_bots()
+        model.stop_bots()
         model.stop_hands()
         model.close_brokers()
 
@@ -312,10 +321,10 @@ class Controller:
             view.output(f"Bot stopped: '{bot_id}'", is_success=True)
 
     def stop_bots(self) -> None:
-        # can_stop = self.ask_confirmation("Are you sur you want to stop all Bots?")
-        # if can_stop:
-        self._get_model().stop_bots()
-        self._get_view().output(f"Stopped all Bot", is_success=True)
+        can_stop = self.ask_confirmation("Are you sur you want to stop all Bots?")
+        if can_stop:
+            self._get_model().stop_bots()
+            self._get_view().output(f"Stopped all Bot", is_success=True)
 
     def unload_bots(self) -> None:
         can_unload = self.ask_confirmation("Are you sur you want to unload all Bots?")
@@ -406,19 +415,14 @@ class Controller:
     def input_hand_order(self, hand_id: str, move: str) -> dict:
         def get_positions() -> List[Pair]:
             return model.get_hand_attribut(hand_id, Map.position)
-    
         def get_selable_positions() -> List[Pair]:
             return model.get_hand_attribut(hand_id, Map.sell)
-
         def get_available_pairs() -> List[Pair]:
             return model.get_hand_attribut(hand_id, Map.pair)
-
         def get_sell_algo_order() -> List[Pair]:
             return model.get_hand_attribut(hand_id, Map.algo)
-
         def get_initial_capital() -> Price:
             return model.get_hand_attribut(hand_id, Map.capital)
-
         def input_pair(move: str, params: dict) -> None:
             if move == Map.buy:
                 positions = [position.__str__().upper() for position in get_positions()]
@@ -448,13 +452,11 @@ class Controller:
                     view.output(f"There's already a sell order placed on this position '{sell_pair_str}'!", is_error=True)
                     return None
                 params[Map.pair] = sell_pair_str
-
         def input_prices(params: dict) -> None:
             if params['order_type'] in [Order.TYPE_STOP, Order.TYPE_STOP_LIMIT]:
                 params[Map.stop] =  view.input(f"Enter the Stop Price for the {move.capitalize()} Order:", type_func=float)
             if params['order_type'] in [Order.TYPE_LIMIT, Order.TYPE_STOP_LIMIT]:
                 params[Map.limit] =  view.input(f"Enter the Limit Price for the {move.capitalize()} Order:", type_func=float)
-
         if move not in [Map.buy, Map.sell]:
             raise ValueError(f"The move must be {' or '.join([Map.buy, Map.sell])}, instead '{move}(type={type(move)})'")
         model = self._get_model()
@@ -473,7 +475,6 @@ class Controller:
     def cancel_hand_position(self) -> None:
         def get_cancellable_positions() -> List[Pair]:
             return model.get_hand_attribut(hand_id, Map.cancel)
-
         view = self._get_view()
         model = self._get_model()
         hand_id = self.get_menu_var(Map.id)
@@ -503,13 +504,11 @@ class Controller:
             ]
             df = pd.DataFrame(settings)
             view.output(f"\n{df}\n")
-
         def update_max_position() -> None:
             max_position = model.get_hand_attribut(hand_id, Map.maximum)
             new_max_position = view.input("Enter the new number of position allowed:", type_func=int)
             model.set_hand_attribut(hand_id, Map.maximum, new_max_position)
             view.output(f"Updated number of position allowed from '{max_position}' to '{new_max_position}'!", is_success=True)
-
         model = self._get_model()
         view = self._get_view()
         hand_id = self.get_menu_var(Map.id)
@@ -523,28 +522,30 @@ class Controller:
         self.menu(setting_menu)
 
     def stop_hands(self) -> None:
-        self._get_model().stop_hands()
-        view = self._get_view()
-        view.output(f"Stopped all Hand", is_success=True)
+        can_stop = self.ask_confirmation("Are you sur you want to stop all Hands?")
+        if can_stop:
+            self._get_model().stop_hands()
+            view = self._get_view()
+            view.output(f"Stopped all Hands", is_success=True)
 
     # ——————————————————————————————————————————— FUNCTION HAND UP ————————————————————————————————————————————————————
-    # ——————————————————————————————————————————— FUNCTION HAND DOWN ——————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION COMMON DOWN ————————————————————————————————————————————————
 
     def input_broker(self, broker_name: str) -> dict:
         view = self._get_view()
         if Config.get(Config.STAGE_MODE) == Config.STAGE_3:
             params = {
-                'public_key': view.input(f"Enter the public key to access {broker_name}'s API:"),
-                'secret_key': view.input(f"Enter the secret key to access {broker_name}'s API:", secure=True),
+                'public_key':   view.input(f"Enter the public key to access {broker_name}'s API:"),
+                'secret_key':   view.input(f"Enter the secret key to access {broker_name}'s API:", secure=True),
                 'is_test_mode': self.ask_confirmation(f"Access {broker_name}'s API in test mode?")
                 }
         else:
             params = {
-                'public_key': '-',
-                'secret_key': '-',
+                'public_key':   '-',
+                'secret_key':   '-',
                 'is_test_mode': False
                 }
         return params
 
-    # ——————————————————————————————————————————— FUNCTION HAND UP ————————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION COMMON UP ——————————————————————————————————————————————————
 
