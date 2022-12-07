@@ -102,22 +102,25 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(ValueError):
             Hand(self.capital, 'not_callable')
 
-    def test_set_get_reset_broker(self) -> None:
+    def test_is_set_get_reset_broker(self) -> None:
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
         hand = self.hand
         # Get
         # ••• Not set
         with self.assertRaises(Exception):
             hand.get_broker()
+        self.assertFalse(hand.is_broker_set())
         # ••• Set
         hand.set_broker(broker)
         exp2 = broker
         result2 = hand.get_broker()
         self.assertEqual(exp2, result2)
+        self.assertTrue(hand.is_broker_set())
         # ••• Reset
         hand.reset_broker()
         with self.assertRaises(Exception):
             hand.get_broker()
+        self.assertFalse(hand.is_broker_set())
         # broker is wrong type
         with self.assertRaises(TypeError):
             hand.set_broker('no_broker')
