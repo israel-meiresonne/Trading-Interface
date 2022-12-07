@@ -237,7 +237,7 @@ class Log(ModelInterface, _MF):
         elif attribut == Map.pair:
             value = hand.get_broker_pairs()
         elif attribut == Map.start:
-            value = hand.is_position_on() and hand.is_stalk_on()
+            value = hand.is_broker_set() and hand.is_position_on() and hand.is_stalk_on()
         elif attribut == Map.maximum:
             value = hand.get_max_position()
         elif attribut == Map.algo:
