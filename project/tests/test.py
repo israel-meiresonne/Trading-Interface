@@ -1,7 +1,9 @@
+import os
 import sys
 from typing import Any, List
 def push_path() -> None:
-    project_dir = '/Users/israelmeiresonne/MY-MAC/ROQUETS/companies/apollo21/dev/apollo21/dev/apollo21/project/'
+    file_path = os.path.abspath(__file__)
+    project_dir = '/'.join(file_path.split('/')[:-2]) + '/'
     sys.path.append(project_dir) if project_dir not in sys.path else None
 
 def extract_tests(class_ref: Any) -> List[str]:
