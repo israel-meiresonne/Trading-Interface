@@ -31,13 +31,13 @@ class Hand(MyJson):
     _SLEEP_STALK =              30
     _SLEEP_MARKET_ANALYSE =     60
     _N_PERIOD =                 300
+    _STALK_FUNCTIONS =          None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
         Broker.PERIOD_5MIN,
         Broker.PERIOD_15MIN,
         Broker.PERIOD_1H,
         ]
-    _STALK_FUNCTIONS =  None
 
     def __init__(self, capital: Price, broker_class: Callable) -> None:
         self.__id =                     None
@@ -110,6 +110,18 @@ class Hand(MyJson):
 
     def reset_broker(self) -> None:
         self.__broker = None
+
+    def is_broker_set(self) -> bool:
+        """
+        To check if Broker is set
+
+        Returns:
+        --------
+        return: bool
+            True if Broker is set else False
+        """
+        broker = _MF.catch_exception(self.get_broker, self.__class__.__name__, repport=False)
+        return isinstance(broker, Broker)
 
     def get_broker(self) -> Broker:
         """
