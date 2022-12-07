@@ -378,10 +378,14 @@ class Controller:
         model = self._get_model()
         view = self._get_view()
         hand_id = self.get_menu_var(Map.id)
-        broker_name = model.get_hand_attribut(hand_id, Map.broker)
-        params = self.input_broker(broker_name)
-        model.start_hand(hand_id, **params)
-        view.output("Hand started!", is_success=True)
+        is_hand_started = model.get_hand_attribut(hand_id, Map.start)
+        if not is_hand_started:
+            broker_name = model.get_hand_attribut(hand_id, Map.broker)
+            params = self.input_broker(broker_name)
+            model.start_hand(hand_id, **params)
+            view.output("Hand started!", is_success=True)
+        else:
+            view.output("Hand is started already!")
 
     def buy_hand_position(self) -> None:
         model = self._get_model()
@@ -537,7 +541,7 @@ class Controller:
             params = {
                 'public_key':   view.input(f"Enter the public key to access {broker_name}'s API:"),
                 'secret_key':   view.input(f"Enter the secret key to access {broker_name}'s API:", secure=True),
-                'is_test_mode': self.ask_confirmation(f"Access {broker_name}'s API in test mode?")
+                'is_test_mode': False   #self.ask_confirmation(f"Access {broker_name}'s API in test mode?")
                 }
         else:
             params = {
