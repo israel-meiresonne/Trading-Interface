@@ -11,6 +11,7 @@ from model.tools.Price import Price
 
 class Trade(MyJson):
     PREFIX_ID = 'trade_'
+    FAIL_STATUS = [Order.STATUS_FAILED, Order.STATUS_EXPIRED]
 
     def __init__(self, buy_order: Order) -> None:
         self.__id =         self.PREFIX_ID + _MF.new_code()
@@ -180,7 +181,7 @@ class Trade(MyJson):
         return: bool
             True if the buy or sell Order have failed else False
         """
-        fail_status = [Order.STATUS_FAILED, Order.STATUS_EXPIRED]
+        fail_status = self.FAIL_STATUS
         if side == Map.buy:
             has_fails = self.get_buy_order().get_status() in fail_status
         elif side == Map.sell:
