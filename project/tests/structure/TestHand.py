@@ -206,6 +206,51 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(ValueError):
             hand._remove_position(hand_trade1.get_buy_order().get_pair())
 
+    def test_get_add_failed_orders(self) -> None:
+        def new_failed_orders(def_pair1: Pair, def_pair2: Pair) -> Tuple[Order, Order]:
+            buy_order, _ = self.new_buy_order(def_pair1, Price(10, def_pair1.get_right()))
+            buy_order._set_status(HandTrade.FAIL_STATUS[0])
+            sell_order, _ = self.new_sell_order(def_pair2, Price(100, def_pair2.get_left()))
+            sell_order._set_status(HandTrade.FAIL_STATUS[1])
+            return buy_order, sell_order
+        hand = self.hand
+        pair1 = self.pair1
+        pair2 = self.pair2
+        # Collection is empty
+        exp1 = {}
+        result1 = hand._get_failed_orders()
+        self.assertDictEqual(exp1, result1)
+        # Collection is not empty
+        # ••• Check Collection
+        buy_order2, sell_order2 = new_failed_orders(pair1, pair2)
+        hand._add_failed_order(buy_order2)
+        hand._add_failed_order(sell_order2)
+        exp2 = {
+            buy_order2.get_id():    buy_order2,
+            sell_order2.get_id():   sell_order2
+            }
+        result2 = hand._get_failed_orders()
+        self.assertDictEqual(exp2, result2)
+        # ••• Get Order
+        exp2_1 = [buy_order2, sell_order2]
+        result2_1 = [
+            hand.get_failed_order(buy_order2.get_id()),
+            hand.get_failed_order(sell_order2.get_id())
+            ]
+        self.assertEqual(exp2_1, result2_1)
+        # Order don't exist
+        with self.assertRaises(ValueError):
+            hand.get_failed_order('fake_order_id')
+        # Object to add is not a Order
+        with self.assertRaises(TypeError):
+            hand._add_failed_order('fake_order')
+        # Order already exist
+        with self.assertRaises(ValueError):
+            hand._add_failed_order(buy_order2)
+        # Order don't holds a failed status
+        with self.assertRaises(Exception):
+            hand._add_failed_order('Exception')
+
     def test_get_add_mark_propositions(self) -> None:
         hand = self.hand
         pair1 = Pair('ETH/USDT')
