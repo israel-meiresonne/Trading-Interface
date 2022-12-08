@@ -1,6 +1,6 @@
 import time
 from threading import Thread
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 
 import pandas as pd
 from config.Config import Config
@@ -47,6 +47,7 @@ class Hand(MyJson):
         self.__wallet =                 None
         self.__max_position =           None
         self.__positions =              None
+        self.__failed_orders =          None
         self.__new_positions =          None
         self.__closed_positions =       None
         self.__orders =                 None
@@ -249,6 +250,60 @@ class Hand(MyJson):
         """
         self.get_position(pair)
         self.get_positions().pop(pair.__str__())
+
+    def _get_failed_orders(self) -> Dict[str, Order]:
+        """
+        To get collection of Order that failed to be submitted or executed
+
+        Returns:
+        --------
+        return: Dict[str, Order]
+            Collection of Order that failed to be submitted or executed\n
+            dict[Order.get_id(){str}]   -> {Order}
+        """
+        failed_orders = self.__failed_orders
+        if failed_orders is None:
+            self.__failed_orders = failed_orders = {}
+        return failed_orders
+
+    def get_failed_order(self, order_id: str) -> Order:
+        """
+        To get a failed Order
+
+        Parameters:
+        -----------
+        order_id: str
+            Id of the failed Order to get
+
+        Returns:
+        --------
+        return: Order
+            The failed Order with the given id
+        """
+        failed_orders = self._get_failed_orders()
+        if order_id not in failed_orders:
+            raise ValueError(f"Don't exist a failed Order with this id '{order_id}'")
+        return failed_orders[order_id]
+
+    def _add_failed_order(self, order: Order) -> None:
+        """
+        To add a new failed Order
+
+        Parameters:
+        -----------
+        order: Order
+            Failed Order to add
+        """
+        if not isinstance(order, Order):
+            raise TypeError(f"Failed Order must be of type '{Order}', instead type='{type(order)}'")
+        order_id = order.get_id()
+        failed_orders = self._get_failed_orders()
+        order_ids = list(failed_orders.keys())
+        if order_id in order_ids:
+            raise ValueError(f"Failed Order with this id '{order_id}' already exist")
+        if order.get_status() not in HandTrade.FAIL_STATUS:
+            raise Exception(f"Order's status '{order.get_status()}' is not a failed one")
+        failed_orders[order_id] = order
 
     def _reset_new_positions(self) -> None:
         self.__new_positions = None
@@ -561,7 +616,8 @@ class Hand(MyJson):
         broker_class = self.get_broker_class()
         fiat_asset = self.get_wallet().get_initial().get_asset()
         spot_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
-        return spot_pairs
+        # return spot_pairs
+        return [Pair('BTC', fiat_asset), Pair('DOGE', fiat_asset), Pair('ETH', fiat_asset), Pair('BNB', fiat_asset)]
 
     def _get_stalk_pairs(self) -> List[Pair]:
         """
@@ -1263,7 +1319,7 @@ class Hand(MyJson):
     # ••• FUNCTION SELF THREAD MARKET ANALYSE UP
     # ••• FUNCTION SELF BUY/SELL DOWN
 
-    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None) -> None:
+    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None) -> Union[str, None]:
         """
         To buy a new position
 
@@ -1279,6 +1335,11 @@ class Hand(MyJson):
             Price for order requiring a limit price
         buy_function: Callable=None
             function from Hand than define how to execute order
+
+        Returns:
+        --------
+        return: str
+            The buy Order's id if the Order fail to be submitted else None
         """
         if pair.get_right() != self.get_wallet().get_initial().get_asset():
             r_asset_exp = self.get_wallet().get_initial().get_asset()
@@ -1302,14 +1363,20 @@ class Hand(MyJson):
         buy_function = buy_function if buy_function is not None else self.condition_true
         trade = HandTrade(order, buy_function=buy_function)
         # Execution
+        order_id = None
         self._try_submit(trade)
-        # Mark as bought
-        self._add_position(trade)
-        self._mark_proposition(pair, True)
+        if not trade.has_failed(Map.buy):
+            # Mark as bought
+            self._add_position(trade)
+            self._mark_proposition(pair, True)
+        else:
+            self._add_failed_order(order)
+            order_id = order.get_id()
         self._repport_positions()
         self.backup()
+        return order_id
 
-    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> None:
+    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> Union[str, None]:
         """
         To sell a new position
 
@@ -1325,11 +1392,16 @@ class Hand(MyJson):
             Price for order requiring a limit price
         sell_function: Callable = None
             function from Hand than define how to execute order
+
+        Returns:
+        --------
+        return: str
+            The sell Order's id if the Order fail to be submitted else None
         """
         position = self.get_position(pair)
         if not position.has_position():
             raise Exception(f"Must hold '{pair.__str__().upper()}' position before to place sell Order")
-        if (position.get_sell_order() is not None):
+        if position.get_sell_order() is not None:
             raise Exception(f"This position '{pair.__str__().upper()}' already has a sell Order")
         # Order
         broker_class_str = self.get_broker_class()
@@ -1348,9 +1420,14 @@ class Hand(MyJson):
         position.set_sell_order(order)
         position.set_sell_function(sell_function)
         # Execution
+        order_id = None
         self._try_submit(position)
+        if position.has_failed(Map.sell):
+            self._add_failed_order(order)
+            order_id = order.get_id()
         self._repport_positions()
         self.backup()
+        return order_id
 
     def cancel(self, pair: Pair) -> None:
         """
@@ -1365,7 +1442,18 @@ class Hand(MyJson):
         self._update_orders()
         position = self.get_position(pair)
         broker = self.get_broker()
-        if not position.is_executed(Map.buy):
+        failed_order_id = None
+        if position.has_failed(Map.buy):
+            buy_order = position.get_buy_order()
+            failed_order_id = buy_order.get_id()
+            self._add_failed_order(buy_order)
+            self._remove_position(pair)
+        elif position.has_failed(Map.sell):
+            sell_order = position.get_sell_order()
+            failed_order_id = sell_order.get_id()
+            self._add_failed_order(sell_order)
+            position.reset_sell_order()
+        elif not position.is_executed(Map.buy):
             buy_order = position.get_buy_order()
             broker.cancel(buy_order)
             self._remove_position(pair)
@@ -1376,6 +1464,7 @@ class Hand(MyJson):
                 position.reset_sell_order()
         self._repport_positions()
         self.backup()
+        return failed_order_id
 
     def _try_submit(self, trade: HandTrade) -> None:
         """
