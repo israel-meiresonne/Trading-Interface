@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from config.Config import Config
 from model.ModelInterface import ModelInterface
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -184,28 +184,28 @@ class Log(ModelInterface, _MF):
         hands = self._get_hands()
         [self.stop_hand(hand_id) for hand_id in hands]
 
-    def buy_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, buy_function: str = None) -> None:
+    def buy_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, buy_function: str = None) ->  Union[str, None]:
         hand = self._get_hand(hand_id)
-        pair = Pair(pair)
-        r_asset_str = pair.get_right()
+        pair_obj = Pair(pair)
+        r_asset_str = pair_obj.get_right()
         stop = Price(stop, r_asset_str) if stop is not None else None
         limit = Price(limit, r_asset_str) if limit is not None else None
         buy_function = buy_function if buy_function is not None else None
-        hand.buy(pair, order_type, stop, limit, buy_function)
+        return hand.buy(pair_obj, order_type, stop, limit, buy_function)
 
-    def sell_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, sell_function: str = None) -> None:
+    def sell_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, sell_function: str = None) ->  Union[str, None]:
         hand = self._get_hand(hand_id)
-        pair = Pair(pair)
-        r_asset_str = pair.get_right()
+        pair_obj = Pair(pair)
+        r_asset_str = pair_obj.get_right()
         stop = Price(stop, r_asset_str) if stop is not None else None
         limit = Price(limit, r_asset_str) if limit is not None else None
         sell_function = sell_function if sell_function is not None else None
-        hand.sell(pair, order_type, stop, limit, sell_function)
+        return hand.sell(pair_obj, order_type, stop, limit, sell_function)
 
-    def cancel_hand_position(self, hand_id: str, pair: str) -> None:
+    def cancel_hand_position(self, hand_id: str, pair: str) ->  Union[str, None]:
         hand = self._get_hand(hand_id)
         pair = Pair(pair)
-        hand.cancel(pair)
+        return hand.cancel(pair)
 
     def set_hand_attribut(self, hand_id: str, attribut: str, value: Any) -> None:
         hand = self._get_hand(hand_id)
@@ -214,7 +214,7 @@ class Log(ModelInterface, _MF):
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
 
-    def get_hand_attribut(self, hand_id: str, attribut: str) -> Any:
+    def get_hand_attribut(self, hand_id: str, attribut: str, **kwargs) -> Any:
         value = None
         hand = self._get_hand(hand_id)
         if attribut == Map.broker:
@@ -243,6 +243,9 @@ class Log(ModelInterface, _MF):
         elif attribut == Map.algo:
             positions = hand.get_positions().copy()
             value = [position.get_buy_order().get_pair() for _, position in positions.items() if position.get_sell_order() is not None]
+        elif attribut == Map.reason:
+            order = hand.get_failed_order(**kwargs)
+            value = order.get_content()
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
         return value

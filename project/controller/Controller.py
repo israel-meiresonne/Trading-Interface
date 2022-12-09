@@ -401,8 +401,12 @@ class Controller:
             return None
         params = self.input_hand_order(hand_id, Map.buy)
         if isinstance(params, dict):
-            model.buy_hand_position(hand_id, **params)
-            view.output(f"Buy Order placed for '{params[Map.pair].upper()}'!", is_success=True)
+            failed_order_id = model.buy_hand_position(hand_id, **params)
+            if failed_order_id is None:
+                view.output(f"Buy Order placed for '{params[Map.pair].upper()}'!", is_success=True)
+            else:
+                fail_reason = model.get_hand_attribut(hand_id, Map.reason, order_id=failed_order_id)
+                view.output(f"Failed to buy Position '{params[Map.pair].upper()}' with Order of id '{failed_order_id}' cause: '{fail_reason}'!", is_error=True)
 
     def sell_hand_position(self) -> None:
         model = self._get_model()
@@ -413,8 +417,12 @@ class Controller:
             return None
         params = self.input_hand_order(hand_id, Map.sell)
         if isinstance(params, dict):
-            model.sell_hand_position(hand_id, **params)
-            view.output(f"Sell Order placed for '{params[Map.pair].upper()}'!", is_success=True)
+            failed_order_id = model.sell_hand_position(hand_id, **params)
+            if failed_order_id is None:
+                view.output(f"Sell Order placed for '{params[Map.pair].upper()}'!", is_success=True)
+            else:
+                fail_reason = model.get_hand_attribut(hand_id, Map.reason, order_id=failed_order_id)
+                view.output(f"Failed to sell Position '{params[Map.pair].upper()}' with Order of id '{failed_order_id}' cause: '{fail_reason}'!", is_error=True)
 
     def input_hand_order(self, hand_id: str, move: str) -> dict:
         def get_positions() -> List[Pair]:
@@ -492,8 +500,12 @@ class Controller:
         pair_str = positions[view.menu("Choose the position to cancel:", positions)]
         can_submit = self.ask_confirmation(f"Are you sur you want to cancel this position '{pair_str.upper()}':")
         if can_submit:
-            model.cancel_hand_position(hand_id, pair_str)
-            view.output(f"Canceled position '{pair_str.upper()}'!", is_success=True)
+            failed_order_id = model.cancel_hand_position(hand_id, pair_str)
+            if failed_order_id is None:
+                view.output(f"Canceled position '{pair_str.upper()}'!", is_success=True)
+            else:
+                fail_reason = model.get_hand_attribut(hand_id, Map.reason, order_id=failed_order_id)
+                view.output(f"Failed to cancel Position '{pair_str.upper()}' with Order of id '{failed_order_id}' cause: '{fail_reason}'!", is_error=True)
 
     def stop_hand(self) -> None:
         model = self._get_model()
