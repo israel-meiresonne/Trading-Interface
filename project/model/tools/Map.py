@@ -70,6 +70,7 @@ class Map(MyJson):
     algo = "algo"
     backup = "backup"
     menu = "menu"
+    reason = "reason"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
