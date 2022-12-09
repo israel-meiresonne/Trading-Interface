@@ -1050,8 +1050,8 @@ class BinanceAPI(ABC):
                 if _cls._DEBUG else None
         return response
 
-    @staticmethod
-    def _send_request(test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
+    @classmethod
+    def _send_request(cls, test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
         """
         To send a request to the API\n
         Parameters
@@ -1071,15 +1071,13 @@ class BinanceAPI(ABC):
         broker_response: BrokerResponse
             Binance's API response
         """
-        _cls = BinanceAPI
-        _cls._set_test_mode(test_mode)
-        _stage = Config.get(Config.STAGE_MODE)
-        rq_cfg = _cls.get_request_config(rq)
-        if rq_cfg[Map.signed]:
-            _cls._sign(api_keys, params)
-        headers = _cls._generate_headers(api_keys)
-        url = _cls._generate_url(rq)
-        method = rq_cfg[Map.method]
+        cls._set_test_mode(test_mode)
+        request_config = cls.get_request_config(rq)
+        if request_config[Map.signed]:
+            cls._sign(api_keys, params)
+        headers = cls._generate_headers(api_keys)
+        url = cls._generate_url(rq)
+        method = request_config[Map.method]
         if method == Map.GET:
             rsp = rq_get(url, params.get_map(), headers=headers)
         elif method == Map.POST:
@@ -1091,16 +1089,14 @@ class BinanceAPI(ABC):
         else:
             raise Exception(f"The request method {method} is not supported")
         broker_response = BrokerResponse(rsp)
-        # Manage weight
         try:
-            if rq != _cls.RQ_EXCHANGE_INFOS:
-                _cls._add_weight(rq)
-                _cls._update_limits(rq, broker_response)
+            if rq != cls.RQ_EXCHANGE_INFOS:
+                cls._add_weight(rq)
+                cls._update_limits(rq, broker_response)
         except Exception as error:
-            _cls._save_response(rq, params, rsp)
+            cls._save_response(rq, params, rsp)
             raise error
-        # Backup Down
-        _cls._save_response(rq, params, rsp)
+        cls._save_response(rq, params, rsp)
         return broker_response
 
     @staticmethod
