@@ -39,6 +39,12 @@ class TestHand(unittest.TestCase, Hand):
         self.buy_order2, self.buy_order_params2 = self.new_buy_order(pair2, buy_amount2)
         buy_order2 = self.buy_order2
         self.hand_trade2 = HandTrade(buy_order2, hand.condition_true, hand.condition_true)
+        # HandTrade3
+        self.pair3 = pair3 = Pair(Asset('ETH'), pair1.get_right())
+        self.buy_amount3 = buy_amount3 = Price(100, pair3.get_right())
+        self.buy_order3, self.buy_order_params3 = self.new_buy_order(pair3, buy_amount3)
+        buy_order3 = self.buy_order3
+        self.hand_trade3 = HandTrade(buy_order3, hand.condition_true, hand.condition_true)
 
     def tearDown(self) -> None:
         self.broker_switch(False)
@@ -88,6 +94,13 @@ class TestHand(unittest.TestCase, Hand):
         })
         sell_order = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, sell_order_params)
         return sell_order, sell_order_params
+
+    def new_failed_orders(self, pair1: Pair, pair2: Pair) -> Tuple[Order, Order]:
+        buy_order, _ = self.new_buy_order(pair1, Price(10, pair1.get_right()))
+        buy_order._set_status(HandTrade.FAIL_STATUS[0])
+        sell_order, _ = self.new_sell_order(pair2, Price(100, pair2.get_left()))
+        sell_order._set_status(HandTrade.FAIL_STATUS[1])
+        return buy_order, sell_order
 
     def execute_order(self, order: Order) -> None:
         move = order.get_move()
@@ -207,12 +220,6 @@ class TestHand(unittest.TestCase, Hand):
             hand._remove_position(hand_trade1.get_buy_order().get_pair())
 
     def test_get_add_failed_orders(self) -> None:
-        def new_failed_orders(def_pair1: Pair, def_pair2: Pair) -> Tuple[Order, Order]:
-            buy_order, _ = self.new_buy_order(def_pair1, Price(10, def_pair1.get_right()))
-            buy_order._set_status(HandTrade.FAIL_STATUS[0])
-            sell_order, _ = self.new_sell_order(def_pair2, Price(100, def_pair2.get_left()))
-            sell_order._set_status(HandTrade.FAIL_STATUS[1])
-            return buy_order, sell_order
         hand = self.hand
         pair1 = self.pair1
         pair2 = self.pair2
@@ -222,7 +229,7 @@ class TestHand(unittest.TestCase, Hand):
         self.assertDictEqual(exp1, result1)
         # Collection is not empty
         # ••• Check Collection
-        buy_order2, sell_order2 = new_failed_orders(pair1, pair2)
+        buy_order2, sell_order2 = self.new_failed_orders(pair1, pair2)
         hand._add_failed_order(buy_order2)
         hand._add_failed_order(sell_order2)
         exp2 = {
@@ -561,6 +568,113 @@ class TestHand(unittest.TestCase, Hand):
         self.assertTrue(hand_trade2.is_executed(Map.sell))
         # End
         self.broker_switch(on=False)
+
+    def test_manage_failed_orders(self) -> None:
+        hand = self.hand
+        pair1 = self.pair1
+        pair2 = self.pair2
+        pair3 = self.pair3
+        # Order submitted with success
+        position1 = self.hand_trade1
+        position2 = self.hand_trade2
+        position3 = self.hand_trade3
+        # ••• Buy
+        hand._add_position(position1)
+        hand._add_position(position2)
+        hand._add_position(position3)
+        position2.get_buy_order()._set_status(Order.STATUS_SUBMITTED)
+        position3.get_buy_order()._set_status(Order.STATUS_COMPLETED)
+        exp1 = hand.copy()
+        hand._manage_failed_orders(pair1)
+        hand._manage_failed_orders(pair2)
+        hand._manage_failed_orders(pair3)
+        result1 = hand.copy()
+        self.assertEqual(exp1, result1)
+        # ••• Sell
+        sell_order1, _ = self.new_sell_order(pair1, Price(10, pair1.get_left()))
+        sell_order2, _ = self.new_sell_order(pair2, Price(100, pair2.get_left()))
+        sell_order3, _ = self.new_sell_order(pair3, Price(1000, pair3.get_left()))
+        position1.set_sell_order(sell_order1)
+        position2.set_sell_order(sell_order2)
+        position3.set_sell_order(sell_order3)
+        sell_order2._set_status(Order.STATUS_SUBMITTED)
+        sell_order3._set_status(Order.STATUS_COMPLETED)
+        exp1_2 = hand.copy()
+        hand._manage_failed_orders(pair1)
+        hand._manage_failed_orders(pair2)
+        hand._manage_failed_orders(pair3)
+        result1_2 = hand.copy()
+        self.assertEqual(exp1_2, result1_2)
+        # Buy Order fail - Failed & Expired
+        self.setUp()
+        hand2 = self.hand
+        pair2_1 = self.pair1
+        pair2_2 = self.pair2
+        pair2_3 = self.pair3
+        position2_1 = self.hand_trade1
+        position2_2 = self.hand_trade2
+        position2_3 = self.hand_trade3
+        #
+        hand2._add_position(position2_1)
+        hand2._add_position(position2_2)
+        hand2._add_position(position2_3)
+        position2_2.get_buy_order()._set_status(Order.STATUS_FAILED)
+        position2_3.get_buy_order()._set_status(Order.STATUS_EXPIRED)
+        buy_order2_2 = position2_2.get_buy_order()
+        buy_order2_3 = position2_3.get_buy_order()
+        exp2 = {pair2_1: position2_1}
+        exp2_2 = {
+            buy_order2_2.get_id(): buy_order2_2,
+            buy_order2_3.get_id(): buy_order2_3
+        }
+        hand2._manage_failed_orders(pair2_1)
+        hand2._manage_failed_orders(pair2_2)
+        hand2._manage_failed_orders(pair2_3)
+        result2 = hand2.get_positions()
+        result2_2 = hand2._get_failed_orders()
+        self.assertDictEqual(exp2, result2)
+        self.assertDictEqual(exp2_2, result2_2)
+        # Sell Order fail - Failed & Expired
+        self.setUp()
+        hand3 = self.hand
+        pair3_1 = self.pair1
+        pair3_2 = self.pair2
+        pair3_3 = self.pair3
+        position3_1 = self.hand_trade1
+        position3_2 = self.hand_trade2
+        position3_3 = self.hand_trade3
+        #
+        hand3._add_position(position3_1)
+        hand3._add_position(position3_2)
+        hand3._add_position(position3_3)
+        position3_2.get_buy_order()._set_status(Order.STATUS_SUBMITTED)
+        position3_3.get_buy_order()._set_status(Order.STATUS_COMPLETED)
+        sell_order3_1, _ = self.new_sell_order(pair3_1, Price(10, pair3_1.get_left()))
+        sell_order3_2, _ = self.new_sell_order(pair3_2, Price(100, pair3_2.get_left()))
+        sell_order3_3, _ = self.new_sell_order(pair3_3, Price(1000, pair3_3.get_left()))
+        position3_1.set_sell_order(sell_order3_1)
+        position3_2.set_sell_order(sell_order3_2)
+        position3_3.set_sell_order(sell_order3_3)
+        sell_order3_2._set_status(Order.STATUS_FAILED)
+        sell_order3_3._set_status(Order.STATUS_EXPIRED)
+        exp3 = {
+            pair3_1.__str__(): position3_1,
+            pair3_2.__str__(): position3_2,
+            pair3_3.__str__(): position3_3,
+            }
+        exp3_2 = {
+            sell_order3_2.get_id(): sell_order3_2,
+            sell_order3_3.get_id(): sell_order3_3
+        }
+        hand3._manage_failed_orders(pair3_1)
+        hand3._manage_failed_orders(pair3_2)
+        hand3._manage_failed_orders(pair3_3)
+        result3 = hand3.get_positions()
+        result3_2 = hand3._get_failed_orders()
+        self.assertDictEqual(exp3, result3)
+        self.assertDictEqual(exp3_2, result3_2)
+        self.assertIsNone(position3_2.get_sell_order())
+        self.assertIsNone(position3_3.get_sell_order())
 
     def test_backup_load(self) -> None:
         hand = self.hand

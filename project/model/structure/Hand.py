@@ -616,8 +616,7 @@ class Hand(MyJson):
         broker_class = self.get_broker_class()
         fiat_asset = self.get_wallet().get_initial().get_asset()
         spot_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
-        # return spot_pairs
-        return [Pair('BTC', fiat_asset), Pair('DOGE', fiat_asset), Pair('ETH', fiat_asset), Pair('BNB', fiat_asset)]
+        return spot_pairs
 
     def _get_stalk_pairs(self) -> List[Pair]:
         """
@@ -1338,7 +1337,7 @@ class Hand(MyJson):
 
         Returns:
         --------
-        return: str
+        return: Union[str, None]
             The buy Order's id if the Order fail to be submitted else None
         """
         if pair.get_right() != self.get_wallet().get_initial().get_asset():
@@ -1363,18 +1362,14 @@ class Hand(MyJson):
         buy_function = buy_function if buy_function is not None else self.condition_true
         trade = HandTrade(order, buy_function=buy_function)
         # Execution
-        order_id = None
         self._try_submit(trade)
-        if not trade.has_failed(Map.buy):
-            # Mark as bought
-            self._add_position(trade)
-            self._mark_proposition(pair, True)
-        else:
-            self._add_failed_order(order)
-            order_id = order.get_id()
+        self._add_position(trade)
         self._repport_positions()
+        # Failed ?
+        failed_order_id = self._manage_failed_orders(pair)
+        self._repport_positions() if (failed_order_id is not None) else self._mark_proposition(pair, True)
         self.backup()
-        return order_id
+        return failed_order_id
 
     def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> Union[str, None]:
         """
@@ -1395,7 +1390,7 @@ class Hand(MyJson):
 
         Returns:
         --------
-        return: str
+        return: Union[str, None]
             The sell Order's id if the Order fail to be submitted else None
         """
         position = self.get_position(pair)
@@ -1420,16 +1415,15 @@ class Hand(MyJson):
         position.set_sell_order(order)
         position.set_sell_function(sell_function)
         # Execution
-        order_id = None
         self._try_submit(position)
-        if position.has_failed(Map.sell):
-            self._add_failed_order(order)
-            order_id = order.get_id()
         self._repport_positions()
+        # Failed ?
+        failed_order_id = self._manage_failed_orders(pair)
+        self._repport_positions() if (failed_order_id is not None) else None
         self.backup()
-        return order_id
+        return failed_order_id
 
-    def cancel(self, pair: Pair) -> None:
+    def cancel(self, pair: Pair) -> Union[str, None]:
         """
         To cancel Trade if not executed yet\n
         NOTE: Delete Trade from list of position If buy Order is not executed
@@ -1438,26 +1432,21 @@ class Hand(MyJson):
         -----------
         pair: Pair
             Pair of the position to cancel
+
+        Returns:
+        --------
+        return: Union[str, None]
+            The buy or sell Order's id if one of them fail to be executed else None
         """
         self._update_orders()
         position = self.get_position(pair)
         broker = self.get_broker()
-        failed_order_id = None
-        if position.has_failed(Map.buy):
-            buy_order = position.get_buy_order()
-            failed_order_id = buy_order.get_id()
-            self._add_failed_order(buy_order)
-            self._remove_position(pair)
-        elif position.has_failed(Map.sell):
-            sell_order = position.get_sell_order()
-            failed_order_id = sell_order.get_id()
-            self._add_failed_order(sell_order)
-            position.reset_sell_order()
-        elif not position.is_executed(Map.buy):
+        failed_order_id = self._manage_failed_orders(pair)
+        if (failed_order_id is None) and (not position.is_executed(Map.buy)):
             buy_order = position.get_buy_order()
             broker.cancel(buy_order)
             self._remove_position(pair)
-        elif position.has_position():
+        elif (failed_order_id is None) and position.has_position():
             sell_order = position.get_sell_order()
             if sell_order is not None:
                 broker.cancel(sell_order)
@@ -1487,6 +1476,34 @@ class Hand(MyJson):
                 broker = self.get_broker()
                 broker.execute(sell_order)
                 self.get_wallet().sell(sell_order) if trade.is_executed(Map.sell) else None
+
+    def _manage_failed_orders(self, pair: Pair) -> Union[str, None]:
+        """
+        To manage failed Order for position in the given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            Pair of the position to manage
+
+        Returns:
+        --------
+        return: Union[str, None]
+            The buy or sell Order's id if one of them fail to be submitted or executed else None
+        """
+        position = self.get_position(pair)
+        failed_order_id = None
+        if position.has_failed(Map.buy):
+            buy_order = position.get_buy_order()
+            failed_order_id = buy_order.get_id()
+            self._add_failed_order(buy_order)
+            self._remove_position(pair)
+        elif position.has_failed(Map.sell):
+            sell_order = position.get_sell_order()
+            failed_order_id = sell_order.get_id()
+            self._add_failed_order(sell_order)
+            position.reset_sell_order()
+        return failed_order_id
 
     # ••• FUNCTION SELF BUY/SELL UP
     # ••• FUNCTION SELF BUY/SELL CONDITION DOWN
