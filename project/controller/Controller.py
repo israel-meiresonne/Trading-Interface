@@ -215,7 +215,7 @@ class Controller:
             menu_header_split = menu_header.split(separator)
             menu_header_split[-1] = view.B_LIGHT_GREEN + menu_header_split[-1]
             new_menu_header = separator.join(menu_header_split)
-            view.output(new_menu_header, richs=[view.B_GRAY, view.C_BLACK, view.S_BOLD])
+            view.output(new_menu_header, richs=[view.B_LIGHT_GRAY, view.C_BLACK])
         view = self._get_view()
         menu_header_key = self.MENUS_VAR_HEADER
         end = False
