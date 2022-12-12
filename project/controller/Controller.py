@@ -516,7 +516,10 @@ class Controller:
     def hand_setting(self) -> None:
         def show_setting() -> None:
             settings = [
-                {Map.param: 'Max position', Map.value: model.get_hand_attribut(hand_id, Map.maximum)}
+                {Map.param: 'Max position',     Map.value: model.get_hand_attribut(hand_id, Map.maximum)},
+                {Map.param: 'Stalk Thread',     Map.value: model.get_hand_attribut(hand_id, threads[Map.stalk])},
+                {Map.param: 'Position Thread',  Map.value: model.get_hand_attribut(hand_id, threads[Map.position])},
+                {Map.param: 'Analyse Thread',   Map.value: model.get_hand_attribut(hand_id, threads[Map.analyse])},
             ]
             df = pd.DataFrame(settings)
             view.output(f"\n{df}\n")
@@ -525,14 +528,27 @@ class Controller:
             new_max_position = view.input("Enter the new number of position allowed:", type_func=int)
             model.set_hand_attribut(hand_id, Map.maximum, new_max_position)
             view.output(f"Updated number of position allowed from '{max_position}' to '{new_max_position}'!", is_success=True)
+        def update_thread() -> None:
+            thread_options = list(threads.keys())
+            option = thread_options[view.menu('Select the thread to switch:', thread_options)]
+            thread_attribut = threads[option]
+            is_on = self.ask_confirmation('Select Yes->{switch on} OR No->{switch off}')
+            can_submit = self.ask_confirmation(f"Are you sur you want to switch '{'ON' if is_on else 'OFF'}' the '{option.capitalize()}' thread")
+            model.set_hand_attribut(hand_id, thread_attribut, is_on) if can_submit else None
         model = self._get_model()
         view = self._get_view()
         hand_id = self.get_menu_var(Map.id)
+        threads = {
+            Map.stalk:      f"{Map.thread}_{Map.stalk}",
+            Map.position:   f"{Map.thread}_{Map.position}",
+            Map.analyse:    f"{Map.thread}_{Map.analyse}"
+        }
         setting_menu = {
             Map.menu: 'Hand settings',
             Map.option:{
                 "Show settings": show_setting,
-                "Update max position allowed": update_max_position
+                "Update max position allowed": update_max_position,
+                "Switch on/off thread": update_thread,
             }
         }
         self.menu(setting_menu)

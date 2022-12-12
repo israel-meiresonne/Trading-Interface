@@ -208,10 +208,16 @@ class Log(ModelInterface, _MF):
         pair = Pair(pair)
         return hand.cancel(pair)
 
-    def set_hand_attribut(self, hand_id: str, attribut: str, value: Any) -> None:
+    def set_hand_attribut(self, hand_id: str, attribut: str, value: Any, **kwargs) -> None:
         hand = self._get_hand(hand_id)
         if attribut == Map.maximum:
             hand.set_max_position(value)
+        elif attribut == f"{Map.thread}_{Map.stalk}":
+            hand.set_stalk_on(value)
+        elif attribut == f"{Map.thread}_{Map.position}":
+            hand.set_position_on(value)
+        elif attribut == f"{Map.thread}_{Map.analyse}":
+            hand.set_market_analyse_on(value)
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
 
@@ -247,6 +253,12 @@ class Log(ModelInterface, _MF):
         elif attribut == Map.reason:
             order = hand.get_failed_order(**kwargs)
             value = order.get_content()
+        elif attribut == f"{Map.thread}_{Map.stalk}":
+            value = hand.is_stalk_on()
+        elif attribut == f"{Map.thread}_{Map.position}":
+            value = hand.is_position_on()
+        elif attribut == f"{Map.thread}_{Map.analyse}":
+            value = hand.is_market_analyse_on()
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
         return value
