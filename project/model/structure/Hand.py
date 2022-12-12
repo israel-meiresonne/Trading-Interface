@@ -46,6 +46,8 @@ class Hand(MyJson):
         self.__broker =                 None
         self.__wallet =                 None
         self.__max_position =           None
+        self.__is_buying =              False
+        self.__is_selling =             False
         self.__positions =              None
         self.__failed_orders =          None
         self.__new_positions =          None
@@ -189,6 +191,53 @@ class Hand(MyJson):
         max_position = self.get_max_position()
         n_position = len(self.get_positions())
         return n_position >= max_position
+
+    def reset_trading(self) -> None:
+        self._set_buying(False)
+        self._set_selling(False)
+
+    def is_trading(self) -> bool:
+        """
+        To check if position is being bought or sold
+
+        Returns:
+        --------
+        return: bool
+            True if position is being bought or sold else False
+        """
+        return self.is_buying() or self.is_selling()
+
+    def _set_buying(self, is_buying: bool) -> None:
+        if not isinstance(is_buying, bool):
+            raise TypeError(f"The buying state's type must be '{bool}', instead 'type={type(is_buying)}'")
+        self.__is_buying = is_buying
+
+    def is_buying(self) -> bool:
+        """
+        To check if the a position is being bought
+
+        Returns:
+        --------
+        return: bool
+            True if a position is being bought else False
+        """
+        return self.__is_buying
+
+    def _set_selling(self, is_selling: bool) -> None:
+        if not isinstance(is_selling, bool):
+            raise TypeError(f"The selling state's type must be '{bool}', instead 'type={type(is_selling)}'")
+        self.__is_selling = is_selling
+
+    def is_selling(self) -> bool:
+        """
+        To check if the a position is being sold
+
+        Returns:
+        --------
+        return: bool
+            True if a position is being sold else False
+        """
+        return self.__is_selling
 
     def get_positions(self) -> Dict[str, HandTrade]:
         """
@@ -676,14 +725,14 @@ class Hand(MyJson):
         To manage positions
         """
         while self.is_position_on():
-            _MF.catch_exception(self.update_positions, Hand.__name__)
+            _MF.catch_exception(self.update_positions, Hand.__name__) if not self.is_trading() else None
             sleep_interval = self._SLEEP_POSITION_VIEW if len(self.get_positions()) > 0 else self._SLEEP_POSITION
             sleep_time = _MF.sleep_time(_MF.get_timestamp(), sleep_interval)
             time.sleep(sleep_time)
 
     def update_positions(self) -> None:
         """
-        To update positions states with thier states in Broker's API
+        To update positions states with their states in Broker's API
         ### Update steps:
         - Update states of submitted Order
         - Submit new Order to Broker's API
@@ -693,10 +742,9 @@ class Hand(MyJson):
         """
         self._update_orders()
         positions = self.get_positions().copy()
-        [self._try_submit(position) for _, position in positions.items() if not position.is_submitted()]
+        [self._try_submit(position) for _, position in positions.items() if (not self.is_trading()) and (not position.is_submitted())]
         self._repport_positions()
-        # [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
-        self._move_closed_positions(positions)
+        self._move_closed_positions(positions) if (not self.is_trading()) else None
         self.backup()
 
     def _repport_positions(self) -> None:
@@ -1345,6 +1393,8 @@ class Hand(MyJson):
             raise ValueError(f"The pair to buy's right Asset must be '{r_asset_exp.__str__().upper()}', instead '{pair.__str__().upper()}'")
         if self.is_max_position_reached():
             raise Exception(f"The max number of position allowed '{self.get_max_position()}' is already reached")
+        # Start
+        self._set_buying(True)
         # Order
         broker_class_str = self.get_broker_class()
         amount = self._position_capital()
@@ -1368,6 +1418,8 @@ class Hand(MyJson):
         # Failed ?
         failed_order_id = self._manage_failed_orders(pair)
         self._repport_positions() if (failed_order_id is not None) else self._mark_proposition(pair, True)
+        # End
+        self._set_buying(False)
         self.backup()
         return failed_order_id
 
@@ -1398,6 +1450,8 @@ class Hand(MyJson):
             raise Exception(f"Must hold '{pair.__str__().upper()}' position before to place sell Order")
         if position.get_sell_order() is not None:
             raise Exception(f"This position '{pair.__str__().upper()}' already has a sell Order")
+        # Start
+        self._set_selling(True)
         # Order
         broker_class_str = self.get_broker_class()
         l_asset = pair.get_left()
@@ -1420,6 +1474,9 @@ class Hand(MyJson):
         # Failed ?
         failed_order_id = self._manage_failed_orders(pair)
         self._repport_positions() if (failed_order_id is not None) else None
+        self._move_closed_position(pair) if position.is_closed() else None
+        # End
+        self._set_selling(False)
         self.backup()
         return failed_order_id
 
@@ -1445,13 +1502,16 @@ class Hand(MyJson):
         if (failed_order_id is None) and (not position.is_executed(Map.buy)):
             buy_order = position.get_buy_order()
             broker.cancel(buy_order)
+            self._repport_positions()
             self._remove_position(pair)
         elif (failed_order_id is None) and position.has_position():
             sell_order = position.get_sell_order()
             if sell_order is not None:
                 broker.cancel(sell_order)
+                self._repport_positions()
                 position.reset_sell_order()
-        self._repport_positions()
+        else:
+            self._repport_positions()
         self.backup()
         return failed_order_id
 
