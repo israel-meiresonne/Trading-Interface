@@ -742,7 +742,7 @@ class Hand(MyJson):
         """
         self._update_orders()
         positions = self.get_positions().copy()
-        [self._try_submit(position) for _, position in positions.items() if (not self.is_trading()) and (not position.is_submitted())]
+        [self._try_submit(position) for _, position in positions.items() if (not self.is_trading()) and (not (position.is_submitted(Map.buy) or position.is_submitted(Map.sell)))]
         self._repport_positions()
         self._move_closed_positions(positions) if (not self.is_trading()) else None
         self.backup()
@@ -1531,7 +1531,7 @@ class Hand(MyJson):
                 broker = self.get_broker()
                 broker.execute(buy_order)
                 self.get_wallet().buy(buy_order) if trade.is_executed(Map.buy) else None
-        if (trade.is_executed(Map.buy)) and (sell_order is not None) and (sell_order.get_status() is None):
+        if (trade.is_executed(Map.buy)) and (sell_order is not None) and (not trade.is_submitted(Map.sell)):
             if trade.get_sell_function(self)():
                 broker = self.get_broker()
                 broker.execute(sell_order)

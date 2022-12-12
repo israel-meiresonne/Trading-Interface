@@ -117,21 +117,28 @@ class Trade(MyJson):
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
 
-    def is_submitted(self) -> bool:
+    def is_submitted(self, side: str) -> bool:
         """
-        To check if buy and sell Order are submitted to Broker for execution
-        NOTE: only check for the buy Order if the sell Order is not set
+        To check if buy or sell Order are submitted to Broker for execution
+
+        Parameters:
+        -----------
+        side: str
+            Name of order to check ['buy' or 'sell']
 
         Returns:
         --------
         return: bool
-            True if all Order set are submitted to Broker else False
+            True if the Order of the given side set is submitted to Broker else False
         """
-        buy_order = self.get_buy_order()
-        buy_is_submitted = buy_order.get_status() is not None
-        sell_order = self.get_sell_order()
-        sell_is_submitted = sell_order.get_status() is not None if sell_order is not None else True
-        return buy_is_submitted and sell_is_submitted
+        if side == Map.buy:
+            is_submitted = self.get_buy_order().get_status() is not None
+        elif side == Map.sell:
+            sell_order = self.get_sell_order()
+            is_submitted = (sell_order is not None) and (sell_order.get_status() is not None)
+        else:
+            raise ValueError(f"Unkown Order side '{side}'")
+        return is_submitted
 
     def is_executed(self, side: str) -> bool:
         """

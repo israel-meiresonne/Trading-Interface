@@ -121,6 +121,35 @@ class TestTrade(unittest.TestCase, Trade, Order):
         with self.assertRaises(ValueError):
             trade4.set_sell_order(buy_order)
 
+    def test_is_submitted(self) -> None:
+        buy_order = self.buy_order
+        sell_order = self.sell_order
+        trade = Trade(buy_order)
+        """
+        Buy
+        """
+        # ––– not submitted
+        self.assertFalse(trade.is_submitted(Map.buy))
+        # ––– submitted
+        buy_order._set_status(Order.STATUS_SUBMITTED)
+        self.assertTrue(trade.is_submitted(Map.buy))
+        """
+        Sell
+        """
+        # ––– not set
+        self.assertFalse(trade.is_submitted(Map.sell))
+        # ––– not submitted
+        trade.set_sell_order(sell_order)
+        self.assertFalse(trade.is_submitted(Map.sell))
+        # ––– submitted
+        sell_order._set_status(Order.STATUS_FAILED)
+        self.assertTrue(trade.is_submitted(Map.sell))
+        """
+        Unkown side
+        """
+        with self.assertRaises(ValueError):
+            trade.is_submitted('wrong_side')
+
     def test_is_executed(self) -> None:
         buy_order = self.buy_order
         sell_order = self.sell_order
