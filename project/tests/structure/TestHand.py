@@ -343,10 +343,10 @@ class TestHand(unittest.TestCase, Hand):
         pair1 = self.pair1
         hand_trade2 = self.hand_trade2
         pair2 = self.pair2
-        # Get closed positions
-        exp1 = []
-        result1 = hand.get_closed_positions()
-        self.assertListEqual(exp1, result1)
+        # Empty closed positions
+        exp1 = {}
+        result1 = hand._get_closed_positions()
+        self.assertDictEqual(exp1, result1)
         # Raise error
         with self.assertRaises(ValueError):
             hand._move_closed_position(pair1)
@@ -358,14 +358,22 @@ class TestHand(unittest.TestCase, Hand):
         sell_order1, sell_order_params = self.new_sell_order(pair1, Price(10, pair1.get_left()))
         hand_trade1.set_sell_order(sell_order1)
         hand_trade1.get_sell_order()._set_status(Order.STATUS_COMPLETED)
-        # ••• Test
+        # ••• Move
         hand._move_closed_position(pair1)
         exp2 = {pair2.__str__(): hand_trade2}
         result2 = hand.get_positions()
         self.assertEqual(exp2, result2)
-        exp2_2 = [hand_trade1]
-        result2_2 = hand.get_closed_positions()
+        exp2_2 = {hand_trade1.get_id(): hand_trade1}
+        result2_2 = hand._get_closed_positions()
         self.assertEqual(exp2_2, result2_2)
+        # Get closed position
+        # ––– Exist
+        exp3 = hand_trade1
+        result3 = hand.get_closed_position(hand_trade1.get_id())
+        self.assertEqual(exp3, result3)
+        # ––– Don't Exist
+        with self.assertRaises(ValueError):
+            hand.get_closed_position('wrong_id')
 
     def test_get_orders_map(self) -> None:
         hand = self.hand
@@ -545,12 +553,11 @@ class TestHand(unittest.TestCase, Hand):
         result2 = hand.get_wallet().buy_capital()
         self.assertEqual(round(exp2.get_value(), 0), round(result2.get_value(), 0))
         exp2_2 = position1
-        result2_2 = hand.get_closed_positions()[-1]
+        result2_2 = hand.get_closed_position(position1.get_id())
         self.assertEqual(exp2_2, result2_2)
         self.assertIsInstance(result2_2, HandTrade)
         self.assertTrue(result2_2.is_closed())
         # ••• Don't holds position to sell
-        # hand._move_closed_position(pair1)
         with self.assertRaises(Exception):
             hand.sell(pair1, Order.TYPE_MARKET)
         # ••• The sell Order is already set
