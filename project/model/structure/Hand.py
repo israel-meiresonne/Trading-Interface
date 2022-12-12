@@ -414,18 +414,39 @@ class Hand(MyJson):
         if len(pair_index) > 0:
             new_positions.loc[pair_index[-1], Map.buy] = have_bought
 
-    def get_closed_positions(self) -> List[HandTrade]:
+    def _get_closed_positions(self) -> Dict[str, HandTrade]:
         """
-        To get list of closed positions
+        To get collection of closed positions
 
         Returns:
         --------
-        return: List[HandTrade]
-            List of closed positions
+        return: Dict[str, HandTrade]
+            Collection of closed positions
+
+            dict[HandTrade.get_id(){str}]   ->  {HandTrade}
         """
-        if self.__closed_positions is None:
-            self.__closed_positions = []
-        return self.__closed_positions
+        closed_positions = self.__closed_positions
+        if closed_positions is None:
+            self.__closed_positions = closed_positions = {}
+        return closed_positions
+
+    def get_closed_position(self, trade_id: str) -> HandTrade:
+        """
+        To get a closed position
+
+        Parameters:
+        trade_id: str
+            The id of the closed position to get
+
+        Returns:
+        --------
+        return: HandTrade
+            Closed position of the given id
+        """
+        closed_positions = self._get_closed_positions()
+        if trade_id not in closed_positions:
+            raise ValueError(f"There's no closed position with this id '{trade_id}'")
+        return closed_positions[trade_id]
 
     def _add_closed_position(self, position: HandTrade) -> None:
         """
@@ -438,7 +459,9 @@ class Hand(MyJson):
         """
         if not position.is_closed():
             raise ValueError(f"The position '{position.get_buy_order().get_pair().__str__().upper()}' must be closed")
-        self.get_closed_positions().append(position)
+        closed_positions = self._get_closed_positions()
+        trade_id = position.get_id()
+        closed_positions[trade_id] = position
 
     def _move_closed_position(self, pair: Pair) -> None:
         """
@@ -762,7 +785,7 @@ class Hand(MyJson):
         def get_global_rows(positions: Dict[str, HandTrade]) -> List[dict]:
             n_position = len(positions)
             #
-            n_trade = len(self.get_closed_positions()) + n_position
+            n_trade = len(self._get_closed_positions()) + n_position
             # Total
             initial_capital = wallet.get_initial()
             now_capital = wallet.get_total(broker)
