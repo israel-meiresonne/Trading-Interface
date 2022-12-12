@@ -191,6 +191,47 @@ class TestHand(unittest.TestCase, Hand):
         # End
         self.broker_switch(on=False, stage=Config.STAGE_2)
 
+    def test_is_trading(self) -> None:
+        hand = self.hand
+        # Buying == True AND Selling == True
+        hand._set_buying(True)
+        hand._set_selling(True)
+        self.assertTrue(hand.is_trading())
+        # Buying == True AND Selling == False
+        hand._set_buying(True)
+        hand._set_selling(False)
+        self.assertTrue(hand.is_trading())
+        # Buying == False AND Selling == True
+        hand._set_buying(False)
+        hand._set_selling(True)
+        self.assertTrue(hand.is_trading())
+        # Buying == False AND Selling == False
+        hand._set_buying(False)
+        hand._set_selling(False)
+        self.assertFalse(hand.is_trading())
+
+    def test_is_buying_is_selling(self) -> None:
+        hand = self.hand
+        # Initial
+        self.assertFalse(hand.is_buying())
+        self.assertFalse(hand.is_selling())
+        # Set
+        # ––– Buying
+        hand._set_buying(True)
+        self.assertTrue(hand.is_buying())
+        hand._set_buying(False)
+        self.assertFalse(hand.is_buying())
+        # ––– Selling
+        hand._set_selling(True)
+        self.assertTrue(hand.is_selling())
+        hand._set_selling(False)
+        self.assertFalse(hand.is_selling())
+        # Wrong type
+        with self.assertRaises(TypeError):
+            hand._set_buying('wrong_type')
+        with self.assertRaises(TypeError):
+            hand._set_selling('wrong_type')
+
     def test_get_add_remove_positions(self) -> None:
         hand = self.hand
         hand_trade1 = self.hand_trade1
@@ -491,6 +532,7 @@ class TestHand(unittest.TestCase, Hand):
         # Buy position
         position_capital1 = hand._position_capital()
         hand.buy(pair1, Order.TYPE_MARKET)
+        position1 = hand.get_position(pair1)
         exp1 = capital - position_capital1
         result1 = hand.get_wallet().buy_capital()
         self.assertIsInstance(hand.get_position(pair1), HandTrade)
@@ -501,11 +543,14 @@ class TestHand(unittest.TestCase, Hand):
         hand.sell(pair1, Order.TYPE_MARKET)
         exp2 = capital
         result2 = hand.get_wallet().buy_capital()
-        self.assertIsInstance(hand.get_position(pair1), HandTrade)
         self.assertEqual(round(exp2.get_value(), 0), round(result2.get_value(), 0))
-        self.assertTrue(hand.get_position(pair1).is_closed())
+        exp2_2 = position1
+        result2_2 = hand.get_closed_positions()[-1]
+        self.assertEqual(exp2_2, result2_2)
+        self.assertIsInstance(result2_2, HandTrade)
+        self.assertTrue(result2_2.is_closed())
         # ••• Don't holds position to sell
-        hand._move_closed_position(pair1)
+        # hand._move_closed_position(pair1)
         with self.assertRaises(Exception):
             hand.sell(pair1, Order.TYPE_MARKET)
         # ••• The sell Order is already set

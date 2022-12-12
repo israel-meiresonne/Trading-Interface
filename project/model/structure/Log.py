@@ -175,6 +175,7 @@ class Log(ModelInterface, _MF):
 
     def stop_hand(self, hand_id: str) -> None:
         hand = self._get_hand(hand_id)
+        hand.reset_trading()
         hand.set_stalk_on(on=False)
         hand.set_position_on(on=False)
         hand.set_market_analyse_on(on=False)
