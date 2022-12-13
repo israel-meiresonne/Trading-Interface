@@ -34,9 +34,9 @@ class Hand(MyJson):
     _STALK_FUNCTIONS =          None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
-        Broker.PERIOD_5MIN,
-        Broker.PERIOD_15MIN,
-        Broker.PERIOD_1H,
+        # Broker.PERIOD_5MIN,
+        # Broker.PERIOD_15MIN,
+        # Broker.PERIOD_1H,
         ]
 
     def __init__(self, capital: Price, broker_class: Callable) -> None:
