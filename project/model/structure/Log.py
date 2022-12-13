@@ -168,9 +168,9 @@ class Log(ModelInterface, _MF):
         broker = Broker.retrieve(broker_class, broker_params)
         hand.set_broker(broker)
         hand.add_streams()
-        hand.set_stalk_on(on=True)
+        # hand.set_stalk_on(on=True)
         hand.set_position_on(on=True)
-        hand.set_market_analyse_on(on=True)
+        # hand.set_market_analyse_on(on=True)
         hand.backup()
 
     def stop_hand(self, hand_id: str) -> None:
@@ -244,7 +244,7 @@ class Log(ModelInterface, _MF):
         elif attribut == Map.pair:
             value = hand.get_broker_pairs()
         elif attribut == Map.start:
-            value = hand.is_broker_set() and hand.is_position_on() and hand.is_stalk_on()
+            value = hand.is_broker_set() # and hand.is_position_on() and hand.is_stalk_on()
         elif attribut == Map.maximum:
             value = hand.get_max_position()
         elif attribut == Map.algo:
