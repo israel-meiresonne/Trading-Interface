@@ -179,7 +179,7 @@ class Log(ModelInterface, _MF):
         hand.set_stalk_on(on=False)
         hand.set_position_on(on=False)
         hand.set_market_analyse_on(on=False)
-        hand.backup()
+        hand.backup(force=True)
 
     def stop_hands(self) -> None:
         hands = self._get_hands()
@@ -220,6 +220,7 @@ class Log(ModelInterface, _MF):
             hand.set_market_analyse_on(value)
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
+        hand.backup()
 
     def get_hand_attribut(self, hand_id: str, attribut: str, **kwargs) -> Any:
         value = None
