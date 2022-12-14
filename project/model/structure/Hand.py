@@ -32,6 +32,7 @@ class Hand(MyJson):
     _SLEEP_MARKET_ANALYSE =     60
     _N_PERIOD =                 300
     _STALK_FUNCTIONS =          None
+    _INTERVAL_BACKUP =          60*15
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
         # Broker.PERIOD_5MIN,
@@ -61,6 +62,7 @@ class Hand(MyJson):
         self.__market_analyse_on =      False
         self.__thread_market_analyse =  None
         self.__backup =                 None
+        self.__backup_time =            None
         self._set_id()
         self._set_settime()
         self._set_wallet(capital)
@@ -667,6 +669,25 @@ class Hand(MyJson):
 
     def _get_backup(self) -> str:
         return self.__backup
+
+    def _set_backup_time(self, backup_time: int = None) -> None:
+        if (backup_time is not None) and (not _MF.is_millisecond(backup_time)):
+            raise ValueError(f"The backup time mest be in millisecond, instead '{backup_time}'")
+        self.__backup_time = _MF.get_timestamp(_MF.TIME_MILLISEC) if backup_time is None else backup_time
+
+    def get_backup_time(self) -> int:
+        """
+        To get time of the last backup (in millisecond)
+
+        Returns:
+        --------
+        returns: int
+
+        """
+        backup_time = self.__backup_time
+        if backup_time is None:
+            self.__backup_time = backup_time = 0
+        return backup_time
 
     def _get_stalk_functions(self) -> List[Callable]:
         if Hand._STALK_FUNCTIONS is None:
@@ -1637,18 +1658,37 @@ class Hand(MyJson):
                 attributes[attribute] = None
             if isinstance(value, Map) and (len(value.get_map()) > 0) and isinstance(value.get(value.get_keys()[-1]), Orders):
                 attributes[attribute] = None
-            if Map.backup in attribute:
+            if _MF.regex_match(f'.*{Map.backup}$',  attribute):
                 attributes[attribute] = None
         return attributes
 
     def backup(self, force: bool = False) -> None:
-        backup = self._get_backup()
-        json_str = self.json_encode()
-        if force or (backup != json_str):
-            hand_id = self.get_id()
-            hand_file_path = self.get_path_file_backup(hand_id)
-            FileManager.write(hand_file_path, json_str, overwrite=True, make_dir=True)
-            self._set_backup(json_str)
+        """
+        To backup Hand
+        NOTE: Hand is backed up every interval specified by Hand._INTERVAL_BACKUP
+
+        Parameters:
+        -----------
+        force: bool = False
+            Set True to force backup despite the backup interval else False
+        """
+        def is_backup_time() -> bool:
+            backup_interval = self._INTERVAL_BACKUP*1000
+            last_backup_time = self.get_backup_time()
+            round_last_backup_time = _MF.round_time(last_backup_time, backup_interval)
+            next_backup_time = round_last_backup_time + backup_interval
+            now_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
+            return now_time >= next_backup_time
+        if force or is_backup_time():
+            backup = self._get_backup()
+            json_str = self.json_encode()
+            if backup != json_str:
+                self._set_backup_time()
+                json_str = self.json_encode()
+                hand_id = self.get_id()
+                hand_file_path = self.get_path_file_backup(hand_id)
+                FileManager.write(hand_file_path, json_str, overwrite=True, make_dir=True)
+                self._set_backup(json_str)
 
     # ••• FUNCTION SELF OTHERS UP
     # ——————————————————————————————————————————— FUNCTION SELF UP ————————————————————————————————————————————————————
