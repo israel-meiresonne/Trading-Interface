@@ -17,32 +17,33 @@ from model.tools.WebSocket import WebSocket
 class BinanceSocket(BinanceAPI):
     _DEBUG = True
     _VERBOSE = False
-    _NB_INSTANCE = None
+    _NB_INSTANCE =                          None
     # API CONSTRAINTS
-    _REGEX_STREAM = r'^[\w]+@kline_\d{1,2}[dhmMw]$'
-    _FORMAT_STREAM = f'${Map.symbol}@kline_${Map.interval}'
-    _WEBSOCKET_MAX_STREAM = 1024
-    _URL_BASE = 'wss://stream.binance.com:9443'
-    _URL_PATH_SINGLE_STREAM = '/ws/'
-    _URL_PATH_MULTIPLE_STREAM = '/stream?streams='
-    _URL_STREAM_SEPARATOR = '/'
+    _REGEX_STREAM =                         r'^[\w]+@kline_\d{1,2}[dhmMw]$'
+    _FORMAT_STREAM =                        f'${Map.symbol}@kline_${Map.interval}'
+    _WEBSOCKET_MAX_STREAM =                 1024
+    _URL_BASE =                             'wss://stream.binance.com:9443'
+    _URL_PATH_SINGLE_STREAM =               '/ws/'
+    _URL_PATH_MULTIPLE_STREAM =             '/stream?streams='
+    _URL_STREAM_SEPARATOR =                 '/'
     # Class CONSTRAINTS
-    _MARKET_RESET_INTEVAL = 60 * 30
-    _RESTART_INTERVAL_RUN_MANAGER = 60
-    _THREAD_NAME_UPDATE_MARKET = 'market_update_manager'
-    _THREAD_NAME_RUN_MANGER = 'run_manager'
-    _THREAD_NAME_RUN_ADD_STREAM = 'run_add_stream'
-    _THREAD_NAME_WEBSOCKET_MANGER = 'websocket_manager'
-    _THREAD_NAME_WEBSOCKET_EVENT_HANDLER = 'websocket_event_handler'
-    _THREAD_NAME_WEBSOCKET_EVENT_WAITING = 'websocket_event_waiting'
-    _TIMEOUT_RUN_WEBSOCKET = 10
-    _TIMEOUT_CLOSE_WEBSOCKET = 10
-    _SLEEP_WAIT_NEW_MESSAGE = 1
-    _SLEEP_WAIT_EVENT_POST = 0.001
-    _SLEEP_WAIT_MARKET_POST = 0.1
-    _SLEEP_RUN_WEBSOCKET = 1
-    _SLEEP_MANAGER_RUN_WEBSOCKET = 1
-    _SLEEP_MANAGER_LOOP = 1
+    _MARKET_RESET_INTEVAL =                 60 * 30
+    _MARKET_BACK_CHECK_INTERVAL =           60 * 60
+    _RESTART_INTERVAL_RUN_MANAGER =         60
+    _THREAD_NAME_UPDATE_MARKET =            'market_update_manager'
+    _THREAD_NAME_RUN_MANGER =               'run_manager'
+    _THREAD_NAME_RUN_ADD_STREAM =           'run_add_stream'
+    _THREAD_NAME_WEBSOCKET_MANGER =         'websocket_manager'
+    _THREAD_NAME_WEBSOCKET_EVENT_HANDLER =  'websocket_event_handler'
+    _THREAD_NAME_WEBSOCKET_EVENT_WAITING =  'websocket_event_waiting'
+    _TIMEOUT_RUN_WEBSOCKET =                10
+    _TIMEOUT_CLOSE_WEBSOCKET =              10
+    _SLEEP_WAIT_NEW_MESSAGE =               1
+    _SLEEP_WAIT_EVENT_POST =                0.001
+    _SLEEP_WAIT_MARKET_POST =               0.1
+    _SLEEP_RUN_WEBSOCKET =                  1
+    _SLEEP_MANAGER_RUN_WEBSOCKET =          1
+    _SLEEP_MANAGER_LOOP =                   1
 
     def __init__(self, streams: list):
         if BinanceSocket._NB_INSTANCE is not None:
@@ -729,7 +730,8 @@ class BinanceSocket(BinanceAPI):
                 new_row = build_new_row(pay_load)
                 market_hists = self._get_market_histories()
                 market_hist = market_hists.get(stream)
-                if (not is_market_history_correct(stream, new_row, market_hist)) or self._can_update_market_history(stream):
+                # if (not is_market_history_correct(stream, new_row, market_hist)) or self._can_update_market_history(stream):
+                if not is_market_history_correct(stream, new_row, market_hist):
                     self._update_market_history(stream) if (stream not in self._get_room_market_update().get_tickets()) else None
                 else:
                     print(_MF.prefix() + compare_time()) if BinanceSocket._VERBOSE else None
@@ -1146,6 +1148,18 @@ class BinanceSocket(BinanceAPI):
         return BinanceSocket._MARKET_RESET_INTEVAL
 
     @staticmethod
+    def get_market_back_check_interval() -> int:
+        """
+        To get back time interval from current time to check market history (in second)
+
+        Returns:
+        --------
+        return: int
+            Back time interval from current time to check market history (in second)
+        """
+        return BinanceSocket._MARKET_BACK_CHECK_INTERVAL
+
+    @staticmethod
     def get_format_stream() -> str:
         return BinanceSocket._FORMAT_STREAM
 
@@ -1453,10 +1467,10 @@ class BinanceSocket(BinanceAPI):
             True if interval between each open time are constant else False
         """
         open_times_constant = True
-        reset_interval = cls.get_market_reset_interval()
+        back_check_interval = cls.get_market_back_check_interval()
         _, period_str = cls.split_stream(stream)
         period = cls.get_interval(period_str)
-        n_period = int(reset_interval/period) + 1
+        n_period = int(back_check_interval/period) + 2
         if n_period >= 2:
             period_milli = period * 1000
             open_times = market_history[-n_period:,0]
@@ -1467,7 +1481,7 @@ class BinanceSocket(BinanceAPI):
     @classmethod
     def is_new_open_time_correct(cls, stream: str, new_row: np.ndarray, market_history: np.ndarray) -> bool:
         """
-        To check if the new open time if equal or is the next period of market history's most recent open time
+        To check if the new open time is equal or is the next period of market history's most recent open time
 
         Parameters:
         -----------
