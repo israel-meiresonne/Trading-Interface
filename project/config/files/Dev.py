@@ -18,13 +18,13 @@ class Dev:
     DIR_ANALYSES =  'content/sessions/analyse/'
     DIR_ACTUAL_SESSION = f'{DIR_SESSIONS}{SESSION_ID}/'
     DIR_SAVE_DATAS = f'{DIR_ACTUAL_SESSION}datas/active/{SESSION_ID}/'
-    FILE_OUTPUT = f'{DIR_ACTUAL_SESSION}outs/{START_DATE}_output.txt'
     # View
     DIR_VIEW = f'{DIR_ACTUAL_SESSION}view/'
     DIR_VIEW_HAND = f'{DIR_VIEW}Hand/'
     FILE_VIEW_HAND_STALK = f'{DIR_VIEW_HAND}trade/{SESSION_ID}_stalk_view.csv'
     FILE_VIEW_HAND_POSITION = f'{DIR_VIEW_HAND}trade/{SESSION_ID}_position_view.csv'
     FILE_VIEW_HAND_MARKET_TREND = f'{DIR_VIEW_HAND}analyse/$period/{SESSION_ID}_$period_market_trend_view.csv'
+    FILE_MODEL_OUTPUT = f'{DIR_VIEW}model/{START_DATE}_model_output.txt'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_SESSION_CONFIG = f'{DIR_ACTUAL_SESSION}session.conf'
@@ -91,7 +91,7 @@ class Dev:
             New word to replace old occurences
         """
         Dev.SESSION_ID =                    Dev.SESSION_ID.replace(old, new)
-        Dev.FILE_OUTPUT =                   Dev.FILE_OUTPUT.replace(old, new, 1)
+        Dev.FILE_MODEL_OUTPUT =             Dev.FILE_MODEL_OUTPUT.replace(old, new, 1)
         Dev.DIR_SAVE_DATAS =                Dev.DIR_SAVE_DATAS.replace(old, new)
         Dev.DIR_ACTUAL_SESSION =            Dev.DIR_ACTUAL_SESSION.replace(old, new)
         Dev.FILE_FAKE_API_ORDERS =          Dev.FILE_FAKE_API_ORDERS.replace(old, new)
