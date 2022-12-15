@@ -27,6 +27,7 @@ class Dev:
     FILE_VIEW_HAND_MARKET_TREND = f'{DIR_VIEW_HAND}analyse/$period/{SESSION_ID}_$period_market_trend_view.csv'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
+    FILE_SESSION_CONFIG = f'{DIR_ACTUAL_SESSION}session.conf'
     FILE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/orders/{SESSION_ID}_orders.json'
     DIR_BEGIN_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_a_a————————————————————.csv'
     DIR_SAVE_BOT_ERRORS = f'{DIR_SAVE_DATAS}{SESSION_ID}_b_bot_error.csv'
@@ -117,3 +118,4 @@ class Dev:
         Dev.FILE_SAVE_HAND =                Dev.FILE_SAVE_HAND.replace(old, new)
         Dev.FILE_VIEW_HAND_MARKET_TREND =   Dev.FILE_VIEW_HAND_MARKET_TREND.replace(old, new)
         Dev.FILE_SAVE_BOT =                 Dev.FILE_SAVE_BOT.replace(old, new)
+        Dev.FILE_SESSION_CONFIG =           Dev.FILE_SESSION_CONFIG.replace(old, new)

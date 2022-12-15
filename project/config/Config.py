@@ -19,7 +19,7 @@ class Config(ABC):
     STAGE_3 = "STAGE_3"
     # Files
     DIR_HISTORIC_BNB = "DIR_HISTORIC_BNB"
-    # FILE_NAME_BOT_BACKUP = 'FILE_NAME_BOT_BACKUP'
+    FILE_SESSION_CONFIG = "FILE_SESSION_CONFIG"
     FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE = 'FILE_EXECUTABLE_MYJSON_JSON_INSTANTIATE'
     FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE = 'FILE_EXECUTABLE_MYJSON_TEST_JSON_ENCODE_DECODE'
     FILE_FAKE_API_ORDERS = 'FILE_FAKE_API_ORDERS'
@@ -146,9 +146,9 @@ class Config(ABC):
         To append git branch's name in session's id
         """
         from model.structure.database.ModelFeature import ModelFeature as _MF
-        command = "git branch | egrep '^\*'"
-        output = _MF.exec_console(command)
-        branch_name = output.replace("* ", "").replace("\n", "")
+        command = "git branch | grep '*' | awk -F ' ' '{print $NF}' | sed 's#)##'"
+        branch_name = _MF.shell(command)
+        branch_name = branch_name.replace("\n", "")
         session_id = Config.get(Config.SESSION_ID)
         new_session_id = f"{session_id}_{branch_name}"
         Config.update_session_id(new_session_id)
