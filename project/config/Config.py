@@ -12,6 +12,7 @@ class Config(ABC):
     __ENV_DEV = "Dev"
     __ENV_PROD = "Prod"
     _FILES_DIR = "config/files"
+    ID_TOKE = "ID_TOKE"
     # Stages
     STAGE_MODE = "STAGE_MODE"
     STAGE_1 = "STAGE_1"
@@ -29,6 +30,7 @@ class Config(ABC):
     FILE_SAVE_HAND = "FILE_SAVE_HAND"
     FILE_VIEW_HAND_MARKET_TREND = "FILE_VIEW_HAND_MARKET_TREND"
     FILE_SAVE_BOT = "FILE_SAVE_BOT"
+    FILE_VIEW_OUTPUT = "FILE_VIEW_OUTPUT"
     # Configuration
     DIR_BROKERS = "DIR_BROKERS"
     DIR_STRATEGIES = "DIR_STRATEGIES"
@@ -141,7 +143,8 @@ class Config(ABC):
             raise Exception(message.format("' or '".join(expected_stages), stage))
         return True
 
-    def label_session_id() -> str:
+    @classmethod
+    def label_session_id(cls) -> str:
         """
         To append git branch's name in session's id
         """
@@ -149,6 +152,8 @@ class Config(ABC):
         command = "git branch | grep '*' | awk -F ' ' '{print $NF}' | sed 's#)##'"
         branch_name = _MF.shell(command)
         branch_name = branch_name.replace("\n", "")
-        session_id = Config.get(Config.SESSION_ID)
+        session_id = cls.get(cls.SESSION_ID)
+        token = cls.get(cls.ID_TOKE)
+        session_id = session_id.replace(token, "")
         new_session_id = f"{session_id}_{branch_name}"
         Config.update_session_id(new_session_id)

@@ -1,12 +1,15 @@
 import getpass
 from typing import Any, List
+from config.Config import Config
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.FileManager import FileManager
 
 
 class View:
     SEPARATOR =         "——————————————————————————————"
     REGEX_RICH =        r'^\\033\[([0-4]|(3|4|9|10)[0-7]){1}m'
+    RECORD_OUTPUT =     False
     # Styles
     S_NORMAL =          '\033[0m'
     S_BOLD =            '\033[1m'
@@ -79,9 +82,9 @@ class View:
         prefix = (lambda : "") if is_message_none else (lambda : self.prefix())
         input_sufix = f'{self.C_MAGENTA}>>>{self.S_NORMAL} '
         if secure:
-            entry = getpass.getpass(self.prefix() + message + prefix() + input_sufix)
+            entry = self._input(self.prefix() + message + prefix() + input_sufix, secure)
         else:
-            entry = input(self.prefix() + message + prefix() + input_sufix)
+            entry = self._input(self.prefix() + message + prefix() + input_sufix)
         if (not secure) and (type_func is not None):
             converted = False
             while not converted:
@@ -90,7 +93,7 @@ class View:
                     converted = True
                 except Exception as e:
                     self.output(f"Can't convert entry '{entry}' into type '{type_func}'", is_error=True)
-                    entry = input(self.prefix() + input_sufix)
+                    entry = self._input(self.prefix() + input_sufix)
         return entry
 
     def menu(self, message: str, options: list) -> int:
@@ -149,20 +152,37 @@ class View:
                 if rich not in self.STYLES:
                     raise ValueError(f"This style '{rich}' is not supported")
             style = ''.join(richs)
-            self.print(style + out + self.S_NORMAL)
+            self._print(style + out + self.S_NORMAL)
             return None
         if is_success:
-            self.print(self.C_GREEN + out + self.S_NORMAL)
+            self._print(self.C_GREEN + out + self.S_NORMAL)
             return None
         if is_error:
-            self.print(self.C_LIGHT_RED + out + self.S_NORMAL)
+            self._print(self.C_LIGHT_RED + out + self.S_NORMAL)
             return None
-        self.print(out)
+        self._print(out)
 
     @classmethod
     def prefix(cls) -> str:
         return cls.S_ITALIC + _MF.prefix() + cls.S_NORMAL
 
     @classmethod
-    def print(cls, output: str) -> str:
-        print(cls.prefix() + output)
+    def _input(cls, message: str, secure: bool = False) -> str:
+        entry = secret = ""
+        if secure:
+            secret = getpass.getpass(message)
+        else:
+            entry = input(message)
+        cls._record_ouput(message + entry) if cls.RECORD_OUTPUT else None
+        return entry + secret
+
+    @classmethod
+    def _print(cls, output: str) -> str:
+        output = cls.prefix() + output
+        cls._record_ouput(output) if cls.RECORD_OUTPUT else None
+        print(output)
+
+    @classmethod
+    def _record_ouput(cls, output: str) -> None:
+        file_path = Config.get(Config.FILE_VIEW_OUTPUT)
+        FileManager.write(file_path, output, overwrite=False, make_dir=True)

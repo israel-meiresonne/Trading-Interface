@@ -2,9 +2,10 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 
 
 class Dev:
+    ID_TOKE = "@"
     # Variables
     START_DATE = _MF.unix_to_date(_MF.get_timestamp(), form=_MF.FORMAT_D_H_M_S_FOR_FILE)
-    SESSION_ID = START_DATE
+    SESSION_ID = ID_TOKE + START_DATE + ID_TOKE
     # Stage Modes
     STAGE_MODE = None
     # Static Files
@@ -25,6 +26,7 @@ class Dev:
     FILE_VIEW_HAND_POSITION = f'{DIR_VIEW_HAND}trade/{SESSION_ID}_position_view.csv'
     FILE_VIEW_HAND_MARKET_TREND = f'{DIR_VIEW_HAND}analyse/$period/{SESSION_ID}_$period_market_trend_view.csv'
     FILE_MODEL_OUTPUT = f'{DIR_VIEW}model/{START_DATE}_model_output.txt'
+    FILE_VIEW_OUTPUT = f'{DIR_VIEW}view/{START_DATE}_view_output.txt'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     FILE_SESSION_CONFIG = f'{DIR_ACTUAL_SESSION}session.conf'
@@ -92,6 +94,7 @@ class Dev:
         """
         Dev.SESSION_ID =                    Dev.SESSION_ID.replace(old, new)
         Dev.FILE_MODEL_OUTPUT =             Dev.FILE_MODEL_OUTPUT.replace(old, new, 1)
+        Dev.FILE_VIEW_OUTPUT =              Dev.FILE_VIEW_OUTPUT.replace(old, new)
         Dev.DIR_SAVE_DATAS =                Dev.DIR_SAVE_DATAS.replace(old, new)
         Dev.DIR_ACTUAL_SESSION =            Dev.DIR_ACTUAL_SESSION.replace(old, new)
         Dev.FILE_FAKE_API_ORDERS =          Dev.FILE_FAKE_API_ORDERS.replace(old, new)
