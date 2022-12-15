@@ -33,5 +33,5 @@ project/env/
 project/dev_env/
 project/env*/
 project/trash/
-# project/draft.py
+project/draft.py
 project/start_*

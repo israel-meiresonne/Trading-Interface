@@ -1366,7 +1366,7 @@ class Draft(Order, Hand):
         Config.update(Config.STAGE_MODE, stage)
 
     @classmethod
-    def draft(cls) -> None:
+    def print_analyse(cls) -> None:
         # BinanceSocket._DEBUG = False
         project_dir = FileManager.get_project_directory()
         trade_file_path = 'content/sessions/analyse/Icarus/2022-08-27_19.00.58_Icarus-v13.5.1/analyse/orders/2022-08-27_19.00.58_Icarus-v13.5.1_completed_trades.csv'
@@ -1402,10 +1402,13 @@ class Draft(Order, Hand):
                                   fields, rows, overwrite=True, make_dir=True)
 
     @classmethod
-    def test(cls) -> None:
+    def draft(cls) -> None:
         view = Draft.get_view()
-        var1='hello world'
-        view.output(var1, richs=[View.C_BLUE])
+        # var1='hello world'
+        cmd = 'commit=$(git log --oneline | head -n 1) ; commit_id=$(echo "$commit" | cut -d " " -f 1) ; commit_m=$(echo "$commit" | sed "s#$commit_id *##") ; branch=$(git branch | grep "*" | awk -F " " "{print \$NF}" | sed "s#)##") ; echo "Branch:\t\t$branch\nID:\t\t$commit_id\nMessage:\t$commit_m"'
+        branch = _MF.shell(cmd)
+        view.output(branch, richs=[View.C_BLUE])
+        view.output(_MF.shell('git log --oneline | head -n 1'), richs=[View.C_BLUE])
 
     @classmethod
     def main(cls) -> None:
@@ -1420,8 +1423,7 @@ class Draft(Order, Hand):
             cls.extract_stage2_metrics,
             cls.extract_stage2_rated_metrics,
             cls.listen_market,
-            cls.push_trade_in_hand,
-            cls.test
+            cls.push_trade_in_hand
         ]
         executions = {func.__name__.__str__(): func for func in funcs}
         executions_list = list(executions.keys())
