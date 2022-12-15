@@ -1,6 +1,8 @@
 import getpass
 from typing import Any, List
 
+from model.structure.database.ModelFeature import ModelFeature as _MF
+
 
 class View:
     SEPARATOR =         "——————————————————————————————"
@@ -72,12 +74,14 @@ class View:
         return: Any
             The input typed
         """
-        message = message + "\n" if message is not None else ""
+        is_message_none = message is None
+        message = "" if is_message_none else message + "\n"
+        prefix = (lambda : "") if is_message_none else (lambda : self.prefix())
         input_sufix = f'{self.C_MAGENTA}>>>{self.S_NORMAL} '
         if secure:
-            entry = getpass.getpass(message + input_sufix)
+            entry = getpass.getpass(self.prefix() + message + prefix() + input_sufix)
         else:
-            entry = input(message + input_sufix)
+            entry = input(self.prefix() + message + prefix() + input_sufix)
         if (not secure) and (type_func is not None):
             converted = False
             while not converted:
@@ -86,7 +90,7 @@ class View:
                     converted = True
                 except Exception as e:
                     self.output(f"Can't convert entry '{entry}' into type '{type_func}'", is_error=True)
-                    entry = input(input_sufix)
+                    entry = input(self.prefix() + input_sufix)
         return entry
 
     def menu(self, message: str, options: list) -> int:
@@ -145,13 +149,20 @@ class View:
                 if rich not in self.STYLES:
                     raise ValueError(f"This style '{rich}' is not supported")
             style = ''.join(richs)
-            print(style + out + self.S_NORMAL)
+            self.print(style + out + self.S_NORMAL)
             return None
         if is_success:
-            print(self.C_GREEN + out + self.S_NORMAL)
+            self.print(self.C_GREEN + out + self.S_NORMAL)
             return None
         if is_error:
-            print(self.C_LIGHT_RED + out + self.S_NORMAL)
+            self.print(self.C_LIGHT_RED + out + self.S_NORMAL)
             return None
-        print(out)
+        self.print(out)
 
+    @classmethod
+    def prefix(cls) -> str:
+        return cls.S_ITALIC + _MF.prefix() + cls.S_NORMAL
+
+    @classmethod
+    def print(cls, output: str) -> str:
+        print(cls.prefix() + output)
