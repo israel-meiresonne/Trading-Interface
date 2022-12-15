@@ -172,6 +172,7 @@ class Controller:
         """
         Config.label_session_id()
         self._set_session()
+        View.RECORD_OUTPUT = True
         self._set_stage()
         FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}], make_dir=True)
         FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}], make_dir=True)
