@@ -860,9 +860,9 @@ class ModelFeature(ModelAccess):
         return groups
 
     @staticmethod
-    def exec_console(command: str) -> str:
+    def shell(command: str) -> str:
         """
-        To execute console command
+        To execute a coammand in CLI
 
         Parameters:
         -----------
@@ -872,9 +872,8 @@ class ModelFeature(ModelAccess):
         Returns:
         --------
         command: str
-            Executed command's output
+            CLI's output
         """
-        command = "git branch | egrep '^\*'"
         output = subprocess.check_output(command, shell=True).decode("utf-8")
         return output
 
