@@ -32,7 +32,7 @@ class BinanceAPI(ABC):
     RQ_24H_STATISTICS = "RQ_24H_STATISTICS"
     # Requests Infos (not VIP)
     RQ_KLINES = "RQ_KLINES"
-    # Orders
+    # Orders (VIP)
     RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
     RQ_ALL_TRADES = "RQ_ALL_TRADES"
     RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
@@ -50,7 +50,18 @@ class BinanceAPI(ABC):
         RQ_EXCHANGE_INFOS, 
         RQ_ACCOUNT_SNAP,
         RQ_TRADE_FEE,
-        RQ_24H_STATISTICS
+        RQ_24H_STATISTICS,
+        RQ_ALL_ORDERS,
+        RQ_ALL_TRADES,
+        RQ_CANCEL_ORDER,
+        RQ_ORDER_LIMIT,
+        RQ_ORDER_MARKET_qty,
+        RQ_ORDER_MARKET_amount,
+        RQ_ORDER_STOP_LOSS,
+        RQ_ORDER_STOP_LOSS_LIMIT,
+        RQ_ORDER_TAKE_PROFIT,
+        RQ_ORDER_TAKE_PROFIT_LIMIT,
+        RQ_ORDER_LIMIT_MAKER
         ]
     # Configs
     __PATH_ORDER = None
