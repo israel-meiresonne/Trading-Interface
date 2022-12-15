@@ -756,7 +756,7 @@ class ModelFeature(ModelAccess):
         if not ModelFeature.OUTPUT:
             from config.Config import Config
             from model.tools.FileManager import FileManager
-            path = Config.get(Config.FILE_OUTPUT)
+            path = Config.get(Config.FILE_MODEL_OUTPUT)
             FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
         else:
             print(text)
