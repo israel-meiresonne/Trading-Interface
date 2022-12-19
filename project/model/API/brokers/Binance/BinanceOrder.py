@@ -202,7 +202,7 @@ class BinanceOrder(Order):
         from model.tools.Orders import Orders
         self._set_response(rsp)
         status_code = rsp.get_status_code()
-        if status_code != 200:
+        if status_code != BrokerResponse.STATUS_CODE_SUCCESS:
             self._set_status(Order.STATUS_FAILED)
         else:
             self._update_order(rsp)

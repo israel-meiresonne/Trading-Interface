@@ -39,6 +39,12 @@ class TestHand(unittest.TestCase, Hand):
         self.buy_order2, self.buy_order_params2 = self.new_buy_order(pair2, buy_amount2)
         buy_order2 = self.buy_order2
         self.hand_trade2 = HandTrade(buy_order2, hand.condition_true, hand.condition_true)
+        # HandTrade3
+        self.pair3 = pair3 = Pair(Asset('ETH'), pair1.get_right())
+        self.buy_amount3 = buy_amount3 = Price(100, pair3.get_right())
+        self.buy_order3, self.buy_order_params3 = self.new_buy_order(pair3, buy_amount3)
+        buy_order3 = self.buy_order3
+        self.hand_trade3 = HandTrade(buy_order3, hand.condition_true, hand.condition_true)
 
     def tearDown(self) -> None:
         self.broker_switch(False)
@@ -89,6 +95,13 @@ class TestHand(unittest.TestCase, Hand):
         sell_order = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, sell_order_params)
         return sell_order, sell_order_params
 
+    def new_failed_orders(self, pair1: Pair, pair2: Pair) -> Tuple[Order, Order]:
+        buy_order, _ = self.new_buy_order(pair1, Price(10, pair1.get_right()))
+        buy_order._set_status(HandTrade.FAIL_STATUS[0])
+        sell_order, _ = self.new_sell_order(pair2, Price(100, pair2.get_left()))
+        sell_order._set_status(HandTrade.FAIL_STATUS[1])
+        return buy_order, sell_order
+
     def execute_order(self, order: Order) -> None:
         move = order.get_move()
         exec_coef = 10 if (move == Order.MOVE_BUY) else 3
@@ -102,22 +115,25 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(ValueError):
             Hand(self.capital, 'not_callable')
 
-    def test_set_get_reset_broker(self) -> None:
+    def test_is_set_get_reset_broker(self) -> None:
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
         hand = self.hand
         # Get
         # ••• Not set
         with self.assertRaises(Exception):
             hand.get_broker()
+        self.assertFalse(hand.is_broker_set())
         # ••• Set
         hand.set_broker(broker)
         exp2 = broker
         result2 = hand.get_broker()
         self.assertEqual(exp2, result2)
+        self.assertTrue(hand.is_broker_set())
         # ••• Reset
         hand.reset_broker()
         with self.assertRaises(Exception):
             hand.get_broker()
+        self.assertFalse(hand.is_broker_set())
         # broker is wrong type
         with self.assertRaises(TypeError):
             hand.set_broker('no_broker')
@@ -175,6 +191,47 @@ class TestHand(unittest.TestCase, Hand):
         # End
         self.broker_switch(on=False, stage=Config.STAGE_2)
 
+    def test_is_trading(self) -> None:
+        hand = self.hand
+        # Buying == True AND Selling == True
+        hand._set_buying(True)
+        hand._set_selling(True)
+        self.assertTrue(hand.is_trading())
+        # Buying == True AND Selling == False
+        hand._set_buying(True)
+        hand._set_selling(False)
+        self.assertTrue(hand.is_trading())
+        # Buying == False AND Selling == True
+        hand._set_buying(False)
+        hand._set_selling(True)
+        self.assertTrue(hand.is_trading())
+        # Buying == False AND Selling == False
+        hand._set_buying(False)
+        hand._set_selling(False)
+        self.assertFalse(hand.is_trading())
+
+    def test_is_buying_is_selling(self) -> None:
+        hand = self.hand
+        # Initial
+        self.assertFalse(hand.is_buying())
+        self.assertFalse(hand.is_selling())
+        # Set
+        # ––– Buying
+        hand._set_buying(True)
+        self.assertTrue(hand.is_buying())
+        hand._set_buying(False)
+        self.assertFalse(hand.is_buying())
+        # ––– Selling
+        hand._set_selling(True)
+        self.assertTrue(hand.is_selling())
+        hand._set_selling(False)
+        self.assertFalse(hand.is_selling())
+        # Wrong type
+        with self.assertRaises(TypeError):
+            hand._set_buying('wrong_type')
+        with self.assertRaises(TypeError):
+            hand._set_selling('wrong_type')
+
     def test_get_add_remove_positions(self) -> None:
         hand = self.hand
         hand_trade1 = self.hand_trade1
@@ -202,6 +259,45 @@ class TestHand(unittest.TestCase, Hand):
         self.assertDictEqual(exp4, result4)
         with self.assertRaises(ValueError):
             hand._remove_position(hand_trade1.get_buy_order().get_pair())
+
+    def test_get_add_failed_orders(self) -> None:
+        hand = self.hand
+        pair1 = self.pair1
+        pair2 = self.pair2
+        # Collection is empty
+        exp1 = {}
+        result1 = hand._get_failed_orders()
+        self.assertDictEqual(exp1, result1)
+        # Collection is not empty
+        # ••• Check Collection
+        buy_order2, sell_order2 = self.new_failed_orders(pair1, pair2)
+        hand._add_failed_order(buy_order2)
+        hand._add_failed_order(sell_order2)
+        exp2 = {
+            buy_order2.get_id():    buy_order2,
+            sell_order2.get_id():   sell_order2
+            }
+        result2 = hand._get_failed_orders()
+        self.assertDictEqual(exp2, result2)
+        # ••• Get Order
+        exp2_1 = [buy_order2, sell_order2]
+        result2_1 = [
+            hand.get_failed_order(buy_order2.get_id()),
+            hand.get_failed_order(sell_order2.get_id())
+            ]
+        self.assertEqual(exp2_1, result2_1)
+        # Order don't exist
+        with self.assertRaises(ValueError):
+            hand.get_failed_order('fake_order_id')
+        # Object to add is not a Order
+        with self.assertRaises(TypeError):
+            hand._add_failed_order('fake_order')
+        # Order already exist
+        with self.assertRaises(ValueError):
+            hand._add_failed_order(buy_order2)
+        # Order don't holds a failed status
+        with self.assertRaises(Exception):
+            hand._add_failed_order('Exception')
 
     def test_get_add_mark_propositions(self) -> None:
         hand = self.hand
@@ -247,10 +343,10 @@ class TestHand(unittest.TestCase, Hand):
         pair1 = self.pair1
         hand_trade2 = self.hand_trade2
         pair2 = self.pair2
-        # Get closed positions
-        exp1 = []
-        result1 = hand.get_closed_positions()
-        self.assertListEqual(exp1, result1)
+        # Empty closed positions
+        exp1 = {}
+        result1 = hand._get_closed_positions()
+        self.assertDictEqual(exp1, result1)
         # Raise error
         with self.assertRaises(ValueError):
             hand._move_closed_position(pair1)
@@ -262,14 +358,22 @@ class TestHand(unittest.TestCase, Hand):
         sell_order1, sell_order_params = self.new_sell_order(pair1, Price(10, pair1.get_left()))
         hand_trade1.set_sell_order(sell_order1)
         hand_trade1.get_sell_order()._set_status(Order.STATUS_COMPLETED)
-        # ••• Test
+        # ••• Move
         hand._move_closed_position(pair1)
         exp2 = {pair2.__str__(): hand_trade2}
         result2 = hand.get_positions()
         self.assertEqual(exp2, result2)
-        exp2_2 = [hand_trade1]
-        result2_2 = hand.get_closed_positions()
+        exp2_2 = {hand_trade1.get_id(): hand_trade1}
+        result2_2 = hand._get_closed_positions()
         self.assertEqual(exp2_2, result2_2)
+        # Get closed position
+        # ––– Exist
+        exp3 = hand_trade1
+        result3 = hand.get_closed_position(hand_trade1.get_id())
+        self.assertEqual(exp3, result3)
+        # ––– Don't Exist
+        with self.assertRaises(ValueError):
+            hand.get_closed_position('wrong_id')
 
     def test_get_orders_map(self) -> None:
         hand = self.hand
@@ -332,6 +436,27 @@ class TestHand(unittest.TestCase, Hand):
         self.assertEqual(exp2_4, result2_4)
         self.assertIsInstance(result2_4_1, str)
         self.assertEqual(exp2_4_1, result2_4_1)
+
+    def test_set_get_backup_time(self) -> None:
+        hand = self.hand
+        # Get initial value
+        exp1 = 0
+        result1 = hand.get_backup_time()
+        self.assertEqual(exp1, result1)
+        # Set with no param
+        hand._set_backup_time()
+        result2 = hand.get_backup_time()
+        self.assertTrue(_MF.is_millisecond(result2))
+        # Set with param
+        exp3 = _MF.get_timestamp(_MF.TIME_MILLISEC)
+        hand._set_backup_time(exp3)
+        result3 = hand.get_backup_time()
+        self.assertEqual(exp3, result3)
+        # Wrong param
+        with self.assertRaises(ValueError):
+            hand._set_backup_time(_MF.get_timestamp())
+        with self.assertRaises(ValueError):
+            hand._set_backup_time('not_millisecond')
 
     def test_position_capital(self) -> None:
         capital = self.capital
@@ -425,64 +550,67 @@ class TestHand(unittest.TestCase, Hand):
     def test_buy_sell_cancel(self) -> None:
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
         period_1min = Broker.PERIOD_1MIN
-        hand = self.hand
+        hand1 = self.hand
         capital = self.capital
         pair1 = self.pair1
         pair2 = self.pair2
         r_asset = pair1.get_right()
-        hand.set_broker(broker)
+        hand1.set_broker(broker)
         streams = [broker.generate_stream(Map({Map.period: period_1min, Map.pair: pair})) for pair in [pair1, pair2]]
         broker.add_streams(streams)
         # Buy position
-        position_capital1 = hand._position_capital()
-        hand.buy(pair1, Order.TYPE_MARKET)
+        position_capital1 = hand1._position_capital()
+        hand1.buy(pair1, Order.TYPE_MARKET)
+        position1 = hand1.get_position(pair1)
         exp1 = capital - position_capital1
-        result1 = hand.get_wallet().buy_capital()
-        self.assertIsInstance(hand.get_position(pair1), HandTrade)
+        result1 = hand1.get_wallet().buy_capital()
+        self.assertIsInstance(hand1.get_position(pair1), HandTrade)
         self.assertEqual(round(exp1.get_value(), 0), round(result1.get_value(), 0))
-        self.assertTrue(hand.get_position(pair1).has_position())
+        self.assertTrue(hand1.get_position(pair1).has_position())
         # Sell position
         # ••• Holds position to sell
-        hand.sell(pair1, Order.TYPE_MARKET)
+        hand1.sell(pair1, Order.TYPE_MARKET)
         exp2 = capital
-        result2 = hand.get_wallet().buy_capital()
-        self.assertIsInstance(hand.get_position(pair1), HandTrade)
+        result2 = hand1.get_wallet().buy_capital()
         self.assertEqual(round(exp2.get_value(), 0), round(result2.get_value(), 0))
-        self.assertTrue(hand.get_position(pair1).is_closed())
+        exp2_2 = position1
+        result2_2 = hand1.get_closed_position(position1.get_id())
+        self.assertEqual(exp2_2, result2_2)
+        self.assertIsInstance(result2_2, HandTrade)
+        self.assertTrue(result2_2.is_closed())
         # ••• Don't holds position to sell
-        hand._move_closed_position(pair1)
         with self.assertRaises(Exception):
-            hand.sell(pair1, Order.TYPE_MARKET)
+            hand1.sell(pair1, Order.TYPE_MARKET)
         # ••• The sell Order is already set
-        hand.buy(pair1, Order.TYPE_MARKET)
-        hand.sell(pair1, Order.TYPE_STOP_LIMIT, stop=Price(10, r_asset), limit=Price(2, r_asset))
+        hand1.buy(pair1, Order.TYPE_MARKET)
+        hand1.sell(pair1, Order.TYPE_STOP_LIMIT, stop=Price(10, r_asset), limit=Price(2, r_asset))
         with self.assertRaises(Exception):
-            hand.sell(pair1, Order.TYPE_MARKET)
+            hand1.sell(pair1, Order.TYPE_MARKET)
         # Cancel
         self.setUp()
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
-        hand = self.hand
-        hand.set_broker(broker)
+        hand2 = self.hand
+        hand2.set_broker(broker)
         # ••• Cancel Buy
-        hand.buy(pair1, Order.TYPE_LIMIT, limit=Price(2, r_asset))
-        result3 = hand.get_position(pair1)
-        hand.cancel(pair1)
+        hand2.buy(pair1, Order.TYPE_LIMIT, limit=Price(2, r_asset))
+        result3 = hand2.get_position(pair1)
+        hand2.cancel(pair1)
         with self.assertRaises(ValueError):
-            hand.get_position(pair1)
+            hand2.get_position(pair1)
         self.assertEqual(Order.STATUS_CANCELED, result3.get_buy_order().get_status())
         # ••• Cancel Sell
-        hand.buy(pair2, Order.TYPE_MARKET)
-        hand.sell(pair2, Order.TYPE_STOP_LIMIT, stop=Price(10, r_asset), limit=Price(2, r_asset))
-        result3_2 = hand.get_position(pair2)
+        hand2.buy(pair2, Order.TYPE_MARKET)
+        hand2.sell(pair2, Order.TYPE_STOP_LIMIT, stop=Price(10, r_asset), limit=Price(2, r_asset))
+        result3_2 = hand2.get_position(pair2)
         sell_order3_2 = result3_2.get_sell_order()
-        hand.cancel(pair2)
+        hand2.cancel(pair2)
         self.assertIsNone(result3_2.get_sell_order())
         self.assertEqual(Order.STATUS_CANCELED, sell_order3_2.get_status())
         self.assertTrue(result3_2.has_position())
         # Wrong pair
         wrong_pair = Pair(pair1.get_left(), 'wrong_right')
         with self.assertRaises(ValueError):
-            hand.buy(wrong_pair, Order.TYPE_MARKET)
+            hand2.buy(wrong_pair, Order.TYPE_MARKET)
         # End
         self.broker_switch(on=False)
 
@@ -514,17 +642,184 @@ class TestHand(unittest.TestCase, Hand):
         # End
         self.broker_switch(on=False)
 
-    def test_backup_load(self) -> None:
+    def test_manage_failed_orders(self) -> None:
         hand = self.hand
+        pair1 = self.pair1
+        pair2 = self.pair2
+        pair3 = self.pair3
+        # Order submitted with success
+        position1 = self.hand_trade1
+        position2 = self.hand_trade2
+        position3 = self.hand_trade3
+        # ••• Buy
+        hand._add_position(position1)
+        hand._add_position(position2)
+        hand._add_position(position3)
+        position2.get_buy_order()._set_status(Order.STATUS_SUBMITTED)
+        position3.get_buy_order()._set_status(Order.STATUS_COMPLETED)
+        exp1 = hand.copy()
+        hand._manage_failed_orders(pair1)
+        hand._manage_failed_orders(pair2)
+        hand._manage_failed_orders(pair3)
+        result1 = hand.copy()
+        self.assertEqual(exp1, result1)
+        # ••• Sell
+        sell_order1, _ = self.new_sell_order(pair1, Price(10, pair1.get_left()))
+        sell_order2, _ = self.new_sell_order(pair2, Price(100, pair2.get_left()))
+        sell_order3, _ = self.new_sell_order(pair3, Price(1000, pair3.get_left()))
+        position1.set_sell_order(sell_order1)
+        position2.set_sell_order(sell_order2)
+        position3.set_sell_order(sell_order3)
+        sell_order2._set_status(Order.STATUS_SUBMITTED)
+        sell_order3._set_status(Order.STATUS_COMPLETED)
+        exp1_2 = hand.copy()
+        hand._manage_failed_orders(pair1)
+        hand._manage_failed_orders(pair2)
+        hand._manage_failed_orders(pair3)
+        result1_2 = hand.copy()
+        self.assertEqual(exp1_2, result1_2)
+        # Buy Order fail - Failed & Expired
+        self.setUp()
+        hand2 = self.hand
+        pair2_1 = self.pair1
+        pair2_2 = self.pair2
+        pair2_3 = self.pair3
+        position2_1 = self.hand_trade1
+        position2_2 = self.hand_trade2
+        position2_3 = self.hand_trade3
+        #
+        hand2._add_position(position2_1)
+        hand2._add_position(position2_2)
+        hand2._add_position(position2_3)
+        position2_2.get_buy_order()._set_status(Order.STATUS_FAILED)
+        position2_3.get_buy_order()._set_status(Order.STATUS_EXPIRED)
+        buy_order2_2 = position2_2.get_buy_order()
+        buy_order2_3 = position2_3.get_buy_order()
+        exp2 = {pair2_1: position2_1}
+        exp2_2 = {
+            buy_order2_2.get_id(): buy_order2_2,
+            buy_order2_3.get_id(): buy_order2_3
+        }
+        hand2._manage_failed_orders(pair2_1)
+        hand2._manage_failed_orders(pair2_2)
+        hand2._manage_failed_orders(pair2_3)
+        result2 = hand2.get_positions()
+        result2_2 = hand2._get_failed_orders()
+        self.assertDictEqual(exp2, result2)
+        self.assertDictEqual(exp2_2, result2_2)
+        # Sell Order fail - Failed & Expired
+        self.setUp()
+        hand3 = self.hand
+        pair3_1 = self.pair1
+        pair3_2 = self.pair2
+        pair3_3 = self.pair3
+        position3_1 = self.hand_trade1
+        position3_2 = self.hand_trade2
+        position3_3 = self.hand_trade3
+        #
+        hand3._add_position(position3_1)
+        hand3._add_position(position3_2)
+        hand3._add_position(position3_3)
+        position3_2.get_buy_order()._set_status(Order.STATUS_SUBMITTED)
+        position3_3.get_buy_order()._set_status(Order.STATUS_COMPLETED)
+        sell_order3_1, _ = self.new_sell_order(pair3_1, Price(10, pair3_1.get_left()))
+        sell_order3_2, _ = self.new_sell_order(pair3_2, Price(100, pair3_2.get_left()))
+        sell_order3_3, _ = self.new_sell_order(pair3_3, Price(1000, pair3_3.get_left()))
+        position3_1.set_sell_order(sell_order3_1)
+        position3_2.set_sell_order(sell_order3_2)
+        position3_3.set_sell_order(sell_order3_3)
+        sell_order3_2._set_status(Order.STATUS_FAILED)
+        sell_order3_3._set_status(Order.STATUS_EXPIRED)
+        exp3 = {
+            pair3_1.__str__(): position3_1,
+            pair3_2.__str__(): position3_2,
+            pair3_3.__str__(): position3_3,
+            }
+        exp3_2 = {
+            sell_order3_2.get_id(): sell_order3_2,
+            sell_order3_3.get_id(): sell_order3_3
+        }
+        hand3._manage_failed_orders(pair3_1)
+        hand3._manage_failed_orders(pair3_2)
+        hand3._manage_failed_orders(pair3_3)
+        result3 = hand3.get_positions()
+        result3_2 = hand3._get_failed_orders()
+        self.assertDictEqual(exp3, result3)
+        self.assertDictEqual(exp3_2, result3_2)
+        self.assertIsNone(position3_2.get_sell_order())
+        self.assertIsNone(position3_3.get_sell_order())
+
+    def test_backup_load(self) -> None:
+        def wait_writing() -> None:
+            _MF.wait_while(FileManager.is_writting,  False, writing_wait_time, to_raise=Exception("Time out to wait end of writting"))
+        def sleep(unix_time: int, interval: int) -> None:
+            sleep_time = _MF.sleep_time(unix_time, interval)
+            print(f"{_MF.prefix()} Sleep for '{sleep_time}'sec. ...")
+            _MF.sleep(sleep_time)
+        hand = self.hand
+        initial_backup_interval = Hand._INTERVAL_BACKUP
+        Hand._INTERVAL_BACKUP = backup_interval = 30
+        backup_interval_milli = backup_interval*1000
+        writing_wait_time = 5
+        # Before Backup
+        exp1 = 0
+        result1 = hand.get_backup_time()
+        self.assertEqual(exp1, result1)
+        self.assertIsNone(hand._get_backup())
+        # First Backup
         hand.backup()
-        _MF.wait_while(FileManager.is_writting,  False, 10, to_raise=Exception("Time out to wait end of writting"))
-        # Backup exist
+        backup_time2 = hand.get_backup_time()
+        exp2 = hand.json_encode()
+        result2 = hand._get_backup()
+        self.assertEqual(exp2, result2)
+        self.assertIsInstance(backup_time2, int)
+        # Backup Before Interval
+        hand.set_max_position(hand.get_max_position() + 1)
+        hand.backup()
+        exp3 = result2
+        result3 = hand._get_backup()
+        self.assertEqual(exp3, result3)
+        exp3_2 = backup_time2
+        result3_2 = hand.get_backup_time()
+        self.assertEqual(exp3_2, result3_2)
+        # Force Backup Before Interval
+        hand.set_max_position(hand.get_max_position() + 1)
+        hand.backup(force=True)
+        exp4 = result2
+        result4 = hand._get_backup()
+        self.assertNotEqual(exp4, result4)
+        exp4_2 = backup_time2
+        result4_2 = hand.get_backup_time()
+        self.assertNotEqual(exp4_2, result4_2)
+        # Backup After Interval
+        hand._set_backup_time(_MF.get_timestamp(_MF.TIME_MILLISEC) - backup_interval_milli)
+        hand.set_max_position(hand.get_max_position() + 1)
+        hand.backup()
+        exp5 = result4
+        result5 = hand._get_backup()
+        self.assertNotEqual(exp5, result5)
+        exp5_2 = result4_2
+        result5_2 = hand.get_backup_time()
+        self.assertNotEqual(exp5_2, result5_2)
+        # Hand Didn't Change
+        sleep(result5_2, backup_interval)
+        hand.backup()
+        exp6 = result5
+        result6 = hand._get_backup()
+        self.assertEqual(exp6, result6)
+        exp6_2 = result5_2
+        result6_2 = hand.get_backup_time()
+        self.assertEqual(exp6_2, result6_2)
+        # Load
+        wait_writing()
         hand_id = hand.get_id()
         loaded = hand.load(hand_id)
         self.assertEqual(hand._get_backup(), loaded.json_encode())
         # Backup don't exist
         with self.assertRaises(Exception):
             self.load('fake_id')
+        # End
+        self._INTERVAL_BACKUP = initial_backup_interval
 
     def test_json_encode_decode(self) -> None:
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
@@ -546,8 +841,6 @@ class TestHand(unittest.TestCase, Hand):
         hand._mark_proposition(pair4, have_bought=True)
         #
         original_obj = hand
-        # test_exec = self.get_executable_test_json_encode_decode()
-        # exec(test_exec)
         original_obj._set_backup(original_obj.json_encode())
         json_str = original_obj.json_encode()
         decoded_obj = self.json_decode(json_str)

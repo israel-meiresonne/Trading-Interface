@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from config.Config import Config
 from model.ModelInterface import ModelInterface
 from model.structure.database.ModelFeature import ModelFeature as _MF
@@ -168,53 +168,61 @@ class Log(ModelInterface, _MF):
         broker = Broker.retrieve(broker_class, broker_params)
         hand.set_broker(broker)
         hand.add_streams()
-        hand.set_stalk_on(on=True)
+        # hand.set_stalk_on(on=True)
         hand.set_position_on(on=True)
-        hand.set_market_analyse_on(on=True)
+        # hand.set_market_analyse_on(on=True)
         hand.backup()
 
     def stop_hand(self, hand_id: str) -> None:
         hand = self._get_hand(hand_id)
+        hand.reset_trading()
         hand.set_stalk_on(on=False)
         hand.set_position_on(on=False)
         hand.set_market_analyse_on(on=False)
-        hand.backup()
+        hand.backup(force=True)
 
     def stop_hands(self) -> None:
         hands = self._get_hands()
         [self.stop_hand(hand_id) for hand_id in hands]
 
-    def buy_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, buy_function: str = None) -> None:
+    def buy_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, buy_function: str = None) ->  Union[str, None]:
         hand = self._get_hand(hand_id)
-        pair = Pair(pair)
-        r_asset_str = pair.get_right()
+        pair_obj = Pair(pair)
+        r_asset_str = pair_obj.get_right()
         stop = Price(stop, r_asset_str) if stop is not None else None
         limit = Price(limit, r_asset_str) if limit is not None else None
         buy_function = buy_function if buy_function is not None else None
-        hand.buy(pair, order_type, stop, limit, buy_function)
+        return hand.buy(pair_obj, order_type, stop, limit, buy_function)
 
-    def sell_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, sell_function: str = None) -> None:
+    def sell_hand_position(self, hand_id: str, pair: str, order_type: str, stop: float = None, limit: float = None, sell_function: str = None) ->  Union[str, None]:
         hand = self._get_hand(hand_id)
-        pair = Pair(pair)
-        r_asset_str = pair.get_right()
+        pair_obj = Pair(pair)
+        r_asset_str = pair_obj.get_right()
         stop = Price(stop, r_asset_str) if stop is not None else None
         limit = Price(limit, r_asset_str) if limit is not None else None
         sell_function = sell_function if sell_function is not None else None
-        hand.sell(pair, order_type, stop, limit, sell_function)
+        return hand.sell(pair_obj, order_type, stop, limit, sell_function)
 
-    def cancel_hand_position(self, hand_id: str, pair: str) -> None:
+    def cancel_hand_position(self, hand_id: str, pair: str) ->  Union[str, None]:
         hand = self._get_hand(hand_id)
         pair = Pair(pair)
-        hand.cancel(pair)
+        return hand.cancel(pair)
 
-    def set_hand_attribut(self, hand_id: str, attribut: str, value: Any) -> None:
+    def set_hand_attribut(self, hand_id: str, attribut: str, value: Any, **kwargs) -> None:
         hand = self._get_hand(hand_id)
         if attribut == Map.maximum:
             hand.set_max_position(value)
+        elif attribut == f"{Map.thread}_{Map.stalk}":
+            hand.set_stalk_on(value)
+        elif attribut == f"{Map.thread}_{Map.position}":
+            hand.set_position_on(value)
+        elif attribut == f"{Map.thread}_{Map.analyse}":
+            hand.set_market_analyse_on(value)
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
+        hand.backup()
 
-    def get_hand_attribut(self, hand_id: str, attribut: str) -> Any:
+    def get_hand_attribut(self, hand_id: str, attribut: str, **kwargs) -> Any:
         value = None
         hand = self._get_hand(hand_id)
         if attribut == Map.broker:
@@ -237,12 +245,21 @@ class Log(ModelInterface, _MF):
         elif attribut == Map.pair:
             value = hand.get_broker_pairs()
         elif attribut == Map.start:
-            value = hand.is_position_on() and hand.is_stalk_on()
+            value = hand.is_broker_set() # and hand.is_position_on() and hand.is_stalk_on()
         elif attribut == Map.maximum:
             value = hand.get_max_position()
         elif attribut == Map.algo:
             positions = hand.get_positions().copy()
             value = [position.get_buy_order().get_pair() for _, position in positions.items() if position.get_sell_order() is not None]
+        elif attribut == Map.reason:
+            order = hand.get_failed_order(**kwargs)
+            value = order.get_content()
+        elif attribut == f"{Map.thread}_{Map.stalk}":
+            value = hand.is_stalk_on()
+        elif attribut == f"{Map.thread}_{Map.position}":
+            value = hand.is_position_on()
+        elif attribut == f"{Map.thread}_{Map.analyse}":
+            value = hand.is_market_analyse_on()
         else:
             raise ValueError(f"Unkwon attribut from Hand '{attribut}'")
         return value

@@ -4,6 +4,8 @@ from model.tools.Map import Map
 
 
 class RequestResponse:
+    STATUS_CODE_SUCCESS = 200
+
     def __init__(self, response: Response):
         self.__status_code = response.status_code
         self.__url = response.url

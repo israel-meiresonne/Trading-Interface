@@ -189,6 +189,28 @@ class ModelFeature(ModelAccess):
     def unix_to_date(time: int, form: str = FORMAT_D_H_M_S, timezone_str: str = TIME_ZONE_UTC) -> str:
         return datetime.datetime.fromtimestamp(time, pytz.timezone(timezone_str)).strftime(form)
 
+    @classmethod
+    def is_millisecond(cls, unix_time: int) -> bool:
+        """
+        To check if unix time given is expressed in millisecond
+
+        Parameters:
+        -----------
+        unix_time: int
+            The time to check
+
+        Return:
+        -------
+        return:
+            True if time is expressed in millisecond else False
+        """
+        is_milli = isinstance(unix_time, int)
+        if is_milli:
+            params = {'time': unix_time}
+            unix_date = cls.catch_exception(cls.unix_to_date, cls.__name__, repport=False, **params)
+            is_milli = is_milli and (unix_date is None)
+        return is_milli
+
     # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
     @staticmethod
     def new_code(size: int = 20, salt: str = 'abcdefghijklmnopqrstuvwxyz') -> str:
@@ -734,7 +756,7 @@ class ModelFeature(ModelAccess):
         if not ModelFeature.OUTPUT:
             from config.Config import Config
             from model.tools.FileManager import FileManager
-            path = Config.get(Config.FILE_OUTPUT)
+            path = Config.get(Config.FILE_MODEL_OUTPUT)
             FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
         else:
             print(text)
@@ -838,9 +860,9 @@ class ModelFeature(ModelAccess):
         return groups
 
     @staticmethod
-    def exec_console(command: str) -> str:
+    def shell(command: str) -> str:
         """
-        To execute console command
+        To execute a coammand in CLI
 
         Parameters:
         -----------
@@ -850,9 +872,8 @@ class ModelFeature(ModelAccess):
         Returns:
         --------
         command: str
-            Executed command's output
+            CLI's output
         """
-        command = "git branch | egrep '^\*'"
         output = subprocess.check_output(command, shell=True).decode("utf-8")
         return output
 

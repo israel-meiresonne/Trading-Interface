@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, Tuple
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
@@ -11,6 +11,7 @@ from model.tools.Price import Price
 
 class Trade(MyJson):
     PREFIX_ID = 'trade_'
+    FAIL_STATUS = [Order.STATUS_FAILED, Order.STATUS_EXPIRED]
 
     def __init__(self, buy_order: Order) -> None:
         self.__id =         self.PREFIX_ID + _MF.new_code()
@@ -116,29 +117,36 @@ class Trade(MyJson):
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ————————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SELF DOWN ———————————————————————————————————————————————————
 
-    def is_submitted(self) -> bool:
+    def is_submitted(self, side: str) -> bool:
         """
-        To check if buy and sell Order are submitted to Broker for execution
-        NOTE: only check for the buy Order if the sell Order is not set
+        To check if buy or sell Order are submitted to Broker for execution
+
+        Parameters:
+        -----------
+        side: str
+            Name of order to check ['buy' or 'sell']
 
         Returns:
         --------
         return: bool
-            True if all Order set are submitted to Broker else False
+            True if the Order of the given side set is submitted to Broker else False
         """
-        buy_order = self.get_buy_order()
-        buy_is_submitted = buy_order.get_status() is not None
-        sell_order = self.get_sell_order()
-        sell_is_submitted = sell_order.get_status() is not None if sell_order is not None else True
-        return buy_is_submitted and sell_is_submitted
+        if side == Map.buy:
+            is_submitted = self.get_buy_order().get_status() is not None
+        elif side == Map.sell:
+            sell_order = self.get_sell_order()
+            is_submitted = (sell_order is not None) and (sell_order.get_status() is not None)
+        else:
+            raise ValueError(f"Unkown Order side '{side}'")
+        return is_submitted
 
-    def is_executed(self, move: str) -> bool:
+    def is_executed(self, side: str) -> bool:
         """
         To check if buy or sell Order are executed
 
         Parameters:
         -----------
-        move: str
+        side: str
             Name of order to check ['buy' or 'sell']
 
         Returns:
@@ -146,13 +154,13 @@ class Trade(MyJson):
         return: bool
             True if Order is executed else False
         """
-        if move == Map.buy:
+        if side == Map.buy:
             is_executed = self.get_buy_order().get_status() == Order.STATUS_COMPLETED
-        elif move == Map.sell:
+        elif side == Map.sell:
             sell_order = self.get_sell_order()
             is_executed = (sell_order is not None) and (sell_order.get_status() == Order.STATUS_COMPLETED)
         else:
-            raise ValueError(f"Unkown Order move '{move}'")
+            raise ValueError(f"Unkown Order side '{side}'")
         return is_executed
 
     def is_closed(self) -> bool:
@@ -165,6 +173,30 @@ class Trade(MyJson):
             True if Trade's buy and sell Order are executed else False
         """
         return self.is_executed(Map.buy) and self.is_executed(Map.sell)
+
+    def has_failed(self, side: str) -> Dict[str, bool]:
+        """
+        Check if buy or sell Order will never be executed because of any failure
+
+        Parameters:
+        -----------
+        side: str
+            Side of Order to check [Map.buy or Map.sell]
+
+        Returns:
+        --------
+        return: bool
+            True if the buy or sell Order have failed else False
+        """
+        fail_status = self.FAIL_STATUS
+        if side == Map.buy:
+            has_fails = self.get_buy_order().get_status() in fail_status
+        elif side == Map.sell:
+            sell_order = self.get_sell_order()
+            has_fails = (sell_order is not None) and (sell_order.get_status() in fail_status)
+        else:
+            raise ValueError(f"Unkown Order side '{side}'")
+        return has_fails
 
     def has_position(self) -> bool:
         """

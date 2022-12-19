@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
@@ -198,6 +199,9 @@ class Order(Request, Transaction, MyJson, ABC):
                                  f"that the left asset of the pair '{pr}'")
 
     # ——————————————————————————————————————————— FUNCTION SELF SETTER/GETTER DOWN —————————————————————————————————————
+
+    def get_content(self) -> Any:
+        return self._get_response().get_content()
 
     def _set_broker_id(self, odr_id) -> None:
         if self.__broker_id is not None:

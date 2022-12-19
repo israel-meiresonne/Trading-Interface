@@ -1,6 +1,6 @@
 import time
 from threading import Thread
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 
 import pandas as pd
 from config.Config import Config
@@ -31,13 +31,14 @@ class Hand(MyJson):
     _SLEEP_STALK =              30
     _SLEEP_MARKET_ANALYSE =     60
     _N_PERIOD =                 300
+    _STALK_FUNCTIONS =          None
+    _INTERVAL_BACKUP =          60*15
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
-        Broker.PERIOD_5MIN,
-        Broker.PERIOD_15MIN,
-        Broker.PERIOD_1H,
+        # Broker.PERIOD_5MIN,
+        # Broker.PERIOD_15MIN,
+        # Broker.PERIOD_1H,
         ]
-    _STALK_FUNCTIONS =  None
 
     def __init__(self, capital: Price, broker_class: Callable) -> None:
         self.__id =                     None
@@ -46,7 +47,10 @@ class Hand(MyJson):
         self.__broker =                 None
         self.__wallet =                 None
         self.__max_position =           None
+        self.__is_buying =              False
+        self.__is_selling =             False
         self.__positions =              None
+        self.__failed_orders =          None
         self.__new_positions =          None
         self.__closed_positions =       None
         self.__orders =                 None
@@ -58,6 +62,7 @@ class Hand(MyJson):
         self.__market_analyse_on =      False
         self.__thread_market_analyse =  None
         self.__backup =                 None
+        self.__backup_time =            None
         self._set_id()
         self._set_settime()
         self._set_wallet(capital)
@@ -110,6 +115,18 @@ class Hand(MyJson):
 
     def reset_broker(self) -> None:
         self.__broker = None
+
+    def is_broker_set(self) -> bool:
+        """
+        To check if Broker is set
+
+        Returns:
+        --------
+        return: bool
+            True if Broker is set else False
+        """
+        broker = _MF.catch_exception(self.get_broker, self.__class__.__name__, repport=False)
+        return isinstance(broker, Broker)
 
     def get_broker(self) -> Broker:
         """
@@ -177,6 +194,53 @@ class Hand(MyJson):
         n_position = len(self.get_positions())
         return n_position >= max_position
 
+    def reset_trading(self) -> None:
+        self._set_buying(False)
+        self._set_selling(False)
+
+    def is_trading(self) -> bool:
+        """
+        To check if position is being bought or sold
+
+        Returns:
+        --------
+        return: bool
+            True if position is being bought or sold else False
+        """
+        return self.is_buying() or self.is_selling()
+
+    def _set_buying(self, is_buying: bool) -> None:
+        if not isinstance(is_buying, bool):
+            raise TypeError(f"The buying state's type must be '{bool}', instead 'type={type(is_buying)}'")
+        self.__is_buying = is_buying
+
+    def is_buying(self) -> bool:
+        """
+        To check if the a position is being bought
+
+        Returns:
+        --------
+        return: bool
+            True if a position is being bought else False
+        """
+        return self.__is_buying
+
+    def _set_selling(self, is_selling: bool) -> None:
+        if not isinstance(is_selling, bool):
+            raise TypeError(f"The selling state's type must be '{bool}', instead 'type={type(is_selling)}'")
+        self.__is_selling = is_selling
+
+    def is_selling(self) -> bool:
+        """
+        To check if the a position is being sold
+
+        Returns:
+        --------
+        return: bool
+            True if a position is being sold else False
+        """
+        return self.__is_selling
+
     def get_positions(self) -> Dict[str, HandTrade]:
         """
         To get collection of pairs being trade
@@ -238,6 +302,60 @@ class Hand(MyJson):
         self.get_position(pair)
         self.get_positions().pop(pair.__str__())
 
+    def _get_failed_orders(self) -> Dict[str, Order]:
+        """
+        To get collection of Order that failed to be submitted or executed
+
+        Returns:
+        --------
+        return: Dict[str, Order]
+            Collection of Order that failed to be submitted or executed\n
+            dict[Order.get_id(){str}]   -> {Order}
+        """
+        failed_orders = self.__failed_orders
+        if failed_orders is None:
+            self.__failed_orders = failed_orders = {}
+        return failed_orders
+
+    def get_failed_order(self, order_id: str) -> Order:
+        """
+        To get a failed Order
+
+        Parameters:
+        -----------
+        order_id: str
+            Id of the failed Order to get
+
+        Returns:
+        --------
+        return: Order
+            The failed Order with the given id
+        """
+        failed_orders = self._get_failed_orders()
+        if order_id not in failed_orders:
+            raise ValueError(f"Don't exist a failed Order with this id '{order_id}'")
+        return failed_orders[order_id]
+
+    def _add_failed_order(self, order: Order) -> None:
+        """
+        To add a new failed Order
+
+        Parameters:
+        -----------
+        order: Order
+            Failed Order to add
+        """
+        if not isinstance(order, Order):
+            raise TypeError(f"Failed Order must be of type '{Order}', instead type='{type(order)}'")
+        order_id = order.get_id()
+        failed_orders = self._get_failed_orders()
+        order_ids = list(failed_orders.keys())
+        if order_id in order_ids:
+            raise ValueError(f"Failed Order with this id '{order_id}' already exist")
+        if order.get_status() not in HandTrade.FAIL_STATUS:
+            raise Exception(f"Order's status '{order.get_status()}' is not a failed one")
+        failed_orders[order_id] = order
+
     def _reset_new_positions(self) -> None:
         self.__new_positions = None
 
@@ -298,18 +416,39 @@ class Hand(MyJson):
         if len(pair_index) > 0:
             new_positions.loc[pair_index[-1], Map.buy] = have_bought
 
-    def get_closed_positions(self) -> List[HandTrade]:
+    def _get_closed_positions(self) -> Dict[str, HandTrade]:
         """
-        To get list of closed positions
+        To get collection of closed positions
 
         Returns:
         --------
-        return: List[HandTrade]
-            List of closed positions
+        return: Dict[str, HandTrade]
+            Collection of closed positions
+
+            dict[HandTrade.get_id(){str}]   ->  {HandTrade}
         """
-        if self.__closed_positions is None:
-            self.__closed_positions = []
-        return self.__closed_positions
+        closed_positions = self.__closed_positions
+        if closed_positions is None:
+            self.__closed_positions = closed_positions = {}
+        return closed_positions
+
+    def get_closed_position(self, trade_id: str) -> HandTrade:
+        """
+        To get a closed position
+
+        Parameters:
+        trade_id: str
+            The id of the closed position to get
+
+        Returns:
+        --------
+        return: HandTrade
+            Closed position of the given id
+        """
+        closed_positions = self._get_closed_positions()
+        if trade_id not in closed_positions:
+            raise ValueError(f"There's no closed position with this id '{trade_id}'")
+        return closed_positions[trade_id]
 
     def _add_closed_position(self, position: HandTrade) -> None:
         """
@@ -322,7 +461,9 @@ class Hand(MyJson):
         """
         if not position.is_closed():
             raise ValueError(f"The position '{position.get_buy_order().get_pair().__str__().upper()}' must be closed")
-        self.get_closed_positions().append(position)
+        closed_positions = self._get_closed_positions()
+        trade_id = position.get_id()
+        closed_positions[trade_id] = position
 
     def _move_closed_position(self, pair: Pair) -> None:
         """
@@ -529,6 +670,25 @@ class Hand(MyJson):
     def _get_backup(self) -> str:
         return self.__backup
 
+    def _set_backup_time(self, backup_time: int = None) -> None:
+        if (backup_time is not None) and (not _MF.is_millisecond(backup_time)):
+            raise ValueError(f"The backup time mest be in millisecond, instead '{backup_time}'")
+        self.__backup_time = _MF.get_timestamp(_MF.TIME_MILLISEC) if backup_time is None else backup_time
+
+    def get_backup_time(self) -> int:
+        """
+        To get time of the last backup (in millisecond)
+
+        Returns:
+        --------
+        returns: int
+
+        """
+        backup_time = self.__backup_time
+        if backup_time is None:
+            self.__backup_time = backup_time = 0
+        return backup_time
+
     def _get_stalk_functions(self) -> List[Callable]:
         if Hand._STALK_FUNCTIONS is None:
             Hand._STALK_FUNCTIONS = [
@@ -609,14 +769,14 @@ class Hand(MyJson):
         To manage positions
         """
         while self.is_position_on():
-            _MF.catch_exception(self.update_positions, Hand.__name__)
+            _MF.catch_exception(self.update_positions, Hand.__name__) if not self.is_trading() else None
             sleep_interval = self._SLEEP_POSITION_VIEW if len(self.get_positions()) > 0 else self._SLEEP_POSITION
             sleep_time = _MF.sleep_time(_MF.get_timestamp(), sleep_interval)
             time.sleep(sleep_time)
 
     def update_positions(self) -> None:
         """
-        To update positions states with thier states in Broker's API
+        To update positions states with their states in Broker's API
         ### Update steps:
         - Update states of submitted Order
         - Submit new Order to Broker's API
@@ -626,28 +786,25 @@ class Hand(MyJson):
         """
         self._update_orders()
         positions = self.get_positions().copy()
-        [self._try_submit(position) for _, position in positions.items() if not position.is_submitted()]
+        [self._try_submit(position) for _, position in positions.items() if (not self.is_trading()) and (not (position.is_submitted(Map.buy) or position.is_submitted(Map.sell)))]
         self._repport_positions()
-        # [self._move_closed_position(Pair(pair_str)) for pair_str, position in positions.items() if position.is_closed()]
-        self._move_closed_positions(positions)
+        self._move_closed_positions(positions) if (not self.is_trading()) else None
         self.backup()
 
     def _repport_positions(self) -> None:
         def print_row(file_path: str, rows: List[dict], overwrite: bool, make_dir: bool) -> None:
             fields = list(rows[0].keys())
             FileManager.write_csv(file_path, fields, rows, overwrite=overwrite, make_dir=make_dir)
-
         def get_residue(broker: Broker, wallet: Wallet, positions: Dict[str, HandTrade]) -> Price:
             r_asset = wallet.get_initial().get_asset()
             assets = wallet.assets()
             residues = [wallet.get_position_value(broker, l_asset) for l_asset in assets if Pair(l_asset, r_asset).__str__() not in positions.keys()]
             residues.append(Price(0, r_asset))
             return Price.sum(residues)
-
         def get_global_rows(positions: Dict[str, HandTrade]) -> List[dict]:
             n_position = len(positions)
             #
-            n_trade = len(self.get_closed_positions()) + n_position
+            n_trade = len(self._get_closed_positions()) + n_position
             # Total
             initial_capital = wallet.get_initial()
             now_capital = wallet.get_total(broker)
@@ -691,7 +848,6 @@ class Hand(MyJson):
                 Map.trade: n_trade
             }]
             return row
-
         def get_position_rows(positions: Dict[str, HandTrade]) -> pd.DataFrame:
             columns = [
                 'unix_date',
@@ -848,7 +1004,6 @@ class Hand(MyJson):
                 }
                 rows = rows.append(row, ignore_index=True)
             return rows
-
         broker = self.get_broker()
         wallet = self.get_wallet()
         wallet.reset_marketprices()
@@ -1251,7 +1406,7 @@ class Hand(MyJson):
     # ••• FUNCTION SELF THREAD MARKET ANALYSE UP
     # ••• FUNCTION SELF BUY/SELL DOWN
 
-    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None) -> None:
+    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None) -> Union[str, None]:
         """
         To buy a new position
 
@@ -1267,12 +1422,19 @@ class Hand(MyJson):
             Price for order requiring a limit price
         buy_function: Callable=None
             function from Hand than define how to execute order
+
+        Returns:
+        --------
+        return: Union[str, None]
+            The buy Order's id if the Order fail to be submitted else None
         """
         if pair.get_right() != self.get_wallet().get_initial().get_asset():
             r_asset_exp = self.get_wallet().get_initial().get_asset()
             raise ValueError(f"The pair to buy's right Asset must be '{r_asset_exp.__str__().upper()}', instead '{pair.__str__().upper()}'")
         if self.is_max_position_reached():
             raise Exception(f"The max number of position allowed '{self.get_max_position()}' is already reached")
+        # Start
+        self._set_buying(True)
         # Order
         broker_class_str = self.get_broker_class()
         amount = self._position_capital()
@@ -1291,13 +1453,17 @@ class Hand(MyJson):
         trade = HandTrade(order, buy_function=buy_function)
         # Execution
         self._try_submit(trade)
-        # Mark as bought
         self._add_position(trade)
-        self._mark_proposition(pair, True)
         self._repport_positions()
+        # Failed ?
+        failed_order_id = self._manage_failed_orders(pair)
+        self._repport_positions() if (failed_order_id is not None) else self._mark_proposition(pair, True)
+        # End
+        self._set_buying(False)
         self.backup()
+        return failed_order_id
 
-    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> None:
+    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> Union[str, None]:
         """
         To sell a new position
 
@@ -1313,12 +1479,19 @@ class Hand(MyJson):
             Price for order requiring a limit price
         sell_function: Callable = None
             function from Hand than define how to execute order
+
+        Returns:
+        --------
+        return: Union[str, None]
+            The sell Order's id if the Order fail to be submitted else None
         """
         position = self.get_position(pair)
         if not position.has_position():
             raise Exception(f"Must hold '{pair.__str__().upper()}' position before to place sell Order")
-        if (position.get_sell_order() is not None):
+        if position.get_sell_order() is not None:
             raise Exception(f"This position '{pair.__str__().upper()}' already has a sell Order")
+        # Start
+        self._set_selling(True)
         # Order
         broker_class_str = self.get_broker_class()
         l_asset = pair.get_left()
@@ -1338,9 +1511,16 @@ class Hand(MyJson):
         # Execution
         self._try_submit(position)
         self._repport_positions()
+        # Failed ?
+        failed_order_id = self._manage_failed_orders(pair)
+        self._repport_positions() if (failed_order_id is not None) else None
+        self._move_closed_position(pair) if position.is_closed() else None
+        # End
+        self._set_selling(False)
         self.backup()
+        return failed_order_id
 
-    def cancel(self, pair: Pair) -> None:
+    def cancel(self, pair: Pair) -> Union[str, None]:
         """
         To cancel Trade if not executed yet\n
         NOTE: Delete Trade from list of position If buy Order is not executed
@@ -1349,21 +1529,31 @@ class Hand(MyJson):
         -----------
         pair: Pair
             Pair of the position to cancel
+
+        Returns:
+        --------
+        return: Union[str, None]
+            The buy or sell Order's id if one of them fail to be executed else None
         """
         self._update_orders()
         position = self.get_position(pair)
         broker = self.get_broker()
-        if not position.is_executed(Map.buy):
+        failed_order_id = self._manage_failed_orders(pair)
+        if (failed_order_id is None) and (not position.is_executed(Map.buy)):
             buy_order = position.get_buy_order()
             broker.cancel(buy_order)
+            self._repport_positions()
             self._remove_position(pair)
-        elif position.has_position():
+        elif (failed_order_id is None) and position.has_position():
             sell_order = position.get_sell_order()
             if sell_order is not None:
                 broker.cancel(sell_order)
+                self._repport_positions()
                 position.reset_sell_order()
-        self._repport_positions()
+        else:
+            self._repport_positions()
         self.backup()
+        return failed_order_id
 
     def _try_submit(self, trade: HandTrade) -> None:
         """
@@ -1381,11 +1571,39 @@ class Hand(MyJson):
                 broker = self.get_broker()
                 broker.execute(buy_order)
                 self.get_wallet().buy(buy_order) if trade.is_executed(Map.buy) else None
-        if (trade.is_executed(Map.buy)) and (sell_order is not None) and (sell_order.get_status() is None):
+        if (trade.is_executed(Map.buy)) and (sell_order is not None) and (not trade.is_submitted(Map.sell)):
             if trade.get_sell_function(self)():
                 broker = self.get_broker()
                 broker.execute(sell_order)
                 self.get_wallet().sell(sell_order) if trade.is_executed(Map.sell) else None
+
+    def _manage_failed_orders(self, pair: Pair) -> Union[str, None]:
+        """
+        To manage failed Order for position in the given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            Pair of the position to manage
+
+        Returns:
+        --------
+        return: Union[str, None]
+            The buy or sell Order's id if one of them fail to be submitted or executed else None
+        """
+        position = self.get_position(pair)
+        failed_order_id = None
+        if position.has_failed(Map.buy):
+            buy_order = position.get_buy_order()
+            failed_order_id = buy_order.get_id()
+            self._add_failed_order(buy_order)
+            self._remove_position(pair)
+        elif position.has_failed(Map.sell):
+            sell_order = position.get_sell_order()
+            failed_order_id = sell_order.get_id()
+            self._add_failed_order(sell_order)
+            position.reset_sell_order()
+        return failed_order_id
 
     # ••• FUNCTION SELF BUY/SELL UP
     # ••• FUNCTION SELF BUY/SELL CONDITION DOWN
@@ -1436,18 +1654,37 @@ class Hand(MyJson):
                 attributes[attribute] = None
             if isinstance(value, Map) and (len(value.get_map()) > 0) and isinstance(value.get(value.get_keys()[-1]), Orders):
                 attributes[attribute] = None
-            if Map.backup in attribute:
+            if _MF.regex_match(f'.*{Map.backup}$',  attribute):
                 attributes[attribute] = None
         return attributes
 
     def backup(self, force: bool = False) -> None:
-        backup = self._get_backup()
-        json_str = self.json_encode()
-        if force or (backup != json_str):
-            hand_id = self.get_id()
-            hand_file_path = self.get_path_file_backup(hand_id)
-            FileManager.write(hand_file_path, json_str, overwrite=True, make_dir=True)
-            self._set_backup(json_str)
+        """
+        To backup Hand
+        NOTE: Hand is backed up every interval specified by Hand._INTERVAL_BACKUP
+
+        Parameters:
+        -----------
+        force: bool = False
+            Set True to force backup despite the backup interval else False
+        """
+        def is_backup_time() -> bool:
+            backup_interval = self._INTERVAL_BACKUP*1000
+            last_backup_time = self.get_backup_time()
+            round_last_backup_time = _MF.round_time(last_backup_time, backup_interval)
+            next_backup_time = round_last_backup_time + backup_interval
+            now_time = _MF.get_timestamp(_MF.TIME_MILLISEC)
+            return now_time >= next_backup_time
+        if force or is_backup_time():
+            backup = self._get_backup()
+            json_str = self.json_encode()
+            if backup != json_str:
+                self._set_backup_time()
+                json_str = self.json_encode()
+                hand_id = self.get_id()
+                hand_file_path = self.get_path_file_backup(hand_id)
+                FileManager.write(hand_file_path, json_str, overwrite=True, make_dir=True)
+                self._set_backup(json_str)
 
     # ••• FUNCTION SELF OTHERS UP
     # ——————————————————————————————————————————— FUNCTION SELF UP ————————————————————————————————————————————————————

@@ -41,6 +41,15 @@ class TestModelFeature(unittest.TestCase, _MF):
     def test_unix_to_date(self) -> None:
         raise Exception("Must implement this test")
 
+    def test_is_millisecond(self) -> None:
+        # Is Millisecond
+        millisec = _MF.get_timestamp(_MF.TIME_MILLISEC)
+        self.assertTrue(self.is_millisecond(millisec))
+        # Is Not Millisecond
+        sec = _MF.get_timestamp()
+        self.assertFalse(self.is_millisecond(sec))
+        self.assertFalse(self.is_millisecond('not_milli_sec'))
+
     def test_keys_exist(self) -> None:
         d = {"a": 1, "b": None, "c": "3", "d": ""}
         ks = ['a', 'b', 'c', 'd']
