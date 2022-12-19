@@ -795,14 +795,12 @@ class Hand(MyJson):
         def print_row(file_path: str, rows: List[dict], overwrite: bool, make_dir: bool) -> None:
             fields = list(rows[0].keys())
             FileManager.write_csv(file_path, fields, rows, overwrite=overwrite, make_dir=make_dir)
-
         def get_residue(broker: Broker, wallet: Wallet, positions: Dict[str, HandTrade]) -> Price:
             r_asset = wallet.get_initial().get_asset()
             assets = wallet.assets()
             residues = [wallet.get_position_value(broker, l_asset) for l_asset in assets if Pair(l_asset, r_asset).__str__() not in positions.keys()]
             residues.append(Price(0, r_asset))
             return Price.sum(residues)
-
         def get_global_rows(positions: Dict[str, HandTrade]) -> List[dict]:
             n_position = len(positions)
             #
@@ -850,7 +848,6 @@ class Hand(MyJson):
                 Map.trade: n_trade
             }]
             return row
-
         def get_position_rows(positions: Dict[str, HandTrade]) -> pd.DataFrame:
             columns = [
                 'unix_date',
@@ -1007,7 +1004,6 @@ class Hand(MyJson):
                 }
                 rows = rows.append(row, ignore_index=True)
             return rows
-
         broker = self.get_broker()
         wallet = self.get_wallet()
         wallet.reset_marketprices()
