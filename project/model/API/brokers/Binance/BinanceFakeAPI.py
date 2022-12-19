@@ -666,7 +666,7 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             raise Exception(f"This request '{request}' is not supported")
         response = Response()
-        response.status_code = 200
+        response.status_code = BrokerResponse.STATUS_CODE_SUCCESS
         response._content = _MF.json_encode(datas).encode()
         response.request = params
         return BrokerResponse(response)

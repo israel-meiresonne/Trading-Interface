@@ -32,7 +32,7 @@ class BinanceAPI(ABC):
     RQ_24H_STATISTICS = "RQ_24H_STATISTICS"
     # Requests Infos (not VIP)
     RQ_KLINES = "RQ_KLINES"
-    # Orders
+    # Orders (VIP)
     RQ_ALL_ORDERS = "RQ_ALL_ORDERS"
     RQ_ALL_TRADES = "RQ_ALL_TRADES"
     RQ_CANCEL_ORDER = "RQ_CANCEL_ORDER"
@@ -50,7 +50,18 @@ class BinanceAPI(ABC):
         RQ_EXCHANGE_INFOS, 
         RQ_ACCOUNT_SNAP,
         RQ_TRADE_FEE,
-        RQ_24H_STATISTICS
+        RQ_24H_STATISTICS,
+        RQ_ALL_ORDERS,
+        RQ_ALL_TRADES,
+        RQ_CANCEL_ORDER,
+        RQ_ORDER_LIMIT,
+        RQ_ORDER_MARKET_qty,
+        RQ_ORDER_MARKET_amount,
+        RQ_ORDER_STOP_LOSS,
+        RQ_ORDER_STOP_LOSS_LIMIT,
+        RQ_ORDER_TAKE_PROFIT,
+        RQ_ORDER_TAKE_PROFIT_LIMIT,
+        RQ_ORDER_LIMIT_MAKER
         ]
     # Configs
     __PATH_ORDER = None
@@ -827,8 +838,8 @@ class BinanceAPI(ABC):
         api_time = int(broker_rsp.get_content()[Map.serverTime])
         return api_time
 
-    @staticmethod
-    def request_api(test_mode: bool, public_key: str, secret_key: str, rq: str, params: Map) -> BrokerResponse:
+    @classmethod
+    def request_api(cls, test_mode: bool, public_key: str, secret_key: str, rq: str, params: Map) -> BrokerResponse:
         """
         To format and send a request to Binance's API\n
         Parameters
@@ -852,25 +863,23 @@ class BinanceAPI(ABC):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             response = BinanceFakeAPI.steal_request(rq, params)
             return response
-
         # Prepare
         _stage = Config.get(Config.STAGE_MODE)
-        api_keys = BinanceAPI.format_api_keys(public_key, secret_key)
+        api_keys = cls.format_api_keys(public_key, secret_key)
         # Check
-        BinanceAPI._check_params(rq, params)
+        cls._check_params(rq, params)
         # Generate
-        rq_is_kline = rq == BinanceAPI.RQ_KLINES
+        rq_is_kline = rq == cls.RQ_KLINES
         time_in_params = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
-        rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE, BinanceAPI.RQ_API_TIME]
+        rq_excluded = [cls.RQ_EXCHANGE_INFOS, cls.RQ_TRADE_FEE, cls.RQ_API_TIME]
         if (_stage == Config.STAGE_1):
             response = call_fake_api()
-        elif (_stage == Config.STAGE_2) and rq_is_kline and (not time_in_params):
-            response = BinanceAPI._socket_market_history(test_mode, rq, params)
-            # response = call_fake_api()
         elif (_stage == Config.STAGE_2) and (not rq_is_kline) and (rq not in rq_excluded):
             response = call_fake_api()
+        elif (_stage in [Config.STAGE_2, Config.STAGE_3]) and rq_is_kline and (not time_in_params):
+            response = cls._socket_market_history(test_mode, rq, params)
         else:
-            response = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
+            response = cls._waitingroom(test_mode, api_keys, rq, params)
         return response
 
     @staticmethod
@@ -999,13 +1008,10 @@ class BinanceAPI(ABC):
         _cls = BinanceAPI
         def new_ticket() -> str:
             return f"{rq}_{_MF.new_code()}"
-
         def time_to_str(time: int) -> str:
             return f"{int(time / 60)}min.{time % 60}sec."
-
         def room_size(waitingroom: WaitingRoom) -> int:
             return len(waitingroom.get_tickets())
-
         is_vip = rq in _cls._VIP_REQUESTS
         if is_vip:
             response = _cls._send_request(test_mode, api_keys, rq, params)
@@ -1050,8 +1056,8 @@ class BinanceAPI(ABC):
                 if _cls._DEBUG else None
         return response
 
-    @staticmethod
-    def _send_request(test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
+    @classmethod
+    def _send_request(cls, test_mode: bool, api_keys: Map, rq: str, params: Map) -> BrokerResponse:
         """
         To send a request to the API\n
         Parameters
@@ -1071,15 +1077,13 @@ class BinanceAPI(ABC):
         broker_response: BrokerResponse
             Binance's API response
         """
-        _cls = BinanceAPI
-        _cls._set_test_mode(test_mode)
-        _stage = Config.get(Config.STAGE_MODE)
-        rq_cfg = _cls.get_request_config(rq)
-        if rq_cfg[Map.signed]:
-            _cls._sign(api_keys, params)
-        headers = _cls._generate_headers(api_keys)
-        url = _cls._generate_url(rq)
-        method = rq_cfg[Map.method]
+        cls._set_test_mode(test_mode)
+        request_config = cls.get_request_config(rq)
+        if request_config[Map.signed]:
+            cls._sign(api_keys, params)
+        headers = cls._generate_headers(api_keys)
+        url = cls._generate_url(rq)
+        method = request_config[Map.method]
         if method == Map.GET:
             rsp = rq_get(url, params.get_map(), headers=headers)
         elif method == Map.POST:
@@ -1090,18 +1094,16 @@ class BinanceAPI(ABC):
             rsp = rq_delete(url, headers=headers)
         else:
             raise Exception(f"The request method {method} is not supported")
-        bkr_rsp = BrokerResponse(rsp)
-        # Manage weight
+        broker_response = BrokerResponse(rsp)
         try:
-            if rq != _cls.RQ_EXCHANGE_INFOS:
-                _cls._add_weight(rq)
-                _cls._update_limits(rq, bkr_rsp)
+            if rq != cls.RQ_EXCHANGE_INFOS:
+                cls._add_weight(rq)
+                cls._update_limits(rq, broker_response)
         except Exception as error:
-            _cls._save_response(rq, params, rsp)
+            cls._save_response(rq, params, rsp)
             raise error
-        # Backup Down
-        _cls._save_response(rq, params, rsp)
-        return bkr_rsp
+        cls._save_response(rq, params, rsp)
+        return broker_response
 
     @staticmethod
     def _socket_market_history(test_mode: bool, rq: str, params: Map) -> BrokerResponse:
@@ -1123,7 +1125,7 @@ class BinanceAPI(ABC):
             else:
                 limit = BinanceAPI._CONSTANT_KLINES_DEFAULT_NB_PERIOD
                 new_market_historic = market_historic[-limit:]
-            rsp.status_code = 200
+            rsp.status_code = BrokerResponse.STATUS_CODE_SUCCESS
             rsp.reason = 'OK'
             rsp._content = _MF.json_encode(new_market_historic).encode()
             rsp.url = socket.url(stream)

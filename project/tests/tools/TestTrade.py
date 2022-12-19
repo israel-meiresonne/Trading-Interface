@@ -1,4 +1,5 @@
 import time
+from typing import Callable, Tuple
 import unittest
 
 from config.Config import Config
@@ -120,6 +121,35 @@ class TestTrade(unittest.TestCase, Trade, Order):
         with self.assertRaises(ValueError):
             trade4.set_sell_order(buy_order)
 
+    def test_is_submitted(self) -> None:
+        buy_order = self.buy_order
+        sell_order = self.sell_order
+        trade = Trade(buy_order)
+        """
+        Buy
+        """
+        # ––– not submitted
+        self.assertFalse(trade.is_submitted(Map.buy))
+        # ––– submitted
+        buy_order._set_status(Order.STATUS_SUBMITTED)
+        self.assertTrue(trade.is_submitted(Map.buy))
+        """
+        Sell
+        """
+        # ––– not set
+        self.assertFalse(trade.is_submitted(Map.sell))
+        # ––– not submitted
+        trade.set_sell_order(sell_order)
+        self.assertFalse(trade.is_submitted(Map.sell))
+        # ––– submitted
+        sell_order._set_status(Order.STATUS_FAILED)
+        self.assertTrue(trade.is_submitted(Map.sell))
+        """
+        Unkown side
+        """
+        with self.assertRaises(ValueError):
+            trade.is_submitted('wrong_side')
+
     def test_is_executed(self) -> None:
         buy_order = self.buy_order
         sell_order = self.sell_order
@@ -159,6 +189,45 @@ class TestTrade(unittest.TestCase, Trade, Order):
         sell_order._set_status(Order.STATUS_COMPLETED)
         self.assertTrue(trade.is_closed())
         self.assertFalse(trade.has_position())
+
+    def test_has_failed(self) -> None:
+        def new_instance() -> Tuple[Trade, Order, Order]:
+            self.setUp()
+            buy_order = self.buy_order
+            sell_order = self.sell_order
+            trade = Trade(buy_order)
+            trade.set_sell_order(sell_order)
+            return trade, buy_order, sell_order
+        def test_trade(test_callback: Callable, side: str, new_status: str) -> None:
+            trade, buy_order, sell_order = new_instance()
+            buy_order._set_status(new_status) if side == Map.buy else sell_order._set_status(new_status)
+            test_callback(trade.has_failed(side))
+        def test_side(side: str) -> None:
+            # Buy Order not submitted
+            trade, _, _ = new_instance()
+            self.assertFalse(trade.has_failed(side))
+            # Order submitted
+            # ••• Submitted
+            test_trade(self.assertFalse, side, Order.STATUS_SUBMITTED)
+            # ••• Completed
+            test_trade(self.assertFalse, side, Order.STATUS_COMPLETED)
+            # ••• Canceled
+            test_trade(self.assertFalse, side, Order.STATUS_CANCELED)
+            # Order Failed
+            test_trade(self.assertTrue, side, Order.STATUS_FAILED)
+            # Order Expired
+            test_trade(self.assertTrue, side, Order.STATUS_EXPIRED)
+        test_side(Map.buy)
+        test_side(Map.sell)
+        # Sell Order not set
+        self.setUp()
+        buy_order = self.buy_order
+        trade = Trade(buy_order)
+        self.assertFalse(trade.has_failed(Map.sell))
+        # Unkown side
+        trade, _, _ = new_instance()
+        with self.assertRaises(Exception):
+            trade.has_failed(_MF.new_code())
 
     def test_extrem_prices(self) -> None:
         broker = self.broker_switch(on=True, stage=Config.STAGE_2)
