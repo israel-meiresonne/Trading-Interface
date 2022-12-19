@@ -838,8 +838,8 @@ class BinanceAPI(ABC):
         api_time = int(broker_rsp.get_content()[Map.serverTime])
         return api_time
 
-    @staticmethod
-    def request_api(test_mode: bool, public_key: str, secret_key: str, rq: str, params: Map) -> BrokerResponse:
+    @classmethod
+    def request_api(cls, test_mode: bool, public_key: str, secret_key: str, rq: str, params: Map) -> BrokerResponse:
         """
         To format and send a request to Binance's API\n
         Parameters
@@ -863,25 +863,23 @@ class BinanceAPI(ABC):
             from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
             response = BinanceFakeAPI.steal_request(rq, params)
             return response
-
         # Prepare
         _stage = Config.get(Config.STAGE_MODE)
-        api_keys = BinanceAPI.format_api_keys(public_key, secret_key)
+        api_keys = cls.format_api_keys(public_key, secret_key)
         # Check
-        BinanceAPI._check_params(rq, params)
+        cls._check_params(rq, params)
         # Generate
-        rq_is_kline = rq == BinanceAPI.RQ_KLINES
+        rq_is_kline = rq == cls.RQ_KLINES
         time_in_params = (params.get(Map.startTime) is not None) or (params.get(Map.endTime) is not None)
-        rq_excluded = [BinanceAPI.RQ_EXCHANGE_INFOS, BinanceAPI.RQ_TRADE_FEE, BinanceAPI.RQ_API_TIME]
+        rq_excluded = [cls.RQ_EXCHANGE_INFOS, cls.RQ_TRADE_FEE, cls.RQ_API_TIME]
         if (_stage == Config.STAGE_1):
             response = call_fake_api()
-        elif (_stage == Config.STAGE_2) and rq_is_kline and (not time_in_params):
-            response = BinanceAPI._socket_market_history(test_mode, rq, params)
-            # response = call_fake_api()
         elif (_stage == Config.STAGE_2) and (not rq_is_kline) and (rq not in rq_excluded):
             response = call_fake_api()
+        elif (_stage in [Config.STAGE_2, Config.STAGE_3]) and rq_is_kline and (not time_in_params):
+            response = cls._socket_market_history(test_mode, rq, params)
         else:
-            response = BinanceAPI._waitingroom(test_mode, api_keys, rq, params)
+            response = cls._waitingroom(test_mode, api_keys, rq, params)
         return response
 
     @staticmethod
@@ -1010,13 +1008,10 @@ class BinanceAPI(ABC):
         _cls = BinanceAPI
         def new_ticket() -> str:
             return f"{rq}_{_MF.new_code()}"
-
         def time_to_str(time: int) -> str:
             return f"{int(time / 60)}min.{time % 60}sec."
-
         def room_size(waitingroom: WaitingRoom) -> int:
             return len(waitingroom.get_tickets())
-
         is_vip = rq in _cls._VIP_REQUESTS
         if is_vip:
             response = _cls._send_request(test_mode, api_keys, rq, params)
