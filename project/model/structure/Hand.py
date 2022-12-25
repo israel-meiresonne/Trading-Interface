@@ -1637,16 +1637,6 @@ class Hand(MyJson):
         streams = get_streams(broker, broker_pairs, required_periods)
         broker.add_streams(streams)
 
-    def _marketprice(self, pair: Pair, period: int, marketprices: Map) -> MarketPrice:
-        pair_str = pair.__str__()
-        marketprice = marketprices.get(pair_str, period)
-        if marketprice is None:
-            broker = self.get_broker()
-            n_period = self._N_PERIOD
-            marketprice = MarketPrice.marketprice(broker, pair, period, n_period)
-            marketprices.put(marketprice, pair_str, period)
-        return marketprice
-
     def _json_encode_to_dict(self) -> dict:
         attributes = self.__dict__.copy()
         for attribute, value in attributes.items():
@@ -1689,6 +1679,16 @@ class Hand(MyJson):
     # ••• FUNCTION SELF OTHERS UP
     # ——————————————————————————————————————————— FUNCTION SELF UP ————————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
+
+    @classmethod
+    def _marketprice(cls, broker: Broker, pair: Pair, period: int, marketprices: Map) -> MarketPrice:
+        marketprice = marketprices.get(pair, period)
+        if marketprice is None:
+            broker = broker
+            n_period = cls._N_PERIOD
+            marketprice = MarketPrice.marketprice(broker, pair, period, n_period)
+            marketprices.put(marketprice, pair, period)
+        return marketprice
 
     @classmethod
     def get_path_file_backup(cls, hand_id: str) -> str:
