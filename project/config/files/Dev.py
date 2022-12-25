@@ -75,8 +75,8 @@ class Dev:
     API_KEY_BINANCE_PUBLIC = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
     API_KEY_BINANCE_SECRET = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
     FAKE_API_START_END_TIME = {
-        'start': 1608537600,  # UTC 2020-12-21 8:00:00
-        'end': 1614556800     # UTC 2021-03-01 0:00:00
+        'start': 1609459200,  # UTC 2021-01-01 00:00:00
+        'end': 1658102400     # UTC 2022-07-18 00:00:00
         }
 
     @staticmethod
