@@ -930,3 +930,13 @@ class ModelFeature(ModelAccess):
     @classmethod
     def sleep(cls, sleep_time: int) -> None:
         time.sleep(sleep_time)
+
+    @classmethod
+    def get_bot_trade_index(cls) -> int:
+        from model.structure.Bot import Bot
+        return Bot.get_trade_index()
+
+    @classmethod
+    def update_bot_trade_index(cls, index: int) -> int:
+        from model.structure.Bot import Bot
+        Bot.update_trade_index(index)
