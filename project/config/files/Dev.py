@@ -52,6 +52,8 @@ class Dev:
     DIR_STORAGE = 'content/storage/'
     FILE_PATH_MARKET_HISTORY = f'{DIR_STORAGE}MarketPrice/histories/$stock_path/$broker/$pair/$period.csv'
     DIR_STRATEGY_STORAGE = f'{DIR_STORAGE}Strategy/'
+    DIR_BACKTEST = f'{DIR_STRATEGY_STORAGE}$class/backtest/'
+    DIR_BACKTEST_TEST = f'{DIR_BACKTEST}tests/{SESSION_ID}/'
 
     # Predictor
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
@@ -75,8 +77,8 @@ class Dev:
     API_KEY_BINANCE_PUBLIC = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
     API_KEY_BINANCE_SECRET = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
     FAKE_API_START_END_TIME = {
-        'start': 1608537600,  # UTC 2020-12-21 8:00:00
-        'end': 1614556800     # UTC 2021-03-01 0:00:00
+        'start': 1609459200,  # UTC 2021-01-01 00:00:00
+        'end': 1658102400     # UTC 2022-07-18 00:00:00
         }
 
     @staticmethod
@@ -122,3 +124,5 @@ class Dev:
         Dev.FILE_VIEW_HAND_MARKET_TREND =   Dev.FILE_VIEW_HAND_MARKET_TREND.replace(old, new)
         Dev.FILE_SAVE_BOT =                 Dev.FILE_SAVE_BOT.replace(old, new)
         Dev.FILE_SESSION_CONFIG =           Dev.FILE_SESSION_CONFIG.replace(old, new)
+        Dev.DIR_BACKTEST =                  Dev.DIR_BACKTEST.replace(old, new)
+        Dev.DIR_BACKTEST_TEST =             Dev.DIR_BACKTEST_TEST.replace(old, new)

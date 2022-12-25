@@ -1,6 +1,7 @@
 import datetime
 import re
 import subprocess
+import sys
 import threading
 import time
 from abc import abstractmethod
@@ -211,7 +212,6 @@ class ModelFeature(ModelAccess):
             is_milli = is_milli and (unix_date is None)
         return is_milli
 
-    # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
     @staticmethod
     def new_code(size: int = 20, salt: str = 'abcdefghijklmnopqrstuvwxyz') -> str:
         """
@@ -221,6 +221,7 @@ class ModelFeature(ModelAccess):
         :param salt: the string to use
         :return: a code based on unix time in millisecond
         """
+        # abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
         time = str(ModelFeature.get_timestamp(ModelFeature.TIME_MILLISEC))
         min_size = len(time)
         if size < min_size:
@@ -761,6 +762,19 @@ class ModelFeature(ModelAccess):
         else:
             print(text)
 
+    @classmethod
+    def static_output(cls, output: str) -> None:
+        """
+        To output message in the same line
+
+        Parameters:
+        -----------
+        output: str
+            Message to output
+        """
+        sys.stdout.write(f'\r{output}')
+        sys.stdout.flush()
+
     @staticmethod
     def wait_while(callback: FunctionType, value: Any, timeout: int, to_raise: Exception = None, **kwargs) -> None:
         """
@@ -916,3 +930,13 @@ class ModelFeature(ModelAccess):
     @classmethod
     def sleep(cls, sleep_time: int) -> None:
         time.sleep(sleep_time)
+
+    @classmethod
+    def get_bot_trade_index(cls) -> int:
+        from model.structure.Bot import Bot
+        return Bot.get_trade_index()
+
+    @classmethod
+    def update_bot_trade_index(cls, index: int) -> int:
+        from model.structure.Bot import Bot
+        Bot.update_trade_index(index)

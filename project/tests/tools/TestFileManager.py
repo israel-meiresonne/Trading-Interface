@@ -4,6 +4,7 @@ from typing import List
 import unittest
 
 from model.tools.FileManager import FileManager
+from model.tools.Map import Map
 from model.tools.Price import Price
 from model.structure.database.ModelFeature import ModelFeature as _MF
 
@@ -139,3 +140,21 @@ class TestFileManager(unittest.TestCase, FileManager):
         # End
         shutil.rmtree(start_dir_path)
 
+    def test_exist_file(self) -> None:
+        class_name = self.__class__.__name__
+        dir_path = f'{class_name}/'
+        file_path = f'{dir_path}{class_name}_test_exist_file.empty'
+        _MF.catch_exception(FileManager.remove_file, class_name, repport=False, **{Map.path: file_path})
+        _MF.catch_exception(FileManager.remove_directory, class_name, repport=False, **{Map.path: dir_path})
+        # Directory don't exist
+        self.assertFalse(FileManager.exist_file(file_path))
+        # Directory exist but File don't
+        FileManager.make_directory(dir_path)
+        self.assertFalse(FileManager.exist_file(file_path))
+        # File exist
+        FileManager.write(file_path, f'{class_name} test content')
+        _MF.wait_while(FileManager.is_writting, False, 10, to_raise=Exception('Time to wait the writting is out'))
+        self.assertTrue(FileManager.exist_file(file_path))
+        # End
+        FileManager.remove_file(file_path)
+        FileManager.remove_directory(dir_path)

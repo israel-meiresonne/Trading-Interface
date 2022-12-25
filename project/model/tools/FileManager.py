@@ -385,3 +385,24 @@ class FileManager(ABC):
                 ]
         return file_paths
 
+    @classmethod
+    def exist_file(cls, file_path: str) -> bool:
+        """
+        To check if file exist
+
+        Parameters:
+        -----------
+        file_path: str
+            The path to the file to check existance of
+
+        Return:
+        -------
+        return: bool
+            True if file exist else False
+        """
+        from model.tools.Map import Map
+        dir_path = cls.path_to_dir(file_path)
+        file_name = file_path.replace(dir_path, "")
+        files = _MF.catch_exception(cls.get_files, FileManager.__name__, repport=False, **{Map.path: dir_path})
+        file_exist = (files is not None) and (file_name in files)
+        return file_exist

@@ -109,9 +109,17 @@ class BinanceFakeAPI(BinanceAPI):
             return True
         
         def get_history_times() -> dict:
-            if cls._HISTORY_TIMES is None:
-                cls._HISTORY_TIMES = Config.get(Config.FAKE_API_START_END_TIME)
-            return cls._HISTORY_TIMES
+            times_dict = cls._HISTORY_TIMES
+            if times_dict is None:
+                times_dict = Config.get(Config.FAKE_API_START_END_TIME).copy()
+                if (Map.start in times_dict) and (times_dict[Map.start] is not None):
+                    max_n_period = cls.CONSTRAINT_KLINES_MAX_PERIOD
+                    broker_name = BinanceAPI.__name__.replace('API', '')
+                    history_periods = MarketPrice.history_periods(broker_name)
+                    greatest_period = max(history_periods)
+                    times_dict[Map.start] = times_dict[Map.start] - max_n_period * greatest_period
+                cls._HISTORY_TIMES = times_dict
+            return times_dict
 
         times = Map(get_history_times())
         start_time = times.get(Map.start)

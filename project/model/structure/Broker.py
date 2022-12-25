@@ -124,14 +124,14 @@ class Broker(ABC):
 
     @classmethod
     @abstractmethod
-    def generate_streams(cls, pairs: Pair, periods: List[int]) -> List[str]:
+    def generate_streams(cls, pairs: list[Pair], periods: List[int]) -> List[str]:
         """
         To generate Broker streams
 
         Parameters
         ----------
-        pairs: Pair
-            Pair to combine with period
+        pairs: list[Pair]
+            List of Pair to combine with periods
         periods: List[int]
             Period to combine with pairs
 
