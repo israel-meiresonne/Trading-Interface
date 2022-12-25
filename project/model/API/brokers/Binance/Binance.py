@@ -109,7 +109,7 @@ class Binance(Broker, MyJson):
         return stream
 
     @classmethod
-    def generate_streams(cls, pairs: Pair, periods: List[int]) -> List[str]:
+    def generate_streams(cls, pairs: list[Pair], periods: List[int]) -> List[str]:
         streams = []
         [[streams.append(cls.generate_stream(Map({Map.pair: pair, Map.period: period}))) for period in periods] for pair in pairs]
         return streams
