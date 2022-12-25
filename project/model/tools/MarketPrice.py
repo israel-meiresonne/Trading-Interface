@@ -164,6 +164,7 @@ class MarketPrice(ABC):
             self.COLLECTION_BOLLINGER_RATE: None,
             self.COLLECTION_ROC: None
         })
+        self.__pd = None
         # Backup
         # stage = Config.get(Config.STAGE_MODE)
         # self._save_market(self) if stage != Config.STAGE_1 else None
@@ -322,6 +323,42 @@ class MarketPrice(ABC):
             Trading volumes in given asset
         """
         pass
+
+    def to_pd(self) -> pd.DataFrame:
+        """
+        To group all list in one dict of Numpy
+        NOTE: list qre order from older (index=0) to newest (index=-1)
+
+        Return:
+        -------
+        pd[Map.time]    # Open times    \n
+        pd[Map.open]    # Open prices   \n
+        pd[Map.close]   # Close price   \n
+        pd[Map.high]    # High prices   \n
+        pd[Map.low]     # Low prices    \n
+        """
+        prices_pd = self.__pd
+        if prices_pd is None:
+            open_times = list(self.get_times())
+            open_times.reverse()
+            opens = list(self.get_opens())
+            opens.reverse()
+            closes = list(self.get_closes())
+            closes.reverse()
+            highs = list(self.get_highs())
+            highs.reverse()
+            lows = list(self.get_lows())
+            lows.reverse()
+            prices = {
+                Map.time:   open_times,
+                Map.open:   opens,
+                Map.close:  closes,
+                Map.high:   highs,
+                Map.low:    lows
+                }
+            
+            self.__pd = prices_pd = pd.DataFrame(prices)
+        return prices_pd
 
     @staticmethod
     def check_volume_side(side: str) -> bool:
