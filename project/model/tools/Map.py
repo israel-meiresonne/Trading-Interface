@@ -73,6 +73,8 @@ class Map(MyJson):
     reason = "reason"
     stalk = "stalk"
     analyse = "analyse"
+    settime = "settime"
+    condition = "condition"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
