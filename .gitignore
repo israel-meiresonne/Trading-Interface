@@ -12,13 +12,11 @@ project/content/storage/Predictor/market-histories/
 project/content/storage/Predictor/analyse/
 project/content/storage/Predictor/learns/print/
 project/content/storage/MarketPrice/histories/
-project/content/storage/Strategy/Icarus/prediction/
-project/content/storage/Strategy/Icarus/backtest/number/
-project/content/storage/Strategy/Icarus/backtest/stock/
-project/content/storage/Strategy/Icarus/backtest/repports/
-project/content/storage/Strategy/Icarus/backtest/tests/
-project/content/storage/Strategy/Flash/backtest/tests/
-project/content/storage/Strategy/Flash/backtest/stock/
+project/content/storage/Strategy/*/prediction/
+project/content/storage/Strategy/*/backtest/number/
+project/content/storage/Strategy/*/backtest/stock/
+project/content/storage/Strategy/*/backtest/repports/
+project/content/storage/Strategy/*/backtest/tests/
 
 project/content/market-historic/
 project/content/sessions/
@@ -28,10 +26,7 @@ project/content/print/
 project/tests/datas/tools/TestDeepLearning/
 project/tests/datas/tools/TestPredictor/
 
-project/venv/
-project/env/
-project/dev_env/
-project/env*/
+project/*env*/
 project/trash/
 project/draft.py
 project/start_*
