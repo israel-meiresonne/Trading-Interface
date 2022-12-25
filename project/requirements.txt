@@ -5,5 +5,5 @@ pandas-ta==0.2.45b0
 pytz==2021.1
 requests==2.25.1
 scipy==1.9.3
-ta==0.7.0
+ta==0.10.2
 websocket-client==0.54.0
