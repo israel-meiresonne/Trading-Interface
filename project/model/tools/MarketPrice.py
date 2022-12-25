@@ -1341,7 +1341,7 @@ class MarketPrice(ABC):
         return macd_map
 
     @classmethod
-    def keltnerchannel(cls, highs: list, lows: list, closes: list, window: int, multiple: float, original_version: bool) -> Map:
+    def keltnerchannel(cls, highs: list, lows: list, closes: list, window: int, multiplier: float, original_version: bool) -> Map:
         """
         To generate Keltner Channels\n
         Parameters
@@ -1354,7 +1354,7 @@ class MarketPrice(ABC):
             Market's close prices
         window: int
             The number of period to use
-        multiple: float
+        multiplier: float
             Multiple of middle Keltner
         original_version: bool
             True to use original version as the centerline (SMA of typical price) else False to use EMA of close
@@ -1369,23 +1369,10 @@ class MarketPrice(ABC):
         pd_closes = pd.Series(np.array(closes))
         pd_highs = pd.Series(np.array(highs))
         pd_lows = pd.Series(np.array(lows))
-        kel_obj = KeltnerChannel(pd_highs,pd_lows,pd_closes, window, original_version)
-        # Edit multiple of Middle band
-        """
-        Keltner_middle = EMA
-        ATR = (Keltner_high - EMA)/multiple
-        Keltner_high = EMA + multiple ∗ ATR
-        Keltner_low = EMA - multiple ∗ ATR
-        """
-        library_multiple = cls._KELTNERC_MULTIPLE_LIBRARY
+        kel_obj = KeltnerChannel(pd_highs, pd_lows, pd_closes, window, multiplier=multiplier, original_version=original_version)
         hband = kel_obj.keltner_channel_hband()
-        mband = ema = kel_obj.keltner_channel_mband()
-        if multiple != library_multiple:
-            atr = (hband - ema)/library_multiple
-            hband = ema + multiple * atr
-            lband = ema - multiple * atr
-        else:
-            lband = kel_obj.keltner_channel_lband()
+        mband = kel_obj.keltner_channel_mband()
+        lband = kel_obj.keltner_channel_lband()
         hband_list = hband.to_list()
         mband_list = mband.to_list()
         lband_list = lband.to_list()
