@@ -17,6 +17,10 @@ class StrategyChild(Strategy):
     def constructor(cls) -> 'StrategyChild':
         return cls.__new__(cls)
 
+    @classmethod
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> None:
+        pass
+
 class TestStrategy(unittest.TestCase, StrategyChild):
     def setUp(self) -> None:
         self.pair1 = pair1 = Pair('BTC/USDT')
@@ -119,4 +123,18 @@ class TestStrategy(unittest.TestCase, StrategyChild):
         with self.assertRaises(TypeError):
             strategy1.set_sleep_trade(str(exp1))
 
-
+    def test_get_path_backtest_file(self) -> None:
+        session_id = Config.get(Config.SESSION_ID)
+        child_class_name = StrategyChild.__name__
+        files_dir = f'content/sessions/running/{session_id}/backtest_{child_class_name}/'
+        backtest_file =         [f'{files_dir}{session_id}_backtest.csv',               StrategyChild.get_path_backtest_file(Map.test)]
+        trade_file =            [f'{files_dir}{session_id}_trades.csv',                 StrategyChild.get_path_backtest_file(Map.trade)]
+        buy_condition_file =    [f'{files_dir}{session_id}_condition_{Map.buy}.csv',    StrategyChild.get_path_backtest_file(Map.condition, **{Map.side: Map.buy})]
+        sell_condition_file =   [f'{files_dir}{session_id}_condition_{Map.sell}.csv',   StrategyChild.get_path_backtest_file(Map.condition, **{Map.side: Map.sell})]
+        self.assertEqual(backtest_file[0],          backtest_file[1])
+        self.assertEqual(trade_file[0],             trade_file[1])
+        self.assertEqual(buy_condition_file[0],     buy_condition_file[1])
+        self.assertEqual(sell_condition_file[0],    sell_condition_file[1])
+        # Unkwon file
+        with self.assertRaises(ValueError):
+            StrategyChild.get_path_backtest_file('Unkwon_file')

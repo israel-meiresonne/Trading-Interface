@@ -48,12 +48,15 @@ class Dev:
     DIR_SAVE_TOP_ASSET = f'content/backups/top_asset/{SESSION_ID}_top_asset.csv'
     FILE_SAVE_HAND = f'{DIR_DATABASE}$id/{START_DATE}||$id||hand_backup.json'
     FILE_SAVE_BOT = f'{DIR_DATABASE}$id/{START_DATE}||$id||bot_backup.json'
+    DIR_BACKTEST = f'{DIR_ACTUAL_SESSION}backtest_$class/'
+    FILE_BACKTEST_TEST = f'{DIR_BACKTEST}{SESSION_ID}_backtest.csv'
+    FILE_BACKTEST_TRADE = f'{DIR_BACKTEST}{SESSION_ID}_trades.csv'
+    FILE_BACKTEST_CONDITION = f'{DIR_BACKTEST}{SESSION_ID}_condition_$side.csv'
+    
     # Storage
     DIR_STORAGE = 'content/storage/'
     FILE_PATH_MARKET_HISTORY = f'{DIR_STORAGE}MarketPrice/histories/$stock_path/$broker/$pair/$period.csv'
     DIR_STRATEGY_STORAGE = f'{DIR_STORAGE}Strategy/'
-    DIR_BACKTEST = f'{DIR_STRATEGY_STORAGE}$class/backtest/'
-    DIR_BACKTEST_TEST = f'{DIR_BACKTEST}tests/{SESSION_ID}/'
 
     # Predictor
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
@@ -125,4 +128,6 @@ class Dev:
         Dev.FILE_SAVE_BOT =                 Dev.FILE_SAVE_BOT.replace(old, new)
         Dev.FILE_SESSION_CONFIG =           Dev.FILE_SESSION_CONFIG.replace(old, new)
         Dev.DIR_BACKTEST =                  Dev.DIR_BACKTEST.replace(old, new)
-        Dev.DIR_BACKTEST_TEST =             Dev.DIR_BACKTEST_TEST.replace(old, new)
+        Dev.FILE_BACKTEST_TEST =            Dev.FILE_BACKTEST_TEST.replace(old, new)
+        Dev.FILE_BACKTEST_TRADE =           Dev.FILE_BACKTEST_TRADE.replace(old, new)
+        Dev.FILE_BACKTEST_CONDITION =       Dev.FILE_BACKTEST_CONDITION.replace(old, new)
