@@ -159,3 +159,23 @@ class Config(ABC):
         session_id = session_id.replace(token, "")
         new_session_id = f"{session_id}_{branch_name}"
         Config.update_session_id(new_session_id)
+
+    @classmethod
+    def print_session_config(cls) -> None:
+        from model.structure.database.ModelFeature import ModelFeature as _MF
+        config_cmd = 'commit=$(git log --oneline | head -n 1)'
+        config_cmd += ' ; commit_id=$(git log | head -n 1 | cut -d " " -f 2)'
+        config_cmd += ' ; commit_m=$(git log --oneline | head -n 1 | cut -d " " -f 2-)'
+        config_cmd += ' ; branch=$(git branch | grep "*" | awk -F " " "{print \$NF}" | sed "s#)##")'
+        config_cmd += ' ; now_date=$(date -u "+%Y-%m-%d %H:%M:%S")'
+        config_cmd += ' ; pyv=$(python3 -V)'
+        config_cmd += ' ; echo "Date:       $now_date"'
+        config_cmd += ' ; echo "USER:       $USER"'
+        config_cmd += ' ; echo "PWD:        $PWD"'
+        config_cmd += ' ; echo "Version:    $pyv"'
+        config_cmd += ' ; echo "Branch:     $branch"'
+        config_cmd += ' ; echo "ID:         $commit_id"'
+        config_cmd += ' ; echo "Subject:    $commit_m"'
+        config_cmd += ' ; echo "Stage:      {}"'.format(cls.get(cls.STAGE_MODE))
+        config_cmd += ' ; echo "#"'
+        FileManager.write(Config.get(Config.FILE_SESSION_CONFIG), _MF.shell(config_cmd), overwrite=False ,make_dir=True, line_return=False)
