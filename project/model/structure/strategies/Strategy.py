@@ -97,17 +97,17 @@ class Strategy(Hand, ABC):
         trades, buy_conditions, sell_conditions, stats = cls._backtest_loop(broker, pair, endtime)
         # Buy
         if len(buy_conditions) > 0:
-            buy_file_path = cls.get_path_file_backtest_session_files(Map.condition, **{Map.side: Map.buy})
+            buy_file_path = cls.get_path_backtest_file(Map.condition, **{Map.side: Map.buy})
             buy_field = list(buy_conditions[0].keys())
             FileManager.write_csv(buy_file_path, buy_field, buy_conditions, overwrite=False, make_dir=True)
         # Sell
         if len(sell_conditions) > 0:
-            sell_file_path = cls.get_path_file_backtest_session_files(Map.condition, **{Map.side: Map.sell})
+            sell_file_path = cls.get_path_backtest_file(Map.condition, **{Map.side: Map.sell})
             sell_field = list(sell_conditions[0].keys())
             FileManager.write_csv(sell_file_path, sell_field, sell_conditions, overwrite=False, make_dir=True)
         # Trades
         if len(trades) > 0:
-            trade_file_path = cls.get_path_file_backtest_session_files(Map.test)
+            trade_file_path = cls.get_path_backtest_file(Map.test)
             rows = []
             for trade in trades:
                 row = {}
@@ -283,7 +283,7 @@ class Strategy(Hand, ABC):
                 else:
                     flattened_trade[attribut] = value if (not isinstance(value, Callable)) else None
             return flattened_trade
-        file_path = cls.get_path_file_backtest_session_files(Map.trade)
+        file_path = cls.get_path_backtest_file(Map.trade)
         print_columns(file_path) if not FileManager.exist_file(file_path) else None
         print_trade(file_path, trade, state_comment)
 
@@ -527,23 +527,17 @@ class Strategy(Hand, ABC):
         return conditions
 
     @classmethod
-    def get_path_dir_backtest_session(cls) -> str:
-        test_session_dir = Config.get(Config.DIR_BACKTEST_TEST)
-        test_session_dir = test_session_dir.replace('$class', cls.__name__)
-        return test_session_dir
-
-    @classmethod
-    def get_path_file_backtest_session_files(cls, file: str, **kwargs) -> str:
-        test_session_dir = cls.get_path_dir_backtest_session()
-        session_id = Config.get(Config.SESSION_ID)
+    def get_path_backtest_file(cls, file: str, **kwargs) -> str:
         if file == Map.test:
-            file_path = f'{test_session_dir}{session_id}_backtest.csv'
+            file_base = Config.get(Config.FILE_BACKTEST_TEST)
         elif file == Map.trade:
-            file_path = f'{test_session_dir}{session_id}_trades.csv'
+            file_base = Config.get(Config.FILE_BACKTEST_TRADE)
         elif file == Map.condition:
-            file_path = f'{test_session_dir}{session_id}_condition_{kwargs[Map.side]}.csv'
+            file_base = Config.get(Config.FILE_BACKTEST_CONDITION)
+            file_base = file_base.replace('$side', kwargs[Map.side])
         else:
             raise ValueError(f"Unkwon file '{file}'")
+        file_path = file_base.replace('$class', cls.__name__)
         return file_path
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
