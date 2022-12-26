@@ -3,7 +3,6 @@ from typing import Callable, List
 import pandas as pd
 
 from config.Config import Config
-from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Log import Log
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -176,8 +175,7 @@ class Controller:
         self._set_stage()
         FileManager.write_csv(Config.get(Config.DIR_BEGIN_BACKUP), ["title"], [{"title": "start file"}], make_dir=True)
         FileManager.write_csv(Config.get(Config.DIR_END_BACKUP), ["title"], [{"title": "end file"}], make_dir=True)
-        config_cmd = 'commit=$(git log --oneline | head -n 1) ; commit_id=$(git log | head -n 1 | cut -d " " -f 2) ; commit_m=$(git log --oneline | head -n 1 | cut -d " " -f 2-) ; branch=$(git branch | grep "*" | awk -F " " "{print \$NF}" | sed "s#)##") ; now_date=$(date -u "+%Y-%m-%d %H:%M:%S") ; pyv=$(python3 -V) ; echo "Date:\t\t$now_date\nUSER:\t\t$USER\nPWD:\t\t$PWD\nVersion:\t$pyv\nBranch:\t\t$branch\nID:\t\t\t$commit_id\nMessage:\t$commit_m\n#"'
-        FileManager.write(Config.get(Config.FILE_SESSION_CONFIG), _MF.shell(config_cmd), overwrite=False ,make_dir=True, line_return=False)
+        Config.print_session_config()
         menus = self.get_menu(self.MENU_MAIN)
         quit_message="Are sure you want to close the application?:"
         self.menu_wrap(quit_message, menus)

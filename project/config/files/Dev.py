@@ -29,7 +29,7 @@ class Dev:
     FILE_VIEW_OUTPUT = f'{DIR_VIEW}view/{START_DATE}_view_output.txt'
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
-    FILE_SESSION_CONFIG = f'{DIR_ACTUAL_SESSION}session.conf'
+    FILE_SESSION_CONFIG = f'{DIR_ACTUAL_SESSION}{SESSION_ID}_session.conf'
     FILE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/orders/{SESSION_ID}_orders.json'
     DIR_BEGIN_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_a_a————————————————————.csv'
     DIR_SAVE_BOT_ERRORS = f'{DIR_SAVE_DATAS}{SESSION_ID}_b_bot_error.csv'
