@@ -3,7 +3,9 @@ from model.tools.MyJson import MyJson
 
 
 class Map(MyJson):
-    PREFIX_ID = 'map_'
+    PREFIX_ID =         'map_'
+    MERGE_KEY_TOKEN =   '_'
+    MERGE_KEY_REGEX = '^[\w_]+$'
     # keys
     message = "message"
     index = "index"
@@ -75,6 +77,8 @@ class Map(MyJson):
     analyse = "analyse"
     settime = "settime"
     condition = "condition"
+    keltner = "keltner"
+    candle = "candle"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
@@ -289,6 +293,31 @@ class Map(MyJson):
         """
         my_map = self.get_map()
         self._set_map(dict(sorted(my_map.items(), key=lambda row: row[0], reverse=reverse)))
+
+    @classmethod
+    def key(cls, *keys) -> str:
+        """
+        To compose a new key
+
+        Parameters:
+        -----------
+        *keys: list
+            Keys to use to compose a new key
+
+        Return:
+        -------
+        return: str
+            New key composed
+        """
+        regex = cls.MERGE_KEY_REGEX
+        clean_keys = []
+        for key in keys:
+            _MF.check_type(key, (str, int, float))
+            key = str(key)
+            if not _MF.regex_match(regex, key):
+                raise ValueError(f"Keys must match regex '{regex}', instead '{key}'")
+            clean_keys.append(key)
+        return cls.MERGE_KEY_TOKEN.join(clean_keys)
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:

@@ -306,6 +306,19 @@ class TestMap(unittest.TestCase, Map):
         result2.sort(True)
         self.assertDictEqual(exp2, result2.get_map())
 
+    def test_key(self) -> None:
+        # Compose key
+        token = Map.MERGE_KEY_TOKEN
+        exp1 = Map.buy + token + Map.maximum + token + Map.POST + token + '123' + token + Map.x + token + Map.test_mode + token + Map.isMaker
+        result1 = Map.key(Map.buy, Map.maximum, Map.POST, 123, Map.x, Map.test_mode, Map.isMaker)
+        self.assertEqual(exp1, result1)
+        # Wrong type
+        with self.assertRaises(TypeError):
+            Map.key(Map.x, Map.test_mode, Map(), Map.isMaker)
+        # Wrong format
+        with self.assertRaises(ValueError):
+            Map.key(Map.x, Map.test_mode, 'œ∑∑´®ƒ∂ß', Map.isMaker)
+
     def test_json_encode_decode(self) -> None:
         original_obj = self.mp2
         test_exec = self.get_executable_test_json_encode_decode()
