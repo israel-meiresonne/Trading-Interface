@@ -22,7 +22,6 @@ class Controller:
     MENUS_VAR_HEADER =          Map.header
     MENUS_HEADER_SEPARATOR =    ' > '
     MENUS_KEEP_VARS =           [MENUS_VAR_HEADER]
-    OPTIONS_BOOLEAN =           {'No': False, 'Yes': True}
 
     def __init__(self):
         self.model = Log()
@@ -249,10 +248,7 @@ class Controller:
 
     def ask_confirmation(self, message: str) -> bool:
         view = self._get_view()
-        bool_menu = self.OPTIONS_BOOLEAN
-        bool_options = list(bool_menu.keys())
-        response = bool_menu[bool_options[view.menu(message, bool_options)]]
-        return response
+        return view.ask_boolean(message)
 
     def close_brokers(self) -> None:
         self._get_model().close_brokers()
