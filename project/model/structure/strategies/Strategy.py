@@ -311,7 +311,7 @@ class Strategy(Hand, ABC):
         return trade
 
     @classmethod
-    def _backtest_new_trade(cls, broker: Broker, marketprices: Map, pair: Pair, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> dict:
+    def _backtest_new_trade(cls, broker: Broker, marketprices: Map, pair: Pair, order_type: str, exec_type: str = None, limit: float = None, stop: float = None) -> dict:
         """
         | Keys              | Type          | Documentation                                                         |
         | ----------------- | ------------- | --------------------------------------------------------------------- |
@@ -327,7 +327,7 @@ class Strategy(Hand, ABC):
         cls._backtest_check_type(broker, Broker)
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_type(marketprices, Map)
-        buy_order = cls.__backtest_new_order(broker, marketprices, pair, Map.buy, order_type, exec_type, limit=limit, stop=stop)
+        buy_order = cls.__backtest_new_order(broker, marketprices, pair, Map.buy, order_type, exec_type=exec_type, limit=limit, stop=stop)
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         open_time = marketprice.get_time()
         trade = cls._backtest_get_trade_skull()
@@ -342,10 +342,10 @@ class Strategy(Hand, ABC):
         return trade
 
     @classmethod
-    def _backtest_trade_set_sell_order(cls, broker: Broker, marketprices: Map, trade: dict, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> None:
+    def _backtest_trade_set_sell_order(cls, broker: Broker, marketprices: Map, trade: dict, order_type: str, exec_type: str = None, limit: float = None, stop: float = None) -> None:
         side = Map.sell
         pair = trade[Map.buy][Map.pair]
-        sell_order = cls.__backtest_new_order(broker, marketprices, pair, side, order_type, exec_type, limit=limit, stop=stop)
+        sell_order = cls.__backtest_new_order(broker, marketprices, pair, side, order_type, exec_type=exec_type, limit=limit, stop=stop)
         trade[side] = sell_order
         cls._print_trade(trade, 'TRADE_SET_SELL_ORDER')
 
@@ -403,7 +403,7 @@ class Strategy(Hand, ABC):
         return order
 
     @classmethod
-    def __backtest_new_order(cls, broker: Broker, marketprices: Map, pair: Pair, side: str, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> dict:
+    def __backtest_new_order(cls, broker: Broker, marketprices: Map, pair: Pair, side: str, order_type: str, exec_type: str = None, limit: float = None, stop: float = None) -> dict:
         """
         | key                 | type    | Documentation                                                  |
         | ------------------- | ------- | -------------------------------------------------------------- |
@@ -426,7 +426,7 @@ class Strategy(Hand, ABC):
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_allowed_values(side, [Map.buy, Map.sell])
         cls._backtest_check_allowed_values(order_type, Order.TYPES)
-        cls._backtest_check_allowed_values(exec_type, [Map.open, Map.close, Map.mean])
+        cls._backtest_check_allowed_values(exec_type, [Map.open, Map.close, Map.mean]) if order_type == Order.TYPE_MARKET else None
         cls._backtest_check_type(limit, (int, float)) if limit is not None else None
         cls._backtest_check_type(stop, (int, float)) if stop is not None else None
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
