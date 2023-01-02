@@ -878,8 +878,10 @@ class BinanceAPI(ABC):
             response = call_fake_api()
         elif (_stage in [Config.STAGE_2, Config.STAGE_3]) and rq_is_kline and (not time_in_params):
             response = cls._socket_market_history(test_mode, rq, params)
-        else:
+        elif _stage in [Config.STAGE_2, Config.STAGE_3]:
             response = cls._waitingroom(test_mode, api_keys, rq, params)
+        else:
+            raise Exception(f"This stage '{_stage}' is not supported")
         return response
 
     @staticmethod
