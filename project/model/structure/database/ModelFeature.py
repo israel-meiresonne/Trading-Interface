@@ -745,22 +745,22 @@ class ModelFeature(ModelAccess):
                 print(e)
 
     @staticmethod
-    def output(text: str) -> None:
+    def output(output: str) -> None:
         """
         To output messages
 
         Parameters:
         -----------
-        text: str
+        output: str
             Message to output
         """
         if not ModelFeature.OUTPUT:
             from config.Config import Config
             from model.tools.FileManager import FileManager
             path = Config.get(Config.FILE_MODEL_OUTPUT)
-            FileManager.write(path, text, overwrite=False, make_dir=True, line_return=True)
+            FileManager.write(path, output, overwrite=False, make_dir=True, line_return=True)
         else:
-            print(text)
+            print(output)
 
     @classmethod
     def static_output(cls, output: str) -> None:
@@ -772,8 +772,11 @@ class ModelFeature(ModelAccess):
         output: str
             Message to output
         """
-        sys.stdout.write(f'\r{output}')
-        sys.stdout.flush()
+        if cls.OUTPUT:
+            sys.stdout.write(f'\r{output}')
+            sys.stdout.flush()
+        else:
+            cls.output(output)
 
     @staticmethod
     def wait_while(callback: FunctionType, value: Any, timeout: int, to_raise: Exception = None, **kwargs) -> None:
@@ -940,3 +943,8 @@ class ModelFeature(ModelAccess):
     def update_bot_trade_index(cls, index: int) -> int:
         from model.structure.Bot import Bot
         Bot.update_trade_index(index)
+
+    @classmethod
+    def check_type(cls, value: Any, expected_type) -> None:
+        if not isinstance(value, expected_type):
+            raise TypeError(f"Expected type '{expected_type}', instead '{type(value)}'")
