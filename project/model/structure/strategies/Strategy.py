@@ -311,7 +311,7 @@ class Strategy(Hand, ABC):
         return trade
 
     @classmethod
-    def _backtest_new_trade(cls, broker: Broker, marketprices: Map, pair: Pair, order_type: str, limit: float = None, stop: float = None) -> dict:
+    def _backtest_new_trade(cls, broker: Broker, marketprices: Map, pair: Pair, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> dict:
         """
         | Keys              | Type          | Documentation                                                         |
         | ----------------- | ------------- | --------------------------------------------------------------------- |
@@ -327,7 +327,7 @@ class Strategy(Hand, ABC):
         cls._backtest_check_type(broker, Broker)
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_type(marketprices, Map)
-        buy_order = cls.__backtest_new_order(broker, marketprices, pair, Map.buy, order_type, limit=limit, stop=stop)
+        buy_order = cls.__backtest_new_order(broker, marketprices, pair, Map.buy, order_type, exec_type, limit=limit, stop=stop)
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         open_time = marketprice.get_time()
         trade = cls._backtest_get_trade_skull()
@@ -342,10 +342,10 @@ class Strategy(Hand, ABC):
         return trade
 
     @classmethod
-    def _backtest_trade_set_sell_order(cls, broker: Broker, marketprices: Map, trade: dict, order_type: str, limit: float = None, stop: float = None) -> None:
+    def _backtest_trade_set_sell_order(cls, broker: Broker, marketprices: Map, trade: dict, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> None:
         side = Map.sell
         pair = trade[Map.buy][Map.pair]
-        sell_order = cls.__backtest_new_order(broker, marketprices, pair, side, order_type, limit=limit, stop=stop)
+        sell_order = cls.__backtest_new_order(broker, marketprices, pair, side, order_type, exec_type, limit=limit, stop=stop)
         trade[side] = sell_order
         cls._print_trade(trade, 'TRADE_SET_SELL_ORDER')
 
@@ -391,6 +391,7 @@ class Strategy(Hand, ABC):
             Map.side:       None,
             Map.type:       None,
             Map.status:     None,
+            Map.submit:     None,
             Map.market:     None,
             Map.limit:      None,
             Map.stop:       None,
@@ -402,28 +403,30 @@ class Strategy(Hand, ABC):
         return order
 
     @classmethod
-    def __backtest_new_order(cls, broker: Broker, marketprices: Map, pair: Pair, side: str, order_type: str, limit: float = None, stop: float = None) -> dict:
+    def __backtest_new_order(cls, broker: Broker, marketprices: Map, pair: Pair, side: str, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> dict:
         """
-        | key                 | type    | Documentation                                                 |
-        | ------------------- | ------- | ------------------------------------------------------------- |
-        | dict[Map.id]        | {str}   | Order's id                                                    |
-        | dict[Map.settime]   | {int}   | Order's set time in second                                    |
-        | dict[Map.pair]      | {Pair}  | Order's Pair                                                  |
-        | dict[Map.side]      | {str}   | Order's side (buy, sell)                                      |
-        | dict[Map.type]      | {str}   | Order's type (market, limit, stop_loss, stop_limit)           |
-        | dict[Map.status]    | {str}   | Order's execution status                                      |
-        | dict[Map.market]    | {float} | Market's close price at order's creation                      |
-        | dict[Map.limit]     | {float} | The limit price                                               |
-        | dict[Map.stop]      | {float} | The stop price                                                |
-        | dict[Map.time]      | {int}   | The execution time in second                                  |
-        | dict[Map.timestamp] | {int}   | Open Time (in second) of when the stop price has been reached |
-        | dict[Map.execution] | {float} | The execution price                                           |
-        | dict[Map.fee]       | {float} | The fee rate at execution                                     |
+        | key                 | type    | Documentation                                                  |
+        | ------------------- | ------- | -------------------------------------------------------------- |
+        | dict[Map.id]        | {str}   | Order's id                                                     |
+        | dict[Map.settime]   | {int}   | Order's set time in second                                     |
+        | dict[Map.pair]      | {Pair}  | Order's Pair                                                   |
+        | dict[Map.side]      | {str}   | Order's side (buy, sell)                                       |
+        | dict[Map.type]      | {str}   | Order's type (market, limit, stop_loss, stop_limit)            |
+        | dict[Map.status]    | {str}   | Order's execution status                                       |
+        | dict[Map.market]    | {str}   | Price to use with market order (Map.open, Map.close, Map.mean) |
+        | dict[Map.submit]    | {float} | Market's close price at order's creation                       |
+        | dict[Map.limit]     | {float} | The limit price                                                |
+        | dict[Map.stop]      | {float} | The stop price                                                 |
+        | dict[Map.time]      | {int}   | The execution time in second                                   |
+        | dict[Map.timestamp] | {int}   | Open Time (in second) of when the stop price has been reached  |
+        | dict[Map.execution] | {float} | The execution price                                            |
+        | dict[Map.fee]       | {float} | The fee rate at execution                                      |
         """
         period_1min = Broker.PERIOD_1MIN
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_allowed_values(side, [Map.buy, Map.sell])
         cls._backtest_check_allowed_values(order_type, Order.TYPES)
+        cls._backtest_check_allowed_values(exec_type, [Map.open, Map.close, Map.mean])
         cls._backtest_check_type(limit, (int, float)) if limit is not None else None
         cls._backtest_check_type(stop, (int, float)) if stop is not None else None
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
@@ -437,7 +440,8 @@ class Strategy(Hand, ABC):
         order[Map.side] =       side
         order[Map.type] =       order_type
         order[Map.status] =     None
-        order[Map.market] =     price_stamp
+        order[Map.market] =     exec_type
+        order[Map.submit] =     price_stamp
         order[Map.limit] =      limit
         order[Map.stop] =       stop
         order[Map.time] =       None
@@ -478,8 +482,9 @@ class Strategy(Hand, ABC):
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_pd = marketprice.to_pd()
         if order_type == Order.TYPE_MARKET:
-            exec_time = int(marketprice_pd.loc[marketprice_pd.index[-1], Map.time])
-            exec_price = float(marketprice_pd.loc[marketprice_pd.index[-1], Map.close])
+            exec_type = order[Map.market]
+            exec_time = int(marketprice_pd[Map.time].iloc[-1])
+            exec_price = marketprice_pd[[Map.open, Map.close]].iloc[-1].mean() if (exec_type == Map.mean) else float(marketprice_pd[exec_type].iloc[-1])
             cls.__backtest_update_order(order, Order.STATUS_COMPLETED, exec_time=exec_time, exec_price=exec_price, fee=taker_fee_rate)
         elif (order_type == Order.TYPE_LIMIT) or ((order_type == Order.TYPE_STOP_LIMIT) and (order[Map.timestamp] is not None)):
             cls.__backtest_update_order(order, Order.STATUS_SUBMITTED)
@@ -499,7 +504,7 @@ class Strategy(Hand, ABC):
             settime = order[Map.settime]
             side = order[Map.side]
             stop = order[Map.stop]
-            price_stamp = order[Map.market]
+            price_stamp = order[Map.submit]
             is_stamp_above = price_stamp > stop
             sub_marketprice = marketprice_pd[marketprice_pd[Map.time] >= settime]
             if is_stamp_above:
@@ -529,7 +534,7 @@ class Strategy(Hand, ABC):
             raise ValueError(f"MarketPrice's period must be '{Broker.PERIOD_1MIN}', instead '{marketprice.get_period_time()}'")
         conditions = {
             Map.date:   _MF.unix_to_date(_MF.get_timestamp()),
-            Map.market: _MF.unix_to_date(marketprice.get_time()),
+            Map.submit: _MF.unix_to_date(marketprice.get_time()),
             Map.time:   marketprice.get_time(),
             Map.pair:   pair,
             **conditions
