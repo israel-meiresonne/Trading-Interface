@@ -426,7 +426,7 @@ class Strategy(Hand, ABC):
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_allowed_values(side, [Map.buy, Map.sell])
         cls._backtest_check_allowed_values(order_type, Order.TYPES)
-        cls._backtest_check_allowed_values(exec_type, [Map.open, Map.close, Map.mean]) if order_type == Order.TYPE_MARKET else None
+        cls._backtest_check_allowed_values(exec_type, [Map.open, Map.close, Map.mean]) if (exec_type is not None) or (order_type == Order.TYPE_MARKET) else None
         cls._backtest_check_type(limit, (int, float)) if limit is not None else None
         cls._backtest_check_type(stop, (int, float)) if stop is not None else None
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
