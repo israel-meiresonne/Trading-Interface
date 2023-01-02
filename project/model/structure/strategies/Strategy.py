@@ -109,11 +109,16 @@ class Strategy(Hand, ABC):
         if len(trades) > 0:
             trade_file_path = cls.get_path_backtest_file(Map.test)
             rows = []
+            broker_str = broker.__class__.__name__
             for trade in trades:
                 row = {}
                 row[Map.date] =             _MF.unix_to_date(_MF.get_timestamp())
+                row[Map.strategy] =         cls.__name__
+                row[Map.broker] =           broker_str
                 row[Map.pair] =             trade[Map.buy][Map.pair]
+                row['start_time'] =         stats[Map.start]
                 row[Map.start] =            _MF.unix_to_date(stats[Map.start])
+                row['end_time'] =           stats[Map.end]
                 row[Map.end] =              _MF.unix_to_date(stats[Map.end])
                 row['trade_id'] =           trade[Map.id]
                 row['trade_settime'] =      trade[Map.settime]
@@ -121,6 +126,7 @@ class Strategy(Hand, ABC):
                 row['buy_order_id'] =       trade[Map.buy][Map.id]
                 row['buy_order_settime'] =  trade[Map.buy][Map.settime]
                 row['buy_order_date'] =     _MF.unix_to_date(trade[Map.buy][Map.settime])
+                row['buy_order_type'] =     trade[Map.buy][Map.type]
                 row['buy_time'] =           trade[Map.buy][Map.time]
                 row['buy_date'] =           _MF.unix_to_date(trade[Map.buy][Map.time])
                 row['buy_price'] =          trade[Map.buy][Map.execution]
@@ -128,6 +134,7 @@ class Strategy(Hand, ABC):
                 row['sell_order_id'] =      trade[Map.sell][Map.id]
                 row['sell_order_settime'] = trade[Map.sell][Map.settime]
                 row['sell_order_date'] =    _MF.unix_to_date(trade[Map.sell][Map.settime])
+                row['sell_order_type'] =    trade[Map.sell][Map.type]
                 row['sell_time'] =          trade[Map.sell][Map.time]
                 row['sell_date'] =          _MF.unix_to_date(trade[Map.sell][Map.time])
                 row['sell_price'] =         trade[Map.sell][Map.execution]
@@ -150,9 +157,9 @@ class Strategy(Hand, ABC):
             pd_rows.loc[:,'min_win_roi'] =          roi_wins.min()
             pd_rows.loc[:,'mean_win_roi'] =         roi_wins.mean()
             pd_rows.loc[:,'max_win_roi'] =          roi_wins.max()
-            pd_rows.loc[:,'min_loss_roi'] =         roi_losses.min()
+            pd_rows.loc[:,'min_loss_roi'] =         roi_losses.max()
             pd_rows.loc[:,'mean_loss_roi'] =        roi_losses.mean()
-            pd_rows.loc[:,'max_loss_roi'] =         roi_losses.max()
+            pd_rows.loc[:,'max_loss_roi'] =         roi_losses.min()
             pd_rows.loc[:,'sum_roi'] =              pd_rows[Map.roi].sum()
             pd_rows.loc[:,'sum_fee'] =              pd_rows['buy_fee'].sum() + pd_rows['sell_fee'].sum()
             pd_rows.loc[:,'sum_roi_no_fee'] =       pd_rows.loc[:,'sum_roi'] + pd_rows.loc[:,'sum_fee']
@@ -173,7 +180,7 @@ class Strategy(Hand, ABC):
     def _backtest_loop(cls, broker: Broker, pair: Pair, endtime: int) -> tuple[list[dict], list[dict], list[dict]]:
         def output(i: int, marketprice: MarketPrice, output_starttime: int, output_n_turn: int) -> tuple[int, int]:
             output_turn = i
-            output_message = f"Backtest '{pair_str.upper()}' on '{_MF.unix_to_date(marketprice.get_time())}'"
+            output_message = f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(marketprice.get_time())}' to '{enddate}'"
             if i == 0:
                 output_starttime = _MF.get_timestamp()
                 output_n_turn = int((endtime - marketprice.get_time())/60)
@@ -198,6 +205,7 @@ class Strategy(Hand, ABC):
             stats[Map.close] = close
             stats[Map.high] = high if ((stats[Map.high] is None) or (high > stats[Map.high])) else stats[Map.high]
             stats[Map.low] = low if ((stats[Map.low] is None) or (low < stats[Map.low])) else stats[Map.low]
+        enddate = _MF.unix_to_date(endtime)
         pair_str = pair.__str__()
         required_periods = cls._REQUIRED_PERIODS
         required_periods.sort()
@@ -237,7 +245,7 @@ class Strategy(Hand, ABC):
             # Stats
             update_stats(i, stats, marketprice)
             # Trade
-            cls._backtest_loop_inner(broker, marketprices, pair, trade, buy_conditions, sell_conditions)
+            trade = cls._backtest_loop_inner(broker, marketprices, pair, trade, buy_conditions, sell_conditions)
             # Execution
             cls._backtest_execute_trade(broker, marketprices, trade) if trade is not None else None
             if (trade is not None) \
@@ -273,14 +281,16 @@ class Strategy(Hand, ABC):
             print_trade(file_path, empty_trade, '')
         def flat_trade(trade: dict) -> dict:
             flattened_trade = {}
+            unix_date_keys = [Map.settime, Map.time, Map.timestamp]
             for attribut, value in trade.items():
                 if isinstance(value, dict):
-                    dict_value = {f'{attribut}_{k}': v for k, v in value.items()}
+                    dict_value = {f'{attribut}_{k}': (_MF.unix_to_date(v) if (k in unix_date_keys) and (isinstance(v, (int, float))) else v) for k, v in value.items()}
                     flattened_trade = {
                         **flattened_trade,
                         **dict_value
                     }
                 else:
+                    value = _MF.unix_to_date(value) if (attribut in unix_date_keys) and (isinstance(value, (int, float))) else value
                     flattened_trade[attribut] = value if (not isinstance(value, Callable)) else None
             return flattened_trade
         file_path = cls.get_path_backtest_file(Map.trade)
@@ -301,7 +311,7 @@ class Strategy(Hand, ABC):
         return trade
 
     @classmethod
-    def _backtest_new_trade(cls, broker: Broker, marketprices: Map, pair: Pair, order_type: str, limit: float = None, stop: float = None) -> dict:
+    def _backtest_new_trade(cls, broker: Broker, marketprices: Map, pair: Pair, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> dict:
         """
         | Keys              | Type          | Documentation                                                         |
         | ----------------- | ------------- | --------------------------------------------------------------------- |
@@ -317,7 +327,7 @@ class Strategy(Hand, ABC):
         cls._backtest_check_type(broker, Broker)
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_type(marketprices, Map)
-        buy_order = cls.__backtest_new_order(broker, marketprices, pair, Map.buy, order_type, limit, stop)
+        buy_order = cls.__backtest_new_order(broker, marketprices, pair, Map.buy, order_type, exec_type, limit=limit, stop=stop)
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         open_time = marketprice.get_time()
         trade = cls._backtest_get_trade_skull()
@@ -332,10 +342,10 @@ class Strategy(Hand, ABC):
         return trade
 
     @classmethod
-    def _backtest_trade_set_sell_order(cls, broker: Broker, marketprices: Map, trade: dict, order_type: str, limit: float = None, stop: float = None) -> None:
+    def _backtest_trade_set_sell_order(cls, broker: Broker, marketprices: Map, trade: dict, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> None:
         side = Map.sell
         pair = trade[Map.buy][Map.pair]
-        sell_order = cls.__backtest_new_order(broker, marketprices, pair, side, order_type, limit=limit, stop=stop)
+        sell_order = cls.__backtest_new_order(broker, marketprices, pair, side, order_type, exec_type, limit=limit, stop=stop)
         trade[side] = sell_order
         cls._print_trade(trade, 'TRADE_SET_SELL_ORDER')
 
@@ -381,6 +391,7 @@ class Strategy(Hand, ABC):
             Map.side:       None,
             Map.type:       None,
             Map.status:     None,
+            Map.submit:     None,
             Map.market:     None,
             Map.limit:      None,
             Map.stop:       None,
@@ -392,28 +403,30 @@ class Strategy(Hand, ABC):
         return order
 
     @classmethod
-    def __backtest_new_order(cls, broker: Broker, marketprices: Map, pair: Pair, side: str, order_type: str, limit: float = None, stop: float = None) -> dict:
+    def __backtest_new_order(cls, broker: Broker, marketprices: Map, pair: Pair, side: str, order_type: str, exec_type: str, limit: float = None, stop: float = None) -> dict:
         """
-        | key                 | type    | Documentation                                                 |
-        | ------------------- | ------- | ------------------------------------------------------------- |
-        | dict[Map.id]        | {str}   | Order's id                                                    |
-        | dict[Map.settime]   | {int}   | Order's set time in second                                    |
-        | dict[Map.pair]      | {Pair}  | Order's Pair                                                  |
-        | dict[Map.side]      | {str}   | Order's side (buy, sell)                                      |
-        | dict[Map.type]      | {str}   | Order's type (market, limit, stop_loss, stop_limit)           |
-        | dict[Map.status]    | {str}   | Order's execution status                                      |
-        | dict[Map.market]    | {float} | Market's close price at order's creation                      |
-        | dict[Map.limit]     | {float} | The limit price                                               |
-        | dict[Map.stop]      | {float} | The stop price                                                |
-        | dict[Map.time]      | {int}   | The execution time in second                                  |
-        | dict[Map.timestamp] | {int}   | Open Time (in second) of when the stop price has been reached |
-        | dict[Map.execution] | {float} | The execution price                                           |
-        | dict[Map.fee]       | {float} | The fee rate at execution                                     |
+        | key                 | type    | Documentation                                                  |
+        | ------------------- | ------- | -------------------------------------------------------------- |
+        | dict[Map.id]        | {str}   | Order's id                                                     |
+        | dict[Map.settime]   | {int}   | Order's set time in second                                     |
+        | dict[Map.pair]      | {Pair}  | Order's Pair                                                   |
+        | dict[Map.side]      | {str}   | Order's side (buy, sell)                                       |
+        | dict[Map.type]      | {str}   | Order's type (market, limit, stop_loss, stop_limit)            |
+        | dict[Map.status]    | {str}   | Order's execution status                                       |
+        | dict[Map.market]    | {str}   | Price to use with market order (Map.open, Map.close, Map.mean) |
+        | dict[Map.submit]    | {float} | Market's close price at order's creation                       |
+        | dict[Map.limit]     | {float} | The limit price                                                |
+        | dict[Map.stop]      | {float} | The stop price                                                 |
+        | dict[Map.time]      | {int}   | The execution time in second                                   |
+        | dict[Map.timestamp] | {int}   | Open Time (in second) of when the stop price has been reached  |
+        | dict[Map.execution] | {float} | The execution price                                            |
+        | dict[Map.fee]       | {float} | The fee rate at execution                                      |
         """
         period_1min = Broker.PERIOD_1MIN
         cls._backtest_check_type(pair, Pair)
         cls._backtest_check_allowed_values(side, [Map.buy, Map.sell])
         cls._backtest_check_allowed_values(order_type, Order.TYPES)
+        cls._backtest_check_allowed_values(exec_type, [Map.open, Map.close, Map.mean])
         cls._backtest_check_type(limit, (int, float)) if limit is not None else None
         cls._backtest_check_type(stop, (int, float)) if stop is not None else None
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
@@ -427,7 +440,8 @@ class Strategy(Hand, ABC):
         order[Map.side] =       side
         order[Map.type] =       order_type
         order[Map.status] =     None
-        order[Map.market] =     price_stamp
+        order[Map.market] =     exec_type
+        order[Map.submit] =     price_stamp
         order[Map.limit] =      limit
         order[Map.stop] =       stop
         order[Map.time] =       None
@@ -468,8 +482,9 @@ class Strategy(Hand, ABC):
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_pd = marketprice.to_pd()
         if order_type == Order.TYPE_MARKET:
-            exec_time = int(marketprice_pd.loc[marketprice_pd.index[-1], Map.time])
-            exec_price = float(marketprice_pd.loc[marketprice_pd.index[-1], Map.close])
+            exec_type = order[Map.market]
+            exec_time = int(marketprice_pd[Map.time].iloc[-1])
+            exec_price = marketprice_pd[[Map.open, Map.close]].iloc[-1].mean() if (exec_type == Map.mean) else float(marketprice_pd[exec_type].iloc[-1])
             cls.__backtest_update_order(order, Order.STATUS_COMPLETED, exec_time=exec_time, exec_price=exec_price, fee=taker_fee_rate)
         elif (order_type == Order.TYPE_LIMIT) or ((order_type == Order.TYPE_STOP_LIMIT) and (order[Map.timestamp] is not None)):
             cls.__backtest_update_order(order, Order.STATUS_SUBMITTED)
@@ -489,7 +504,7 @@ class Strategy(Hand, ABC):
             settime = order[Map.settime]
             side = order[Map.side]
             stop = order[Map.stop]
-            price_stamp = order[Map.market]
+            price_stamp = order[Map.submit]
             is_stamp_above = price_stamp > stop
             sub_marketprice = marketprice_pd[marketprice_pd[Map.time] >= settime]
             if is_stamp_above:
@@ -519,7 +534,7 @@ class Strategy(Hand, ABC):
             raise ValueError(f"MarketPrice's period must be '{Broker.PERIOD_1MIN}', instead '{marketprice.get_period_time()}'")
         conditions = {
             Map.date:   _MF.unix_to_date(_MF.get_timestamp()),
-            Map.market: _MF.unix_to_date(marketprice.get_time()),
+            Map.submit: _MF.unix_to_date(marketprice.get_time()),
             Map.time:   marketprice.get_time(),
             Map.pair:   pair,
             **conditions
