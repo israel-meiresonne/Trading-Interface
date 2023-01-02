@@ -10,6 +10,7 @@ class View:
     SEPARATOR =         "——————————————————————————————"
     REGEX_RICH =        r'^\\033\[([0-4]|(3|4|9|10)[0-7]){1}m'
     RECORD_OUTPUT =     False
+    OPTIONS_BOOLEAN =   {'No': False, 'Yes': True}
     # Styles
     S_NORMAL =          '\033[0m'
     S_BOLD =            '\033[1m'
@@ -161,6 +162,25 @@ class View:
             self._print(self.C_LIGHT_RED + out + self.S_NORMAL)
             return None
         self._print(out)
+
+    def ask_boolean(self, message: str) -> bool:
+        """
+        To ask a boolean question
+
+        Parameters:
+        -----------
+        message: str
+            The boolean question
+
+        Return:
+        -------
+        return: bool
+            The response to the boolean question
+        """
+        bool_menu = self.OPTIONS_BOOLEAN
+        bool_options = list(bool_menu.keys())
+        response = bool_menu[bool_options[self.menu(message, bool_options)]]
+        return response
 
     @classmethod
     def prefix(cls) -> str:
