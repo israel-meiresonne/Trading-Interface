@@ -180,10 +180,10 @@ class Strategy(Hand, ABC):
     def _backtest_loop(cls, broker: Broker, pair: Pair, endtime: int) -> tuple[list[dict], list[dict], list[dict]]:
         def output(i: int, marketprice: MarketPrice, output_starttime: int, output_n_turn: int) -> tuple[int, int]:
             output_turn = i
-            output_message = f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(marketprice.get_time())}' to '{enddate}'"
             if i == 0:
                 output_starttime = _MF.get_timestamp()
                 output_n_turn = int((endtime - marketprice.get_time())/60)
+            output_message = f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(output_starttime)}' to '{enddate}' actual '{_MF.unix_to_date(marketprice.get_time())}'"
             output = _MF.loop_progression(output_starttime, output_turn, output_n_turn, output_message)
             _MF.static_output(output)
             return output_starttime, output_n_turn
