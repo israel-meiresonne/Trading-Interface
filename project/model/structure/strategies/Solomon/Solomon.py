@@ -44,7 +44,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float]:
-        TRIGGE_KELTNER =    0.6/100
+        TRIGGE_KELTNER = .6/100
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         period_5min = Broker.PERIOD_5MIN
@@ -88,7 +88,7 @@ class Solomon(Strategy):
             f'supertrend_{period_strs[period_15min]}[-1]':              vars_map.get(f'supertrend_{period_strs[period_15min]}[-1]'),
             f'supertrend_{period_strs[period_15min]}[-2]':              vars_map.get(f'supertrend_{period_strs[period_15min]}[-2]')
         }
-        limit = vars_map.get(f'keltner_middle_{period_strs[period_1min]}[-1]')
+        limit = vars_map.get(f'keltner_low_{period_strs[period_1min]}[-1]')
         return can_buy, report, limit
 
     @classmethod
@@ -133,7 +133,7 @@ class Solomon(Strategy):
             f'supertrend_{period_strs[period_15min]}[-1]':      vars_map.get(f'supertrend_{period_strs[period_15min]}[-1]'),
             f'supertrend_{period_strs[period_15min]}[-2]':      vars_map.get(f'supertrend_{period_strs[period_15min]}[-2]')
         }
-        limit = vars_map.get(f'keltner_high_{period_strs[period_1min]}[-1]')
+        limit = vars_map.get(f'keltner_middle_{period_strs[period_1min]}[-1]')
         return can_sell, report, limit
 
     @classmethod
