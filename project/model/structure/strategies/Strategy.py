@@ -94,7 +94,7 @@ class Strategy(Hand, ABC):
     @classmethod
     def backtest(cls, broker: Broker, pair: Pair, starttime: int, endtime: int) -> None:
         Config.update(Config.FAKE_API_START_END_TIME, {Map.start: starttime, Map.end: endtime})
-        trades, buy_conditions, sell_conditions, stats = cls._backtest_loop(broker, pair, endtime)
+        trades, buy_conditions, sell_conditions, stats = cls._backtest_loop(broker, pair, starttime, endtime)
         # Buy
         if len(buy_conditions) > 0:
             buy_file_path = cls.get_path_backtest_file(Map.condition, **{Map.side: Map.buy})
@@ -177,13 +177,13 @@ class Strategy(Hand, ABC):
             FileManager.write_csv(trade_file_path, pd_rows.columns, pd_rows.replace({float('nan'): None}).to_dict('records'), overwrite=False, make_dir=True)
 
     @classmethod
-    def _backtest_loop(cls, broker: Broker, pair: Pair, endtime: int) -> tuple[list[dict], list[dict], list[dict]]:
+    def _backtest_loop(cls, broker: Broker, pair: Pair, starttime: int, endtime: int) -> tuple[list[dict], list[dict], list[dict]]:
         def output(i: int, marketprice: MarketPrice, output_starttime: int, output_n_turn: int) -> tuple[int, int]:
             output_turn = i
             if i == 0:
                 output_starttime = _MF.get_timestamp()
                 output_n_turn = int((endtime - marketprice.get_time())/60)
-            output_message = f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(output_starttime)}' to '{enddate}' actual '{_MF.unix_to_date(marketprice.get_time())}'"
+            output_message = f"Backtest '{pair_str.upper()}' on '{_MF.unix_to_date(marketprice.get_time())}'"
             output = _MF.loop_progression(output_starttime, output_turn, output_n_turn, output_message)
             _MF.static_output(output)
             return output_starttime, output_n_turn
@@ -233,6 +233,7 @@ class Strategy(Hand, ABC):
         output_n_turn = None
         #
         i = -1
+        _MF.output(f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'")
         while True:
             # Manage Loop
             i += 1
