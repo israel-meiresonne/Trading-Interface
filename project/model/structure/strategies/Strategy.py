@@ -233,7 +233,7 @@ class Strategy(Hand, ABC):
         output_n_turn = None
         #
         i = -1
-        _MF.output(f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'")
+        _MF.output(_MF.prefix() + f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'")
         while True:
             # Manage Loop
             i += 1
