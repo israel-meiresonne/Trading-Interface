@@ -28,5 +28,5 @@ project/tests/datas/tools/TestPredictor/
 
 project/*env*/
 project/trash/
-project/draft.py
+# project/draft.py
 project/start_*
