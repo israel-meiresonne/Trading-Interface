@@ -75,7 +75,6 @@ class Strategy(Hand, ABC):
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
 
-    @abstractmethod
     def trade(self) -> int:
         """
         To automatically buy and/or sell positions
@@ -84,6 +83,16 @@ class Strategy(Hand, ABC):
         -------
         return: int
             The sleep time before the next call of this function
+        """
+        self._update_orders()
+        self._trade_inner()
+        return self.get_sleep_trade()
+
+    @abstractmethod
+    def _trade_inner(self) -> None:
+        """
+        To execute code in Strategy.trade()
+        NOTE: This function is called in Strategy.trade(), after update of Order and before to return the sleep time
         """
         pass
 
