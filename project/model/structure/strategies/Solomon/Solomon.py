@@ -35,7 +35,7 @@ class Solomon(Strategy):
     # ••• STALK UP
     # ••• TRADE DOWN
 
-    def trade(self) -> int:
+    def _trade_inner(self) -> None:
         pass
 
     # ••• TRADE UP
@@ -224,4 +224,4 @@ class Solomon(Strategy):
         return instance
 
     # ——————————————————————————————————————————— STATIC FUNCTION UP ——————————————————————————————————————————————————
-
+    
