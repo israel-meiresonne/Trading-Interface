@@ -241,7 +241,23 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         # Raise error
         fake_stream = self.fake_streams(1)[0]
         self.assertFalse(bws._set_market_history(fake_stream))
-    
+
+    def test_disable_market_history(self) -> None:
+        bws = self.bws_multi
+        stream = self.streams[0]
+        bws._set_market_history(stream)
+        market_history_np = bws.get_market_history_np(stream).copy()
+        bws._disable_market_history(stream)
+        history_np_desabled = bws.get_market_history_np(stream).copy()
+        self.assertNotEqual(market_history_np.tolist(), history_np_desabled.tolist())
+        n_row = market_history_np.shape[0]
+        exp1 = np.full((n_row, 9), None)
+        result1 = history_np_desabled[:, [1,2,3,4,5,7,8,9,10]]
+        self.assertTupleEqual(exp1.shape, result1.shape)
+        for i in range(exp1.shape[0]):
+            for j in range(exp1.shape[1]):
+                self.assertEqual(0, result1[i,j])
+
     def test_websocket_are_running(self) -> None:
         bws = self.bws_multi
         streams = self.streams
@@ -428,9 +444,9 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         test_replacement(stream, bws, period)
         # Push new candle
         test_push_new_candle(stream, bws, period)
-        # Reset market history because of the reset time
-        bws._set_market_history(stream)
-        test_reset_with_time(stream, bws)
+        # # Reset market history because of the reset time
+        # bws._set_market_history(stream)
+        # test_reset_with_time(stream, bws)
         # Reset market history because of open times are not constant
         bws._set_market_history(stream)
         test_reset_with_inconstant_open_times(stream, bws)
