@@ -167,7 +167,10 @@ class Bot(MyJson):
         """
         To stop trading
         """
+        strategy = self.get_strategy()
         self._set_thread_on(self._THREAD_TRADE, on=False)
+        strategy.stop()
+        self.backup(force=True)
 
     def _manage_trade(self) -> None:
         """
