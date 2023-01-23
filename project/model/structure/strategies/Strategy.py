@@ -85,11 +85,13 @@ class Strategy(Hand, ABC):
             The sleep time before the next call of this function
         """
         self._update_orders()
-        self._trade_inner()
+        marketprices = Map()
+        self._trade_inner(marketprices=marketprices)
+        self._repport_positions(marketprices)
         return self.get_sleep_trade()
 
     @abstractmethod
-    def _trade_inner(self) -> None:
+    def _trade_inner(self, marketprices: Map) -> None:
         """
         To execute code in Strategy.trade()
         NOTE: This function is called in Strategy.trade(), after update of Order and before to return the sleep time

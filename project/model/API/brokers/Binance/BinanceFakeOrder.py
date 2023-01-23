@@ -1,5 +1,7 @@
-import copy
 from typing import Any, Tuple
+
+import numpy as np
+from config.Config import Config
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
@@ -15,39 +17,39 @@ class BinanceFakeOrder(MyJson):
 
     def __init__(self, params: Map, market_datas: Map) -> None:
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
-        self.__symbol = params.get(Map.symbol).upper()
-        self.__type = params.get(Map.type)
-        self.__side = params.get(Map.side)
-        self.__status = BinanceAPI.STATUS_ORDER_NEW
-        self.__orderId = self.new_id()
-        self.__clientOrderId = params.get(Map.newClientOrderId)
-        self.__origClientOrderId = None
-        self.__orderListId = -1
-        self.__price = params.get(Map.price)
-        self.__stopPrice = params.get(Map.stopPrice)
-        self.__origQty = params.get(Map.quantity)
-        self.__icebergQty = params.get(Map.icebergQty)
-        self.__executedQty = 0
-        self.__cummulativeQuoteQty = 0
-        self.__timeInForce = params.get(Map.timeInForce)
-        self.__time = None
-        self.__isWorking = None
-        self.__updateTime = None
-        self.__transactTime = None
-        self.__fills = None
+        self.__symbol =                 params.get(Map.symbol).upper()
+        self.__type =                   params.get(Map.type)
+        self.__side =                   params.get(Map.side)
+        self.__status =                 BinanceAPI.STATUS_ORDER_NEW
+        self.__orderId =                self.new_id()
+        self.__clientOrderId =          params.get(Map.newClientOrderId)
+        self.__origClientOrderId =      None
+        self.__orderListId =            -1
+        self.__price =                  params.get(Map.price)
+        self.__stopPrice =              params.get(Map.stopPrice)
+        self.__origQty =                params.get(Map.quantity)
+        self.__icebergQty =             params.get(Map.icebergQty)
+        self.__executedQty =            0
+        self.__cummulativeQuoteQty =    0
+        self.__timeInForce =            params.get(Map.timeInForce)
+        self.__time =                   None
+        self.__isWorking =              None
+        self.__updateTime =             None
+        self.__transactTime =           None
+        self.__fills =                  None
         # Not API Attributs
-        self.__ready = False    # Set True if order is reeady be executed else False
-        self.__submit = None    # Market's close price at order's creation
-        self.__param = Map(params.get_map())
-        self.__market = Map(market_datas.get_map())
+        self.__ready =                  False   # Set True if order is reeady be executed else False
+        self.__submit =                 None    # Market's close price at order's creation
+        self.__param =                  Map(params.get_map().copy())
+        self.__market =                 Map(market_datas.get_map().copy())
         self._set_attributs()
 
     def _set_attributs(self) -> None:
         market_datas = self.get_attribut(Map.market)
         market_close_price = market_datas.get(Map.close)
-        market_time = market_datas.get(Map.time)
-        self._set_attribut(Map.time, market_time)
-        self._set_attribut(Map.updateTime, market_time)
+        submit_time = market_datas.get(Map.start)
+        self._set_attribut(Map.time, submit_time)
+        self._set_attribut(Map.updateTime, submit_time)
         self._set_attribut(Map.submit, market_close_price)
 
     def get_attribut(self, attribut: str) -> Any:
@@ -75,7 +77,7 @@ class BinanceFakeOrder(MyJson):
             raise ValueError(f"This side '{side}' is not supported")
         return isBuyer
 
-    def try_execute(self, market_datas: Map) -> bool:
+    def try_execute(self, market_datas: Map, market_history: np.ndarray) -> bool:
         """
         To try to execute the order
 
@@ -90,20 +92,43 @@ class BinanceFakeOrder(MyJson):
             True if the order has been executed else False
         """
         from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
-        def limit_reached(is_buyer: bool, close_price: float) -> None:
+        HIGH =  2
+        LOW =   3
+        def get_sub_history(history: np.ndarray, market_datas: Map) -> np.ndarray:
+            now_time = market_datas.get(Map.time)
+            submit_time = self.get_attribut(Map.time)
+            is_stage_one = Config.get(Config.STAGE_MODE) == Config.STAGE_1
+            submit_filter = (history[:, 0] >= submit_time) if is_stage_one else (history[:, 0] > submit_time)
+            sub_history = history[submit_filter & (history[:, 0] <= now_time)]
+            return sub_history
+        def get_exetremums(sub_history: np.ndarray, market_datas: Map) -> tuple[float, float]:
+            close = market_datas.get(Map.close)
+            is_history_empty = sub_history.shape[0] == 0
+            max_high =  max([sub_history[:, HIGH].max(), close]) if not is_history_empty else close
+            min_low =   min([sub_history[:, LOW].min(), close])  if not is_history_empty else close
+            return max_high, min_low
+        def limit_reached(is_buyer: bool, market_datas: Map, history: np.ndarray) -> bool:
             limit_price = self.get_attribut(Map.price)
-            return (is_buyer and (close_price <= limit_price)) or ((not is_buyer) and (close_price >= limit_price))
-
-        def stop_reached(close_price: float) -> bool:
+            sub_history = get_sub_history(history, market_datas)
+            max_high, min_low = get_exetremums(sub_history, market_datas)
+            is_reached = (is_buyer and (min_low <= limit_price)) or ((not is_buyer) and (max_high >= limit_price))
+            return is_reached
+        def stop_reached(is_buyer: bool, market_datas: Map, history: np.ndarray) -> bool:
+            close = market_datas.get(Map.close)
+            stop_price = self.get_attribut(Map.stopPrice)
+            sub_history = get_sub_history(history, market_datas)
+            max_high, min_low = get_exetremums(sub_history, market_datas)
+            return (is_buyer and (max_high >= stop_price)) or ((not is_buyer) and (min_low <= stop_price))
+        def stop_limit_reached(market_datas: Map, history: np.ndarray) -> bool:
             """
             To stop price is reached
             NOTE: stop price is reached if market's price come through the stop price
             """
             submit_price = self.get_attribut(Map.submit)
             stop_price = self.get_attribut(Map.stopPrice)
-            is_stop_reached = (close_price <= stop_price) if (submit_price >= stop_price) else (close_price >= stop_price)
-            return is_stop_reached
-
+            sub_history = get_sub_history(history, market_datas)
+            max_high, min_low = get_exetremums(sub_history, market_datas)
+            return (min_low <= stop_price) if (submit_price >= stop_price) else (max_high >= stop_price)
         _api = BinanceFakeAPI
         executed = False
         if self.get_attribut(Map.status) not in [_api.STATUS_ORDER_NEW, _api.STATUS_ORDER_PARTIALLY]:
@@ -111,34 +136,30 @@ class BinanceFakeOrder(MyJson):
         # Attributs
         order_type = self.get_attribut(Map.type)
         is_buyer = self.is_buyer()
-        # Market
-        market_close_price = market_datas.get(Map.close)
         # Check
         if order_type == _api.TYPE_MARKET:
             self._set_attribut(Map.ready, True)
             executed = self._execute(market_datas)
         elif order_type == _api.TYPE_STOP_LOSS:
-            stop_price = self.get_attribut(Map.stopPrice)
-            if (is_buyer and (market_close_price >= stop_price)) or ((not is_buyer) and (market_close_price <= stop_price)):
+            if stop_reached(is_buyer, market_datas, market_history):
                 self._set_attribut(Map.ready, True)
                 executed = self._execute(market_datas)
         elif order_type == _api.TYPE_LIMIT:
-            if limit_reached(is_buyer, market_close_price):
+            if limit_reached(is_buyer, market_datas, market_history):
                 self._set_attribut(Map.ready, True)
                 executed = self._execute(market_datas)
         elif order_type == _api.TYPE_STOP_LOSS_LIMIT:
-            if (not self.get_attribut(Map.ready)) and stop_reached(market_close_price):
+            if (not self.get_attribut(Map.ready)) and stop_limit_reached(market_datas, market_history):
                 self._set_attribut(Map.ready, True)
                 stop_price = self.get_attribut(Map.stopPrice)
                 market_datas.put(stop_price, Map.close)
-            if self.get_attribut(Map.ready):
-                if limit_reached(is_buyer, market_datas.get(Map.close)):
-                    executed = self._execute(market_datas)
+            if self.get_attribut(Map.ready) and limit_reached(is_buyer, market_datas, market_history):
+                executed = self._execute(market_datas)
         else:
             raise Exception(f"This order type '{order_type}' is not supported")
         return executed
 
-    def _execute(self, market_datas: Map) -> None:
+    def _execute(self, market_datas: Map) -> bool:
         """
         To execute the order
         """
@@ -151,7 +172,6 @@ class BinanceFakeOrder(MyJson):
                 exec_amount = asked_amount
                 exec_quantity = exec_amount/exec_price
             return exec_amount, exec_quantity
-
         def execution_fee(fee_rate: float, exec_amount: float, exec_quantity: float, is_buyer: bool, pair: Pair) -> Tuple[float, Asset]:
             if is_buyer:
                 fee = exec_quantity * fee_rate
@@ -160,7 +180,6 @@ class BinanceFakeOrder(MyJson):
                 fee = exec_amount * fee_rate
                 fee_asset = pair.get_right()
             return Price(fee, fee_asset).get_value(), fee_asset
-
         if not self.get_attribut(Map.ready):
             order_type = self.get_attribut(Map.type)
             raise Exception(
@@ -175,7 +194,7 @@ class BinanceFakeOrder(MyJson):
         fees_rates = _api.get_trade_fee(pair)
         # Market
         market_close_price = market_datas.get(Map.close)
-        market_unix_time = market_datas.get(Map.time)
+        market_now_time = market_datas.get(Map.time)
         if order_type == _api.TYPE_MARKET:
             is_maker = False
             exec_price = market_close_price
@@ -195,28 +214,28 @@ class BinanceFakeOrder(MyJson):
         fee, fee_asset = execution_fee(fee_rate, exec_amount, exec_quantity, is_buyer, pair)
         trade_id = self.new_id()
         fills = [{
-            Map.symbol: merged_pair,
-            Map.id: trade_id,
-            Map.orderId: self.get_attribut(Map.orderId),
-            Map.tradeId: trade_id,
-            Map.orderListId: -1,
-            Map.price: exec_price,
-            Map.qty: exec_quantity,
-            Map.commission: fee,
-            Map.commissionAsset: fee_asset.__str__().upper(),
-            Map.quoteQty: exec_amount,
-            Map.time: market_unix_time,
-            Map.isBuyer: is_buyer,
-            Map.isMaker: is_maker,
-            Map.isBestMatch: None
+            Map.symbol:             merged_pair,
+            Map.id:                 trade_id,
+            Map.orderId:            self.get_attribut(Map.orderId),
+            Map.tradeId:            trade_id,
+            Map.orderListId:        -1,
+            Map.price:              exec_price,
+            Map.qty:                exec_quantity,
+            Map.commission:         fee,
+            Map.commissionAsset:    fee_asset.__str__().upper(),
+            Map.quoteQty:           exec_amount,
+            Map.time:               market_now_time,
+            Map.isBuyer:            is_buyer,
+            Map.isMaker:            is_maker,
+            Map.isBestMatch:        None
         }]
-        self._set_attribut(Map.fills, fills)
-        self._set_attribut(Map.status, _api.STATUS_ORDER_FILLED)
-        self._set_attribut(Map.origQty, exec_quantity)
-        self._set_attribut(Map.executedQty, exec_quantity)
+        self._set_attribut(Map.fills,               fills)
+        self._set_attribut(Map.status,              _api.STATUS_ORDER_FILLED)
+        self._set_attribut(Map.origQty,             exec_quantity)
+        self._set_attribut(Map.executedQty,         exec_quantity)
         self._set_attribut(Map.cummulativeQuoteQty, exec_amount)
-        self._set_attribut(Map.updateTime, market_unix_time)
-        self._set_attribut(Map.transactTime, market_unix_time)
+        self._set_attribut(Map.updateTime,          market_now_time)
+        self._set_attribut(Map.transactTime,        market_now_time)
         return True
 
     def cancel(self) -> dict:
@@ -287,8 +306,6 @@ class BinanceFakeOrder(MyJson):
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
-        params = Map({Map.symbol: 'xxx'})
-        market_datas = Map({Map.close: -1})
-        instance = BinanceFakeOrder(params, market_datas)
+        instance = BinanceFakeOrder.__new__(BinanceFakeOrder)
         exec(MyJson.get_executable())
         return instance

@@ -242,9 +242,11 @@ class Controller:
 
     def quit(self) -> None:
         model = self._get_model()
+        view = self._get_view()
         model.stop_bots()
         model.stop_hands()
         model.close_brokers()
+        view.output('Application closed!', is_success=True)
 
     def ask_confirmation(self, message: str) -> bool:
         view = self._get_view()
