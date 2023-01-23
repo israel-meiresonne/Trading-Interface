@@ -306,6 +306,17 @@ class Wallet(MyJson):
     def get_historic(self) -> dict:
         pass
 
+    def set_marketprices(self, marketprices: Map) -> None:
+        _MF.check_type(marketprices, Map)
+        marketprices_dict = marketprices.get_map()
+        for pair, period_market_dict in marketprices_dict.items():
+            _MF.check_type(pair, Pair)
+            for period, marketprice in period_market_dict.items():
+                _MF.check_type(period, int)
+                _MF.check_type(marketprice, MarketPrice)
+        self.reset_marketprices()
+        self.__marketprices = marketprices
+
     def reset_marketprices(self) -> None:
         self._reset_total()
         self._reset_roi()
@@ -319,7 +330,9 @@ class Wallet(MyJson):
         -------
         return: Map
             MarketPrice stored
-            marketprices[Pair{str}]: {MarketPrice}
+        | Key                          | Type          | Doc                                                 |
+        | ---------------------------- | ------------- | --------------------------------------------------- |
+        | Map[Pair{Pair}][period{int}] | {MarketPrice} | Market price of the given Pair for the given period |
         """
         if self.__marketprices is None:
             self.__marketprices = Map()
@@ -328,13 +341,12 @@ class Wallet(MyJson):
     def get_marketprice(self, bkr: Broker, asset: Asset) -> MarketPrice:
         marketprices = self._get_marketprices()
         pair = self._new_pair(asset)
-        pair_str = pair.__str__()
-        marketprice = marketprices.get(pair_str)
+        period = self.get_period()
+        marketprice = marketprices.get(pair, period)
         if marketprice is None:
-            period = self.get_period()
             n_period = self.get_n_period()
             marketprice = MarketPrice.marketprice(bkr, pair, period, n_period)
-            marketprices.put(marketprice, pair_str)
+            marketprices.put(marketprice, pair, period)
         return marketprice
 
     def _reset_total(self) -> None:

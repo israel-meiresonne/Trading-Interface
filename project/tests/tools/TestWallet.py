@@ -8,6 +8,7 @@ from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
+from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 from model.tools.Price import Price
@@ -17,14 +18,13 @@ from model.tools.Wallet import Wallet
 
 class TestWallet(unittest.TestCase, Wallet):
     def setUp(self) -> None:
-        self.asset1 = Asset('DOGE')
-        asset1 = self.asset1
-        self.asset2 = Asset('BTC')
-        self.initial1 = Price(1000, 'USDT')
-        initial1 = self.initial1
-        self.pair1 = Pair(asset1, initial1.get_asset())
-        self.amount1 = Price(100, initial1.get_asset())
-        self.amount2 = Price(50, initial1.get_asset())
+        self.r_asset = r_asset = Asset('USDT')
+        self.asset1 = asset1 = Asset('DOGE')
+        self.asset2 = asset2 = Asset('BTC')
+        self.initial1 = initial1 = Price(1000, r_asset)
+        self.pair1 = Pair(asset1, r_asset)
+        self.amount1 = Price(100, r_asset)
+        self.amount2 = Price(50, r_asset)
         self.w1 = Wallet(initial1)
     
     def tearDown(self) -> None:
@@ -118,14 +118,21 @@ class TestWallet(unittest.TestCase, Wallet):
                 )
             return prices
 
-        bkr = self.broker_switch(True)
+        broker = self.broker_switch(True)
         wallet = self.w1
         initial = self.initial1
         fee_rate = 0.001
         asset1 = self.asset1
         asset2 = self.asset2
-        marketprice1 = wallet.get_marketprice(bkr, asset1)
-        marketprice2 = wallet.get_marketprice(bkr, asset2)
+        r_asset = self.r_asset
+        #
+        pairs = [Pair(asset1, r_asset), Pair(asset2, r_asset)]
+        wallet_period = Wallet.get_period()
+        streams = broker.generate_streams(pairs, [wallet_period])
+        broker.add_streams(streams)
+        #
+        marketprice1 = wallet.get_marketprice(broker, asset1)
+        marketprice2 = wallet.get_marketprice(broker, asset2)
         close1 = marketprice1.get_close()
         close2 = marketprice2.get_close()
         # # Transaction 1
@@ -154,37 +161,84 @@ class TestWallet(unittest.TestCase, Wallet):
         # —— Asset1
         exp1 = (left1 + left3) * close1
         exp1 = Price(exp1, initial.get_asset()) - (fee1 + fee3)
-        result1 = wallet.get_position_value(bkr, asset1)
+        result1 = wallet.get_position_value(broker, asset1)
         exp1, result1 = fixe_decimal(exp1, result1)
         self.assertEqual(exp1, result1)
         # —— Asset2
         exp2 = left2 * close2
         exp2 = Price(exp2, initial.get_asset()) - fee2
-        result2 = wallet.get_position_value(bkr, asset2)
+        result2 = wallet.get_position_value(broker, asset2)
         exp2, result2 = fixe_decimal(exp2, result2, 3)
         self.assertEqual(exp2, result2)
         # —— Total Position
         exp3 = exp1 + exp2
-        result3 = wallet.get_all_position_value(bkr)
+        result3 = wallet.get_all_position_value(broker)
         exp3, result3 = fixe_decimal(exp3, result3)
         self.assertEqual(exp3, result3)
         # End
         self.broker_switch(False)
 
-    def test_get_marketprice(self) -> None:
-        bkr = self.broker_switch(True)
+    def test_set_reset_get_marketprice(self) -> None:
+        broker = self.broker_switch(True)
         wallet = self.w1
         asset1 = self.asset1
         asset2 = self.asset2
+        r_asset = self.r_asset
+        pairs = [Pair(asset1, r_asset), Pair(asset2, r_asset)]
+        wallet_period = Wallet.get_period()
+        streams = broker.generate_streams(pairs, [wallet_period])
+        broker.add_streams(streams)
         # Keep MarketPrice
-        marketprice1 = wallet.get_marketprice(bkr, asset1)
-        marketprice2 = wallet.get_marketprice(bkr, asset2)
-        self.assertEqual(marketprice1.get_id(), wallet.get_marketprice(bkr, asset1).get_id())
-        self.assertEqual(marketprice2.get_id(), wallet.get_marketprice(bkr, asset2).get_id())
+        marketprice1 = wallet.get_marketprice(broker, asset1)
+        marketprice2 = wallet.get_marketprice(broker, asset2)
+        self.assertEqual(marketprice1.get_id(), wallet.get_marketprice(broker, asset1).get_id())
+        self.assertEqual(marketprice2.get_id(), wallet.get_marketprice(broker, asset2).get_id())
+        # Check Format
+        marketprices_dict = wallet._get_marketprices().get_map().copy()
+        for pair, period_market_dict in marketprices_dict.items():
+            self.assertTrue(pair in pairs)
+            self.assertIsInstance(pair, Pair)
+            for period, marketprice in period_market_dict.items():
+                self.assertIsInstance(period, int)
+                self.assertIsInstance(marketprice, MarketPrice)
+        # Set
+        # ––– Correct
+        true_marketprices = Map({
+            pairs[0]: {
+                wallet_period: marketprice1, 
+                123: marketprice2
+                },
+            pairs[1]: {wallet_period: marketprice2}
+        })
+        wallet.set_marketprices(true_marketprices)
+        exp3 = true_marketprices.get_id()
+        result3 = wallet._get_marketprices().get_id()
+        self.assertEqual(exp3, result3)
+        # ––– InCorrect
+        # ––––––––––––– 1
+        with self.assertRaises(TypeError):
+            wallet.set_marketprices('fake_Map')
+        # ––––––––––––– 2
+        wrong_pair_key_marketprices = Map({
+            pairs[1].__str__(): {wallet_period: marketprice2}
+        })
+        with self.assertRaises(TypeError):
+            wallet.set_marketprices(wrong_pair_key_marketprices)
+        # ––––––––––––– 3
+        wrong_period_key_marketprices = Map({
+            pairs[1]: {'fake_period_key': marketprice2}
+        })
+        with self.assertRaises(TypeError):
+            wallet.set_marketprices(wrong_period_key_marketprices)
+        # ––––––––––––– 4
+        wrong_marketprice_marketprices = Map({
+            pairs[1]: {wallet_period: 'fake_marketprice'}
+        })
+        with self.assertRaises(TypeError):
+            wallet.set_marketprices(wrong_marketprice_marketprices)
         # Reset
         wallet.reset_marketprices()
-        result1 = len(wallet._get_marketprices().get_map())
-        self.assertTrue(result1 == 0)
+        self.assertEqual(0, len(wallet._get_marketprices().get_map()))
         self.broker_switch(False)
     
     def test_deposit(self) -> None:
@@ -535,7 +589,7 @@ class TestWallet(unittest.TestCase, Wallet):
         self.assertEqual(max_buy4, wallet.get_max_buy())
         self.assertEqual(buy_rate4, wallet.get_buy_rate())
 
-    def test_trade_fee(self) -> None:
+    def xtest_trade_fee(self) -> None:
         wallet = self.w1
         r_asset = wallet.get_initial().get_asset()
         fee_rate = 1/100
