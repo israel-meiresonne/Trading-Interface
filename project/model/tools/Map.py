@@ -79,6 +79,9 @@ class Map(MyJson):
     condition = "condition"
     keltner = "keltner"
     candle = "candle"
+    history = "history"
+    loop = "loop"
+    turn = "turn"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
