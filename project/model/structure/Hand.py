@@ -1630,6 +1630,14 @@ class Hand(MyJson):
     # ••• FUNCTION SELF BUY/SELL CONDITION UP
     # ••• FUNCTION SELF OTHERS DOWN
 
+    def stop(self) -> None:
+        self.reset_trading()
+        self.set_stalk_on(on=False)
+        self.set_position_on(on=False)
+        self.set_market_analyse_on(on=False)
+        self.reset_broker_pairs()
+        self.backup(force=True)
+
     def add_streams(self) -> None:
         """
         To add streams to Broker's socket
