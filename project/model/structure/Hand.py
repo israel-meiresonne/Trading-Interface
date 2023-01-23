@@ -63,6 +63,7 @@ class Hand(MyJson):
         self.__thread_market_analyse =  None
         self.__backup =                 None
         self.__backup_time =            None
+        self.__broker_pairs =           None
         self._set_id()
         self._set_settime()
         self._set_wallet(capital)
@@ -697,6 +698,14 @@ class Hand(MyJson):
                 ]
         return Hand._STALK_FUNCTIONS
 
+    def _set_broker_pairs(self, broker_pairs: List[Pair]) -> None:
+        _MF.check_type(broker_pairs, list)
+        [_MF.check_type(pair, Pair) for pair in broker_pairs]
+        self.__broker_pairs = broker_pairs
+        
+    def reset_broker_pairs(self) -> None:
+        self.__broker_pairs = None
+
     def get_broker_pairs(self) -> List[Pair]:
         """
         To get list of pair available from Broker's API
@@ -706,10 +715,12 @@ class Hand(MyJson):
         return: List[Pair]
             List of pair available from Broker's API
         """
-        broker_class = self.get_broker_class()
-        fiat_asset = self.get_wallet().get_initial().get_asset()
-        spot_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
-        return spot_pairs
+        broker_pairs = self.__broker_pairs
+        if broker_pairs is None:
+            broker_class = self.get_broker_class()
+            fiat_asset = self.get_wallet().get_initial().get_asset()
+            broker_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
+        return broker_pairs
 
     def _get_stalk_pairs(self) -> List[Pair]:
         """
@@ -1636,6 +1647,10 @@ class Hand(MyJson):
         broker = self.get_broker()
         streams = get_streams(broker, broker_pairs, required_periods)
         broker.add_streams(streams)
+        if Config.get(Config.STAGE_MODE) != Config.STAGE_1:
+            added_streams = broker.get_streams()
+            added_pairs = list(added_streams.keys())
+            self._set_broker_pairs(added_pairs)
 
     def _json_encode_to_dict(self) -> dict:
         attributes = self.__dict__.copy()

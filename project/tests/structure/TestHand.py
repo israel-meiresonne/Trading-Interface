@@ -458,6 +458,9 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(ValueError):
             hand._set_backup_time('not_millisecond')
 
+    def test_set_get_broker_pairs(self) -> None:
+        raise Exception("Must implemet test for 'test_set_get_broker_pairs'")
+
     def test_position_capital(self) -> None:
         capital = self.capital
         hand = self.hand
