@@ -399,7 +399,7 @@ class Solomon(Strategy):
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
             sell_conditions.append(sell_condition)
             cls._backtest_update_trade(trade, Map.sell, Order.STATUS_CANCELED) if trade[Map.sell] is not None else None
-            cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.mean) \
+            cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close) \
                 if can_sell else cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_limit)
         return trade
 
