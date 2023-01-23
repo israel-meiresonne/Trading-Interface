@@ -85,6 +85,20 @@ class Binance(Broker, MyJson):
     def add_streams(self, new_streams: List[str]) -> None:
         BinanceAPI.add_streams(new_streams) if len(new_streams) > 0 else None
 
+    def get_streams(self) -> dict[Pair, list[int]]:
+        api = BinanceAPI
+        streams = api.get_streams()
+        stream_dict = {}
+        for stream in streams:
+            merged_pair, period_str = api.split_stream(stream)
+            period = self.str_to_period(period_str)
+            pair_str = api.symbol_to_pair(merged_pair)
+            pair = Pair(pair_str)
+            if pair not in stream_dict:
+                stream_dict[pair] = []
+            stream_dict[pair].append(period) if period not in stream_dict[pair] else None
+        return stream_dict
+
     @staticmethod
     def generate_stream(params: Map) -> str:
         """

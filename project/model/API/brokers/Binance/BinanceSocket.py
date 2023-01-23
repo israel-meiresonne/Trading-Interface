@@ -1332,33 +1332,6 @@ class BinanceSocket(BinanceAPI):
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
 
     @staticmethod
-    def check_stream(stream: str) -> bool:
-        """
-        To check if given stream match the correct format
-
-        Parameters:
-        -----------
-        stream: str
-            The stream to check
-
-        Raises:
-        -------
-        raise: ValueError
-            If stream don't match the correct format
-
-        Returns:
-        --------
-        return: bool
-            True if given stream match the correct format else raise Exception
-        """
-        regex = BinanceSocket.get_regex_stream()
-        match_format = _MF.regex_match(regex, stream)
-        if not match_format:
-            raise ValueError(
-                f"The stream '{stream}' must match regex '{regex}'")
-        return match_format
-
-    @staticmethod
     def generate_stream(rq: str, symbol: str, period_str: str) -> str:
         """
         To generate Binance stream\n
@@ -1401,30 +1374,6 @@ class BinanceSocket(BinanceAPI):
         _MF.output(f"{_MF.prefix()}New Thread '{thread_name}'!"
               ) if output and _cls._DEBUG else None
         return new_thread
-
-    @staticmethod
-    def split_stream(stream: str) -> Tuple[str, str]:
-        """
-        To get stream's symbol and period (in string)
-
-        Parameters:
-        -----------
-        stream: str
-            The stream to split
-
-        Returns:
-        --------
-        retrun: Tuple[str, str]
-            Stream's symbol and period
-            Tuple[0]:   {str}   # stream's symbol
-            Tuple[1]:   {str}   # stream's period in string
-        """
-        BinanceSocket.check_stream(stream)
-        stream_format = BinanceSocket.get_format_stream()
-        format_separator = stream_format.replace(f'${Map.symbol}', '').replace(
-            f'${Map.interval}', '')
-        symbol, period_str = tuple(stream.split(format_separator))
-        return (symbol, period_str)
 
     @staticmethod
     def _group_streams(streams: list) -> List[list]:

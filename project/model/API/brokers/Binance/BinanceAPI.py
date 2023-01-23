@@ -459,7 +459,7 @@ class BinanceAPI(ABC):
     _TRADE_FEES[symbol{str}][Map.maker]:      {float}
     """
     _SYMBOL_TO_PAIR = None
-    _EXCLUDE_ASSET = ['bchsv', 'bttc/usdt']
+    _EXCLUDE_ASSET = ['bchsv', 'bttc']
     # Variables
     _ORDER_RQ_REGEX = r'^RQ_ORDER.*$'
     _TEST_MODE = None
@@ -753,6 +753,63 @@ class BinanceAPI(ABC):
         """
         socket = BinanceAPI._SOCKET
         socket.close() if socket is not None else None
+
+    @classmethod
+    def get_streams(cls) -> list[str]:
+        return BinanceAPI._SOCKET.get_streams()
+
+    @classmethod
+    def split_stream(cls, stream: str) -> tuple[str, str]:
+        """
+        To get stream's symbol and period (in string)
+
+        Parameters:
+        -----------
+        stream: str
+            The stream to split
+
+        Returns:
+        --------
+        retrun: Tuple[str, str]
+            Stream's symbol and period
+            Tuple[0]:   {str}   # stream's symbol
+            Tuple[1]:   {str}   # stream's period in string
+        """
+        from model.API.brokers.Binance.BinanceSocket import BinanceSocket
+        cls.check_stream(stream)
+        stream_format = BinanceSocket.get_format_stream()
+        format_separator = stream_format.replace(f'${Map.symbol}', '').replace(
+            f'${Map.interval}', '')
+        symbol, period_str = tuple(stream.split(format_separator))
+        return (symbol, period_str)
+
+    @staticmethod
+    def check_stream(stream: str) -> bool:
+        """
+        To check if given stream match the correct format
+
+        Parameters:
+        -----------
+        stream: str
+            The stream to check
+
+        Raises:
+        -------
+        raise: ValueError
+            If stream don't match the correct format
+
+        Returns:
+        --------
+        return: bool
+            True if given stream match the correct format else raise Exception
+        """
+        from model.API.brokers.Binance.BinanceSocket import BinanceSocket
+        regex = BinanceSocket.get_regex_stream()
+        match_format = _MF.regex_match(regex, stream)
+        if not match_format:
+            raise ValueError(
+                f"The stream '{stream}' must match regex '{regex}'")
+        return match_format
 
     # ——————————————————————————————————————————— SOCKET UP
 
