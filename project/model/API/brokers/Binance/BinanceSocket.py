@@ -44,6 +44,7 @@ class BinanceSocket(BinanceAPI):
     _SLEEP_RUN_WEBSOCKET =                  1
     _SLEEP_MANAGER_RUN_WEBSOCKET =          1
     _SLEEP_MANAGER_LOOP =                   1
+    MAX_N_PERIOD_OFFSET =                   5
 
     def __init__(self, streams: list):
         if BinanceSocket._NB_INSTANCE is not None:
@@ -103,7 +104,7 @@ class BinanceSocket(BinanceAPI):
         streams.sort()
         self.__streams = streams
 
-    def get_streams(self) -> list:
+    def get_streams(self) -> list[str]:
         """
         To get list of stream open in WebSocket
 
@@ -346,9 +347,26 @@ class BinanceSocket(BinanceAPI):
         # End
         return is_success
 
-    def get_market_history(self, stream: str) -> list:
+    def _disable_market_history(self, stream: str) -> None:
         """
-        To get market history for the given stream
+        To replace all value of a market history with neutral value
+
+        Parameters:
+        -----------
+        stream: str
+            The stream of the history to treat
+        """
+        history_np = self.get_market_history_np(stream)
+        history_np[:, [1,2,3,4,5,7,8,9,10]] = 0
+
+    def get_market_history_np(self, stream: str) -> np.ndarray:
+        """
+        To get market history
+
+        Parameters:
+        -----------
+        stream: str
+            The stream to get market history of
 
         Returns:
         --------
@@ -359,7 +377,24 @@ class BinanceSocket(BinanceAPI):
         market_histories = self._get_market_histories()
         market_history = market_histories.get(stream)
         if not isinstance(market_history, np.ndarray):
-            raise Exception(f"Market history don't exist for this stream '{stream}'")
+            raise Exception(f"Market history don't exist for this stream '{stream}' (type='{type(market_history)}')")
+        return market_history
+
+    def get_market_history(self, stream: str) -> list:
+        """
+        To get market history
+
+        Parameters:
+        -----------
+        stream: str
+            The stream to get market history of
+
+        Returns:
+        --------
+        return: list
+            The market history for the given stream
+        """
+        market_history = self.get_market_history_np(stream)
         return market_history.tolist()
 
     def _reset_room_market_update(self) -> None:
@@ -899,19 +934,53 @@ class BinanceSocket(BinanceAPI):
         """
         To establish connection to stream through WebSocket
         """
+        def is_stream_active(stream: str) -> bool:
+            """
+            To check if a stream still receive new price from Broker
+
+            Parameters:
+            -----------
+            stream: str
+                The stream to check
+
+            Return:
+            -------
+            return: bool
+                True if the stream still active else False
+            """
+            _, period_str = self.split_stream(stream)
+            period = self.get_interval(period_str)
+            n_period_offset = self.MAX_N_PERIOD_OFFSET
+            max_time_offset_milli = period * n_period_offset * 1000
+            market_history_np = self.get_market_history_np(stream)
+            open_time_milli = market_history_np[-1, 0]
+            now_time_milli = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+            time_offset_milli = now_time_milli - open_time_milli
+            return time_offset_milli <= max_time_offset_milli
         def initialize_market_histories() -> None:
             self._load_streams()
             streams = self.get_streams()
+            offsetted_streams = []
+            # Loop
             starttime = _MF.get_timestamp()
             n_turn = len(streams)
             turn = 0
             for stream in streams:
                 if self._DEBUG:
                     turn += 1
-                    out = _MF.loop_progression(starttime, turn, n_turn, message=f'initialize market history {stream}')
-                    _MF.output(out)
+                    out = _MF.loop_progression(starttime, turn, n_turn, message=f"initialize market history '{stream}'")
+                    _MF.static_output(out)
                 self._set_market_history(stream, raise_error=True)
-
+                if not is_stream_active(stream):
+                    offsetted_streams.append(stream)
+                    self._disable_market_history(stream)
+                    if BinanceSocket._DEBUG:
+                        print('\n') if _MF.OUTPUT else None
+                        _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}Stream '{stream}' to be deleted because it's inactive{_MF.S_NORMAL}")
+            self._delete_streams(offsetted_streams)
+            if BinanceSocket._DEBUG:
+                print('\n') if _MF.OUTPUT else None
+                _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}'{len(offsetted_streams)}' streams deleted{_MF.S_NORMAL}")
         if self.is_running():
             raise Exception("Connection is already active")
         initialize_market_histories()
