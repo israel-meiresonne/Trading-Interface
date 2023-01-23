@@ -24,12 +24,13 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         Bot.update_trade_index(0)
         BinanceFakeAPI.reset()
         self.initial_indexes = Map({
-            60: 60000,
-            180: 20000,
-            300: 12000,
-            900: 4000,
-            1800: 2000,
-            3600: 1000
+            60:     360000,
+            180:    120000,
+            300:    72000,
+            900:    24000,
+            1800:   12000,
+            3600:   6000,
+            21600:  1000
             })
         self.order_params = order_params = Map({
             "symbol": "BTCUSDT",
@@ -395,9 +396,9 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         min_period_milli = min_period*1000
         # Stage 1
         Config.update(Config.STAGE_MODE, Config.STAGE_1)
-        market_datas1 = _cls._actual_market_datas(merged_pair)
+        market_datas1, market_data_history1 = _cls._actual_market_datas(merged_pair)
         Bot.update_trade_index(1)
-        market_datas2 = _cls._actual_market_datas(merged_pair)
+        market_datas2, market_data_history2 = _cls._actual_market_datas(merged_pair)
         exp1 = min_period_milli
         result1 = market_datas2.get(Map.start) - market_datas1.get(Map.start)
         self.assertEqual(exp1, result1)
@@ -406,12 +407,12 @@ class TestBinanceFakeAPI(unittest.TestCase, BinanceFakeAPI):
         Config.update(Config.STAGE_MODE, Config.STAGE_2)
         _cls.reset()
         # —— No socket event yet
-        market_datas3 = _cls._actual_market_datas(merged_pair)
+        market_datas3, market_data_history3 = _cls._actual_market_datas(merged_pair)
         event_time3 = market_datas3.get(Map.time)
-        self.assertTrue(event_time3%min_period_milli ==  0)
+        self.assertTrue(event_time3 % min_period_milli ==  0)
         # —— Socket event happen
         time.sleep(5)
-        market_datas4 = _cls._actual_market_datas(merged_pair)
+        market_datas4, market_data_history4 = _cls._actual_market_datas(merged_pair)
         unix_time4 = _MF.get_timestamp(_MF.TIME_MILLISEC)
         event_time4 = market_datas4.get(Map.time)
         self.assertTrue((unix_time4 - event_time4) < min_period_milli)
