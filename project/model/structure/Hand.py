@@ -802,7 +802,7 @@ class Hand(MyJson):
         self._move_closed_positions(positions) if (not self.is_trading()) else None
         self.backup()
 
-    def _repport_positions(self) -> None:
+    def _repport_positions(self, marketprices: Map = Map()) -> None:
         def print_row(file_path: str, rows: List[dict], overwrite: bool, make_dir: bool) -> None:
             fields = list(rows[0].keys())
             FileManager.write_csv(file_path, fields, rows, overwrite=overwrite, make_dir=make_dir)
@@ -1017,7 +1017,7 @@ class Hand(MyJson):
             return rows
         broker = self.get_broker()
         wallet = self.get_wallet()
-        wallet.reset_marketprices()
+        wallet.set_marketprices(marketprices)
         positions = self.get_positions().copy()
         # save global states
         file_path_global = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
@@ -1417,7 +1417,7 @@ class Hand(MyJson):
     # ••• FUNCTION SELF THREAD MARKET ANALYSE UP
     # ••• FUNCTION SELF BUY/SELL DOWN
 
-    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None) -> Union[str, None]:
+    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None, marketprices: Map = Map()) -> Union[str, None]:
         """
         To buy a new position
 
@@ -1465,16 +1465,16 @@ class Hand(MyJson):
         # Execution
         self._try_submit(trade)
         self._add_position(trade)
-        self._repport_positions()
+        self._repport_positions(marketprices=marketprices)
         # Failed ?
         failed_order_id = self._manage_failed_orders(pair)
-        self._repport_positions() if (failed_order_id is not None) else self._mark_proposition(pair, True)
+        self._repport_positions(marketprices=marketprices) if (failed_order_id is not None) else self._mark_proposition(pair, True)
         # End
         self._set_buying(False)
         self.backup()
         return failed_order_id
 
-    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> Union[str, None]:
+    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None, marketprices: Map = Map()) -> Union[str, None]:
         """
         To sell a new position
 
@@ -1521,17 +1521,17 @@ class Hand(MyJson):
         position.set_sell_function(sell_function)
         # Execution
         self._try_submit(position)
-        self._repport_positions()
+        self._repport_positions(marketprices=marketprices)
         # Failed ?
         failed_order_id = self._manage_failed_orders(pair)
-        self._repport_positions() if (failed_order_id is not None) else None
+        self._repport_positions(marketprices=marketprices) if (failed_order_id is not None) else None
         self._move_closed_position(pair) if position.is_closed() else None
         # End
         self._set_selling(False)
         self.backup()
         return failed_order_id
 
-    def cancel(self, pair: Pair) -> Union[str, None]:
+    def cancel(self, pair: Pair, marketprices: Map = Map()) -> Union[str, None]:
         """
         To cancel Trade if not executed yet\n
         NOTE: Delete Trade from list of position If buy Order is not executed
@@ -1553,16 +1553,16 @@ class Hand(MyJson):
         if (failed_order_id is None) and (not position.is_executed(Map.buy)):
             buy_order = position.get_buy_order()
             broker.cancel(buy_order)
-            self._repport_positions()
+            self._repport_positions(marketprices=marketprices)
             self._remove_position(pair)
         elif (failed_order_id is None) and position.has_position():
             sell_order = position.get_sell_order()
             if sell_order is not None:
                 broker.cancel(sell_order)
-                self._repport_positions()
+                self._repport_positions(marketprices=marketprices)
                 position.reset_sell_order()
         else:
-            self._repport_positions()
+            self._repport_positions(marketprices=marketprices)
         self.backup()
         return failed_order_id
 
