@@ -17,10 +17,10 @@ class Bot(MyJson):
     _VERBOSE =              False
     PREFIX_ID =             'bot_'
     _TRADE_INDEX =          0
-    _TRADE_INDEX_STOP =     40320
     _THREAD_TRADE =         'trade'
     _THREAD_BACKUP =        'bot_backup'
     _TIMEOUT_THREAD_STOP =  60*2
+    SLEEP_DEFAULT_TRADE =   60
 
     def __init__(self, capital: Price, strategy_class: Callable, broker_class: Callable, pair: Pair = None):
         self.__id =                 None
@@ -181,8 +181,8 @@ class Bot(MyJson):
         stage = Config.get(Config.STAGE_MODE)
         trade_index = self.get_trade_index()
         stop_index = self.get_index_stop()
+        start_end_time = self.get_start_end_time()
         prefix = _MF.prefix
-        bot_id = self.get_id()
         # Start Strategy
         strategy = self.get_strategy()
         strategy.add_streams()
@@ -195,20 +195,22 @@ class Bot(MyJson):
         starttime = _MF.get_timestamp()
         while keep_looping(trade_index, stop_index):
             Bot._set_trade_index(trade_index)
-            _MF.output(prefix() + f"Bot '{bot_id}' Trade n°'{trade_index}'")
             sleep_interval = _MF.catch_exception(strategy.trade, self.__class__.__name__)
             if sleep_interval is not None:
                 trade_index += 1
                 self.backup()
             unix_time = _MF.get_timestamp()
             if stage in [Config.STAGE_2, Config.STAGE_3]:
+                sleep_interval = self.SLEEP_DEFAULT_TRADE if sleep_interval is None else sleep_interval
                 sleep_time = _MF.sleep_time(unix_time, sleep_interval)
                 sleep_message = f"Bot sleep for {sleep_time}sec. from '{_MF.unix_to_date(unix_time)}' to '{_MF.unix_to_date(unix_time + sleep_time)}'" if self._DEBUG else None
-                _MF.output(prefix() + sleep_message)
+                _MF.static_output(prefix() + sleep_message)
                 _MF.sleep(sleep_time)
             elif stage == Config.STAGE_1:
-                loop_message = f"{(stop_index - trade_index)/(unix_time - starttime)}(trade/sec.)"
-                _MF.output(_MF.loop_progression(starttime, trade_index, stop_index, loop_message))
+                current_time = start_end_time[Map.start] + trade_index * 60
+                current_date = _MF.unix_to_date(current_time)
+                loop_message = f"Trade on '{current_date}' == Speed {(stop_index - trade_index)/(unix_time - starttime)}(Trades/sec.)"
+                _MF.static_output(_MF.loop_progression(starttime, trade_index, stop_index, loop_message))
             else:
                 raise Exception(f"Unkown stage '{stage}'")
         self.backup()
@@ -327,8 +329,16 @@ class Bot(MyJson):
         return cls._TRADE_INDEX
 
     @classmethod
+    def get_start_end_time(cls) -> dict[str, int]:
+        start_end_time = Config.get(Config.FAKE_API_START_END_TIME)
+        return start_end_time.copy()
+
+    @classmethod
     def get_index_stop(cls) -> int:
-        return cls._TRADE_INDEX_STOP
+        start_end_time = cls.get_start_end_time()
+        starttime = start_end_time[Map.start]
+        endtime = start_end_time[Map.end]
+        return int((endtime - starttime)/60)
 
     @classmethod
     def save_error(cls, error: Exception, from_class: str, nb_error: int = None) -> None:
