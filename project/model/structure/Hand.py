@@ -895,6 +895,8 @@ class Hand(MyJson):
                 Map.close
             ]
             rows = pd.DataFrame(columns=columns)
+            nan_extrem_prices = Map({Map.minimum: float('nan'), Map.maximum: float('nan')})
+            is_stage_one = Config.get(Config.STAGE_MODE) == Config.STAGE_1
             for pair_str, position in positions.items():
                 position_closed = position.is_closed()
                 has_position = position.has_position()
@@ -962,7 +964,7 @@ class Hand(MyJson):
                 fee_rate = None
                 if has_position:
                     hold_time = _MF.delta_time(buy_time, _MF.get_timestamp())
-                    extrem_prices = position.extrem_prices(broker)
+                    extrem_prices = nan_extrem_prices if is_stage_one else position.extrem_prices(broker)
                     max_price = extrem_prices.get(Map.maximum)
                     min_price = extrem_prices.get(Map.minimum)
                     fee = buy_order.get_fee(r_asset)
@@ -970,7 +972,7 @@ class Hand(MyJson):
                     roi = _MF.progress_rate(closes[-1], buy_price.get_value()) - fee_rate
                 elif position_closed:
                     hold_time = _MF.delta_time(buy_time, sell_time)
-                    extrem_prices = position.extrem_prices(broker)
+                    extrem_prices = nan_extrem_prices if is_stage_one else position.extrem_prices(broker)
                     max_price = position.get_max_price()
                     min_price = position.get_min_price()
                     fee = buy_order.get_fee(r_asset) + sell_order.get_fee(r_asset)
