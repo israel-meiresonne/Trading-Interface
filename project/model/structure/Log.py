@@ -40,10 +40,14 @@ class Log(ModelInterface, _MF):
         return bots
 
     def new_bot(self, capital_num: float, asset_str: str, strategy_str: str, broker_str: str, pair_str: str = None) -> str:
-        exec(_MF.get_import(broker_str))
-        exec(_MF.get_import(strategy_str))
-        broker_class = eval(broker_str)
-        strategy_class = eval(strategy_str)
+        def get_broker_class(broker_str: str) -> Broker:
+            exec(_MF.get_import(broker_str))
+            return eval(broker_str)
+        def get_strategy_class(strategy_str: str) -> Strategy:
+            exec(_MF.get_import(strategy_str))
+            return eval(strategy_str)
+        broker_class = get_broker_class(broker_str)
+        strategy_class = get_strategy_class(strategy_str)
         capital = Price(capital_num, asset_str)
         pair = Pair(pair_str) if pair_str is not None else None
         bot = Bot(capital, strategy_class, broker_class, pair)
