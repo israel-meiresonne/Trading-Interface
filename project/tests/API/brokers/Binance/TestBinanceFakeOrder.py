@@ -1,8 +1,11 @@
 import unittest
+from config.Config import Config
 
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
+from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
 from model.API.brokers.Binance.BinanceFakeOrder import BinanceFakeOrder
 from model.API.brokers.Binance.BinanceOrder import BinanceOrder
+from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
 from model.tools.MyJson import MyJson
@@ -11,8 +14,27 @@ from model.tools.Price import Price
 
 
 class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
+    N_SETUP = 0
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
+        _MF.update_bot_trade_index(0)
         self.pair = pair = Pair('BTC/USDT')
+        if self.N_SETUP == 0:
+            self.N_SETUP += 1
+            Config.update(Config.STAGE_MODE, Config.STAGE_1)
+            fake_api_times = {
+                Map.start:  1671062400, # 2022-12-15 0:00:00
+                Map.end:    1672531200  # 2023-01-01 0:00:00
+                }
+            Config.update(Config.FAKE_API_START_END_TIME, fake_api_times)
+            broker_params = Map({
+                Map.public:     'xxx',
+                Map.secret:     'yyy',
+                Map.test_mode:  False
+            })
+            self.broker = broker = Broker.retrieve('Binance', broker_params)
+            stream = broker.generate_stream(Map({Map.pair: pair, Map.period: Broker.PERIOD_1MIN}))
+            broker.add_streams([stream])
         self.stop = stop = Price(30000, pair.get_right())
         self.price = price = Price(45000, pair.get_right())
         self.quantity = quantity = Price(10, pair.get_left())
@@ -24,15 +46,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
             Map.quantity: quantity
         }))
         self.params = params = binance_order.generate_order()
-        self.market_datas = market_datas = Map({
-            Map.time: _MF.get_timestamp(_MF.TIME_MILLISEC),
-            Map.start: 1643202000000,
-            Map.open: 10,
-            Map.high: 11,
-            Map.low: 9,
-            Map.close: 12,
-            Map.end: 1643198399000
-        })
+        self.market_datas, self.market_data_history = market_datas, market_data_history = BinanceFakeAPI._actual_market_datas(pair.format(Pair.FORMAT_MERGED))
         self.fake_order = BinanceFakeOrder(params, market_datas)
         self.attribut_types = {
             Map.symbol: str,
@@ -60,7 +74,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
     def to_executed_state(self, order: BinanceFakeOrder, executed: BinanceFakeOrder, params: Map, initial_market_datas: Map, exec_datas: dict) -> None:
         if id(order) == id(executed):
             raise ValueError("Order instance must be different")
-        symbol = exec_datas[Map.symbol] 
+        symbol = exec_datas[Map.symbol]
         exec_amount = exec_datas[Map.amount]
         exec_quantity = exec_datas[Map.quantity]
         exec_price = exec_datas[Map.execution]
@@ -72,7 +86,6 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
             isBuyer = True
         elif side == BinanceAPI.SIDE_SELL:
             isBuyer = False
-
         order._set_attribut(Map.symbol, symbol)
         order._set_attribut(Map.type, exec_datas[Map.type])
         order._set_attribut(Map.side, side)
@@ -169,6 +182,7 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         exec_quantity = quantity_obj.get_value()
         exec_amount = amount_obj.get_value()
         market_datas = self.market_datas
+        market_data_history = self.market_data_history
         param_buy_market_quantity = BinanceOrder(BinanceOrder.TYPE_MARKET, Map({
             Map.pair: pair,
             Map.move: BinanceOrder.MOVE_BUY,
@@ -194,18 +208,18 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_buy_market_quantity = BinanceFakeOrder(param_buy_market_quantity, market_datas)
         exp1 = order_buy_market_quantity.copy()
-        self.assertTrue(order_buy_market_quantity.try_execute(market_datas))
+        self.assertTrue(order_buy_market_quantity.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp1, order_buy_market_quantity, param_buy_market_quantity, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: BinanceAPI.TYPE_MARKET,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: market_datas.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: None,
-            Map.amount: exec_quantity*market_datas.get(Map.close),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       BinanceAPI.TYPE_MARKET,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  market_datas.get(Map.close),
+            Map.price:      None,
+            Map.stopPrice:  None,
+            Map.amount:     exec_quantity*market_datas.get(Map.close),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp1, result=order_buy_market_quantity, attribut_types=attribut_types)
         '''
@@ -213,18 +227,18 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_buy_market_amount = BinanceFakeOrder(param_buy_market_amount, market_datas)
         exp2 = order_buy_market_amount.copy()
-        self.assertTrue(order_buy_market_amount.try_execute(market_datas))
+        self.assertTrue(order_buy_market_amount.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp2, order_buy_market_amount, param_buy_market_amount, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: BinanceAPI.TYPE_MARKET,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: market_datas.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: None,
-            Map.amount: exec_amount,
-            Map.quantity: exec_amount/market_datas.get(Map.close),
-            Map.fee: Price((exec_amount/market_datas.get(Map.close))*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       BinanceAPI.TYPE_MARKET,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  market_datas.get(Map.close),
+            Map.price:      None,
+            Map.stopPrice:  None,
+            Map.amount:     exec_amount,
+            Map.quantity:   exec_amount/market_datas.get(Map.close),
+            Map.fee:        Price((exec_amount/market_datas.get(Map.close))*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp2, result=order_buy_market_amount, attribut_types=attribut_types)
         '''
@@ -232,18 +246,18 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_sell_market_quantity = BinanceFakeOrder(param_sell_market_quantity, market_datas)
         exp3 = order_sell_market_quantity.copy()
-        self.assertTrue(order_sell_market_quantity.try_execute(market_datas))
+        self.assertTrue(order_sell_market_quantity.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp3, order_sell_market_quantity, param_sell_market_quantity, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: BinanceAPI.TYPE_MARKET,
-            Map.side: BinanceAPI.SIDE_SELL,
-            Map.execution: market_datas.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: None,
-            Map.amount: exec_quantity*market_datas.get(Map.close),
-            Map.quantity: exec_quantity,
-            Map.fee: Price((exec_quantity*market_datas.get(Map.close))*fees_rates.get(Map.taker), pair.get_right()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       BinanceAPI.TYPE_MARKET,
+            Map.side:       BinanceAPI.SIDE_SELL,
+            Map.execution:  market_datas.get(Map.close),
+            Map.price:      None,
+            Map.stopPrice:  None,
+            Map.amount:     exec_quantity*market_datas.get(Map.close),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price((exec_quantity*market_datas.get(Map.close))*fees_rates.get(Map.taker), pair.get_right()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp3, result=order_sell_market_quantity, attribut_types=attribut_types)
         '''
@@ -251,413 +265,423 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         '''
         order_sell_market_amount = BinanceFakeOrder(param_sell_market_amount, market_datas)
         exp4 = order_sell_market_amount.copy()
-        self.assertTrue(order_sell_market_amount.try_execute(market_datas))
+        self.assertTrue(order_sell_market_amount.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp4, order_sell_market_amount, param_sell_market_amount, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: BinanceAPI.TYPE_MARKET,
-            Map.side: BinanceAPI.SIDE_SELL,
-            Map.execution: market_datas.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: None,
-            Map.amount: exec_amount,
-            Map.quantity: exec_amount/market_datas.get(Map.close),
-            Map.fee: Price(exec_amount*fees_rates.get(Map.taker), pair.get_right()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       BinanceAPI.TYPE_MARKET,
+            Map.side:       BinanceAPI.SIDE_SELL,
+            Map.execution:  market_datas.get(Map.close),
+            Map.price:      None,
+            Map.stopPrice:  None,
+            Map.amount:     exec_amount,
+            Map.quantity:   exec_amount/market_datas.get(Map.close),
+            Map.fee:        Price(exec_amount*fees_rates.get(Map.taker), pair.get_right()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp4, result=order_sell_market_amount, attribut_types=attribut_types)
 
     def __try_execute_stop_loss(self, pair: Pair, quantity_obj: Price, amount_obj: Price, fees_rates: Map, attribut_types: dict, attribut_types_unexecuted: dict) -> None:
         def new_request_params(pair: Pair, side: str, stop: Price, quantity) -> Map:
             request_params = BinanceOrder(BinanceOrder.TYPE_STOP, Map({
-                Map.pair: pair,
-                Map.move: side,
-                Map.stop: stop,
-                Map.quantity: quantity
+                Map.pair:       pair,
+                Map.move:       side,
+                Map.stop:       stop,
+                Map.quantity:   quantity
                 })).generate_order()
             return request_params
-
+        r_asset = pair.get_right()
         merged_pair = pair.format(Pair.FORMAT_MERGED).upper()
         exec_quantity = quantity_obj.get_value()
-        stop_price_obj = Price(50, pair.get_right())
         order_type = BinanceAPI.TYPE_STOP_LOSS
+        market_data_history = self.market_data_history
         market_datas = self.market_datas
+        market_datas_close = market_datas.get(Map.close)
+        stop_price_obj = Price(market_datas_close, r_asset)
         '''
         BUY close > stop
         '''
-        market_datas1 = market_datas.copy()
-        market_datas1.put(stop_price_obj*2, Map.close)
-        rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj, quantity_obj)
+        stop_price_obj1 = Price(stop_price_obj/2, r_asset)
+        stop_price_obj_fixed1 = BinanceAPI.fixe_price(pair, stop_price_obj1)
+        rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj1, quantity_obj)
         order1 = BinanceFakeOrder(rq_params1, market_datas)
         exp1 = order1.copy()
-        self.assertTrue(order1.try_execute(market_datas1))
+        self.assertTrue(order1.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp1, order1, rq_params1, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: market_datas1.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*market_datas1.get(Map.close),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  market_datas_close,
+            Map.price:      None,
+            Map.stopPrice:  stop_price_obj_fixed1.get_value(),
+            Map.amount:     exec_quantity*market_datas_close,
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp1, result=order1, attribut_types=attribut_types)
         '''
         BUY close == stop
         '''
-        market_datas2 = market_datas.copy()
-        market_datas2.put(stop_price_obj.get_value(), Map.close)
-        rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj, quantity_obj)
+        stop_price_obj2 = stop_price_obj
+        stop_price_obj_fixed2 = BinanceAPI.fixe_price(pair, stop_price_obj2)
+        rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj2, quantity_obj)
         order2 = BinanceFakeOrder(rq_params2, market_datas)
         exp2 = order2.copy()
-        self.assertTrue(order2.try_execute(market_datas2))
+        self.assertTrue(order2.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp2, order2, rq_params2, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: market_datas2.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*market_datas2.get(Map.close),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  market_datas_close,
+            Map.price:      None,
+            Map.stopPrice:  stop_price_obj_fixed2.get_value(),
+            Map.amount:     exec_quantity*market_datas_close,
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp2, result=order2, attribut_types=attribut_types)
         '''
         BUY close < stop
         '''
-        market_datas3 = market_datas.copy()
-        market_datas3.put(stop_price_obj.get_value()/2, Map.close)
-        rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj, quantity_obj)
+        stop_price_obj3 = Price(stop_price_obj*2, r_asset)
+        rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop_price_obj3, quantity_obj)
         order3 = BinanceFakeOrder(rq_params3, market_datas)
         exp3 = order3.copy()
-        self.assertFalse(order3.try_execute(market_datas3))
+        self.assertFalse(order3.try_execute(market_datas, market_data_history))
         self.compare_order_execution(exp=exp3, result=order3, attribut_types=attribut_types_unexecuted)
         '''
         SELL close > stop
         '''
-        market_datas4 = market_datas.copy()
-        market_datas4.put(stop_price_obj.get_value()*2, Map.close)
-        rq_params4 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj, quantity_obj)
+        stop_price_obj4 = Price(stop_price_obj/2, r_asset)
+        rq_params4 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj4, quantity_obj)
         order4 = BinanceFakeOrder(rq_params4, market_datas)
         exp4 = order4.copy()
-        self.assertFalse(order4.try_execute(market_datas4))
+        self.assertFalse(order4.try_execute(market_datas, market_data_history))
         self.compare_order_execution(exp=exp4, result=order4, attribut_types=attribut_types_unexecuted)
         '''
         SELL close == stop
         '''
-        market_datas5 = market_datas.copy()
-        market_datas5.put(stop_price_obj.get_value(), Map.close)
-        rq_params5 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj, quantity_obj)
+        # market_datas5 = market_datas.copy()
+        # market_datas5.put(stop_price_obj.get_value(), Map.close)
+        stop_price_obj5 = stop_price_obj
+        stop_price_obj_fixed5 = BinanceAPI.fixe_price(pair, stop_price_obj5)
+        rq_params5 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj5, quantity_obj)
         order5 = BinanceFakeOrder(rq_params5, market_datas)
         exp5 = order5.copy()
-        self.assertTrue(order5.try_execute(market_datas5))
+        self.assertTrue(order5.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp5, order5, rq_params5, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_SELL,
-            Map.execution: market_datas5.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*market_datas5.get(Map.close),
-            Map.quantity: exec_quantity,
-            Map.fee: Price((exec_quantity*market_datas5.get(Map.close))*fees_rates.get(Map.taker), pair.get_right()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_SELL,
+            Map.execution:  market_datas_close,
+            Map.price:      None,
+            Map.stopPrice:  stop_price_obj_fixed5.get_value(),
+            Map.amount:     exec_quantity*market_datas_close,
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price((exec_quantity*market_datas_close)*fees_rates.get(Map.taker), pair.get_right()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp5, result=order5, attribut_types=attribut_types)
         '''
         SELL close < stop
         '''
-        market_datas6 = market_datas.copy()
-        market_datas6.put(stop_price_obj.get_value()/2, Map.close)
-        rq_params6 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj, quantity_obj)
+        # market_datas6 = market_datas.copy()
+        # market_datas6.put(stop_price_obj.get_value()/2, Map.close)
+        stop_price_obj6 = Price(stop_price_obj*2, r_asset)
+        stop_price_obj_fixed6 = BinanceAPI.fixe_price(pair, stop_price_obj6)
+        rq_params6 = new_request_params(pair, BinanceOrder.MOVE_SELL, stop_price_obj6, quantity_obj)
         order6 = BinanceFakeOrder(rq_params6, market_datas)
         exp6 = order6.copy()
-        self.assertTrue(order6.try_execute(market_datas6))
+        self.assertTrue(order6.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp6, order6, rq_params6, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_SELL,
-            Map.execution: market_datas6.get(Map.close),
-            Map.price: None,
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*market_datas6.get(Map.close),
-            Map.quantity: exec_quantity,
-            Map.fee: Price((exec_quantity*market_datas6.get(Map.close))*fees_rates.get(Map.taker), pair.get_right()),
-            Map.isMaker: False
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_SELL,
+            Map.execution:  market_datas_close,
+            Map.price:      None,
+            Map.stopPrice:  stop_price_obj_fixed6.get_value(),
+            Map.amount:     exec_quantity*market_datas_close,
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price((exec_quantity*market_datas_close)*fees_rates.get(Map.taker), pair.get_right()),
+            Map.isMaker:    False
         })
         self.compare_order_execution(exp=exp6, result=order6, attribut_types=attribut_types)
 
     def __try_execute_limit(self, pair: Pair, quantity_obj: Price, amount_obj: Price, fees_rates: Map, attribut_types: dict, attribut_types_unexecuted: dict) -> None:
         def new_request_params(pair: Pair, side: str, limit: Price, quantity) -> Map:
             request_params = BinanceOrder(BinanceOrder.TYPE_LIMIT, Map({
-                Map.pair: pair,
-                Map.move: side,
-                Map.limit: limit,
-                Map.quantity: quantity
+                Map.pair:       pair,
+                Map.move:       side,
+                Map.limit:      limit,
+                Map.quantity:   quantity
                 })).generate_order()
             return request_params
-        
+        r_asset = pair.get_right()
         merged_pair = pair.format(Pair.FORMAT_MERGED).upper()
         exec_quantity = quantity_obj.get_value()
-        limit_price_obj = Price(25, pair.get_right())
         order_type = BinanceAPI.TYPE_LIMIT
         market_datas = self.market_datas
+        market_data_history = self.market_data_history
+        market_datas_close = market_datas.get(Map.close)
+        limit_price_obj = Price(market_datas_close, r_asset)
         '''
         BUY close > limit
         '''
-        market_datas1 = market_datas.copy()
-        market_datas1.put(limit_price_obj*2, Map.close)
-        rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj, quantity_obj)
+        limit_price_obj1 = Price(limit_price_obj/2, r_asset)
+        rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj1, quantity_obj)
         order1 = BinanceFakeOrder(rq_params1, market_datas)
         exp1 = order1.copy()
-        self.assertFalse(order1.try_execute(market_datas1))
+        self.assertFalse(order1.try_execute(market_datas, market_data_history))
         self.compare_order_execution(exp=exp1, result=order1, attribut_types=attribut_types_unexecuted)
         '''
         BUY close == limit
         '''
-        market_datas2 = market_datas.copy()
-        market_datas2.put(limit_price_obj.get_value(), Map.close)
-        rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj, quantity_obj)
+        limit_price_obj2 = limit_price_obj
+        rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj2, quantity_obj)
         order2 = BinanceFakeOrder(rq_params2, market_datas)
         exp2 = order2.copy()
-        self.assertTrue(order2.try_execute(market_datas2))
+        self.assertTrue(order2.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp2, order2, rq_params2, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: limit_price_obj.get_value(),
-            Map.price: limit_price_obj.get_value(),
-            Map.stopPrice: None,
-            Map.amount: exec_quantity*limit_price_obj.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: True
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  limit_price_obj2.get_value(),
+            Map.price:      limit_price_obj2.get_value(),
+            Map.stopPrice:  None,
+            Map.amount:     exec_quantity*limit_price_obj2.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp2, result=order2, attribut_types=attribut_types)
         '''
-        BUY close < limit
+        BUY exec_close < limit
         '''
-        market_datas3 = market_datas.copy()
-        market_datas3.put(limit_price_obj.get_value()/2, Map.close)
-        rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj, quantity_obj)
+        limit_price_obj3 = Price(limit_price_obj*2, r_asset)
+        limit_price_obj_fixed3 = BinanceAPI.fixe_price(pair, limit_price_obj3)
+        rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, limit_price_obj3, quantity_obj)
         order3 = BinanceFakeOrder(rq_params3, market_datas)
         exp3 = order3.copy()
-        self.assertTrue(order3.try_execute(market_datas3))
+        self.assertTrue(order3.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp3, order3, rq_params3, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: limit_price_obj.get_value(),
-            Map.price: limit_price_obj.get_value(),
-            Map.stopPrice: None,
-            Map.amount: exec_quantity*limit_price_obj.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: True
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  limit_price_obj_fixed3.get_value(),
+            Map.price:      limit_price_obj_fixed3.get_value(),
+            Map.stopPrice:  None,
+            Map.amount:     exec_quantity*limit_price_obj_fixed3.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp3, result=order3, attribut_types=attribut_types)
         '''
         SELL close > limit
         '''
-        market_datas4 = market_datas.copy()
-        market_datas4.put(limit_price_obj.get_value()*2, Map.close)
-        rq_params4 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj, quantity_obj)
+        limit_price_obj4 = Price(limit_price_obj/2, r_asset)
+        limit_price_obj_fixed4 = BinanceAPI.fixe_price(pair, limit_price_obj4)
+        rq_params4 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj4, quantity_obj)
         order4 = BinanceFakeOrder(rq_params4, market_datas)
         exp4 = order4.copy()
-        self.assertTrue(order4.try_execute(market_datas4))
+        self.assertTrue(order4.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp4, order4, rq_params4, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_SELL,
-            Map.execution: limit_price_obj.get_value(),
-            Map.price: limit_price_obj.get_value(),
-            Map.stopPrice: None,
-            Map.amount: exec_quantity*limit_price_obj.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price((exec_quantity*limit_price_obj.get_value())*fees_rates.get(Map.taker), pair.get_right()),
-            Map.isMaker: True
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_SELL,
+            Map.execution:  limit_price_obj_fixed4.get_value(),
+            Map.price:      limit_price_obj_fixed4.get_value(),
+            Map.stopPrice:  None,
+            Map.amount:     exec_quantity*limit_price_obj_fixed4.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price((exec_quantity*limit_price_obj_fixed4.get_value())*fees_rates.get(Map.taker), pair.get_right()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp4, result=order4, attribut_types=attribut_types)
         '''
         SELL close == limit
         '''
-        market_datas5 = market_datas.copy()
-        market_datas5.put(limit_price_obj.get_value(), Map.close)
-        rq_params5 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj, quantity_obj)
+        limit_price_obj5 = limit_price_obj
+        limit_price_obj_fixed5 = BinanceAPI.fixe_price(pair, limit_price_obj5)
+        rq_params5 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj5, quantity_obj)
         order5 = BinanceFakeOrder(rq_params5, market_datas)
         exp5 = order5.copy()
-        self.assertTrue(order5.try_execute(market_datas5))
+        self.assertTrue(order5.try_execute(market_datas, market_data_history))
         self.to_executed_state(exp5, order5, rq_params5, market_datas, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_SELL,
-            Map.execution: limit_price_obj.get_value(),
-            Map.price: limit_price_obj.get_value(),
-            Map.stopPrice: None,
-            Map.amount: exec_quantity*limit_price_obj.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price((exec_quantity*limit_price_obj.get_value())*fees_rates.get(Map.taker), pair.get_right()),
-            Map.isMaker: True
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_SELL,
+            Map.execution:  limit_price_obj_fixed5.get_value(),
+            Map.price:      limit_price_obj_fixed5.get_value(),
+            Map.stopPrice:  None,
+            Map.amount:     exec_quantity*limit_price_obj_fixed5.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price((exec_quantity*limit_price_obj_fixed5.get_value())*fees_rates.get(Map.taker), pair.get_right()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp5, result=order5, attribut_types=attribut_types)
         '''
-        SELL close < limit
+        SELL exec_close < limit
         '''
-        market_datas6 = market_datas.copy()
-        market_datas6.put(limit_price_obj.get_value()/2, Map.close)
-        rq_params6 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj, quantity_obj)
+        limit_price_obj6 = Price(limit_price_obj*2, r_asset)
+        rq_params6 = new_request_params(pair, BinanceOrder.MOVE_SELL, limit_price_obj6, quantity_obj)
         order6 = BinanceFakeOrder(rq_params6, market_datas)
         exp6 = order6.copy()
-        self.assertFalse(order6.try_execute(market_datas6))
+        self.assertFalse(order6.try_execute(market_datas, market_data_history))
         self.compare_order_execution(exp=exp6, result=order6, attribut_types=attribut_types_unexecuted)
 
     def __try_execute_stop_limit(self, pair: Pair, quantity_obj: Price, amount_obj: Price, fees_rates: Map, attribut_types: dict, attribut_types_unexecuted: dict) -> None:
         def new_request_params(pair: Pair, side: str, stop: Price, limit: Price, quantity) -> Map:
             request_params = BinanceOrder(BinanceOrder.TYPE_STOP_LIMIT, Map({
-                Map.pair: pair,
-                Map.move: side,
-                Map.stop: stop,
-                Map.limit: limit,
-                Map.quantity: quantity
+                Map.pair:       pair,
+                Map.move:       side,
+                Map.stop:       stop,
+                Map.limit:      limit,
+                Map.quantity:   quantity
                 })).generate_order()
             return request_params
-
-        def new_market_datas(close: float) -> Map:
-            market_datas = self.market_datas.copy()
-            market_datas.put(close, Map.close)
-            return market_datas
-
+        def fixe_price(price: Price) -> Price:
+            return BinanceAPI.fixe_price(pair, price)
+        def price_and_fixed(price_value: float) -> tuple[Price, Price]:
+            price = Price(price_value, r_asset)
+            price_fixed = fixe_price(price)
+            return price, price_fixed
         merged_pair = pair.format(Pair.FORMAT_MERGED).upper()
-        exec_quantity = quantity_obj.get_value()
-        stop_price_obj = Price(50, pair.get_right())
+        r_asset = pair.get_right()
         order_type = BinanceAPI.TYPE_STOP_LOSS_LIMIT
+        # Market datas
+        _MF.update_bot_trade_index(0)
+        submit_market_datas, submit_market_data_history = BinanceFakeAPI._actual_market_datas(merged_pair)
+        _MF.update_bot_trade_index(16)
+        exec_market_datas_16, exec_market_data_history_16 = BinanceFakeAPI._actual_market_datas(merged_pair)
+        _MF.update_bot_trade_index(2860)
+        exec_market_datas, exec_market_data_history = BinanceFakeAPI._actual_market_datas(merged_pair)
+        # Prices
+        exec_quantity = quantity_obj.get_value()
+        submit_market_datas_close = submit_market_datas.get(Map.close)
+        exec_market_datas_close = exec_market_datas.get(Map.close)
+        exec_market_datas_close_16 = exec_market_datas_16.get(Map.close)
+        # 2860
+        min_close =     min([submit_market_datas_close, exec_market_datas_close])
+        mean_close =    (submit_market_datas_close + exec_market_datas_close) / 2
+        max_close =     max([submit_market_datas_close, exec_market_datas_close])
+        # 16
+        min_close_16 =  min([submit_market_datas_close, exec_market_datas_close_16])
+        mean_close_16 = (submit_market_datas_close + exec_market_datas_close_16) / 2
+        max_close_16 =  max([submit_market_datas_close, exec_market_datas_close_16])
         '''
-        BUY FROM (init_close > stop) TO (new_close > stop) AND (close < limit)
+        BUY FROM (submit_close > stop) TO (exec_close > stop) AND (exec_close < limit)
+        submit_close > stop < exec_close
         '''
-        init_close = stop_price_obj*2
-        new_close1_1 = stop_price_obj*3
-        exec_market_datas1_1 = new_market_datas(new_close1_1)
-        init_market_datas1 = new_market_datas(init_close)
-        limit_price_obj1 = Price(new_close1_1*2, pair.get_right())
-        rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj1, quantity=quantity_obj)
-        order1 = BinanceFakeOrder(rq_params1, init_market_datas1)
+        stop_obj1,  stop_obj_fixed1 =   price_and_fixed(min_close/2)
+        limit_obj1, limit_obj_fixed1 =  price_and_fixed(exec_market_datas_close * 2)
+        rq_params1 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_obj1, limit=limit_obj1, quantity=quantity_obj)
+        order1 = BinanceFakeOrder(rq_params1, submit_market_datas)
         exp1_1 = order1.copy()
-        self.assertFalse(order1.try_execute(exec_market_datas1_1))
+        self.assertFalse(order1.try_execute(exec_market_datas, exec_market_data_history))
         self.compare_order_execution(exp=exp1_1, result=order1, attribut_types=attribut_types_unexecuted)
         '''
-        BUY FROM (init_close > stop) TO (new_close == stop) AND (close < limit)
+        BUY FROM (submit_close > stop) TO (exec_close == stop) AND (exec_close < limit)
+        submit_close > stop == exec_close
         '''
-        init_close = stop_price_obj*2
-        new_close2 = stop_price_obj.get_value()
-        init_market_datas2 = new_market_datas(init_close)
-        exec_market_datas2 = new_market_datas(new_close2)
-        limit_price_obj2 = Price(new_close2*2, pair.get_right())
-        rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj2, quantity=quantity_obj)
-        order2 = BinanceFakeOrder(rq_params2, init_market_datas2)
+        stop_obj2,  stop_obj_fixed2 =   price_and_fixed(exec_market_datas_close)
+        limit_obj2, limit_obj_fixed2 =  price_and_fixed(exec_market_datas_close * 2)
+        rq_params2 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_obj2, limit=limit_obj2, quantity=quantity_obj)
+        order2 = BinanceFakeOrder(rq_params2, submit_market_datas)
         exp2 = order2.copy()
-        self.assertTrue(order2.try_execute(exec_market_datas2))
-        self.to_executed_state(exp2, order2, rq_params2, init_market_datas2, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: limit_price_obj2.get_value(),
-            Map.price: limit_price_obj2.get_value(),
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*limit_price_obj2.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: True
+        self.assertTrue(order2.try_execute(exec_market_datas, exec_market_data_history))
+        self.to_executed_state(exp2, order2, rq_params2, submit_market_datas, exec_datas={
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  limit_obj_fixed2.get_value(),
+            Map.price:      limit_obj_fixed2.get_value(),
+            Map.stopPrice:  stop_obj_fixed2.get_value(),
+            Map.amount:     exec_quantity*limit_obj_fixed2.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp2, result=order2, attribut_types=attribut_types)
         '''
-        BUY FROM (init_close > stop) TO (new_close < stop) AND (close < limit)
+        BUY FROM (submit_close > stop) TO (exec_close < stop) AND (exec_close < limit)
+        submit_close > stop > exec_close
         '''
-        init_close = stop_price_obj*2
-        new_close3 = stop_price_obj/2
-        init_market_datas3 = new_market_datas(init_close)
-        exec_market_datas3 = new_market_datas(new_close3)
-        limit_price_obj3 = Price(new_close3*2, pair.get_right())
-        rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj3, quantity=quantity_obj)
-        order3 = BinanceFakeOrder(rq_params3, init_market_datas3)
+        stop_obj3,  stop_obj_fixed3 =   price_and_fixed(mean_close)
+        limit_obj3, limit_obj_fixed3 =  price_and_fixed(exec_market_datas_close * 2)
+        rq_params3 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_obj3, limit=limit_obj3, quantity=quantity_obj)
+        order3 = BinanceFakeOrder(rq_params3, submit_market_datas)
         exp3 = order3.copy()
-        self.assertTrue(order3.try_execute(exec_market_datas3))
-        self.to_executed_state(exp3, order3, rq_params3, init_market_datas3, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: limit_price_obj3.get_value(),
-            Map.price: limit_price_obj3.get_value(),
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*limit_price_obj3.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: True
+        self.assertTrue(order3.try_execute(exec_market_datas, exec_market_data_history))
+        self.to_executed_state(exp3, order3, rq_params3, submit_market_datas, exec_datas={
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  limit_obj_fixed3.get_value(),
+            Map.price:      limit_obj_fixed3.get_value(),
+            Map.stopPrice:  stop_obj_fixed3.get_value(),
+            Map.amount:     exec_quantity*limit_obj_fixed3.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp3, result=order3, attribut_types=attribut_types)
         '''
-        BUY FROM (init_close < stop) TO (new_close < stop) AND (close < limit)
+        BUY FROM (submit_close < stop) TO (exec_close < stop) AND (exec_close < limit)
+        submit_close < stop > exec_close
         '''
-        init_close = stop_price_obj/2
-        new_close4 = init_close
-        exec_market_datas4 = new_market_datas(new_close4)
-        init_market_datas4 = new_market_datas(init_close)
-        limit_price_obj4 = Price(new_close4*2, pair.get_right())
-        rq_params4 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj4, quantity=quantity_obj)
-        order4 = BinanceFakeOrder(rq_params4, init_market_datas4)
+        stop_obj4,  stop_obj_fixed4 =   price_and_fixed(max_close * 2)
+        limit_obj4, limit_obj_fixed4 =  price_and_fixed(exec_market_datas_close * 2)
+        rq_params4 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_obj4, limit=limit_obj4, quantity=quantity_obj)
+        order4 = BinanceFakeOrder(rq_params4, submit_market_datas)
         exp4 = order4.copy()
-        self.assertFalse(order4.try_execute(exec_market_datas4))
+        self.assertFalse(order4.try_execute(exec_market_datas, exec_market_data_history))
         self.compare_order_execution(exp=exp4, result=order4, attribut_types=attribut_types_unexecuted)
         '''
-        BUY FROM (init_close < stop) TO (new_close == stop) AND (close < limit)
+        BUY FROM (submit_close < stop) TO (exec_close == stop) AND (exec_close < limit)
+        submit_close < stop == exec_close
         '''
-        init_close = stop_price_obj.get_value()/2
-        new_close5 = stop_price_obj.get_value()
-        init_market_datas5 = new_market_datas(init_close)
-        exec_market_datas5 = new_market_datas(new_close5)
-        limit_price_obj5 = Price(new_close5*2, pair.get_right())
-        rq_params5 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj5, quantity=quantity_obj)
-        order5 = BinanceFakeOrder(rq_params5, init_market_datas5)
+        stop_obj5,  stop_obj_fixed5 =   price_and_fixed(exec_market_datas_close_16)
+        limit_obj5, limit_obj_fixed5 =  price_and_fixed(exec_market_datas_close_16 * 2)
+        rq_params5 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_obj5, limit=limit_obj5, quantity=quantity_obj)
+        order5 = BinanceFakeOrder(rq_params5, submit_market_datas)
         exp5 = order5.copy()
-        self.assertTrue(order5.try_execute(exec_market_datas5))
-        self.to_executed_state(exp5, order5, rq_params5, init_market_datas5, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: limit_price_obj5.get_value(),
-            Map.price: limit_price_obj5.get_value(),
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*limit_price_obj5.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: True
+        self.assertTrue(order5.try_execute(exec_market_datas_16, exec_market_data_history_16))
+        self.to_executed_state(exp5, order5, rq_params5, submit_market_datas, exec_datas={
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  limit_obj_fixed5.get_value(),
+            Map.price:      limit_obj_fixed5.get_value(),
+            Map.stopPrice:  stop_obj_fixed5.get_value(),
+            Map.amount:     exec_quantity*limit_obj_fixed5.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp5, result=order5, attribut_types=attribut_types)
         '''
-        BUY FROM (init_close < stop) TO (new_close > stop) AND (close < limit)
+        BUY FROM (submit_close < stop) TO (exec_close > stop) AND (exec_close < limit)
+        submit_close < stop < exec_close
         '''
-        init_close = stop_price_obj.get_value()/2
-        new_close6 = stop_price_obj*2
-        init_market_datas6 = new_market_datas(init_close)
-        exec_market_datas6 = new_market_datas(new_close6)
-        limit_price_obj6 = Price(new_close6*2, pair.get_right())
-        rq_params6 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_price_obj, limit=limit_price_obj6, quantity=quantity_obj)
-        order6 = BinanceFakeOrder(rq_params6, init_market_datas6)
+        stop_obj6,  stop_obj_fixed6 =   price_and_fixed(mean_close_16)
+        limit_obj6, limit_obj_fixed6 =  price_and_fixed(exec_market_datas_close_16 * 2)
+        rq_params6 = new_request_params(pair, BinanceOrder.MOVE_BUY, stop=stop_obj6, limit=limit_obj6, quantity=quantity_obj)
+        order6 = BinanceFakeOrder(rq_params6, submit_market_datas)
         exp6 = order6.copy()
-        self.assertTrue(order6.try_execute(exec_market_datas6))
-        self.to_executed_state(exp6, order6, rq_params6, init_market_datas6, exec_datas={
-            Map.symbol: merged_pair,
-            Map.type: order_type,
-            Map.side: BinanceAPI.SIDE_BUY,
-            Map.execution: limit_price_obj6.get_value(),
-            Map.price: limit_price_obj6.get_value(),
-            Map.stopPrice: stop_price_obj.get_value(),
-            Map.amount: exec_quantity*limit_price_obj6.get_value(),
-            Map.quantity: exec_quantity,
-            Map.fee: Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
-            Map.isMaker: True
+        self.assertTrue(order6.try_execute(exec_market_datas_16, exec_market_data_history_16))
+        self.to_executed_state(exp6, order6, rq_params6, submit_market_datas, exec_datas={
+            Map.symbol:     merged_pair,
+            Map.type:       order_type,
+            Map.side:       BinanceAPI.SIDE_BUY,
+            Map.execution:  limit_obj_fixed6.get_value(),
+            Map.price:      limit_obj_fixed6.get_value(),
+            Map.stopPrice:  stop_obj_fixed6.get_value(),
+            Map.amount:     exec_quantity*limit_obj_fixed6.get_value(),
+            Map.quantity:   exec_quantity,
+            Map.fee:        Price(exec_quantity*fees_rates.get(Map.taker), pair.get_left()),
+            Map.isMaker:    True
         })
         self.compare_order_execution(exp=exp6, result=order6, attribut_types=attribut_types)
 
@@ -703,13 +727,14 @@ class TestBinanceFakeOrder(unittest.TestCase, BinanceFakeOrder):
         # Exected order
         self.setUp()
         market_datas = self.market_datas
+        market_data_history = self.market_data_history
         params = BinanceOrder(BinanceOrder.TYPE_MARKET, Map({
             Map.pair: pair,
             Map.move: BinanceOrder.MOVE_BUY,
             Map.quantity: Price(5, pair.get_left())
         })).generate_order()
         order = BinanceFakeOrder(params, market_datas)
-        order.try_execute(market_datas)
+        order.try_execute(market_datas, market_data_history)
         api_order = order.to_dict()
         attribut_types[Map.fills] = list
         [self.assertIsInstance(api_order[attribut], types) for attribut, types in attribut_types.items()]
