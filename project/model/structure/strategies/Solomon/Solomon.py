@@ -217,8 +217,10 @@ class Solomon(Strategy):
         k_keltner_high_1min = f'keltner_high_{period_strs[period_1min]}[-1]'
         k_close_1min = f'close_{period_strs[period_1min]}[-1]'
         can_buy = cls.is_keltner_roi_above_trigger(vars_map, broker, pair, period_1min, marketprices, TRIGGE_KELTNER) \
+            and cls.is_psar_rising(vars_map, broker, pair, period_1min, marketprices) \
             and cls.is_psar_rising(vars_map, broker, pair, period_5min, marketprices) \
             and cls.is_psar_rising(vars_map, broker, pair, period_15min, marketprices) \
+            and cls.is_supertrend_rising(vars_map, broker, pair, period_1min, marketprices) \
             and cls.is_supertrend_rising(vars_map, broker, pair, period_5min, marketprices) \
             and cls.is_supertrend_rising(vars_map, broker, pair, period_15min, marketprices) \
             and cls.is_price_bellow_keltner_line(vars_map, broker, pair, period_1min, marketprices, Map.close, Map.high)
@@ -244,10 +246,14 @@ class Solomon(Strategy):
             f'keltner_middle_{period_strs[period_1min]}[-2]':                       vars_map.get(f'keltner_middle_{period_strs[period_1min]}[-2]'),
             k_keltner_high_1min:                                                    vars_map.get(k_keltner_high_1min),
             f'keltner_high_{period_strs[period_1min]}[-2]':                         vars_map.get(f'keltner_high_{period_strs[period_1min]}[-2]'),
+            f'psar_{period_strs[period_1min]}[-1]':                                 vars_map.get(f'psar_{period_strs[period_1min]}[-1]'),
+            f'psar_{period_strs[period_1min]}[-2]':                                 vars_map.get(f'psar_{period_strs[period_1min]}[-2]'),
             f'psar_{period_strs[period_5min]}[-1]':                                 vars_map.get(f'psar_{period_strs[period_5min]}[-1]'),
             f'psar_{period_strs[period_5min]}[-2]':                                 vars_map.get(f'psar_{period_strs[period_5min]}[-2]'),
             f'psar_{period_strs[period_15min]}[-1]':                                vars_map.get(f'psar_{period_strs[period_15min]}[-1]'),
             f'psar_{period_strs[period_15min]}[-2]':                                vars_map.get(f'psar_{period_strs[period_15min]}[-2]'),
+            f'supertrend_{period_strs[period_1min]}[-1]':                           vars_map.get(f'supertrend_{period_strs[period_1min]}[-1]'),
+            f'supertrend_{period_strs[period_1min]}[-2]':                           vars_map.get(f'supertrend_{period_strs[period_1min]}[-2]'),
             f'supertrend_{period_strs[period_5min]}[-1]':                           vars_map.get(f'supertrend_{period_strs[period_5min]}[-1]'),
             f'supertrend_{period_strs[period_5min]}[-2]':                           vars_map.get(f'supertrend_{period_strs[period_5min]}[-2]'),
             f'supertrend_{period_strs[period_15min]}[-1]':                          vars_map.get(f'supertrend_{period_strs[period_15min]}[-1]'),
