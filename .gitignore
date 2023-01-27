@@ -27,8 +27,5 @@ project/tests/datas/tools/TestDeepLearning/
 project/tests/datas/tools/TestPredictor/
 
 project/*env*/
-project/trash/
-# project/draft.py
 project/start_*
-project/draft/*
 project/sh/nohup_draft.sh
