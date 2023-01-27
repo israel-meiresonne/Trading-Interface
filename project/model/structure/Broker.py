@@ -81,6 +81,18 @@ class Broker(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_streams(self) -> dict[Pair, list[int]]:
+        """
+        To collection of running streams
+
+        Return:
+        -------
+        return: dict[Pair, list[int]]
+            Stream converted into a Collection of Pair with list of period of each stream running
+        """
+        pass
+
     @staticmethod
     @abstractmethod
     def get_pairs(match: List[str] = None, no_match: List[str] = None) -> List[str]:
@@ -146,7 +158,7 @@ class Broker(ABC):
     @abstractmethod
     def period_to_str(cls, period: int) -> str:
         """
-        To convert period into strig format
+        To convert period into string format
 
         Parameters:
         -----------
@@ -205,7 +217,7 @@ class Broker(ABC):
         return FileManager.get_dirs(path, special=False)
 
     @staticmethod
-    def retrieve(bkr: str, configs: Map):
+    def retrieve(bkr: str, configs: Map) -> 'Broker':
         """
         To get access to a Broker\n
         :param bkr: name of a supported Broker

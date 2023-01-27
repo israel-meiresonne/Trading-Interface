@@ -30,7 +30,7 @@ class Dev:
     # Dynamic paths
     DIR_DATABASE = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/'
     DIR_SESSION_CONFIG = f'{DIR_ACTUAL_SESSION}configs/'
-    FILE_SESSION_CONFIG = f'{DIR_SESSION_CONFIG}{SESSION_ID}_session.conf'
+    FILE_SESSION_CONFIG = f'{DIR_SESSION_CONFIG}{SESSION_ID}_session.txt'
     FILE_FAKE_API_ORDERS = f'{DIR_ACTUAL_SESSION}storage/$stage/$class/orders/{SESSION_ID}_orders.json'
     DIR_BEGIN_BACKUP = f'{DIR_SAVE_DATAS}{SESSION_ID}_a_a————————————————————.csv'
     DIR_SAVE_BOT_ERRORS = f'{DIR_SAVE_DATAS}{SESSION_ID}_b_bot_error.csv'
@@ -81,8 +81,8 @@ class Dev:
     API_KEY_BINANCE_PUBLIC = 'mHRSn6V68SALTzCyQggb1EPaEhIDVAcZ6VjnxKBCqwFDQCOm71xiOYJSrEIlqCq5'
     API_KEY_BINANCE_SECRET = 'xDzXRjV8vusxpQtlSLRk9Q0pj5XCNODm6GDAMkOgfsHZZDZ1OHRUuMgpaaF5oQgr'
     FAKE_API_START_END_TIME = {
-        'start': 1609459200,  # UTC 2021-01-01 00:00:00
-        'end': 1658102400     # UTC 2022-07-18 00:00:00
+        'start':    1613227500, # 2021-02-13 14:45:00
+        'end':      1613313900  # 2021-02-14 14:45:00
         }
 
     @staticmethod

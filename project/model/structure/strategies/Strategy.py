@@ -75,7 +75,6 @@ class Strategy(Hand, ABC):
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
 
-    @abstractmethod
     def trade(self) -> int:
         """
         To automatically buy and/or sell positions
@@ -84,6 +83,18 @@ class Strategy(Hand, ABC):
         -------
         return: int
             The sleep time before the next call of this function
+        """
+        self._update_orders()
+        marketprices = Map()
+        self._trade_inner(marketprices=marketprices)
+        self._repport_positions(marketprices)
+        return self.get_sleep_trade()
+
+    @abstractmethod
+    def _trade_inner(self, marketprices: Map) -> None:
+        """
+        To execute code in Strategy.trade()
+        NOTE: This function is called in Strategy.trade(), after update of Order and before to return the sleep time
         """
         pass
 
@@ -233,7 +244,7 @@ class Strategy(Hand, ABC):
         output_n_turn = None
         #
         i = -1
-        _MF.output(f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'")
+        _MF.output(_MF.prefix() + f"Backtest '{pair_str.upper()}' from '{_MF.unix_to_date(starttime)}' to '{_MF.unix_to_date(endtime)}'")
         while True:
             # Manage Loop
             i += 1

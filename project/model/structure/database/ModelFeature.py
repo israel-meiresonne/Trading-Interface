@@ -633,7 +633,8 @@ class ModelFeature(ModelAccess):
         endtime = ModelFeature.predict_endtime(starttime, turn, n_turn) if turn > 1 else None
         endtime_str = ModelFeature.delta_time(starttime, endtime) if endtime is not None else '?'
         enddate = ModelFeature.unix_to_date(endtime) if endtime is not None else '?'
-        status = prefix_str + f"[{turn}/{n_turn}] {message} == '{enddate}' == '{endtime_str}'" + _normal
+        progress_str = ModelFeature.rate_to_str(turn/n_turn)
+        status = prefix_str + f"[{turn}/{n_turn}][{progress_str}] {message} == '{enddate}' == '{endtime_str}'" + _normal
         return status
 
     @staticmethod
@@ -948,3 +949,8 @@ class ModelFeature(ModelAccess):
     def check_type(cls, value: Any, expected_type) -> None:
         if not isinstance(value, expected_type):
             raise TypeError(f"Expected type '{expected_type}', instead '{type(value)}'")
+
+    @classmethod
+    def check_allowed_values(cls, value, alloweds: list) -> None:
+        if value not in alloweds:
+            raise ValueError(f"Value must be '{' or '.join(alloweds)}', instead '{value} (type={type(value)})'")

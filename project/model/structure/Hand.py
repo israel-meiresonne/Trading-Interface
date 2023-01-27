@@ -63,6 +63,7 @@ class Hand(MyJson):
         self.__thread_market_analyse =  None
         self.__backup =                 None
         self.__backup_time =            None
+        self.__broker_pairs =           None
         self._set_id()
         self._set_settime()
         self._set_wallet(capital)
@@ -697,6 +698,14 @@ class Hand(MyJson):
                 ]
         return Hand._STALK_FUNCTIONS
 
+    def _set_broker_pairs(self, broker_pairs: List[Pair]) -> None:
+        _MF.check_type(broker_pairs, list)
+        [_MF.check_type(pair, Pair) for pair in broker_pairs]
+        self.__broker_pairs = broker_pairs
+        
+    def reset_broker_pairs(self) -> None:
+        self.__broker_pairs = None
+
     def get_broker_pairs(self) -> List[Pair]:
         """
         To get list of pair available from Broker's API
@@ -706,10 +715,12 @@ class Hand(MyJson):
         return: List[Pair]
             List of pair available from Broker's API
         """
-        broker_class = self.get_broker_class()
-        fiat_asset = self.get_wallet().get_initial().get_asset()
-        spot_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
-        return spot_pairs
+        broker_pairs = self.__broker_pairs
+        if broker_pairs is None:
+            broker_class = self.get_broker_class()
+            fiat_asset = self.get_wallet().get_initial().get_asset()
+            broker_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
+        return broker_pairs
 
     def _get_stalk_pairs(self) -> List[Pair]:
         """
@@ -791,7 +802,7 @@ class Hand(MyJson):
         self._move_closed_positions(positions) if (not self.is_trading()) else None
         self.backup()
 
-    def _repport_positions(self) -> None:
+    def _repport_positions(self, marketprices: Map = Map()) -> None:
         def print_row(file_path: str, rows: List[dict], overwrite: bool, make_dir: bool) -> None:
             fields = list(rows[0].keys())
             FileManager.write_csv(file_path, fields, rows, overwrite=overwrite, make_dir=make_dir)
@@ -884,6 +895,8 @@ class Hand(MyJson):
                 Map.close
             ]
             rows = pd.DataFrame(columns=columns)
+            nan_extrem_prices = Map({Map.minimum: float('nan'), Map.maximum: float('nan')})
+            is_stage_one = Config.get(Config.STAGE_MODE) == Config.STAGE_1
             for pair_str, position in positions.items():
                 position_closed = position.is_closed()
                 has_position = position.has_position()
@@ -951,7 +964,7 @@ class Hand(MyJson):
                 fee_rate = None
                 if has_position:
                     hold_time = _MF.delta_time(buy_time, _MF.get_timestamp())
-                    extrem_prices = position.extrem_prices(broker)
+                    extrem_prices = nan_extrem_prices if is_stage_one else position.extrem_prices(broker)
                     max_price = extrem_prices.get(Map.maximum)
                     min_price = extrem_prices.get(Map.minimum)
                     fee = buy_order.get_fee(r_asset)
@@ -959,7 +972,7 @@ class Hand(MyJson):
                     roi = _MF.progress_rate(closes[-1], buy_price.get_value()) - fee_rate
                 elif position_closed:
                     hold_time = _MF.delta_time(buy_time, sell_time)
-                    extrem_prices = position.extrem_prices(broker)
+                    extrem_prices = nan_extrem_prices if is_stage_one else position.extrem_prices(broker)
                     max_price = position.get_max_price()
                     min_price = position.get_min_price()
                     fee = buy_order.get_fee(r_asset) + sell_order.get_fee(r_asset)
@@ -1006,7 +1019,7 @@ class Hand(MyJson):
             return rows
         broker = self.get_broker()
         wallet = self.get_wallet()
-        wallet.reset_marketprices()
+        wallet.set_marketprices(marketprices)
         positions = self.get_positions().copy()
         # save global states
         file_path_global = Config.get(Config.DIR_SAVE_GLOBAL_STATE)
@@ -1406,7 +1419,7 @@ class Hand(MyJson):
     # ••• FUNCTION SELF THREAD MARKET ANALYSE UP
     # ••• FUNCTION SELF BUY/SELL DOWN
 
-    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None) -> Union[str, None]:
+    def buy(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, buy_function: Callable = None, marketprices: Map = Map()) -> Union[str, None]:
         """
         To buy a new position
 
@@ -1454,16 +1467,16 @@ class Hand(MyJson):
         # Execution
         self._try_submit(trade)
         self._add_position(trade)
-        self._repport_positions()
+        self._repport_positions(marketprices=marketprices)
         # Failed ?
         failed_order_id = self._manage_failed_orders(pair)
-        self._repport_positions() if (failed_order_id is not None) else self._mark_proposition(pair, True)
+        self._repport_positions(marketprices=marketprices) if (failed_order_id is not None) else self._mark_proposition(pair, True)
         # End
         self._set_buying(False)
         self.backup()
         return failed_order_id
 
-    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None) -> Union[str, None]:
+    def sell(self, pair: Pair, order_type: str, stop: Price = None, limit: Price = None, sell_function: Callable = None, marketprices: Map = Map()) -> Union[str, None]:
         """
         To sell a new position
 
@@ -1510,17 +1523,17 @@ class Hand(MyJson):
         position.set_sell_function(sell_function)
         # Execution
         self._try_submit(position)
-        self._repport_positions()
+        self._repport_positions(marketprices=marketprices)
         # Failed ?
         failed_order_id = self._manage_failed_orders(pair)
-        self._repport_positions() if (failed_order_id is not None) else None
+        self._repport_positions(marketprices=marketprices) if (failed_order_id is not None) else None
         self._move_closed_position(pair) if position.is_closed() else None
         # End
         self._set_selling(False)
         self.backup()
         return failed_order_id
 
-    def cancel(self, pair: Pair) -> Union[str, None]:
+    def cancel(self, pair: Pair, marketprices: Map = Map()) -> Union[str, None]:
         """
         To cancel Trade if not executed yet\n
         NOTE: Delete Trade from list of position If buy Order is not executed
@@ -1542,16 +1555,16 @@ class Hand(MyJson):
         if (failed_order_id is None) and (not position.is_executed(Map.buy)):
             buy_order = position.get_buy_order()
             broker.cancel(buy_order)
-            self._repport_positions()
+            self._repport_positions(marketprices=marketprices)
             self._remove_position(pair)
         elif (failed_order_id is None) and position.has_position():
             sell_order = position.get_sell_order()
             if sell_order is not None:
                 broker.cancel(sell_order)
-                self._repport_positions()
+                self._repport_positions(marketprices=marketprices)
                 position.reset_sell_order()
         else:
-            self._repport_positions()
+            self._repport_positions(marketprices=marketprices)
         self.backup()
         return failed_order_id
 
@@ -1617,6 +1630,14 @@ class Hand(MyJson):
     # ••• FUNCTION SELF BUY/SELL CONDITION UP
     # ••• FUNCTION SELF OTHERS DOWN
 
+    def stop(self) -> None:
+        self.reset_trading()
+        self.set_stalk_on(on=False)
+        self.set_position_on(on=False)
+        self.set_market_analyse_on(on=False)
+        self.reset_broker_pairs()
+        self.backup(force=True)
+
     def add_streams(self) -> None:
         """
         To add streams to Broker's socket
@@ -1636,6 +1657,10 @@ class Hand(MyJson):
         broker = self.get_broker()
         streams = get_streams(broker, broker_pairs, required_periods)
         broker.add_streams(streams)
+        if Config.get(Config.STAGE_MODE) != Config.STAGE_1:
+            added_streams = broker.get_streams()
+            added_pairs = list(added_streams.keys())
+            self._set_broker_pairs(added_pairs)
 
     def _json_encode_to_dict(self) -> dict:
         attributes = self.__dict__.copy()

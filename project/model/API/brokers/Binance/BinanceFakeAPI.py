@@ -314,7 +314,6 @@ class BinanceFakeAPI(BinanceAPI):
         """
         def initial_index(max_period: int, period: int, max_n_period: int) -> int:
             return int(((max_period/period)*max_n_period))
-
         _cls = BinanceFakeAPI
         broker_name = BinanceAPI.__name__.replace('API', '')
         periods = MarketPrice.history_periods(broker_name)
@@ -534,7 +533,7 @@ class BinanceFakeAPI(BinanceAPI):
         return index
 
     @staticmethod
-    def _actual_market_datas(merged_pair: str) -> Map:
+    def _actual_market_datas(merged_pair: str) -> tuple[Map, np.ndarray]:
         """
         To get market history's most recent datas
 
@@ -545,27 +544,30 @@ class BinanceFakeAPI(BinanceAPI):
 
         Return:
         -------
-        return: Map
-            Market history's most recent datas
-            Map[Map.time]:  int     # API's unix time (in milliseconds)
-            Map[Map.start]: int     # market's open time (in milliseconds)
-            Map[Map.open]:  float   # market's open price
-            Map[Map.high]:  float   # market's high price
-            Map[Map.low]:   float   # market's low price
-            Map[Map.close]: float   # market's close price
-            Map[Map.end]:   int     # market's close time (in milliseconds)
+        return: Map and market history
+
+        | Key             | Type  | Doc                                                               |
+        | --------------- | ----- | ----------------------------------------------------------------- |
+        | Map[Map.time]   | int   | API's unix time (in milliseconds)                                 |
+        | Map[Map.start]  | int   | market's open time (in milliseconds)                              |
+        | Map[Map.open]   | float | market's open price                                               |
+        | Map[Map.high]   | float | market's high price                                               |
+        | Map[Map.low]    | float | market's low price                                                |
+        | Map[Map.close]  | float | market's close price                                              |
+        | Map[Map.end]    | int   | market's close time (in milliseconds)                             |
+        | Map[Map.period] | int   | market's interval between two following periods (in milliseconds) |
         """
-        def get_most_recent_row(merged_pair: str) -> np.ndarray:
+        def get_most_recent_row(merged_pair: str) -> tuple[np.ndarray, int, np.ndarray]:
             broker_name = BinanceAPI.__name__.replace('API', '')
             periods = MarketPrice.history_periods(broker_name) if stage == Config.STAGE_1 else list(_cls.get_intervals().get_map().values())
             min_period = min(periods)
-            history = BinanceFakeAPI._get_market_history(merged_pair, min_period)
+            min_history = BinanceFakeAPI._get_market_history(merged_pair, min_period)
             idx = _cls._index(min_period)
-            return history[idx], min_period
+            return min_history[idx], min_period, min_history
 
         _cls = BinanceFakeAPI
         stage = Config.get_stage()
-        recent_row, min_period = get_most_recent_row(merged_pair)
+        recent_row, min_period, min_history = get_most_recent_row(merged_pair)
         if stage == Config.STAGE_1:
             actual_time = recent_row[0]
         elif  stage == Config.STAGE_2:
@@ -577,15 +579,16 @@ class BinanceFakeAPI(BinanceAPI):
         else:
             raise Exception(f"This stage '{stage}' is not supported")
         recent_datas = Map({
-            Map.time: actual_time,
-            Map.start: recent_row[0],
-            Map.open: float(recent_row[1]),
-            Map.high: float(recent_row[2]),
-            Map.low: float(recent_row[3]),
-            Map.close: float(recent_row[4]),
-            Map.end: recent_row[6]
+            Map.time:       int(actual_time),
+            Map.start:      int(recent_row[0]),
+            Map.open:       float(recent_row[1]),
+            Map.high:       float(recent_row[2]),
+            Map.low:        float(recent_row[3]),
+            Map.close:      float(recent_row[4]),
+            Map.end:        int(recent_row[6]),
+            Map.period:     min_period * 1000
         })
-        return recent_datas
+        return recent_datas, min_history
 
     # ——————————————————————————————————————————— STATIC FUNCTION MARKET UP
     # ——————————————————————————————————————————— STATIC FUNCTION ORDER DOWN
@@ -608,7 +611,7 @@ class BinanceFakeAPI(BinanceAPI):
         """
         _cls = BinanceFakeAPI
         merged_pair = params.get(Map.symbol)
-        market_datas = _cls._actual_market_datas(merged_pair)
+        market_datas, market_data_history = _cls._actual_market_datas(merged_pair)
         order = BinanceFakeOrder(params, market_datas)
         _cls._add_order(order)
         return order
@@ -625,10 +628,10 @@ class BinanceFakeAPI(BinanceAPI):
         """
         merged_pair = merged_pair.upper()
         order_dict = cls._get_order_dict(merged_pair)
-        market_datas = cls._actual_market_datas(merged_pair)
+        market_datas, market_data_history = cls._actual_market_datas(merged_pair)
         executions = []
         for period, order in order_dict.copy().items():
-            executions.append(1) if order.try_execute(market_datas) else None
+            executions.append(1) if order.try_execute(market_datas, market_data_history) else None
         cls._save_orders() if sum(executions) > 0 else None
 
     # ——————————————————————————————————————————— STATIC FUNCTION ORDER UP
@@ -786,8 +789,8 @@ class BinanceFakeAPI(BinanceAPI):
         """
         order = cls._new_order(params)
         merged_pair = order.get_attribut(Map.symbol)
-        market_datas = cls._actual_market_datas(merged_pair)
-        order.try_execute(market_datas)
+        market_datas, market_data_history = cls._actual_market_datas(merged_pair)
+        order.try_execute(market_datas, market_data_history)
         return order.to_dict()
 
     @staticmethod
