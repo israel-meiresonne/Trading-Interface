@@ -28,4 +28,3 @@ project/tests/datas/tools/TestPredictor/
 
 project/*env*/
 project/start_*
-project/sh/nohup_draft.sh
