@@ -954,3 +954,11 @@ class ModelFeature(ModelAccess):
     def check_allowed_values(cls, value, alloweds: list) -> None:
         if value not in alloweds:
             raise ValueError(f"Value must be '{' or '.join(alloweds)}', instead '{value} (type={type(value)})'")
+
+    @classmethod
+    def param_to_str(cls, params: dict) -> str:
+        param_str = ''
+        if len(params) > 0:
+            for key, value in params.items():
+                param_str += f'{key}={value}' if len(param_str) == 0 else f'_{key}={value}'
+        return param_str
