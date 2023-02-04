@@ -222,7 +222,7 @@ class Solomon(Strategy):
             and cls.is_psar_rising(vars_map, broker, pair, period_15min, marketprices, index) \
             and cls.is_supertrend_rising(vars_map, broker, pair, period_5min, marketprices, index) \
             and cls.is_supertrend_rising(vars_map, broker, pair, period_15min, marketprices, index) \
-            and cls.is_price_bellow_keltner_line(vars_map, broker, pair, period_1min, marketprices, Map.close, Map.high, index)
+            and cls.is_compare_price_and_keltner_line(vars_map, broker, pair, period_1min, marketprices, compare='<', price_line=Map.close, keltner_line=Map.high, index=index)
         report = {
             f'can_buy':                                                             can_buy,
             f'keltner_roi_above_trigger_{period_strs[period_1min]}':                vars_map.get(f'keltner_roi_above_trigger_{period_strs[period_1min]}'),
@@ -371,7 +371,7 @@ class Solomon(Strategy):
         return keltner_roi_above_trigger
 
     @classmethod
-    def is_price_bellow_keltner_line(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, price_line: str, keltner_line: str, index: int) -> bool:
+    def is_compare_price_and_keltner_line(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, compare: str, price_line: str, keltner_line: str, index: int) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         # marketprice.reset_collections()
@@ -380,7 +380,9 @@ class Solomon(Strategy):
         keltner = list(keltner_map.get_map()[keltner_line])
         keltner.reverse()
         # Check
-        price_bellow_keltner_high = bool(marketprice_df[price_line].iloc[index] < keltner[index])
+        market_price = marketprice_df[price_line].iloc[index]
+        keltner_price = keltner[index]
+        price_bellow_keltner_high = bool(eval(f'{market_price} {compare} {keltner_price}'))
         # Put
         vars_map.put(price_bellow_keltner_high, f'{price_line}_bellow_keltner_{keltner_line}_{period_str}')
         vars_map.put(keltner[-1],               f'keltner_{keltner_line}_{period_str}[-1]')
