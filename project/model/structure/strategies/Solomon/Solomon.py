@@ -216,12 +216,13 @@ class Solomon(Strategy):
         k_keltner_roi_1min = f'keltner_roi_{period_strs[period_1min]}'
         k_keltner_high_1min = f'keltner_high_{period_strs[period_1min]}[-1]'
         k_close_1min = f'close_{period_strs[period_1min]}[-1]'
-        can_buy = cls.is_keltner_roi_above_trigger(vars_map, broker, pair, period_1min, marketprices, TRIGGE_KELTNER) \
-            and cls.is_psar_rising(vars_map, broker, pair, period_5min, marketprices) \
-            and cls.is_psar_rising(vars_map, broker, pair, period_15min, marketprices) \
-            and cls.is_supertrend_rising(vars_map, broker, pair, period_5min, marketprices) \
-            and cls.is_supertrend_rising(vars_map, broker, pair, period_15min, marketprices) \
-            and cls.is_price_bellow_keltner_line(vars_map, broker, pair, period_1min, marketprices, Map.close, Map.high)
+        index = -1
+        can_buy = cls.is_keltner_roi_above_trigger(vars_map, broker, pair, period_1min, marketprices, TRIGGE_KELTNER, index) \
+            and cls.is_psar_rising(vars_map, broker, pair, period_5min, marketprices, index) \
+            and cls.is_psar_rising(vars_map, broker, pair, period_15min, marketprices, index) \
+            and cls.is_supertrend_rising(vars_map, broker, pair, period_5min, marketprices, index) \
+            and cls.is_supertrend_rising(vars_map, broker, pair, period_15min, marketprices, index) \
+            and cls.is_price_bellow_keltner_line(vars_map, broker, pair, period_1min, marketprices, Map.close, Map.high, index)
         report = {
             f'can_buy':                                                             can_buy,
             f'keltner_roi_above_trigger_{period_strs[period_1min]}':                vars_map.get(f'keltner_roi_above_trigger_{period_strs[period_1min]}'),
@@ -271,11 +272,13 @@ class Solomon(Strategy):
         marketprice_1min_pd = marketprice_1min.to_pd()
         indexes = marketprice_1min_pd.index
         period_strs = {period: broker.period_to_str(period) for period in [period_1min, period_5min, period_15min]}
-        cls.is_keltner_roi_above_trigger(vars_map, broker, pair, period_1min, marketprices, 0)
-        can_sell = (not cls.is_psar_rising(vars_map, broker, pair, period_5min, marketprices)) \
-            or (not cls.is_psar_rising(vars_map, broker, pair, period_15min, marketprices)) \
-            or (not cls.is_supertrend_rising(vars_map, broker, pair, period_5min, marketprices)) \
-            or (not cls.is_supertrend_rising(vars_map, broker, pair, period_15min, marketprices))
+        index = -1
+        # Check
+        cls.is_keltner_roi_above_trigger(vars_map, broker, pair, period_1min, marketprices, 0, index)
+        can_sell = (not cls.is_psar_rising(vars_map, broker, pair, period_5min, marketprices, index)) \
+            or (not cls.is_psar_rising(vars_map, broker, pair, period_15min, marketprices, index)) \
+            or (not cls.is_supertrend_rising(vars_map, broker, pair, period_5min, marketprices, index)) \
+            or (not cls.is_supertrend_rising(vars_map, broker, pair, period_15min, marketprices, index))
         report = {
             'can_sell':                                         can_sell,
             f'psar_rising_{period_strs[period_5min]}':          vars_map.get(f'psar_rising_{period_strs[period_5min]}'),
@@ -307,39 +310,39 @@ class Solomon(Strategy):
         return can_sell, report, limit
 
     @classmethod
-    def is_psar_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map) -> bool:
+    def is_psar_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         closes = list(marketprice.get_closes())
         closes.reverse()
         psars = list(marketprice.get_psar())
         psars.reverse()
-        is_rising = MarketPrice.get_psar_trend(closes, psars, -1) == MarketPrice.PSAR_RISING
-        vars_map.put(is_rising,     f'psar_rising_{period_str}')
-        vars_map.put(closes[-1],    f'close_{period_str}[-1]')
-        vars_map.put(closes[-2],    f'close_{period_str}[-2]')
+        is_rising = MarketPrice.get_psar_trend(closes, psars, index) == MarketPrice.PSAR_RISING
+        vars_map.put(is_rising,     f'psar_rising_{period_str}[{index}]')
         vars_map.put(psars[-1],     f'psar_{period_str}[-1]')
         vars_map.put(psars[-2],     f'psar_{period_str}[-2]')
+        vars_map.put(psars[index],     f'psar_{period_str}[{index}]')
         return is_rising
 
     @classmethod
-    def is_supertrend_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map) -> bool:
+    def is_supertrend_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         closes = list(marketprice.get_closes())
         closes.reverse()
         supertrends = list(marketprice.get_super_trend())
         supertrends.reverse()
-        is_rising = MarketPrice.get_super_trend_trend(closes, supertrends, -1) == MarketPrice.SUPERTREND_RISING
-        vars_map.put(is_rising,         f'supertrend_rising_{period_str}')
+        is_rising = MarketPrice.get_super_trend_trend(closes, supertrends, index) == MarketPrice.SUPERTREND_RISING
+        vars_map.put(is_rising,         f'supertrend_rising_{period_str}[{index}]')
         vars_map.put(closes[-1],        f'close_{period_str}[-1]')
         vars_map.put(closes[-2],        f'close_{period_str}[-2]')
         vars_map.put(supertrends[-1],   f'supertrend_{period_str}[-1]')
         vars_map.put(supertrends[-2],   f'supertrend_{period_str}[-2]')
+        vars_map.put(supertrends[index],   f'supertrend_{period_str}[{index}]')
         return is_rising
 
     @classmethod
-    def is_keltner_roi_above_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, trigge_keltner: float) -> bool:
+    def is_keltner_roi_above_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, trigge_keltner: float, index: int) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         # marketprice.reset_collections()
@@ -351,21 +354,24 @@ class Solomon(Strategy):
         keltner_high = list(keltner_map.get(Map.high))
         keltner_high.reverse()
         # Check
-        keltner_roi = _MF.progress_rate(keltner_high[-1], keltner_low[-1])
+        keltner_roi = _MF.progress_rate(keltner_high[index], keltner_low[index])
         keltner_roi_above_trigger = keltner_roi >= trigge_keltner
         # Put
-        vars_map.put(keltner_roi_above_trigger, f'keltner_roi_above_trigger_{period_str}')
+        vars_map.put(keltner_roi_above_trigger, f'keltner_roi_above_trigger_{period_str}[{index}]')
         vars_map.put(keltner_roi,               f'keltner_roi_{period_str}')
         vars_map.put(keltner_low[-1],           f'keltner_low_{period_str}[-1]')
         vars_map.put(keltner_low[-2],           f'keltner_low_{period_str}[-2]')
+        vars_map.put(keltner_low[index],        f'keltner_low_{period_str}[{index}]')
         vars_map.put(keltner_middle[-1],        f'keltner_middle_{period_str}[-1]')
         vars_map.put(keltner_middle[-2],        f'keltner_middle_{period_str}[-2]')
+        vars_map.put(keltner_middle[index],     f'keltner_middle_{period_str}[{index}]')
         vars_map.put(keltner_high[-1],          f'keltner_high_{period_str}[-1]')
         vars_map.put(keltner_high[-2],          f'keltner_high_{period_str}[-2]')
+        vars_map.put(keltner_high[index],       f'keltner_high_{period_str}[{index}]')
         return keltner_roi_above_trigger
 
     @classmethod
-    def is_price_bellow_keltner_line(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, price_line: str, keltner_line: str) -> bool:
+    def is_price_bellow_keltner_line(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, price_line: str, keltner_line: str, index: int) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         # marketprice.reset_collections()
@@ -374,11 +380,12 @@ class Solomon(Strategy):
         keltner = list(keltner_map.get_map()[keltner_line])
         keltner.reverse()
         # Check
-        price_bellow_keltner_high = bool(marketprice_df[price_line].iloc[-1] < keltner[-1])
+        price_bellow_keltner_high = bool(marketprice_df[price_line].iloc[index] < keltner[index])
         # Put
         vars_map.put(price_bellow_keltner_high, f'{price_line}_bellow_keltner_{keltner_line}_{period_str}')
         vars_map.put(keltner[-1],               f'keltner_{keltner_line}_{period_str}[-1]')
         vars_map.put(keltner[-2],               f'keltner_{keltner_line}_{period_str}[-2]')
+        vars_map.put(keltner[index],            f'keltner_{keltner_line}_{period_str}[{index}]')
         return price_bellow_keltner_high
 
     @classmethod
