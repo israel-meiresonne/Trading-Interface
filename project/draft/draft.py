@@ -655,7 +655,8 @@ class Draft(Order, Hand):
                 new_session_id = session_id + new_str
             Config.update_session_id(new_session_id)
         # Vars
-        file_path = 'draft/jupiter/2023-01-07_20.06.31_top_keltner_roi.csv'
+        dir_actual_session = Config.get(Config.DIR_ACTUAL_SESSION)
+        file_path = dir_actual_session + 'pairs_backtest_loop.csv'
         absolut_file_path = FileManager.get_project_directory() + file_path
         # Input
         strategy_class = cls.input_strategy_class()
