@@ -192,7 +192,7 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
         b = _MF.C_BLUE
         n = _MF.S_NORMAL
         new_price_callback = lambda params : print(
-            _MF.prefix() + f"{b}NEW_PRICE:  event={_MF.unix_to_date(params[Map.time])}, pair={params[Map.pair]}, period={params[Map.period]}, close={params[Map.price][-1, 4]}, open_time={_MF.unix_to_date(params[Map.price][-1, 0])}, close_time={_MF.unix_to_date(params[Map.price][-1, 6])}{n}"
+            _MF.prefix() + f"{b}NEW_PRICE:  event={_MF.unix_to_date(params[Map.time-1])}, pair={params[Map.pair]}, period={params[Map.period]}, close={params[Map.price][-1, 4]}, open_time={_MF.unix_to_date(params[Map.price][-1, 0])}, close_time={_MF.unix_to_date(params[Map.price][-1, 6])}{n}"
             )
         # new_period_callback = lambda event_time, pair_str, period, prices : print(
         #     _MF.prefix() + f"{b}NEW_PERIOD: event={_MF.unix_to_date(event_time)}, pair={pair_str}, period={period}, close={prices[-1, 4]}, open_time={_MF.unix_to_date(prices[-1, 0])}, close_time={_MF.unix_to_date(prices[-1, 6])}{n}"
