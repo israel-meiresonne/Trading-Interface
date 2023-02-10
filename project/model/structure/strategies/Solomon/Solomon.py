@@ -21,7 +21,7 @@ from model.tools.Price import Price
 
 class Solomon(Strategy):
     PREFIX_ID =             'solomon_'
-    _SLEEP_TRADE =          10
+    _SLEEP_TRADE =          60
     KELTER_SUPPORT =        None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
@@ -29,6 +29,7 @@ class Solomon(Strategy):
         Broker.PERIOD_15MIN
         ]
     PSAR_1 =                dict(step=.6, max_step=.6)
+    STACK = Map()
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ••• STALK DOWN
@@ -111,7 +112,13 @@ class Solomon(Strategy):
         rows_df.insert(0, 'print_date', print_date)
         rows = rows_df.to_dict('records')
         fields = list(rows[0].keys())
-        FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
+        # FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
+        to_print = cls.STACK
+        content = to_print.get(Map.condition,  Map.content)
+        content = rows if content is None else [*content, *rows]
+        to_print.put(file_path, Map.condition,  Map.file)
+        to_print.put(fields,    Map.condition,  Map.column)
+        to_print.put(content,   Map.condition,  Map.content)
 
     # ••• STALK UP
     # ••• TRADE DOWN
@@ -220,18 +227,44 @@ class Solomon(Strategy):
             self._callback_trade(params, marketprices)
         else:
             broker.add_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade) if (not broker.exist_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)) else None
+            to_print = self.STACK
+            if to_print.get(Map.condition) is not None:
+                to_print_dict = to_print.get(Map.condition).copy()
+                del to_print.get_map()[Map.condition]
+                file_path = to_print_dict[Map.file]
+                fields =    to_print_dict[Map.column]
+                rows =      to_print_dict[Map.content]
+                FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
 
-    def _callback_trade(self, params: dict, marketprices: Map = Map()) -> None:
+    def _callback_trade(self, params: dict, marketprices: Map = None) -> None:
         def explode_params(params: dict) -> tuple[int, Pair, int, np.ndarray]:
             return tuple(params.values())
         def get_position(pair: Pair) -> HandTrade:
             return _MF.catch_exception(self.get_position, self.__class__.__name__, repport=False, **{Map.pair: pair})
-        event_time, pair, period, market_row = explode_params(params)
+        def can_stalk(unix_time: int, pair: Pair, period: int, stalk_interval: int) -> bool:
+            can = False
+            stack = self.STACK
+            keys = [Map.stalk, pair, period, Map.time]
+            last_stalk = stack.get(*keys)
+            if last_stalk is None:
+                can = True
+            else:
+                next_stalk = last_stalk + stalk_interval
+                can = unix_time >= next_stalk
+            if can:
+                event_time_rounded = _MF.round_time(unix_time, stalk_interval)
+                stack.put(event_time_rounded, *keys)
+            return can
+        # # #
+        period_1min = Broker.PERIOD_1MIN
+        event_time, pair, event_period, market_row = explode_params(params)
+        if (params[Map.period] != period_1min) or (not can_stalk(unix_time=event_time, pair=pair, period=event_period, stalk_interval=period_1min)):
+            return None
         position = get_position(pair)
-        if (params[Map.period] == Broker.PERIOD_1MIN) and ((not self.is_max_position_reached()) or (position is not None)):
+        if ((not self.is_max_position_reached()) or (position is not None)):
             broker = self.get_broker()
             r_asset = self.get_wallet().get_initial().get_asset()
-            period_1min = Broker.PERIOD_1MIN
+            marketprices = Map() if marketprices is None else marketprices
             buy_reports = []
             sell_reports = []
             loop_start_date = _MF.unix_to_date(event_time)
@@ -272,6 +305,14 @@ class Solomon(Strategy):
             self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
 
     # ••• TRADE UP
+    # ••• FUNCTION SELF OTHERS DOWN
+
+    def stop(self) -> None:
+        broker = self.get_broker()
+        broker.delete_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)
+        super().stop()
+
+    # ••• FUNCTION SELF OTHERS UP
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
 
