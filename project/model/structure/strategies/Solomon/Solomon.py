@@ -1,9 +1,10 @@
 import time
 from typing import Callable, List
 
+import numpy as np
 import pandas as pd
-from config.Config import Config
 
+from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
@@ -19,14 +20,15 @@ from model.tools.Price import Price
 
 
 class Solomon(Strategy):
-    PREFIX_ID =         'solomon_'
-    KELTER_SUPPORT =    None
+    PREFIX_ID =             'solomon_'
+    _SLEEP_TRADE =          10
+    KELTER_SUPPORT =        None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
         Broker.PERIOD_5MIN,
         Broker.PERIOD_15MIN
         ]
-    PSAR_1 = dict(step=.6, max_step=.6)
+    PSAR_1 =                dict(step=.6, max_step=.6)
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ••• STALK DOWN
@@ -83,7 +85,7 @@ class Solomon(Strategy):
         _MF.check_type(marketprice_1min, MarketPrice)
         _MF.check_type(pair, Pair)
         _MF.check_type(can_buy_sell, bool)
-        _MF.check_type(limit, float)
+        _MF.check_type(limit, (int, float))
         k_limit_price = Map.key(Map.limit, Map.price)
         report = {
             Map.callback:   current_func,
@@ -114,6 +116,7 @@ class Solomon(Strategy):
     # ••• STALK UP
     # ••• TRADE DOWN
 
+    """
     def _trade_inner(self, marketprices: Map = Map()) -> None:
         def get_unix_time(broker: Broker, period_1min: int, pair: Pair) -> int:
             if is_stage_one:
@@ -199,6 +202,75 @@ class Solomon(Strategy):
             _MF.catch_exception(manage_position, class_name, **loop_params)
         self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
         self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
+    """
+
+    def _trade_inner(self, marketprices: Map = Map()) -> None:
+        broker = self.get_broker()
+        if Config.get(Config.STAGE_MODE) == Config.STAGE_1:
+            pair = self.get_pair()
+            period_1min = Broker.PERIOD_1MIN
+            marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
+            event_time = marketprice_1min.get_time()
+            params = {
+                Map.time:   event_time,
+                Map.pair:   pair,
+                Map.period: period_1min,
+                Map.price:  None
+            }
+            self._callback_trade(params, marketprices)
+        else:
+            broker.add_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade) if (not broker.exist_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)) else None
+
+    def _callback_trade(self, params: dict, marketprices: Map = Map()) -> None:
+        def explode_params(params: dict) -> tuple[int, Pair, int, np.ndarray]:
+            return tuple(params.values())
+        def get_position(pair: Pair) -> HandTrade:
+            return _MF.catch_exception(self.get_position, self.__class__.__name__, repport=False, **{Map.pair: pair})
+        event_time, pair, period, market_row = explode_params(params)
+        position = get_position(pair)
+        if (params[Map.period] == Broker.PERIOD_1MIN) and ((not self.is_max_position_reached()) or (position is not None)):
+            broker = self.get_broker()
+            r_asset = self.get_wallet().get_initial().get_asset()
+            period_1min = Broker.PERIOD_1MIN
+            buy_reports = []
+            sell_reports = []
+            loop_start_date = _MF.unix_to_date(event_time)
+            unix_time = event_time if (Config.get(Config.STAGE_MODE) == Config.STAGE_1) else _MF.get_timestamp()
+            turn_start_date = _MF.unix_to_date(unix_time)
+            current_func = self._callback_trade.__name__
+            if (position is None) or (not position.has_position()):
+                can_buy, buy_report, buy_limit_float, _ = self.can_buy(broker, pair, marketprices)
+                # Report Buy
+                buy_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
+                buy_report = self._new_row_condition(buy_report, current_func, loop_start_date, turn_start_date, buy_marketprice_1min, pair, can_buy, -1)
+                buy_reports.append(buy_report)
+                if can_buy:
+                    self.buy(pair, Order.TYPE_MARKET, marketprices=marketprices)
+            elif position.has_position():
+                can_sell, sell_report, sell_limit_float = self.can_sell(broker, pair, marketprices)
+                sell_limit = Price(sell_limit_float, r_asset)
+                # Report Buy
+                sell_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
+                sell_report = self._new_row_condition(sell_report, current_func, loop_start_date, turn_start_date, sell_marketprice_1min, pair, can_sell, sell_limit_float)
+                sell_reports.append(sell_report)
+                # Check
+                is_sell_submitted = position.is_submitted(Map.sell)
+                is_next_minute = False
+                if is_sell_submitted:
+                    sell_settime = int(position.get_sell_order().get_settime()/1000)
+                    sell_next_update_time = _MF.round_time(sell_settime, period_1min) + period_1min
+                    is_next_minute = unix_time >= sell_next_update_time
+                if can_sell:
+                    self.cancel(pair, marketprices=marketprices) if is_sell_submitted else None
+                    self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
+                elif (not can_sell) and (not is_sell_submitted):
+                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
+                elif (not can_sell) and is_sell_submitted and is_next_minute:
+                    self.cancel(pair, marketprices=marketprices)
+                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
+            self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
+            self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
+
     # ••• TRADE UP
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
