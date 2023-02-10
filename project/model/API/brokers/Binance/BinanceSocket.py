@@ -687,11 +687,12 @@ class BinanceSocket(BinanceAPI):
     def _thread_callback_event(self) -> None:
         callback_queue = self._get_queu_event_callback()
         event_callbacks = self._get_event_callbacks()
+        class_name = self.__class__.__name__
         while self.is_running() and (len(callback_queue) > 0):
             event_name = callback_queue[0][Map.callback]
             params = callback_queue[0][Map.data]
             dict_callbacks = event_callbacks.get(event_name)
-            [callback(**params) for callback_id, callback in dict_callbacks.items()]
+            [_MF.catch_exception(callback, class_name, repport=True, **params) for callback_id, callback in dict_callbacks.items()]
             del callback_queue[0]
         self._reset_thread_event_callback()
 
