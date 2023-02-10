@@ -103,6 +103,14 @@ class FileManager(ABC):
             callback(**datas)
             del write_queu[0]
 
+    @classmethod
+    def n_wait(cls) -> int:
+        return len(cls._get_writing_room().get_tickets())
+
+    @classmethod
+    def n_write(cls) -> int:
+        return len(cls._get_write_queu())
+
     @staticmethod
     def read(path: str, binary: bool = False) -> Any:
         """
