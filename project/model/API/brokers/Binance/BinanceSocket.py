@@ -1,7 +1,7 @@
 import threading
 import time
 from types import FunctionType, MethodType
-from typing import List, Tuple, Union
+from typing import Callable, List, Tuple, Union
 
 import numpy as np
 
@@ -9,6 +9,7 @@ from config.Config import Config
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.Map import Map
+from model.tools.Pair import Pair
 from model.tools.RequestResponse import RequestResponse
 from model.tools.WaitingRoom import WaitingRoom
 from model.tools.WebSocket import WebSocket
@@ -36,34 +37,40 @@ class BinanceSocket(BinanceAPI):
     _THREAD_NAME_WEBSOCKET_MANGER =         'websocket_manager'
     _THREAD_NAME_WEBSOCKET_EVENT_HANDLER =  'websocket_event_handler'
     _THREAD_NAME_WEBSOCKET_EVENT_WAITING =  'websocket_event_waiting'
+    _THREAD_NAME_EVENT_CALLBACK =           'event_callback'
     _TIMEOUT_RUN_WEBSOCKET =                10
     _TIMEOUT_CLOSE_WEBSOCKET =              10
     _SLEEP_WAIT_NEW_MESSAGE =               1
-    _SLEEP_WAIT_EVENT_POST =                0.001
+    _SLEEP_WAIT_EVENT_POST =                0.0001
     _SLEEP_WAIT_MARKET_POST =               0.1
     _SLEEP_RUN_WEBSOCKET =                  1
     _SLEEP_MANAGER_RUN_WEBSOCKET =          1
     _SLEEP_MANAGER_LOOP =                   1
+    _SLEEP_POST_CALLBACK_EVENT =            0.0001
     MAX_N_PERIOD_OFFSET =                   5
 
     def __init__(self, streams: list):
         if BinanceSocket._NB_INSTANCE is not None:
             raise Exception("Can't instantiate more than 1 BinanceSocket")
         BinanceSocket._NB_INSTANCE = 1
-        self.__running = False
-        self.__streams = None
-        self.__new_streams = None
-        self.__websockets = None
-        self.__market_histories = None
-        self.__stream_times = None
-        self.__room_market_update = None
-        self.__thread_market_update = None
-        self.__room_call_market_update = None
-        self.__market_reset_times = None
-        self.__thread_run_manager = None
-        self.__room_post_event = None
-        self.__thread_event_handler = None
-        self.__websocket_messages = None
+        self.__running =                    False
+        self.__streams =                    None
+        self.__new_streams =                None
+        self.__websockets =                 None
+        self.__market_histories =           None
+        self.__stream_times =               None
+        self.__room_market_update =         None
+        self.__thread_market_update =       None
+        self.__room_call_market_update =    None
+        self.__market_reset_times =         None
+        self.__thread_run_manager =         None
+        self.__room_post_event =            None
+        self.__thread_event_handler =       None
+        self.__websocket_messages =         None
+        self.__event_callbacks =            None
+        self.__thread_event_callback =      None
+        self.__room_event_callback =        None
+        self.__queue_event_callback =       None
         self._set_streams(streams)
 
     # ——————————————————————————————————————————— SELF GETTER/SETTER FUNCTION DOWN —————————————————————————————————————
@@ -581,6 +588,114 @@ class BinanceSocket(BinanceAPI):
             self.__websocket_messages = []
         return self.__websocket_messages
 
+    # ——————————————————————————————————————————— CALLBACK EVENT DOWN
+
+    def _check_event_callback(self, event_name: str, callback: Callable) -> Callable:
+        _MF.check_allowed_values(event_name, self.EVENT_NAMES)
+        _MF.check_type(callback, Callable)
+        return True
+
+    def _get_event_callbacks(self) -> Map:
+        """
+        To get callback
+
+        Return:
+        -------
+        return: dict[str, dict[str, Callable]]
+
+        dict[event_name{str}][id(callback){int}] -> {Callable} # The callback
+        """
+        event_callbacks = self.__event_callbacks
+        if event_callbacks is None:
+            self.__event_callbacks = event_callbacks = Map()
+        return event_callbacks
+
+    def exist_event_callback(self, event_name: str, callback: Callable) -> bool:
+        self._check_event_callback(event_name, callback)
+        callbacks = self._get_event_callbacks()
+        exist = callbacks.get(event_name, id(callback)) is not None
+        return exist
+
+    def add_event_callback(self, event_name: str, callback: Callable) -> None:
+        self._check_event_callback(event_name, callback)
+        callbacks = self._get_event_callbacks()
+        callback_id = id(callback)
+        if callbacks.get(event_name, callback_id) is not None:
+            callback_str =          callback.__str__()
+            found_callback =        callbacks.get(event_name, callback_id)
+            found_callback_str =    found_callback.__str__()
+            found_callback_id =     id(found_callback)
+            raise ValueError(f"This callback 'name={callback_str}, id={callback_id}' already exist (name={found_callback_str}, id={found_callback_id})")
+        callbacks.put(callback, event_name, callback_id)
+
+    def delete_event_callback(self, event_name: str, callback: Callable) -> None:
+        self._check_event_callback(event_name, callback)
+        callbacks = self._get_event_callbacks()
+        callback_id = id(callback)
+        callbacks.put(None, event_name, callback_id)
+        del callbacks.get_map()[event_name][callback_id]
+
+    def _reset_thread_event_callback(self) -> None:
+        self.__thread_event_callback = None
+
+    def _get_thread_event_callback(self) -> threading.Thread:
+        """
+        To get thread that manage events
+        """
+        event_thread = self.__thread_event_callback
+        if (event_thread is None) or (not event_thread.is_alive()):
+            event_thread, output = _MF.generate_thread(self._thread_callback_event, self._THREAD_NAME_EVENT_CALLBACK)
+            self.__thread_event_callback = event_thread
+        return event_thread
+
+    def _get_room_post_event_callback(self) -> WaitingRoom:
+        """
+        To get queue where to wait to post callback events
+
+        Returns:
+        --------
+        reeturn: WaitingRoom
+            Queue where to wait to post callback events
+        """
+        room = self.__room_event_callback
+        if room is None:
+            self.__room_event_callback = room = WaitingRoom('post-callback-event')
+        return room
+
+    def _get_queu_event_callback(self) -> list[dict]:
+        """
+        To get list of callback to execute
+        """
+        queue = self.__queue_event_callback
+        if queue is None:
+            self.__queue_event_callback = queue = []
+        return queue
+
+    def _post_event_callback(self, event_name: str, **kwargs) -> None:
+        event_callbacks = self._get_event_callbacks()
+        callbacks_dict = event_callbacks.get(event_name)
+        if (callbacks_dict is not None) and (len(callbacks_dict) > 0):
+            room = self._get_room_post_event_callback()
+            ticket = room.join_room()
+            while not room.my_turn(ticket):
+                _MF.sleep(self._SLEEP_POST_CALLBACK_EVENT)
+            callback_queue = self._get_queu_event_callback()
+            callback_queue.append({Map.callback: event_name, Map.data: kwargs})
+            self._get_thread_event_callback().start() if not self._get_thread_event_callback().is_alive() else None
+            room.quit_room(ticket)
+
+    def _thread_callback_event(self) -> None:
+        callback_queue = self._get_queu_event_callback()
+        event_callbacks = self._get_event_callbacks()
+        while self.is_running() and (len(callback_queue) > 0):
+            event_name = callback_queue[0][Map.callback]
+            params = callback_queue[0][Map.data]
+            dict_callbacks = event_callbacks.get(event_name)
+            [callback(**params) for callback_id, callback in dict_callbacks.items()]
+            del callback_queue[0]
+        self._reset_thread_event_callback()
+
+    # ——————————————————————————————————————————— CALLBACK EVENT UP
     # ——————————————————————————————————————————— SELF GETTER/SETTER FUNCTION UP ———————————————————————————————————————
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ———————————————————————————————————————————————————
     # ——————————————————————————————————————————— OTHER DOWN
@@ -720,19 +835,15 @@ class BinanceSocket(BinanceAPI):
                     period = self.get_interval(str_period)
                     market_history = self._get_market_histories().get(stream)
                     BinanceFakeAPI.update_market_history(merged_pair, period, market_history)
-
                 def milli_to_date(milli) -> str:
                     return _MF.unix_to_date(int(milli/1000))
-                
                 def compare_time() -> str:
                     equal = new_row[-1][0] == market_hist[-1][0]
                     return f"new_row(Time) == market_hist(Time) ('{equal}'): '{milli_to_date(new_row[-1][0])}' == '{milli_to_date(market_hist[-1][0])}'"
-                
                 def print_end() -> None:
                     _MF.output(f"{_MF.prefix()}kline: new close[-1] '{new_row[-1, 4]}'.") if BinanceSocket._VERBOSE else None
                     _MF.output(f"{_MF.prefix()}kline: history close[-1] '{market_hists.get(stream)[-1, 4]}'.") if BinanceSocket._VERBOSE else None
                     _MF.output(f"{_MF.prefix()}kline: history close[-2] '{market_hists.get(stream)[-2, 4]}'.") if BinanceSocket._VERBOSE else None
-
                 def build_new_row(pay_load: dict) -> np.ndarray:
                     new_row_list = [
                         pay_load['k']['t'],    # 0.  Open time
@@ -752,10 +863,23 @@ class BinanceSocket(BinanceAPI):
                     shape = (1, len(new_row_list))
                     new_row = new_row.reshape(shape)
                     return new_row
-
                 def is_market_history_correct(stream: str, new_row: np.ndarray, market_history: np.ndarray) -> bool:
                     return self.are_open_times_constant(stream, market_history) and self.is_new_open_time_correct(stream, new_row, market_history)
-
+                def post_callback_event(event_name: str, event_time: int, merged_pair: str, period_str: str, new_prices: np.ndarray) -> None:
+                    new_prices[:, 0] = new_prices[:, 0]/1000
+                    new_prices[:, 6] = new_prices[:, 6]/1000
+                    params = {
+                        Map.time:   event_time/1000,
+                        Map.pair:   Pair(self.symbol_to_pair(merged_pair)),
+                        Map.period: self.get_interval(period_str),
+                        Map.price:  new_prices
+                    }
+                    if event_name == self.EVENT_NEW_PRICE:
+                        self._post_event_callback(event_name, params=params)
+                    elif event_name == self.EVENT_NEW_PERIOD:
+                        self._post_event_callback(event_name, params=params)
+                    else:
+                        raise ValueError(f"This event '{event_name}' is not supported")
                 rq = BinanceAPI.RQ_KLINES
                 symbol = pay_load['s']
                 period_str = pay_load['k']['i']
@@ -765,12 +889,12 @@ class BinanceSocket(BinanceAPI):
                 new_row = build_new_row(pay_load)
                 market_hists = self._get_market_histories()
                 market_hist = market_hists.get(stream)
-                # if (not is_market_history_correct(stream, new_row, market_hist)) or self._can_update_market_history(stream):
                 if not is_market_history_correct(stream, new_row, market_hist):
                     self._update_market_history(stream) if (stream not in self._get_room_market_update().get_tickets()) else None
                 else:
                     print(_MF.prefix() + compare_time()) if BinanceSocket._VERBOSE else None
                     stage = Config.get(Config.STAGE_MODE)
+                    IS_NEW_PERIOD = False
                     if new_row[-1][0] == market_hist[-1][0]:   # compare open time
                         print(_MF.prefix() + f"REPLACE LAST") if BinanceSocket._VERBOSE else None
                         market_hist[-1] = new_row
@@ -780,12 +904,15 @@ class BinanceSocket(BinanceAPI):
                         new_market_hist = np.vstack((market_hist, new_row))
                         market_hists.put(new_market_hist, stream)
                         update_fake_api(stream, symbol, period_str) if stage == Config.STAGE_2 else None
+                        IS_NEW_PERIOD = True
                     elif BinanceSocket._VERBOSE:
                         new_date = _MF.unix_to_date(int(new_row[-1][0]/1000))
                         market_date = _MF.unix_to_date(int(market_hist[-1][0]/1000))
                         error = f"Stream event '{stream}' is older than market's newest row (market='{market_date}', new_date='{new_date}')"
                         _MF.output(_MF.prefix() + _red + error + _normal)
                     print_end() if BinanceSocket._VERBOSE else None
+                    post_callback_event(self.EVENT_NEW_PRICE, event_time, symbol, period_str, new_row.copy())
+                    post_callback_event(self.EVENT_NEW_PERIOD, event_time, symbol, period_str, new_row.copy()) if IS_NEW_PERIOD else None
 
             def root_event(event: str, pay_load: dict) -> None:
                 if event == 'kline':
@@ -1014,11 +1141,12 @@ class BinanceSocket(BinanceAPI):
         """
         To manage to connection to Binance's websocket API
         """
-        _normal = '\033[0m'
-        _purple = '\033[35m'
-        _yellow = '\033[33m'
-        _green = '\033[32m'
-        _red = '\033[31m'
+        from model.tools.FileManager import FileManager
+        _normal =   '\033[0m'
+        _purple =   '\033[35m'
+        _yellow =   '\033[33m'
+        _green =    '\033[32m'
+        _red =      '\033[31m'
         def output(key: str, **kwargs) -> str:
             if key ==  "A":
                 _MF.output(f"{pfx()}" + _purple + _MF.thread_infos() + _normal) if BinanceSocket._DEBUG else None
@@ -1033,8 +1161,16 @@ class BinanceSocket(BinanceAPI):
                 # Event room
                 n_ws_messages = len(self._get_websocket_messages())
                 n_event = len(self._get_room_post_event().get_tickets())
+                # Event Callback Post + Treat
+                n_post_callback = len(self._get_room_post_event_callback().get_tickets())
+                n_treat_callback = len(self._get_queu_event_callback())
+                # Write room
+                n_post_write = FileManager.n_wait()
+                n_write = FileManager.n_write()
                 msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Post_Update_Room: ({n_call}) == Update_Room: ({n_market_reset})"
                 msg += f" == Post_Event_Room: '{n_event}' == N_Message: '{n_ws_messages}'"
+                msg += f" == Post_Callback_Room: '{n_post_callback}' == Treat_Callback: '{n_treat_callback}'"
+                msg += f" == Post_Wite_Room: '{n_post_write}' == N_To_Write: '{n_write}'"
                 _MF.output(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "B":
                 n_socket = kwargs[Map.websocket]
