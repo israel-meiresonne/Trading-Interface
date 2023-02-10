@@ -644,7 +644,9 @@ class BinanceSocket(BinanceAPI):
         """
         event_thread = self.__thread_event_callback
         if (event_thread is None) or (not event_thread.is_alive()):
-            event_thread, output = _MF.generate_thread(self._thread_callback_event, self._THREAD_NAME_EVENT_CALLBACK)
+            class_name = self.__class__.__name__
+            thread_name = self._THREAD_NAME_EVENT_CALLBACK
+            event_thread, output = _MF.wrap_thread(self._thread_callback_event, class_name, thread_name, repport=True)
             self.__thread_event_callback = event_thread
         return event_thread
 
@@ -691,7 +693,7 @@ class BinanceSocket(BinanceAPI):
         while self.is_running() and (len(callback_queue) > 0):
             event_name = callback_queue[0][Map.callback]
             params = callback_queue[0][Map.data]
-            dict_callbacks = event_callbacks.get(event_name)
+            dict_callbacks = event_callbacks.get(event_name).copy()
             [_MF.catch_exception(callback, class_name, repport=True, **params) for callback_id, callback in dict_callbacks.items()]
             del callback_queue[0]
         self._reset_thread_event_callback()
