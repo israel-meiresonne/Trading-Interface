@@ -1,5 +1,5 @@
 from random import random
-from typing import List
+from typing import Callable, List
 
 from model.API.brokers.Binance.BinanceAPI import BinanceAPI
 from model.API.brokers.Binance.BinanceRequest import BinanceRequest
@@ -12,6 +12,11 @@ from model.tools.Pair import Pair
 
 
 class Binance(Broker, MyJson):
+    EVENT_BROKER_TO_API = {
+        Broker.EVENT_NEW_PRICE: BinanceAPI.EVENT_NEW_PRICE,
+        Broker.EVENT_NEW_PERIOD: BinanceAPI.EVENT_NEW_PERIOD
+    }
+
     def __init__(self, configs: Map):
         """
         Constructor\n
@@ -98,6 +103,18 @@ class Binance(Broker, MyJson):
                 stream_dict[pair] = []
             stream_dict[pair].append(period) if period not in stream_dict[pair] else None
         return stream_dict
+
+    def exist_event_callback(self, event_name: str, callback: Callable) -> bool:
+        api_event_name = self.EVENT_BROKER_TO_API[event_name]
+        BinanceAPI.exist_event_callback(api_event_name, callback)
+
+    def add_event_callback(self, event_name: str, callback: Callable) -> None:
+        api_event_name = self.EVENT_BROKER_TO_API[event_name]
+        BinanceAPI.add_event_callback(api_event_name, callback)
+
+    def delete_event_callback(self, event_name: str, callback: Callable) -> None:
+        api_event_name = self.EVENT_BROKER_TO_API[event_name]
+        BinanceAPI.delete_event_callback(api_event_name, callback)
 
     @staticmethod
     def generate_stream(params: Map) -> str:
