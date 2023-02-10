@@ -82,6 +82,9 @@ class Map(MyJson):
     history = "history"
     loop = "loop"
     turn = "turn"
+    file = "file"
+    column = "column"
+    content = "content"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
