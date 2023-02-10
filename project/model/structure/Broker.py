@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import List
+from typing import Callable, List
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerRequest import BrokerRequest
@@ -16,6 +16,12 @@ class Broker(ABC):
     PERIOD_30MIN =  PERIOD_1MIN * 30
     PERIOD_1H =     PERIOD_1MIN * 60
     PERIOD_6H =     PERIOD_1H * 6
+    EVENT_NEW_PRICE =   'BROKER_EVENT_NEW_PRICE'
+    EVENT_NEW_PERIOD =  'BROKER_EVENT_NEW_PERIOD'
+    EVENT_NAMES = [
+        EVENT_NEW_PRICE,
+        EVENT_NEW_PERIOD
+        ]
 
     @abstractmethod
     def is_active(self) ->  bool:
@@ -90,6 +96,53 @@ class Broker(ABC):
         -------
         return: dict[Pair, list[int]]
             Stream converted into a Collection of Pair with list of period of each stream running
+        """
+        pass
+
+    @abstractmethod
+    def exist_event_callback(self, event_name: str, callback: Callable) -> bool:
+        """
+        To check if callback exist
+
+        Parameters:
+        -----------
+        event_name: str
+            Name of a supported event
+        callback: Callable
+            The callback to look for
+
+        Return:
+        -------
+        return: bool
+            True if the callback exist else False
+        """
+        pass
+
+    @abstractmethod
+    def add_event_callback(self, event_name: str, callback: Callable) -> None:
+        """
+        To hook callback to Broker's event
+
+        Parameters:
+        -----------
+        event_name: str
+            Name of a supported event to hook on
+        callback: Callable
+            The callback to trigger
+        """
+        pass
+
+    @abstractmethod
+    def delete_event_callback(self, event_name: str, callback: Callable) -> None:
+        """
+        To delete callback from Broker's event
+
+        Parameters:
+        -----------
+        event_name: str
+            Name of a supported event
+        callback: Callable
+            The callback to delete
         """
         pass
 
