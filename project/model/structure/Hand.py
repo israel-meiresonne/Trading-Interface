@@ -564,9 +564,12 @@ class Hand(MyJson):
         """
         thread = self.__thread_stalk
         if thread is None:
-            self.__thread_stalk, output = _MF.generate_thread(self._manage_stalk, base_name=self._THREAD_STALK)
+            thread_name = self._THREAD_STALK
+            class_name = self.__class__.__name__
+            thread, output = _MF.wrap_thread(self._manage_stalk, class_name, thread_name, repport=True)
             _MF.output(output)
-        return self.__thread_stalk
+            self.__thread_stalk = thread
+        return thread
 
     def _reset_thread_position(self) -> None:
         self.__thread_position = None
@@ -611,9 +614,12 @@ class Hand(MyJson):
         """
         thread = self.__thread_position
         if thread is None:
-            self.__thread_position, output = _MF.generate_thread(self._manage_positions, base_name=self._THREAD_POSITION)
+            thread_name = self._THREAD_POSITION
+            class_name = self.__class__.__name__
+            thread, output = _MF.wrap_thread(self._manage_positions, class_name, thread_name, repport=True)
             _MF.output(output)
-        return self.__thread_position
+            self.__thread_position = thread
+        return thread
 
     def _reset_thread_market_analyse(self) -> None:
         self.__thread_market_analyse = None
@@ -658,9 +664,12 @@ class Hand(MyJson):
         """
         thread = self.__thread_market_analyse
         if thread is None:
-            self.__thread_market_analyse, output = _MF.generate_thread(self._manage_market_analyse, base_name=self._THREAD_MARKET_ANALYSE)
+            thread_name = self._THREAD_MARKET_ANALYSE
+            class_name = self.__class__.__name__
+            thread, output = _MF.wrap_thread(self._manage_market_analyse, class_name, thread_name, repport=True)
             _MF.output(output)
-        return self.__thread_market_analyse
+            self.__thread_market_analyse = thread
+        return thread
 
     def _set_backup(self, backup: str) -> None:
         self.__backup = backup
