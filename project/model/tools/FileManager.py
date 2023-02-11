@@ -45,10 +45,13 @@ class FileManager(ABC):
 
     @classmethod
     def _get_write_thread(cls) -> threading.Thread:
-        if (cls._THREAD_WRITE is None) or (not cls._THREAD_WRITE.is_alive()):
-            thread, output = _MF.generate_thread(cls._thread_write, cls._THREAD_NAME_WRITE)
+        thread = cls._THREAD_WRITE
+        if (thread is None) or (not thread.is_alive()):
+            thread_name = cls._THREAD_NAME_WRITE
+            class_name = cls.__name__
+            thread, output = _MF.wrap_thread(cls._thread_write, class_name, thread_name, repport=True)
             cls._THREAD_WRITE = thread
-        return cls._THREAD_WRITE
+        return thread
 
     @classmethod
     def _get_writing_room(cls) -> WaitingRoom:
@@ -97,10 +100,11 @@ class FileManager(ABC):
     def _thread_write(cls) -> None:
         from model.tools.Map import Map
         write_queu = cls._get_write_queu()
+        class_name = cls.__name__
         while len(write_queu) > 0:
             callback = write_queu[0][Map.callback]
             datas = write_queu[0][Map.data]
-            callback(**datas)
+            _MF.catch_exception(callback, class_name, repport=True, **datas)
             del write_queu[0]
 
     @classmethod
