@@ -114,11 +114,16 @@ class Solomon(Strategy):
         fields = list(rows[0].keys())
         # FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
         to_print = cls.STACK
-        content = to_print.get(Map.condition,  Map.content)
-        content = rows if content is None else [*content, *rows]
-        to_print.put(file_path, Map.condition,  Map.file)
-        to_print.put(fields,    Map.condition,  Map.column)
-        to_print.put(content,   Map.condition,  Map.content)
+        stack_base_key = [Map.condition, file_path]
+        stack_column_key = [*stack_base_key, Map.column]
+        stack_content_key = [*stack_base_key, Map.content]
+        content = to_print.get(*stack_content_key)
+        if content is None:
+            content = rows
+            to_print.put(fields,    *stack_column_key)
+        else:
+            content = [*content, *rows]
+        to_print.put(content,   *stack_content_key)
 
     # ••• STALK UP
     # ••• TRADE DOWN
@@ -227,14 +232,14 @@ class Solomon(Strategy):
             self._callback_trade(params, marketprices)
         else:
             broker.add_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade) if (not broker.exist_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)) else None
-            to_print = self.STACK
-            if to_print.get(Map.condition) is not None:
-                to_print_dict = to_print.get(Map.condition).copy()
-                del to_print.get_map()[Map.condition]
-                file_path = to_print_dict[Map.file]
-                fields =    to_print_dict[Map.column]
-                rows =      to_print_dict[Map.content]
-                FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
+        to_print = self.STACK
+        if to_print.get(Map.condition) is not None:
+            to_print_dict = to_print.get(Map.condition).copy()
+            del to_print.get_map()[Map.condition]
+            for file, datas_dict in to_print_dict.items():
+                fields =    datas_dict[Map.column]
+                rows =      datas_dict[Map.content]
+                FileManager.write_csv(file, fields, rows, overwrite=False, make_dir=True)
 
     def _callback_trade(self, params: dict, marketprices: Map = None) -> None:
         def explode_params(params: dict) -> tuple[int, Pair, int, np.ndarray]:
@@ -288,17 +293,12 @@ class Solomon(Strategy):
                 sell_reports.append(sell_report)
                 # Check
                 is_sell_submitted = position.is_submitted(Map.sell)
-                is_next_minute = False
-                if is_sell_submitted:
-                    sell_settime = int(position.get_sell_order().get_settime()/1000)
-                    sell_next_update_time = _MF.round_time(sell_settime, period_1min) + period_1min
-                    is_next_minute = unix_time >= sell_next_update_time
                 if can_sell:
                     self.cancel(pair, marketprices=marketprices) if is_sell_submitted else None
                     self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
                 elif (not can_sell) and (not is_sell_submitted):
                     self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
-                elif (not can_sell) and is_sell_submitted and is_next_minute:
+                elif (not can_sell) and is_sell_submitted:
                     self.cancel(pair, marketprices=marketprices)
                     self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
             self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
