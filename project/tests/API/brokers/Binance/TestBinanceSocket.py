@@ -114,6 +114,106 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
                 print(e)
 
     # ——————————————————————————————————————————— TEST SELF FUNCTION DOWN ——————————————————————————————————————————————
+    # ——————————————————————————————————————————— CALLBACK EVENT DOWN
+
+    def test_check_event_callback(self) -> None:
+        bws = self.bws_multi
+        # Correct event name
+        self.assertTrue(bws._check_event_callback(bws.EVENT_NEW_PERIOD, int))
+        # Unsupported event name
+        with self.assertRaises(ValueError):
+            bws._check_event_callback('wrong_event_name', int)
+        # No callable callback
+        with self.assertRaises(TypeError):
+            bws._check_event_callback(bws.EVENT_NEW_PRICE, 'no_callable')
+
+    def test_get_add_delete_event_callbacks(self) -> None:
+        bws = self.bws_multi
+        callback1 = lambda : 'callback1'
+        callback2 = lambda : 'callback2'
+        callback3 = lambda : 'callback3'
+        callback4 = lambda : 'callback4'
+        """
+        Get
+        """
+        result1_1 = bws._get_event_callbacks()
+        self.assertIsInstance(result1_1, Map)
+        exp1_2 = result1_1
+        result1_2 = bws._get_event_callbacks()
+        self.assertEqual(exp1_2.get_id(), result1_2.get_id())
+        self.assertEqual(id(exp1_2), id(result1_2))
+        self.assertFalse(bws.exist_event_callback(bws.EVENT_NEW_PERIOD, callback1))
+        """
+        Add
+        """
+        # Add success
+        exp2_1 = Map({
+            bws.EVENT_NEW_PERIOD: {
+                id(callback1): callback1,
+                id(callback2): callback2
+                },
+            bws.EVENT_NEW_PRICE: {
+                id(callback3): callback3,
+                id(callback4): callback4
+                }
+            })
+        bws.add_event_callback(bws.EVENT_NEW_PERIOD, callback1)
+        bws.add_event_callback(bws.EVENT_NEW_PERIOD, callback2)
+        bws.add_event_callback(bws.EVENT_NEW_PRICE, callback3)
+        bws.add_event_callback(bws.EVENT_NEW_PRICE, callback4)
+        result2_1 = bws._get_event_callbacks()
+        self.assertEqual(exp2_1, result2_1)
+        self.assertTrue(bws.exist_event_callback(bws.EVENT_NEW_PERIOD, callback1))
+        # Add fail
+        with self.assertRaises(ValueError):
+            bws.add_event_callback(bws.EVENT_NEW_PRICE, callback4)
+        """
+        Delete
+        """
+        # Callback exist
+        to_delete3_1 = callback2
+        to_delete3_2 = callback3
+        to_delete3_3 = callback4
+        exp3_1 = exp2_1
+        del exp3_1.get_map()[bws.EVENT_NEW_PERIOD][id(to_delete3_1)]
+        del exp3_1.get_map()[bws.EVENT_NEW_PRICE][id(to_delete3_2)]
+        del exp3_1.get_map()[bws.EVENT_NEW_PRICE][id(to_delete3_3)]
+        #
+        bws.delete_event_callback(bws.EVENT_NEW_PERIOD, to_delete3_1)
+        bws.delete_event_callback(bws.EVENT_NEW_PRICE, to_delete3_2)
+        bws.delete_event_callback(bws.EVENT_NEW_PRICE, to_delete3_3)
+        result3_1 = bws._get_event_callbacks()
+        self.assertEqual(exp3_1, result3_1)
+        # Callback don't exist
+        bws.delete_event_callback(bws.EVENT_NEW_PRICE, int)
+
+    def debug_handling_callback_event(self) -> None:
+        bws = self.bws_multi
+        b = _MF.C_BLUE
+        n = _MF.S_NORMAL
+        new_price_callback = lambda params : print(
+            _MF.prefix() + f"{b}NEW_PRICE:  event={_MF.unix_to_date(params[Map.time-1])}, pair={params[Map.pair]}, period={params[Map.period]}, close={params[Map.price][-1, 4]}, open_time={_MF.unix_to_date(params[Map.price][-1, 0])}, close_time={_MF.unix_to_date(params[Map.price][-1, 6])}{n}"
+            )
+        # new_period_callback = lambda event_time, pair_str, period, prices : print(
+        #     _MF.prefix() + f"{b}NEW_PERIOD: event={_MF.unix_to_date(event_time)}, pair={pair_str}, period={period}, close={prices[-1, 4]}, open_time={_MF.unix_to_date(prices[-1, 0])}, close_time={_MF.unix_to_date(prices[-1, 6])}{n}"
+        #     )
+        # bws.add_event_callback(bws.EVENT_NEW_PRICE, new_price_callback)
+        # bws.add_event_callback(bws.EVENT_NEW_PERIOD, new_period_callback)
+        pairs = MarketPrice.get_spot_pairs('Binance', Asset('usdt'))
+        periods = [60, 60*5, 60*15]
+        streams = Binance.generate_streams(pairs, periods)
+        btc_pair = Pair('BTC/USDT')
+        # btc_stream = Binance.generate_stream(Map({Map.pair: btc_pair, Map.period: 60}))
+        bws.add_new_streams(streams[:10])
+        btc_event = lambda params : new_price_callback(params) if (params[Map.pair] == btc_pair) and (params[Map.period] == periods[0]) else None
+        #
+        bws.add_event_callback(bws.EVENT_NEW_PRICE, btc_event)
+        #
+        bws.run()
+        _MF.console(**vars())
+        bws.close()
+
+    # ——————————————————————————————————————————— CALLBACK EVENT UP
 
     def test_urls_url(self) -> None:
         bws = self.bws_multi
