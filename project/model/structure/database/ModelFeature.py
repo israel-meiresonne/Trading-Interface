@@ -668,7 +668,7 @@ class ModelFeature(ModelAccess):
         return returned
 
     @staticmethod
-    def generate_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
+    def __new_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
         """
         To create a new thread
 
@@ -719,7 +719,7 @@ class ModelFeature(ModelAccess):
             'repport': repport,
             **kwargs
             }
-        thread, output = _cls.generate_thread(target=wrap, base_name=base_name, **wrap_kwargs)
+        thread, output = _cls.__new_thread(target=wrap, base_name=base_name, **wrap_kwargs)
         return thread, output
 
     @staticmethod
