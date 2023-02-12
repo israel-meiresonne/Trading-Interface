@@ -295,18 +295,16 @@ class Solomon(Strategy):
                 is_sell_submitted = position.is_submitted(Map.sell)
                 if can_sell:
                     self.cancel(pair, marketprices=marketprices) if is_sell_submitted else None
-                    self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
+                    self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices) if position.has_position() else None
                 elif (not can_sell) and (not is_sell_submitted):
                     self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
                 elif (not can_sell) and is_sell_submitted:
                     self.cancel(pair, marketprices=marketprices)
-                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
-                if position.is_closed():
-                    position = get_position(pair)
-                    is_position_moved_to_closed = position is None
-                    if not is_position_moved_to_closed:
-                        self._repport_positions(marketprices=marketprices)
-                        self._move_closed_position(pair)
+                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices) if position.has_position() else None
+            position = get_position(pair)
+            if (position is not None) and position.is_closed():
+                self._repport_positions(marketprices=marketprices)
+                self._move_closed_position(pair)
             self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
             self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
 
