@@ -21,7 +21,7 @@ from model.tools.Price import Price
 
 class Solomon(Strategy):
     PREFIX_ID =             'solomon_'
-    _SLEEP_TRADE =          60
+    _SLEEP_TRADE =          30
     KELTER_SUPPORT =        None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
@@ -301,6 +301,12 @@ class Solomon(Strategy):
                 elif (not can_sell) and is_sell_submitted:
                     self.cancel(pair, marketprices=marketprices)
                     self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
+                if position.is_closed():
+                    position = get_position(pair)
+                    is_position_moved_to_closed = position is None
+                    if not is_position_moved_to_closed:
+                        self._repport_positions(marketprices=marketprices)
+                        self._move_closed_position(pair)
             self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
             self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
 
