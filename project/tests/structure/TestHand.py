@@ -232,7 +232,7 @@ class TestHand(unittest.TestCase, Hand):
         with self.assertRaises(TypeError):
             hand._set_selling('wrong_type')
 
-    def test_get_add_remove_positions(self) -> None:
+    def test_get_add_remove_exist_positions(self) -> None:
         hand = self.hand
         hand_trade1 = self.hand_trade1
         hand_trade2 = self.hand_trade2
@@ -570,6 +570,13 @@ class TestHand(unittest.TestCase, Hand):
         self.assertIsInstance(hand1.get_position(pair1), HandTrade)
         self.assertEqual(round(exp1.get_value(), 0), round(result1.get_value(), 0))
         self.assertTrue(hand1.get_position(pair1).has_position())
+        # ••• Wrong pair
+        wrong_pair = Pair(pair1.get_left(), 'wrong_right')
+        with self.assertRaises(ValueError):
+            hand1.buy(wrong_pair, Order.TYPE_MARKET)
+        # ••• Position exist
+        with self.assertRaises(ValueError):
+            hand1.buy(pair1, Order.TYPE_MARKET)
         # Sell position
         # ••• Holds position to sell
         hand1.sell(pair1, Order.TYPE_MARKET)
@@ -610,10 +617,6 @@ class TestHand(unittest.TestCase, Hand):
         self.assertIsNone(result3_2.get_sell_order())
         self.assertEqual(Order.STATUS_CANCELED, sell_order3_2.get_status())
         self.assertTrue(result3_2.has_position())
-        # Wrong pair
-        wrong_pair = Pair(pair1.get_left(), 'wrong_right')
-        with self.assertRaises(ValueError):
-            hand2.buy(wrong_pair, Order.TYPE_MARKET)
         # End
         self.broker_switch(on=False)
 
