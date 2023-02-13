@@ -256,6 +256,24 @@ class Hand(MyJson):
             self.__positions = {}
         return self.__positions
 
+    def exist_position(self, pair: Pair) -> bool:
+        """
+        To check if Hand holds a position on the given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            Pair to check
+
+        Returns:
+        --------
+        return: bool
+            True if exist a position on the given Pair else False
+        """
+        positions = self.get_positions()
+        pair_str = pair.__str__()
+        return pair_str in positions
+
     def get_position(self, pair: Pair) -> HandTrade:
         """
         To get position of the given pair
@@ -271,9 +289,9 @@ class Hand(MyJson):
             Position of the given pair
         """
         positions = self.get_positions()
+        if not self.exist_position(pair):
+            raise ValueError(f"A position for this pair '{pair.__str__().upper()}' don't exist")
         pair_str = pair.__str__()
-        if pair_str not in positions:
-            raise ValueError(f"A position for this pair '{pair_str.upper()}' don't exist")
         return positions[pair_str]
 
     def _add_position(self, position: HandTrade) -> None:
@@ -286,9 +304,10 @@ class Hand(MyJson):
             Position to add
         """
         positions = self.get_positions()
-        pair_str = position.get_buy_order().get_pair().__str__()
-        if pair_str in positions:
-            raise ValueError(f"A position for this pair '{pair_str.upper()}' alrady exist")
+        pair = position.get_buy_order().get_pair()
+        if self.exist_position(pair):
+            raise ValueError(f"A position for this pair '{pair.__str__().upper()}' alrady exist")
+        pair_str = pair.__str__()
         positions[pair_str] = position
 
     def _remove_position(self, pair: Pair) -> None:
@@ -1455,6 +1474,8 @@ class Hand(MyJson):
             raise ValueError(f"The pair to buy's right Asset must be '{r_asset_exp.__str__().upper()}', instead '{pair.__str__().upper()}'")
         if self.is_max_position_reached():
             raise Exception(f"The max number of position allowed '{self.get_max_position()}' is already reached")
+        if self.exist_position(pair):
+            raise ValueError(f"A position for this pair '{pair.__str__().upper()}' alrady exist")
         # Start
         self._set_buying(True)
         # Order

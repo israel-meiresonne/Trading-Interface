@@ -276,7 +276,7 @@ class Solomon(Strategy):
             unix_time = event_time if (Config.get(Config.STAGE_MODE) == Config.STAGE_1) else _MF.get_timestamp()
             turn_start_date = _MF.unix_to_date(unix_time)
             current_func = self._callback_trade.__name__
-            if (position is None) or (not position.has_position()):
+            if (position is None) or (not position.is_executed(Map.buy)):
                 can_buy, buy_report, buy_limit_float, _ = self.can_buy(broker, pair, marketprices)
                 # Report Buy
                 buy_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
