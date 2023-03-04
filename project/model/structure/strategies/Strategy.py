@@ -91,7 +91,7 @@ class Strategy(Hand, ABC):
         return self.get_sleep_trade()
 
     @abstractmethod
-    def _trade_inner(self, marketprices: Map) -> None:
+    def _trade_inner(self, marketprices: Map) -> dict:
         """
         To execute code in Strategy.trade()
         NOTE: This function is called in Strategy.trade(), after update of Order and before to return the sleep time
