@@ -10,8 +10,8 @@ from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 
 
-class Solomon(Strategy):
-    PREFIX_ID =             'solomon_'
+class Genesis(Strategy):
+    PREFIX_ID =             'genesis_'
     KELTER_SUPPORT =        None
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
@@ -43,7 +43,7 @@ class Solomon(Strategy):
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
-        instance = Solomon.__new__(Solomon)
+        instance = Genesis.__new__(Genesis)
         exec(MyJson.get_executable())
         return instance
 
