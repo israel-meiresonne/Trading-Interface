@@ -19,6 +19,7 @@ class Strategy(Hand, ABC):
     PREFIX_ID =     "strategy_"
     _SLEEP_TRADE =  10
     _MAX_POSITION = 5
+    STACK =         None
 
     def __init__(self, capital: Price, broker_class: Callable, pair: Pair = None) -> None:
         self.__pair =           None
@@ -370,12 +371,10 @@ class Strategy(Hand, ABC):
 
     @classmethod
     def _backtest_execute_trade(cls, broker: Broker, marketprices: Map, trade: dict) -> None:
-        if trade[Map.buy][Map.status] is None:
+        if (trade[Map.buy][Map.status] is None) or (trade[Map.buy][Map.status] not in Order.FINAL_STATUS):
             order = trade[Map.buy]
-        elif (trade[Map.buy][Map.status] == Order.STATUS_COMPLETED) and (trade[Map.sell][Map.status] is None):
-            order = trade[Map.sell]
         else:
-            raise Exception(f"Unknown state buy_status='{trade[Map.buy][Map.status]}', sell_status='{trade[Map.sell][Map.status]}'")
+            order = trade[Map.sell]
         cls._backtest_execute_order(broker, marketprices, order) if order is not None else None
         cls.__backtest_trade_set_exetremums(broker, marketprices, trade)
         cls._print_trade(trade, 'EXECUTE_TRADE')
@@ -484,7 +483,7 @@ class Strategy(Hand, ABC):
     @classmethod
     def _backtest_execute_order(cls, broker: Broker, marketprices: Map, order: dict) -> None:
         if order[Map.status] in Order.FINAL_STATUS:
-            raise ValueError(f"Can't update order's status '{order[Map.status]}' because it's final")
+            return None
         period_1min = Broker.PERIOD_1MIN
         pair = order[Map.pair]
         fee_rates = broker.get_trade_fee(pair)
@@ -569,6 +568,21 @@ class Strategy(Hand, ABC):
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
+
+    @classmethod
+    def get_stack(cls) -> Map:
+        """
+        To get collection important values stored for a re-use
+
+        Return:
+        -------
+        return: Map
+            Collection important values
+        """
+        stack = cls.STACK
+        if stack is None:
+            cls.STACK = stack = Map()
+        return stack
 
     @classmethod
     def list_strategies(cls) -> List[str]:
