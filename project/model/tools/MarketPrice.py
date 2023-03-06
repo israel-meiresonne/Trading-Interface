@@ -658,17 +658,13 @@ class MarketPrice(ABC):
         k = self.COLLECTION_SUPER_TREND
         supers = self._get_collection(k)
         if supers is None:
-            closes = list(float(v) for v in self.get_closes())
+            closes = list(self.get_closes())
             closes.reverse()
-            # pd_closes = pd.Series(np.array(closes))
-            highs = list(float(v) for v in self.get_highs())
+            highs = list(self.get_highs())
             highs.reverse()
-            # pd_highs = pd.Series(np.array(highs))
-            lows = list(float(v) for v in self.get_lows())
+            lows = list(self.get_lows())
             lows.reverse()
-            # pd_lows = pd.Series(np.array(lows))
             supers = self.super_trend(nb_prd, coef, closes, highs, lows)
-            supers = [float(str(v)) for v in supers]
             supers.reverse()
             supers = tuple(supers)
             self._set_collection(k, supers)
