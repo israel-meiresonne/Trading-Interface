@@ -658,17 +658,13 @@ class MarketPrice(ABC):
         k = self.COLLECTION_SUPER_TREND
         supers = self._get_collection(k)
         if supers is None:
-            closes = list(float(v) for v in self.get_closes())
+            closes = list(self.get_closes())
             closes.reverse()
-            # pd_closes = pd.Series(np.array(closes))
-            highs = list(float(v) for v in self.get_highs())
+            highs = list(self.get_highs())
             highs.reverse()
-            # pd_highs = pd.Series(np.array(highs))
-            lows = list(float(v) for v in self.get_lows())
+            lows = list(self.get_lows())
             lows.reverse()
-            # pd_lows = pd.Series(np.array(lows))
             supers = self.super_trend(nb_prd, coef, closes, highs, lows)
-            supers = [float(str(v)) for v in supers]
             supers.reverse()
             supers = tuple(supers)
             self._set_collection(k, supers)
@@ -1296,14 +1292,15 @@ class MarketPrice(ABC):
             market_dates = [_MF.unix_to_date(open_time) for open_time in list(analyse_df.index)]
             market_dates_df = pd.DataFrame({Map.date: market_dates}, index=analyse_df.index)
             # ••• build rows to print
-            analyse_df[Map.date] = _MF.unix_to_date(_MF.get_timestamp())
-            analyse_df['market_date'] = market_dates_df[Map.date]
-            analyse_df[Map.period] = period_str
-            analyse_df['n_pair'] = supertrends_str_df.shape[1]
-            analyse_df['n_rise'] = supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_RISING].count(axis=1)
-            analyse_df['rise_rate'] = analyse_df['n_rise']/analyse_df['n_pair']
-            analyse_df['n_drop'] = supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_DROPPING].count(axis=1)
-            analyse_df['drop_rate'] = analyse_df['n_drop']/analyse_df['n_pair']
+            analyse_df[Map.date] =          _MF.unix_to_date(_MF.get_timestamp())
+            analyse_df['market_date'] =     market_dates_df[Map.date]
+            analyse_df[Map.period] =        period_str
+            analyse_df['n_pair'] =          supertrends_str_df.shape[1]
+            analyse_df['n_rise'] =          supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_RISING].count(axis=1)
+            analyse_df['n_drop'] =          supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_DROPPING].count(axis=1)
+            analyse_df['sum_rise_drop'] =   analyse_df['n_rise'] + analyse_df['n_drop']
+            analyse_df['rise_rate'] =       analyse_df['n_rise'] / analyse_df['sum_rise_drop']
+            analyse_df['drop_rate'] =       analyse_df['n_drop'] / analyse_df['sum_rise_drop']
             # ••• put
             analyses[period] = analyse_df
         return analyses

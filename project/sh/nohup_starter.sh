@@ -7,10 +7,14 @@ PID="$$"
 MAX_SLEEP=2073600
 TRASH='/dev/null'
 GIT_BRANCH=$(git branch | grep '*' | awk -F ' ' '{print $NF}' | sed 's#)##')
-SESSION_ID=$(date -u "+%Y-%m-%d_%H.%M.%S_$GIT_BRANCH")
+START_DATE=$(date -u "+%Y-%m-%d_%H.%M.%S")
+SESSION_ID="$START_DATE"_"$GIT_BRANCH"
+
+# SESSION_ID='2023-02-12_11.44.07_Solomon-v2.1.3.1'
+
 SESSION_DIR="$SESSIONS_DIR/$SESSION_ID"
 INPUTS_DIR="$SESSION_DIR/inputs"
-INPUTS_VIEW_DIR="$INPUTS_DIR/view"
+INPUTS_VIEW_DIR="$INPUTS_DIR/view_$START_DATE"
 STDIN_VIEW_FILE="$INPUTS_VIEW_DIR/view_stdin.pipe"
 STDOUT_VIEW_FILE="$INPUTS_VIEW_DIR/view_stdout.txt"
 ERROR_VIEW_FILE="$INPUTS_VIEW_DIR/view_error.txt"
@@ -23,9 +27,16 @@ start_pipe(){
          return "$FLAG"
     fi
 
-    mkdir "$SESSION_DIR" &&
-        mkdir "$INPUTS_DIR" &&
-        mkdir "$INPUTS_VIEW_DIR" &&
+    # mkdir "$SESSION_DIR" &&
+    #     mkdir "$INPUTS_DIR" &&
+    #     mkdir "$INPUTS_VIEW_DIR" &&
+    #     mkfifo "$STDIN_VIEW_FILE" &&
+    #     nohup echo $((while true; do sleep "$MAX_SLEEP"; done) > "$STDIN_VIEW_FILE") >> "$STDOUT_VIEW_FILE" 2>> "$ERROR_VIEW_FILE" &!
+    # WAKER_PID=$!
+
+    (ls -1 "$SESSION_DIR" > "$TRASH"            2>&1    || mkdir "$SESSION_DIR")        &&
+        (ls -1 "$INPUTS_DIR" > "$TRASH"         2>&1    || mkdir "$INPUTS_DIR")         &&
+        (ls -1 "$INPUTS_VIEW_DIR" > "$TRASH"    2>&1    || mkdir "$INPUTS_VIEW_DIR")    &&
         mkfifo "$STDIN_VIEW_FILE" &&
         nohup echo $((while true; do sleep "$MAX_SLEEP"; done) > "$STDIN_VIEW_FILE") >> "$STDOUT_VIEW_FILE" 2>> "$ERROR_VIEW_FILE" &!
     WAKER_PID=$!

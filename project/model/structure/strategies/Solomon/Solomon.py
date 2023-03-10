@@ -8,7 +8,6 @@ from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
-from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
@@ -32,7 +31,7 @@ class Solomon(Strategy):
     STACK = Map()
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
-    # ••• STALK DOWN
+    # ——————————————————————————————————————————— STALK DOWN
 
     def _manage_stalk(self) -> None:
         while self.is_stalk_on():
@@ -125,8 +124,8 @@ class Solomon(Strategy):
             content = [*content, *rows]
         to_print.put(content,   *stack_content_key)
 
-    # ••• STALK UP
-    # ••• TRADE DOWN
+    # ——————————————————————————————————————————— STALK UP
+    # ——————————————————————————————————————————— TRADE DOWN
 
     """
     def _trade_inner(self, marketprices: Map = Map()) -> None:
@@ -308,17 +307,18 @@ class Solomon(Strategy):
             self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
             self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
 
-    # ••• TRADE UP
-    # ••• FUNCTION SELF OTHERS DOWN
+    # ——————————————————————————————————————————— TRADE UP
+    # ——————————————————————————————————————————— OTHERS SELF DOWN
 
     def stop(self) -> None:
         broker = self.get_broker()
         broker.delete_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)
         super().stop()
 
-    # ••• FUNCTION SELF OTHERS UP
+    # ——————————————————————————————————————————— OTHERS SELF UP
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
+    # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float, dict]:
@@ -594,6 +594,9 @@ class Solomon(Strategy):
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_limit)
         return trade
 
+    # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
+    # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
+
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
@@ -601,5 +604,6 @@ class Solomon(Strategy):
         exec(MyJson.get_executable())
         return instance
 
+    # ––––––––––––––––––––––––––––––––––––––––––– STATIC UP
     # ——————————————————————————————————————————— STATIC FUNCTION UP ——————————————————————————————————————————————————
     
