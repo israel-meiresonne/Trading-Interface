@@ -28,7 +28,7 @@ class Solomon(Strategy):
         Broker.PERIOD_15MIN
         ]
     PSAR_1 =                dict(step=.6, max_step=.6)
-    STACK = Map()
+    K_BUY_SELL_CONDITION =  'K_BUY_SELL_CONDITION'
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STALK DOWN
@@ -111,15 +111,15 @@ class Solomon(Strategy):
         rows_df.insert(0, 'print_date', print_date)
         rows = rows_df.to_dict('records')
         fields = list(rows[0].keys())
-        # FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
-        to_print = cls.STACK
-        stack_base_key = [Map.condition, file_path]
+        # Save header
+        to_print = cls.get_stack()
+        stack_base_key = [cls.K_BUY_SELL_CONDITION, file_path]
         stack_column_key = [*stack_base_key, Map.column]
         stack_content_key = [*stack_base_key, Map.content]
         content = to_print.get(*stack_content_key)
         if content is None:
             content = rows
-            to_print.put(fields,    *stack_column_key)
+            to_print.put(fields, *stack_column_key)
         else:
             content = [*content, *rows]
         to_print.put(content,   *stack_content_key)
@@ -231,11 +231,12 @@ class Solomon(Strategy):
             self._callback_trade(params, marketprices)
         else:
             broker.add_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade) if (not broker.exist_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)) else None
-        to_print = self.STACK
-        if to_print.get(Map.condition) is not None:
-            to_print_dict = to_print.get(Map.condition).copy()
-            del to_print.get_map()[Map.condition]
-            for file, datas_dict in to_print_dict.items():
+        stack = self.get_stack()
+        stack_key = self.K_BUY_SELL_CONDITION
+        if stack.get(stack_key) is not None:
+            stack_copy = stack.get(stack_key).copy()
+            del stack.get_map()[stack_key]
+            for file, datas_dict in stack_copy.items():
                 fields =    datas_dict[Map.column]
                 rows =      datas_dict[Map.content]
                 FileManager.write_csv(file, fields, rows, overwrite=False, make_dir=True)
@@ -247,7 +248,7 @@ class Solomon(Strategy):
             return _MF.catch_exception(self.get_position, self.__class__.__name__, repport=False, **{Map.pair: pair})
         def can_stalk(unix_time: int, pair: Pair, period: int, stalk_interval: int) -> bool:
             can = False
-            stack = self.STACK
+            stack = self.get_stack()
             keys = [Map.stalk, pair, period, Map.time]
             last_stalk = stack.get(*keys)
             if last_stalk is None:
