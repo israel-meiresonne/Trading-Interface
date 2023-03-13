@@ -27,8 +27,10 @@ class Solomon(Strategy):
         Broker.PERIOD_5MIN,
         Broker.PERIOD_15MIN
         ]
-    PSAR_1 =                dict(step=.6, max_step=.6)
-    K_BUY_SELL_CONDITION =  'K_BUY_SELL_CONDITION'
+    PSAR_1 =                    dict(step=.6, max_step=.6)
+    K_BUY_SELL_CONDITION =      'K_BUY_SELL_CONDITION'
+    K_MARKET_TRENDS =           'K_MARKET_TRENDS'
+    K_EDITED_MARKET_TRENDS =    'K_EDITED_MARKET_TRENDS'
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STALK DOWN
@@ -368,8 +370,10 @@ class Solomon(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
-        TRIGGE_KELTNER =        2/100
-        KELTNER_RANGE_RATE =    1/8
+        TRIGGE_KELTNER =            2/100
+        KELTNER_RANGE_RATE =        1/8
+        MEAN_MARKET_TREND_WINDOW =  5
+        MEAN_MARKET_TREND_TRIGGER = 20/100
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         period_5min = Broker.PERIOD_5MIN
@@ -393,6 +397,10 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=True, window=MEAN_MARKET_TREND_WINDOW)},
+            {Map.callback: cls.is_last_min_market_trend_bellow,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, trigger=MEAN_MARKET_TREND_TRIGGER, is_int_round=True, window=MEAN_MARKET_TREND_WINDOW)},
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, is_int_round=False)},
+            {Map.callback: cls.is_last_min_market_trend_bellow,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, trigger=MEAN_MARKET_TREND_TRIGGER, is_int_round=True)},
             {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=TRIGGE_KELTNER, index=prev_index_2)},
             {Map.callback: cls.is_compare_price_and_keltner_line,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, compare=compare_1, price_line=Map.low, keltner_line=Map.low, index=prev_index_2)},
             {Map.callback: cls.is_close_bellow_keltner_range,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, rate=KELTNER_RANGE_RATE, index=now_index)},
@@ -403,13 +411,17 @@ class Solomon(Strategy):
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_buy = cls.is_keltner_roi_above_trigger(**func_and_params[0][Map.param]) \
-            and cls.is_compare_price_and_keltner_line(**func_and_params[1][Map.param]) \
-            and cls.is_close_bellow_keltner_range(**func_and_params[2][Map.param]) \
-            and cls.is_psar_rising(**func_and_params[3][Map.param]) \
-            and cls.is_psar_rising(**func_and_params[4][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[5][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[6][Map.param])
+        can_buy = cls.is_tangent_market_trend_positive(**func_and_params[0][Map.param]) \
+            and cls.is_last_min_market_trend_bellow(**func_and_params[1][Map.param]) \
+            and cls.is_tangent_market_trend_positive(**func_and_params[2][Map.param]) \
+            and cls.is_last_min_market_trend_bellow(**func_and_params[3][Map.param]) \
+            and cls.is_keltner_roi_above_trigger(**func_and_params[4][Map.param]) \
+            and cls.is_compare_price_and_keltner_line(**func_and_params[5][Map.param]) \
+            and cls.is_close_bellow_keltner_range(**func_and_params[6][Map.param]) \
+            and cls.is_psar_rising(**func_and_params[7][Map.param]) \
+            and cls.is_psar_rising(**func_and_params[8][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[9][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[10][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         return can_buy, report
@@ -578,6 +590,96 @@ class Solomon(Strategy):
         return close_bellow_keltner_range
 
     @classmethod
+    def is_last_min_market_trend_bellow(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, trigger: float, is_int_round: bool, window: int = None) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        # Set mean
+        market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
+        k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+        k_market_date = 'market_date'
+        # Get Dates
+        open_times = list(marketprice.get_times())
+        open_times.reverse()
+        index_time = open_times[index]
+        index_date = _MF.unix_to_date(index_time)
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
+        index_trend_date = sub_market_trend_df[k_market_date].iloc[index]
+        index_rise_rate = sub_market_trend_df[k_edited_rise_rate].iloc[index]
+        # Get Min
+        neg_sub_df = sub_market_trend_df[sub_market_trend_df[edited_diff_rise_rate] < 0]
+        last_min_index = neg_sub_df.index[-1]
+        last_min_rise_rate = sub_market_trend_df.loc[last_min_index, k_edited_rise_rate]
+        last_min_date = sub_market_trend_df.loc[last_min_index, k_market_date]
+        # Check
+        is_bellow = last_min_rise_rate*100 <= trigger*100
+        # Report
+        vars_map.put(is_bellow,             Map.condition,  f'last_min_market_trend_bellow_{period_str}_{window}[{index}]')
+        vars_map.put(is_int_round,          Map.value,      f'last_min_market_trend_bellow_is_int_round_{period_str}_{window}[{index}]')
+        vars_map.put(trigger,               Map.value,      f'last_min_market_trend_bellow_trigger_{period_str}_{window}[{index}]')
+        vars_map.put(last_min_rise_rate,    Map.value,      f'last_min_market_trend_bellow_last_min_rise_rate_{period_str}_{window}[{index}]')
+        vars_map.put(index_date,            Map.value,      f'last_min_market_trend_bellow_index_date_{period_str}_{window}[{index}]')
+        vars_map.put(index_trend_date,      Map.value,      f'last_min_market_trend_bellow_index_trend_date_{period_str}_{window}[{index}]')
+        vars_map.put(last_min_date,         Map.value,      f'last_min_market_trend_bellow_last_min_date_{period_str}_{window}[{index}]')
+        vars_map.put(index_rise_rate,       Map.value,      f'last_min_market_trend_bellow_index_rise_rate_{period_str}_{window}[{index}]')
+        return is_bellow
+
+    @classmethod
+    def is_market_trend_bellow(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, trigger: float, is_int_round: bool, window: int = None) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        # Set trend
+        market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
+        k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+        k_market_date = 'market_date'
+        # Get values
+        open_times = list(marketprice.get_times())
+        open_times.reverse()
+        index_time = open_times[index]
+        index_date = _MF.unix_to_date(index_time)
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
+        index_trend_date = sub_market_trend_df[k_market_date].iloc[index]
+        # Check
+        index_rise_rate = sub_market_trend_df[k_edited_rise_rate].iloc[index]
+        is_bellow = index_rise_rate*100 <= trigger*100
+        # Report
+        vars_map.put(is_bellow,         Map.condition,  f'market_trend_bellow_{period_str}_{window}[{index}]')
+        vars_map.put(is_int_round,      Map.value,      f'market_trend_bellow_is_int_round_{period_str}_{window}[{index}]')
+        vars_map.put(trigger,           Map.value,      f'market_trend_bellow_trigger_{period_str}_{window}[{index}]')
+        vars_map.put(index_date,        Map.value,      f'market_trend_bellow_index_date_{period_str}_{window}[{index}]')
+        vars_map.put(index_trend_date,  Map.value,      f'market_trend_bellow_index_trend_date_{period_str}_{window}[{index}]')
+        vars_map.put(index_rise_rate,   Map.value,      f'market_trend_bellow_index_rise_rate_{period_str}_{window}[{index}]')
+        return is_bellow
+
+    @classmethod
+    def is_tangent_market_trend_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, is_int_round: bool, window: int = None) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        # Set mean
+        market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
+        k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+        k_market_date = 'market_date'
+        # Get values
+        now_time = marketprice.get_time()
+        now_date = _MF.unix_to_date(now_time)
+        sub_mean_market_trend_df = market_trend_df[market_trend_df.index <= now_time]
+        prev_index = index - 1
+        now_trend_date = sub_mean_market_trend_df[k_market_date].iloc[index]
+        prev_trend_date = sub_mean_market_trend_df[k_market_date].iloc[prev_index]
+        # Check
+        now_rise_rate = sub_mean_market_trend_df[k_edited_rise_rate].iloc[index]
+        prev_rise_rate = sub_mean_market_trend_df[k_edited_rise_rate].iloc[prev_index]
+        tangent_positive = now_rise_rate*100 > prev_rise_rate*100
+        # Report
+        vars_map.put(tangent_positive,  Map.condition,  f'tangent_market_trend_positive_{period_str}_{window}[{index}]')
+        vars_map.put(is_int_round,      Map.value,      f'tangent_market_trend_positive_is_int_round_{period_str}_{window}[{index}]')
+        vars_map.put(now_date,          Map.value,      f'tangent_market_trend_positive_now_date_{period_str}_{window}[{index}]')
+        vars_map.put(now_trend_date,    Map.value,      f'tangent_market_trend_positive_now_trend_date_{period_str}_{window}[{index}]')
+        vars_map.put(prev_trend_date,   Map.value,      f'tangent_market_trend_positive_prev_trend_date_{period_str}_{window}[{prev_index}]')
+        vars_map.put(now_rise_rate,     Map.value,      f'tangent_market_trend_positive_now_rise_rate_{period_str}_{window}[{index}]')
+        vars_map.put(prev_rise_rate,    Map.value,      f'tangent_market_trend_positive_prev_rise_rate_{period_str}_{window}[{prev_index}]')
+        return tangent_positive
+
+    @classmethod
     def param_to_str(cls, params: dict) -> str:
         param_str = ''
         if len(params) > 0:
@@ -608,6 +710,97 @@ class Solomon(Strategy):
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
+
+    @classmethod
+    def get_market_trend(cls, period: int) -> pd.DataFrame:
+        _MF.check_type(period, int)
+        k_market_trends = cls.K_MARKET_TRENDS
+        stage = Config.get(Config.STAGE_MODE)
+        if stage == Config.STAGE_1:
+            _stack = cls.get_stack()
+            market_trend_df = _stack.get(k_market_trends, period)
+            if market_trend_df is None:
+                market_trend_file = f"content/storage/MarketPrice/histories/stock/market_trend/supertrend/{period}.csv"
+                project_dir = FileManager.get_project_directory()
+                market_trend_df = pd.read_csv(project_dir + market_trend_file, index_col=0)
+                _stack.put(market_trend_df, k_market_trends, period)
+        else:
+            raise Exception(f"Behavior not implemeted for this stage '{stage}'")
+        return market_trend_df
+
+    @classmethod
+    def get_edited_market_trend_keys(cls, is_int_round: bool, window: int = None) -> tuple[str,str]:
+        k_rise_rate = 'rise_rate'
+        k_edited_rise_rate = f'{k_rise_rate}_{is_int_round}_{window}'
+        edited_diff_rise_rate = f'diff_{k_edited_rise_rate}'
+        return k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate
+
+    @classmethod
+    def get_edited_market_trend(cls, period: int, is_int_round: bool, window: int = None) -> pd.DataFrame:
+        k_mean_market_trends = cls.K_EDITED_MARKET_TRENDS
+        stack_keys = [k_mean_market_trends, period]
+        stack = cls.get_stack()
+        edited_market_trend_df = stack.get(*stack_keys)
+        k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+        if (edited_market_trend_df is None) or (k_edited_rise_rate not in edited_market_trend_df.columns):
+            if edited_market_trend_df is None:
+                edited_market_trend_df = cls.get_market_trend(period).copy(deep=True)
+                stack.put(edited_market_trend_df, *stack_keys)
+            is_window_set = window is not None
+            float_to_int = lambda x : int(x*100)/100 if not _MF.is_nan(x) else x
+            k_edited_keys = Map()
+            k_edited_diff_keys = Map()
+            gened_keys = [
+                [*cls.get_edited_market_trend_keys(True,    window)],
+                [*cls.get_edited_market_trend_keys(True,    None)],
+                [*cls.get_edited_market_trend_keys(False,   window)],
+                [*cls.get_edited_market_trend_keys(False,   None)],
+            ]
+            k_edited_keys.put(gened_keys[0][1],   True,   window)
+            k_edited_keys.put(gened_keys[1][1],   True,   None)
+            k_edited_keys.put(gened_keys[2][1],   False,  window)
+            k_edited_keys.put(gened_keys[3][1],   False,  None)
+            #
+            k_edited_diff_keys.put(gened_keys[0][2],   True,   window)
+            k_edited_diff_keys.put(gened_keys[1][2],   True,   None)
+            k_edited_diff_keys.put(gened_keys[2][2],   False,  window)
+            k_edited_diff_keys.put(gened_keys[3][2],   False,  None)
+            '''
+            is_int_round=False AND is_window_set=True
+            '''
+            if is_window_set:
+                combin_keys =       [False, window]
+                k_edited_key =      k_edited_keys.get(*combin_keys)
+                k_diff_edited_key = k_edited_diff_keys.get(*combin_keys)
+                edited_market_trend_df[k_edited_key] =       edited_market_trend_df[k_rise_rate].rolling(window=window).mean()
+                edited_market_trend_df[k_diff_edited_key] =  edited_market_trend_df[k_edited_key].diff()
+            '''
+            is_int_round=True AND is_window_set=False
+            '''
+            combin_keys = [True, None]
+            k_edited_key =       k_edited_keys.get(*combin_keys)
+            k_diff_edited_key =  k_edited_diff_keys.get(*combin_keys)
+            edited_market_trend_df[k_edited_key] =       _MF.df_apply(edited_market_trend_df, [k_rise_rate], float_to_int)[k_rise_rate]
+            edited_market_trend_df[k_diff_edited_key] =  edited_market_trend_df[k_edited_key].diff()
+            '''
+            is_int_round=True AND is_window_set=True
+            '''
+            if is_window_set:
+                combin_keys = [True, window]
+                k_edited_key =       k_edited_keys.get(*combin_keys)
+                k_diff_edited_key =  k_edited_diff_keys.get(*combin_keys)
+                k_mean_rise_rate = k_edited_keys.get(False, window)
+                edited_market_trend_df[k_edited_key] =      _MF.df_apply(edited_market_trend_df, [k_mean_rise_rate], float_to_int)[k_mean_rise_rate]
+                edited_market_trend_df[k_diff_edited_key] = edited_market_trend_df[k_edited_key].diff()
+            '''
+            is_int_round=False AND is_window_set=False
+            '''
+            combin_keys = [False, None]
+            k_edited_key =       k_edited_keys.get(*combin_keys)
+            k_diff_edited_key =  k_edited_diff_keys.get(*combin_keys)
+            edited_market_trend_df[k_edited_key] =      edited_market_trend_df[k_rise_rate]
+            edited_market_trend_df[k_diff_edited_key] = edited_market_trend_df[k_edited_key].diff()
+        return edited_market_trend_df
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
