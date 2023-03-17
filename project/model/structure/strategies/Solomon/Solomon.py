@@ -404,7 +404,6 @@ class Solomon(Strategy):
             {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=TRIGGE_KELTNER, index=prev_index_2)},
             {Map.callback: cls.is_compare_price_and_keltner_line,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, compare=compare_1, price_line=Map.low, keltner_line=Map.low, index=prev_index_2)},
             {Map.callback: cls.is_close_bellow_keltner_range,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, rate=KELTNER_RANGE_RATE, index=now_index)},
-            {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, psar_params={})},
             {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, psar_params={})},
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
@@ -419,9 +418,8 @@ class Solomon(Strategy):
             and cls.is_compare_price_and_keltner_line(**func_and_params[5][Map.param]) \
             and cls.is_close_bellow_keltner_range(**func_and_params[6][Map.param]) \
             and cls.is_psar_rising(**func_and_params[7][Map.param]) \
-            and cls.is_psar_rising(**func_and_params[8][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[9][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[10][Map.param])
+            and cls.is_supertrend_rising(**func_and_params[8][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[9][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         return can_buy, report
@@ -450,18 +448,16 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
-            {Map.callback: cls.is_psar_rising,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_psar_rising,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
+            {Map.callback: cls.is_psar_rising,          Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
         cls.is_keltner_roi_above_trigger(vars_map, broker, pair, period_1min, marketprices, 0, now_index)
         can_sell = (not cls.is_psar_rising(**func_and_params[0][Map.param])) \
-            or (not cls.is_psar_rising(**func_and_params[1][Map.param])) \
-            or (not cls.is_supertrend_rising(**func_and_params[2][Map.param])) \
-            or (not cls.is_supertrend_rising(**func_and_params[3][Map.param]))
+            or (not cls.is_supertrend_rising(**func_and_params[1][Map.param])) \
+            or (not cls.is_supertrend_rising(**func_and_params[2][Map.param]))
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         limit = vars_map.get(Map.value, f'keltner_middle_{period_strs[period_1min]}[-1]')
