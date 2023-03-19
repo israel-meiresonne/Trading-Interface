@@ -17,7 +17,7 @@ class Genesis(Strategy):
     KELTER_SUPPORT =    None
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
-    # ••• STALK DOWN
+    # ——————————————————————————————————————————— STALK DOWN
 
     def _manage_stalk(self) -> None:
         while self.is_stalk_on():
@@ -28,15 +28,16 @@ class Genesis(Strategy):
     def _stalk_market(self) -> List[Pair]:
         pass
 
-    # ••• STALK UP
-    # ••• TRADE DOWN
+    # ——————————————————————————————————————————— STALK UP
+    # ——————————————————————————————————————————— TRADE DOWN
 
     def _trade_inner(self) -> None:
         pass
 
-    # ••• TRADE UP
+    # ——————————————————————————————————————————— TRADE UP
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
+    # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
     @classmethod
     def _can_buy_sell_set_headers(cls, caller_callback: Callable, func_and_params: list[dict]) -> dict:
@@ -179,6 +180,9 @@ class Genesis(Strategy):
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
         return trade
 
+    # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
+    # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
+
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
@@ -186,5 +190,6 @@ class Genesis(Strategy):
         exec(MyJson.get_executable())
         return instance
 
+    # ––––––––––––––––––––––––––––––––––––––––––– STATIC UP
     # ——————————————————————————————————————————— STATIC FUNCTION UP ——————————————————————————————————————————————————
     
