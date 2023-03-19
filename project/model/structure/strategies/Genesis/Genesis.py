@@ -1,9 +1,9 @@
 import time
-from typing import List
+from typing import Callable, List
 
 import pandas as pd
-from config.Config import Config
 
+from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
@@ -43,37 +43,81 @@ class Genesis(Strategy):
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
     @classmethod
+    def _can_buy_sell_set_headers(cls, caller_callback: Callable, func_and_params: list[dict]) -> dict:
+        """
+        Parameters:
+        -----------
+        caller_func: Callable
+            The callback calling this function
+        func_and_params: list[dict]
+            List of function to check and their params
+            | Keys                                 |     | Type     |     | Doc                     |
+            | ------------------------------------ | --- | -------- | --- | ----------------------- |
+            | list[index{int}][dict[Map.callback]] | ->  | Callable | ->  | Function to execute     |
+            | list[index{int}][dict[Map.param]]    | ->  | dict     | ->  | Params for the callback |
+        """
+        def get_vars_map() -> Map:
+            return func_and_params[0][Map.param]['vars_map']
+        caller_callback_name = caller_callback.__name__
+        _stack = cls.get_stack()
+        vars_map = get_vars_map()
+        """
+        _stack[caller_callback_name][Map.condition]:   {list}  # boolean column names
+        _stack[caller_callback_name][Map.value]:       {list}  # values column names
+        """
+        header_dict = _stack.get(caller_callback_name)
+        if header_dict is None:
+            [row[Map.callback](**row[Map.param]) if isinstance(row[Map.param], dict) else row[Map.callback](*row[Map.param]) for row in func_and_params]
+            new_header_dict = vars_map.get_keys()
+            for new_var_map_key in new_header_dict:
+                columns = list(vars_map.get(new_var_map_key).keys())
+                _stack.put(columns, caller_callback_name, new_var_map_key)
+            header_dict = _stack.get(caller_callback_name)
+        return header_dict
+
+    @classmethod
+    def _can_buy_sell_new_report(cls, caller_callback: Callable, header_dict: dict, can_result: bool, vars_map: Map) -> dict:
+        caller_callback_name = caller_callback.__name__
+        boolean_keys = header_dict[Map.condition]
+        values_keys = header_dict[Map.value]
+        report = {
+            caller_callback_name:   can_result,
+            **{boolean_key:         vars_map.get(Map.condition, boolean_key) for boolean_key in boolean_keys},
+            **{values_key:          vars_map.get(Map.value, values_key) for values_key in values_keys}
+        }
+        return report
+
+    @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         period_5min = Broker.PERIOD_5MIN
-        func_name = cls.can_buy.__name__
-        _stack = cls.get_stack()
-        """
-        _stack[func_name][Map.condition]:   {list}  # boolean column names
-        _stack[func_name][Map.value]:       {list}  # values column names
-        """
-        var_map_keys = _stack.get(func_name)
-        index_now = -1
-        if var_map_keys is None:
-            cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, index_now)
-            cls.is_supertrend_rising(vars_map, broker, pair, period_1min, marketprices, index_now)
-            new_var_map_keys = vars_map.get_keys()
-            for new_var_map_key in new_var_map_keys:
-                columns = list(vars_map.get(new_var_map_key).keys())
-                _stack.put(columns, func_name, new_var_map_key)
-            var_map_keys = _stack.get(func_name)
+        marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
+        marketprice_1min_pd = marketprice_1min.to_pd()
+        period_strs = {period: broker.period_to_str(period) for period in [period_1min]}
+        # Params
+        now_index = -1
+        # Add price
+        vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.low].iloc[-1],    Map.value, f'low_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.low].iloc[-2],    Map.value, f'low_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.high].iloc[-1],   Map.value, f'high_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.high].iloc[-2],   Map.value, f'high_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.close].iloc[-1],  Map.value, f'close_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.close].iloc[-2],  Map.value, f'close_{period_strs[period_1min]}[-2]')
+        # Set header
+        this_func = cls.can_buy
+        func_and_params = [
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
+        ]
+        header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_buy = cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, index_now) \
-            and cls.is_supertrend_rising(vars_map, broker, pair, period_1min, marketprices, index_now)
+        can_buy = cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, now_index) \
+            and cls.is_supertrend_rising(**func_and_params[0][Map.param])
         # Report
-        boolean_keys = var_map_keys[Map.condition]
-        values_keys = var_map_keys[Map.value]
-        report = {
-            func_name:      can_buy,
-            **{boolean_key: vars_map.get(Map.condition, boolean_key) for boolean_key in boolean_keys},
-            **{values_key:  vars_map.get(Map.value, values_key) for values_key in values_keys}
-        }
+        report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         return can_buy, report
 
     @classmethod
@@ -81,33 +125,32 @@ class Genesis(Strategy):
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         period_5min = Broker.PERIOD_5MIN
-        func_name = cls.can_sell.__name__
-        _stack = cls.get_stack()
-        """
-        _stack[func_name][Map.condition]:   {list}  # boolean column names
-        _stack[func_name][Map.value]:       {list}  # values column names
-        """
-        var_map_keys = _stack.get(func_name)
-        index_now = -1
-        if var_map_keys is None:
-            cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, index_now)
-            cls.is_supertrend_rising(vars_map, broker, pair, period_1min, marketprices, index_now)
-            new_var_map_keys = vars_map.get_keys()
-            for new_var_map_key in new_var_map_keys:
-                columns = list(vars_map.get(new_var_map_key).keys())
-                _stack.put(columns, func_name, new_var_map_key)
-            var_map_keys = _stack.get(func_name)
+        marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
+        marketprice_1min_pd = marketprice_1min.to_pd()
+        period_strs = {period: broker.period_to_str(period) for period in [period_1min]}
+        # Params
+        now_index = -1
+        # Add price
+        vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.low].iloc[-1],    Map.value, f'low_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.low].iloc[-2],    Map.value, f'low_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.high].iloc[-1],   Map.value, f'high_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.high].iloc[-2],   Map.value, f'high_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.close].iloc[-1],  Map.value, f'close_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.close].iloc[-2],  Map.value, f'close_{period_strs[period_1min]}[-2]')
+        # Set header
+        this_func = cls.can_sell
+        func_and_params = [
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
+        ]
+        header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_sell = not cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, index_now) \
-            or not cls.is_supertrend_rising(vars_map, broker, pair, period_1min, marketprices, index_now)
+        can_sell = not cls.is_tangent_market_trend_positive(**func_and_params[0][Map.param]) \
+            or not cls.is_supertrend_rising(**func_and_params[1][Map.param])
         # Report
-        boolean_keys = var_map_keys[Map.condition]
-        values_keys = var_map_keys[Map.value]
-        report = {
-            func_name:      can_sell,
-            **{boolean_key: vars_map.get(Map.condition, boolean_key) for boolean_key in boolean_keys},
-            **{values_key:  vars_map.get(Map.value, values_key) for values_key in values_keys}
-        }
+        report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
 
     @classmethod
