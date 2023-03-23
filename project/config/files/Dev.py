@@ -63,7 +63,7 @@ class Dev:
     PREDICTOR_FILE_PATH_HISTORY = '$class/market-histories/$pair/$period.csv'
     PREDICTOR_PATH_LEARN = '$class/learns/$stock_path/$pair/$period/$price_type/'
     # Constants
-    MAIN_STABLECOINS = ['busd', 'dai', 'usdc', 'usdt']
+    MAIN_STABLECOINS = ['busd', 'dai', 'tusd', 'usdc', 'usdt']
     CONST_STABLECOINS = [*MAIN_STABLECOINS, 'bidr', 'fei', 'frax', 'gusd', 'husd', 'idrt', 'lusd', 'pax', 'rsr', 'susd', 'tribe', 'tusd', 'usdn', 'usdp', 'usds', 'usdsb', 'usdx', 'ust', 'vai', 'xsgd']
     CONST_FIATS = [
         'aed', 'afn', 'all', 'amd', 'ang', 'aoa', 'ars', 'aud', 'awg', 'azn', 'bam', 'bbd', 'bdt', 'bgn', 'bhd', 
