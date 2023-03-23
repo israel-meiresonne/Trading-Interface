@@ -8,6 +8,7 @@ from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
+from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
@@ -25,11 +26,10 @@ class Solomon(Strategy):
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
         Broker.PERIOD_5MIN,
-        Broker.PERIOD_15MIN
+        # Broker.PERIOD_15MIN
         ]
     PSAR_1 =                    dict(step=.6, max_step=.6)
     K_BUY_SELL_CONDITION =      'K_BUY_SELL_CONDITION'
-    K_MARKET_TRENDS =           'K_MARKET_TRENDS'
     K_EDITED_MARKET_TRENDS =    'K_EDITED_MARKET_TRENDS'
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
@@ -232,6 +232,28 @@ class Solomon(Strategy):
             }
             self._callback_trade(params, marketprices)
         else:
+            if not self.is_market_analyse_on():
+                # Add streams
+                # # Analyse streams
+                analyse_pairs =     MarketPrice.get_spot_pairs(broker.__class__.__name__, Asset('USDT'))
+                analyse_periods =   self._MARKET_ANALYSE_TREND_PERIODS
+                analyse_streams =  broker.generate_streams(analyse_pairs, analyse_periods)
+                # # Strategy streams
+                broker_pairs =       self.get_broker_pairs()
+                required_periods =   self._REQUIRED_PERIODS
+                strategy_streams =  broker.generate_streams(broker_pairs, required_periods)
+                # # 1min period
+                stream_1min = broker.generate_streams(analyse_pairs, [Broker.PERIOD_1MIN])
+                # # Add      
+                streams = _MF.remove_duplicates([*strategy_streams, *analyse_streams, *stream_1min])
+                broker.add_streams(streams)
+                # Start analyse
+                self.set_market_analyse_on(True)
+                x = lambda : type(self.get_market_trend(analyse_periods[0]))
+                wait_time = 60 * 10
+                _MF.output(_MF.prefix() + f"Waiting the first analyse...")
+                _MF.wait_while(x, pd.DataFrame, wait_time, to_raise=Exception("The time to wait market's analyse is out"))
+                _MF.output(_MF.prefix() + f"End wait the first analyse!")
             broker.add_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade) if (not broker.exist_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)) else None
         stack = self.get_stack()
         stack_key = self.K_BUY_SELL_CONDITION
@@ -265,12 +287,12 @@ class Solomon(Strategy):
         # # #
         period_1min = Broker.PERIOD_1MIN
         event_time, pair, event_period, market_row = explode_params(params)
-        if (params[Map.period] != period_1min) or (not can_stalk(unix_time=event_time, pair=pair, period=event_period, stalk_interval=period_1min)):
+        broker_pairs = self.get_broker_pairs()
+        if (params[Map.period] != period_1min) or (params[Map.pair] not in broker_pairs) or (not can_stalk(unix_time=event_time, pair=pair, period=event_period, stalk_interval=period_1min)):
             return None
         position = get_position(pair)
         if ((not self.is_max_position_reached()) or (position is not None)):
             broker = self.get_broker()
-            r_asset = self.get_wallet().get_initial().get_asset()
             marketprices = Map() if marketprices is None else marketprices
             buy_reports = []
             sell_reports = []
@@ -287,22 +309,14 @@ class Solomon(Strategy):
                 if can_buy:
                     self.buy(pair, Order.TYPE_MARKET, marketprices=marketprices)
             elif position.has_position():
-                can_sell, sell_report, sell_limit_float = self.can_sell(broker, pair, marketprices)
-                sell_limit = Price(sell_limit_float, r_asset)
+                can_sell, sell_report = self.can_sell(broker, pair, marketprices)
                 # Report Buy
                 sell_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
-                sell_report = self._new_row_condition(sell_report, current_func, loop_start_date, turn_start_date, sell_marketprice_1min, pair, can_sell, sell_limit_float)
+                sell_report = self._new_row_condition(sell_report, current_func, loop_start_date, turn_start_date, sell_marketprice_1min, pair, can_sell, -1)
                 sell_reports.append(sell_report)
                 # Check
-                is_sell_submitted = position.is_submitted(Map.sell)
                 if can_sell:
-                    self.cancel(pair, marketprices=marketprices) if is_sell_submitted else None
-                    self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices) if position.has_position() else None
-                elif (not can_sell) and (not is_sell_submitted):
-                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
-                elif (not can_sell) and is_sell_submitted:
-                    self.cancel(pair, marketprices=marketprices)
-                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices) if position.has_position() else None
+                    self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
             position = get_position(pair)
             if (position is not None) and position.is_closed():
                 self._repport_positions(marketprices=marketprices)
@@ -579,7 +593,7 @@ class Solomon(Strategy):
         last_min_rise_rate = sub_market_trend_df.loc[last_min_index, k_edited_rise_rate]
         last_min_date = sub_market_trend_df.loc[last_min_index, k_market_date]
         # Check
-        is_bellow = last_min_rise_rate*100 <= trigger*100
+        is_bellow = bool(last_min_rise_rate*100 <= trigger*100)
         # Report
         vars_map.put(is_bellow,             Map.condition,  f'last_min_market_trend_bellow_{period_str}_{window}[{index}]')
         vars_map.put(is_int_round,          Map.value,      f'last_min_market_trend_bellow_is_int_round_{period_str}_{window}[{index}]')
@@ -608,7 +622,7 @@ class Solomon(Strategy):
         index_trend_date = sub_market_trend_df[k_market_date].iloc[index]
         # Check
         index_rise_rate = sub_market_trend_df[k_edited_rise_rate].iloc[index]
-        is_bellow = index_rise_rate*100 <= trigger*100
+        is_bellow = bool(index_rise_rate*100 <= trigger*100)
         # Report
         vars_map.put(is_bellow,         Map.condition,  f'market_trend_bellow_{period_str}_{window}[{index}]')
         vars_map.put(is_int_round,      Map.value,      f'market_trend_bellow_is_int_round_{period_str}_{window}[{index}]')
@@ -636,7 +650,7 @@ class Solomon(Strategy):
         # Check
         now_rise_rate = sub_mean_market_trend_df[k_edited_rise_rate].iloc[index]
         prev_rise_rate = sub_mean_market_trend_df[k_edited_rise_rate].iloc[prev_index]
-        tangent_positive = now_rise_rate*100 > prev_rise_rate*100
+        tangent_positive = bool(now_rise_rate*100 > prev_rise_rate*100)
         # Report
         vars_map.put(tangent_positive,  Map.condition,  f'tangent_market_trend_positive_{period_str}_{window}[{index}]')
         vars_map.put(is_int_round,      Map.value,      f'tangent_market_trend_positive_is_int_round_{period_str}_{window}[{index}]')
@@ -675,23 +689,6 @@ class Solomon(Strategy):
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
-
-    @classmethod
-    def get_market_trend(cls, period: int) -> pd.DataFrame:
-        _MF.check_type(period, int)
-        k_market_trends = cls.K_MARKET_TRENDS
-        stage = Config.get(Config.STAGE_MODE)
-        if stage == Config.STAGE_1:
-            _stack = cls.get_stack()
-            market_trend_df = _stack.get(k_market_trends, period)
-            if market_trend_df is None:
-                market_trend_file = f"content/storage/MarketPrice/histories/stock/market_trend/supertrend/{period}.csv"
-                project_dir = FileManager.get_project_directory()
-                market_trend_df = pd.read_csv(project_dir + market_trend_file, index_col=0)
-                _stack.put(market_trend_df, k_market_trends, period)
-        else:
-            raise Exception(f"Behavior not implemeted for this stage '{stage}'")
-        return market_trend_df
 
     @classmethod
     def get_edited_market_trend_keys(cls, is_int_round: bool, window: int = None) -> tuple[str,str]:
