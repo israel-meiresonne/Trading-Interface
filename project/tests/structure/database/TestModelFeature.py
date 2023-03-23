@@ -228,6 +228,3 @@ class TestModelFeature(unittest.TestCase, _MF):
         }
         result1 = _MF.group_swings(values, compares)
         self.assertDictEqual(exp1, result1)
-
-
-
