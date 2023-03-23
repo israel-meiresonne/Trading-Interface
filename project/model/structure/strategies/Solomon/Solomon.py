@@ -700,13 +700,13 @@ class Solomon(Strategy):
     @classmethod
     def get_edited_market_trend(cls, period: int, is_int_round: bool, window: int = None) -> pd.DataFrame:
         k_mean_market_trends = cls.K_EDITED_MARKET_TRENDS
-        k_market_date = 'market_date'
+        k_date = Map.date
         stack_keys = [k_mean_market_trends, period]
         stack = cls.get_stack()
         # Check if tab has changed
         edited_market_trend_df =    stack.get(*stack_keys)
         market_trend_df =           cls.get_market_trend(period)
-        if (edited_market_trend_df is not None) and (edited_market_trend_df[k_market_date].iloc[-1] != market_trend_df[k_market_date].iloc[-1]):
+        if (edited_market_trend_df is not None) and (edited_market_trend_df[k_date].iloc[-1] != market_trend_df[k_date].iloc[-1]):
             edited_market_trend_df = None
         # Try to Complet tab
         k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
