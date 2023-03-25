@@ -19,7 +19,6 @@ class Strategy(Hand, ABC):
     PREFIX_ID =     "strategy_"
     _SLEEP_TRADE =  10
     _MAX_POSITION = 5
-    STACK =         None
 
     def __init__(self, capital: Price, broker_class: Callable, pair: Pair = None) -> None:
         self.__pair =           None
@@ -568,21 +567,6 @@ class Strategy(Hand, ABC):
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
-
-    @classmethod
-    def get_stack(cls) -> Map:
-        """
-        To get collection important values stored for a re-use
-
-        Return:
-        -------
-        return: Map
-            Collection important values
-        """
-        stack = cls.STACK
-        if stack is None:
-            cls.STACK = stack = Map()
-        return stack
 
     @classmethod
     def list_strategies(cls) -> List[str]:

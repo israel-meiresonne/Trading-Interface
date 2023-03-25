@@ -1244,13 +1244,14 @@ class MarketPrice(ABC):
         def ge_marketprice(marketprices: Map, pair: Pair, period: int, endtime: int = None, starttime: int = None, n_period: int = None) -> MarketPrice:
             marketprice = marketprices.get(pair, period)
             if marketprice is None:
-                if endtime is None:
-                    endtime = _MF.round_time(unix_time, period)
                 if (starttime is None) and (n_period is None):
                     n_period = broker.get_max_n_period()
-                marketprice_df = cls.marketprices(broker, pair, period, endtime=endtime, starttime=starttime, n_period=n_period)
-                marketprice_list = marketprice_df.to_numpy().tolist()
-                marketprice = cls.new_marketprice(broker.__class__, marketprice_list, pair, period)
+                if (starttime is not None) or (endtime is not None):
+                    marketprice_df = cls.marketprices(broker, pair, period, endtime=endtime, starttime=starttime, n_period=n_period)
+                    marketprice_list = marketprice_df.to_numpy().tolist()
+                    marketprice = cls.new_marketprice(broker.__class__, marketprice_list, pair, period)
+                else:
+                    marketprice = cls.marketprice(broker, pair, period, n_period)
                 marketprices.put(marketprice, pair, period)
             return marketprice
         
