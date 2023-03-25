@@ -216,7 +216,6 @@ class Strategy(Hand, ABC):
             stats[Map.close] = close
             stats[Map.high] = high if ((stats[Map.high] is None) or (high > stats[Map.high])) else stats[Map.high]
             stats[Map.low] = low if ((stats[Map.low] is None) or (low < stats[Map.low])) else stats[Map.low]
-        enddate = _MF.unix_to_date(endtime)
         pair_str = pair.__str__()
         required_periods = cls._REQUIRED_PERIODS
         required_periods.sort()
@@ -257,7 +256,7 @@ class Strategy(Hand, ABC):
             # Stats
             update_stats(i, stats, marketprice)
             # Trade
-            trade = cls._backtest_loop_inner(broker, marketprices, pair, trade, buy_conditions, sell_conditions)
+            trade = cls._backtest_loop_inner(broker, marketprices, pair, trades, trade, buy_conditions, sell_conditions)
             # Execution
             cls._backtest_execute_trade(broker, marketprices, trade) if trade is not None else None
             if (trade is not None) \
@@ -271,7 +270,7 @@ class Strategy(Hand, ABC):
 
     @classmethod
     @abstractmethod
-    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> None:
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
         pass
 
     @classmethod
@@ -523,7 +522,7 @@ class Strategy(Hand, ABC):
                 trigger_prices = sub_marketprice[sub_marketprice[Map.high] >= stop]
             if trigger_prices.shape[0] > 0:
                 reach_time = trigger_prices.loc[trigger_prices.index[0], Map.time]
-                order[Map.timestamp] = reach_time
+                order[Map.timestamp] = int(reach_time)
                 cls._backtest_execute_order(broker, marketprices, order)
         else:
             raise Exception(f"Unknown order type '{order_type}'")
