@@ -38,7 +38,7 @@ class Genesis(Strategy):
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
     @classmethod
-    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> dict:
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
         pass
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
