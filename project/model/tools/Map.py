@@ -85,6 +85,7 @@ class Map(MyJson):
     file = "file"
     column = "column"
     content = "content"
+    offset = "offset"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI

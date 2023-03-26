@@ -18,7 +18,7 @@ class StrategyChild(Strategy):
         return cls.__new__(cls)
 
     @classmethod
-    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> None:
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
         pass
 
 class TestStrategy(unittest.TestCase, StrategyChild):
