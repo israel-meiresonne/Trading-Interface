@@ -89,7 +89,7 @@ class Genesis(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
-        TRIGGE_KELTNER = 1/100
+        TRIGGE_KELTNER = 2/100
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         period_5min = Broker.PERIOD_5MIN
