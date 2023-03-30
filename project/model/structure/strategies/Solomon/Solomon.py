@@ -20,9 +20,10 @@ from model.tools.Price import Price
 
 
 class Solomon(Strategy):
-    PREFIX_ID =             'solomon_'
-    _SLEEP_TRADE =          30
-    KELTER_SUPPORT =        None
+    PREFIX_ID =                 'solomon_'
+    _SLEEP_TRADE =              30
+    _MAX_POSITION =             10
+    KELTER_SUPPORT =            None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
         Broker.PERIOD_5MIN,
@@ -301,13 +302,17 @@ class Solomon(Strategy):
             turn_start_date = _MF.unix_to_date(unix_time)
             current_func = self._callback_trade.__name__
             if (position is None) or (not position.is_executed(Map.buy)):
-                can_buy, buy_report = self.can_buy(broker, pair, marketprices)
+                can_buy, buy_report, buy_limit = self.can_buy(broker, pair, marketprices)
+                report_buy_limit = -1 if buy_limit is None else buy_limit
                 # Report Buy
                 buy_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
-                buy_report = self._new_row_condition(buy_report, current_func, loop_start_date, turn_start_date, buy_marketprice_1min, pair, can_buy, -1)
+                buy_report = self._new_row_condition(buy_report, current_func, loop_start_date, turn_start_date, buy_marketprice_1min, pair, can_buy, limit=report_buy_limit)
                 buy_reports.append(buy_report)
                 if can_buy:
-                    self.buy(pair, Order.TYPE_MARKET, marketprices=marketprices)
+                    buy_limit_price = Price(buy_limit, pair.get_right())
+                    self.buy(pair, Order.TYPE_LIMIT, limit=buy_limit_price, marketprices=marketprices)
+                elif position is not None:
+                    self.cancel(pair, marketprices=marketprices)
             elif position.has_position():
                 can_sell, sell_report = self.can_sell(broker, pair, marketprices)
                 # Report Buy
