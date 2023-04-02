@@ -754,6 +754,7 @@ class Hand(MyJson):
             broker_class = self.get_broker_class()
             fiat_asset = self.get_wallet().get_initial().get_asset()
             broker_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
+            self._set_broker_pairs(broker_pairs)
         return broker_pairs
 
     def _get_stalk_pairs(self) -> List[Pair]:
