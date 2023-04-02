@@ -86,6 +86,7 @@ class Map(MyJson):
     column = "column"
     content = "content"
     offset = "offset"
+    size = "size"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
@@ -316,15 +317,15 @@ class Map(MyJson):
         return: str
             New key composed
         """
-        regex = cls.MERGE_KEY_REGEX
-        clean_keys = []
-        for key in keys:
-            _MF.check_type(key, (str, int, float))
-            key = str(key)
-            if not _MF.regex_match(regex, key):
-                raise ValueError(f"Keys must match regex '{regex}', instead '{key}'")
-            clean_keys.append(key)
-        return cls.MERGE_KEY_TOKEN.join(clean_keys)
+        # regex = cls.MERGE_KEY_REGEX
+        # clean_keys = []
+        # for key in keys:
+        #     _MF.check_type(key, (str, int, float))
+        #     key = str(key)
+        #     if not _MF.regex_match(regex, key):
+        #         raise ValueError(f"Keys must match regex '{regex}', instead '{key}'")
+        #     clean_keys.append(key)
+        return cls.MERGE_KEY_TOKEN.join(keys)
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
