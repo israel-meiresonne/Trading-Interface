@@ -285,11 +285,30 @@ class Solomon(Strategy):
                 event_time_rounded = _MF.round_time(unix_time, stalk_interval)
                 stack.put(event_time_rounded, *keys)
             return can
+        def is_pair_allowed(stream_pair: Pair) -> bool:
+            stack = self.get_stack()
+            k_broker_pair = Map.key(Map.broker, Map.pair)
+            k_broker_pair_dict = Map.key(Map.broker, Map.pair, dict.__name__)
+            k_broker_pair_size = Map.key(Map.broker, Map.pair, Map.size)
+            k_broker_pair_id = Map.key(Map.broker, Map.pair, Map.id)
+            broker_pair_size = stack.get(   k_broker_pair, k_broker_pair_size)
+            broker_pair_id = stack.get(     k_broker_pair, k_broker_pair_id)
+            broker_pairs = self.get_broker_pairs()
+            if (broker_pair_size is None) \
+                or (broker_pair_id is None) \
+                or ((len(broker_pairs) != broker_pair_size) \
+                or ((self.get_pair() is None) and (id(broker_pairs) != broker_pair_id))):
+                broker_pair_dict = dict.fromkeys(broker_pairs)
+                stack.put(broker_pair_dict,     k_broker_pair, k_broker_pair_dict)
+                stack.put(len(broker_pairs),    k_broker_pair, k_broker_pair_size)
+                stack.put(id(broker_pairs),     k_broker_pair, k_broker_pair_id)
+                # _MF.output(_MF.prefix() + _MF.C_GREEN + "Set 'broker_pair_dict'" + _MF.S_NORMAL)
+            broker_pair_dict = stack.get(k_broker_pair, k_broker_pair_dict)
+            return stream_pair in broker_pair_dict
         # # #
         period_1min = Broker.PERIOD_1MIN
         event_time, pair, event_period, market_row = explode_params(params)
-        broker_pairs = self.get_broker_pairs()
-        if (params[Map.period] != period_1min) or (params[Map.pair] not in broker_pairs) or (not can_stalk(unix_time=event_time, pair=pair, period=event_period, stalk_interval=period_1min)):
+        if (params[Map.period] != period_1min) or (not can_stalk(unix_time=event_time, pair=pair, period=event_period, stalk_interval=period_1min)) or (not is_pair_allowed(params[Map.pair])):
             return None
         position = get_position(pair)
         if ((not self.is_max_position_reached()) or (position is not None)):
