@@ -714,10 +714,10 @@ class Solomon(Strategy):
         tangent_macd_line_positive = macd_line[index] > macd_line[prev_index]
         # Put
         param_str = _MF.param_to_str(macd_params)
-        vars_map.put(tangent_macd_line_positive,    Map.condition,  f'is_tangent_macd_line_positive_{line_name}_{param_str}_{period_str}[{index}]')
-        vars_map.put(line_name,                     Map.value,      f'is_tangent_macd_line_positive_{line_name}_{param_str}_{period_str}[{index}]')
-        vars_map.put(macd_line[index],              Map.value,      f'is_tangent_macd_line_positive_{line_name}_{param_str}_{period_str}[{index}]')
-        vars_map.put(macd_line[prev_index],         Map.value,      f'is_tangent_macd_line_positive_{line_name}_{param_str}_{period_str}[{prev_index}]')
+        vars_map.put(tangent_macd_line_positive,    Map.condition,  f'is_tangent_macd_line_positive_{line_name}[{index}]_{param_str}_{period_str}')
+        vars_map.put(line_name,                     Map.value,      f'is_tangent_macd_line_positive_{line_name}[{index}]_{param_str}_{period_str}')
+        vars_map.put(macd_line[index],              Map.value,      f'is_tangent_macd_line_positive_{line_name}[{index}]_{param_str}_{period_str}[{index}]')
+        vars_map.put(macd_line[prev_index],         Map.value,      f'is_tangent_macd_line_positive_{line_name}[{index}]_{param_str}_{period_str}[{prev_index}]')
         return tangent_macd_line_positive
 
     @classmethod
