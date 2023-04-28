@@ -438,6 +438,8 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_macd_line_positive,           Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_psar_rising,                  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
             {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
         ]
@@ -446,8 +448,13 @@ class Solomon(Strategy):
         can_buy = cls.is_tangent_macd_line_positive(**func_and_params[0][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[1][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-            and cls.is_psar_rising(**func_and_params[3][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[4][Map.param])
+            and (
+                cls.is_macd_line_positive(**func_and_params[3][Map.param]) \
+                or
+                cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param])
+            ) \
+            and cls.is_psar_rising(**func_and_params[5][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[6][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         return can_buy, report
@@ -700,6 +707,24 @@ class Solomon(Strategy):
         vars_map.put(now_rise_rate,     Map.value,      f'tangent_market_trend_positive_now_rise_rate_{period_str}_{window}[{index}]')
         vars_map.put(prev_rise_rate,    Map.value,      f'tangent_market_trend_positive_prev_rise_rate_{period_str}_{window}[{prev_index}]')
         return tangent_positive
+
+    @classmethod
+    def is_macd_line_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, line_name: str, macd_params: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        macd_lines = marketprice.get_macd(**macd_params).get_map()
+        macd_line = list(macd_lines[line_name])
+        macd_line.reverse()
+        # Check
+        prev_index = index - 1
+        macd_line_positive = macd_line[index] > 0
+        # Put
+        param_str = _MF.param_to_str(macd_params)
+        vars_map.put(macd_line_positive,    Map.condition,  f'is_{line_name}_positive_[{index}]_{param_str}_{period_str}')
+        vars_map.put(macd_line[index],      Map.value,      f'is_{line_name}_positive_[{index}]_{param_str}_{period_str}[{index}]')
+        vars_map.put(macd_line[prev_index], Map.value,      f'is_{line_name}_positive_[{index}]_{param_str}_{period_str}[{prev_index}]')
+        return macd_line_positive
 
     @classmethod
     def is_tangent_macd_line_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, line_name: str, macd_params: dict = {}) -> bool:
