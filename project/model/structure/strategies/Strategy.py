@@ -189,6 +189,15 @@ class Strategy(Hand, ABC):
 
     @classmethod
     def _backtest_loop(cls, broker: Broker, pair: Pair, starttime: int, endtime: int) -> tuple[list[dict], list[dict], list[dict]]:
+        def try_execute(broker: Broker, marketprices: Map, trade: dict) -> dict:
+            cls._backtest_execute_trade(broker, marketprices, trade) if trade is not None else None
+            if (trade is not None) \
+                and (trade[Map.buy][Map.status] == Order.STATUS_COMPLETED) \
+                and (trade[Map.sell] is not None) \
+                and (trade[Map.sell][Map.status] == Order.STATUS_COMPLETED):
+                trades.append(trade)
+                trade = None
+            return trade
         def output(i: int, marketprice: MarketPrice, output_starttime: int, output_n_turn: int) -> tuple[int, int]:
             output_turn = i
             if i == 0:
@@ -255,16 +264,12 @@ class Strategy(Hand, ABC):
             output_starttime, output_n_turn = output(i, marketprice, output_starttime, output_n_turn)
             # Stats
             update_stats(i, stats, marketprice)
+            # Execution 2
+            trade = try_execute(broker, marketprices, trade)
             # Trade
             trade = cls._backtest_loop_inner(broker, marketprices, pair, trades, trade, buy_conditions, sell_conditions)
-            # Execution
-            cls._backtest_execute_trade(broker, marketprices, trade) if trade is not None else None
-            if (trade is not None) \
-                and (trade[Map.buy][Map.status] == Order.STATUS_COMPLETED) \
-                and (trade[Map.sell] is not None) \
-                and (trade[Map.sell][Map.status] == Order.STATUS_COMPLETED):
-                trades.append(trade)
-                trade = None
+            # Execution 2
+            trade = try_execute(broker, marketprices, trade)
         print() # To clean static print output()
         return trades, buy_conditions, sell_conditions, stats
 
