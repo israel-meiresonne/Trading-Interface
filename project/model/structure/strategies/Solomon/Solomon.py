@@ -469,7 +469,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, float]:
-        KEEP_RATE =     30/100
+        KEEP_RATE =     50/100
         KEEP_TRIGGER =  2/100
         def can_stop_losses(vars_map: Map, keep_trigger: float, keep_rate: float, buy_price: float, max_roi: float, sell_fee_rate: float) -> bool:
             stop_price = None
