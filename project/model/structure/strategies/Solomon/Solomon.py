@@ -26,7 +26,7 @@ class Solomon(Strategy):
     KELTER_SUPPORT =            None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
-        Broker.PERIOD_15MIN,
+        Broker.PERIOD_5MIN,
         Broker.PERIOD_1H,
         ]
     PSAR_1 =                    dict(step=.6, max_step=.6)
@@ -407,14 +407,15 @@ class Solomon(Strategy):
         return report
 
     @classmethod
-    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float]:
+    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
+        MARKET_TREND_TRIGGER = 20/100
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
-        period_15min = Broker.PERIOD_15MIN
+        period_5min = Broker.PERIOD_5MIN
         period_1h = Broker.PERIOD_1H
         periods = [
             period_1min,
-            period_15min,
+            period_5min,
             period_1h
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
@@ -423,7 +424,6 @@ class Solomon(Strategy):
         # Params
         now_index = -1
         prev_index_2 =  -2
-        k_keltner_middle_1min = f'keltner_middle_{period_strs[period_1min]}[-1]'
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -436,58 +436,90 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-
-            {Map.callback: cls.is_macd_line_positive,           Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
-
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_macd_line_positive,           Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_psar_rising,                  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=0, index=now_index)}
+            {Map.callback: cls.is_market_trend_bellow,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, trigger=MARKET_TREND_TRIGGER, is_int_round=True)},
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=False)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_buy = cls.is_tangent_macd_line_positive(**func_and_params[0][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[1][Map.param]) \
+        can_buy = cls.is_market_trend_bellow(**func_and_params[0][Map.param]) \
+            and cls.is_tangent_market_trend_positive(**func_and_params[1][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
             and (
-                cls.is_macd_line_positive(**func_and_params[2][Map.param])
+                cls.is_macd_line_positive(**func_and_params[4][Map.param])
                 or
-                cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
+                cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param])
             ) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[6][Map.param]) \
             and (
-                cls.is_macd_line_positive(**func_and_params[5][Map.param]) \
+                cls.is_macd_line_positive(**func_and_params[7][Map.param]) \
                 or
-                cls.is_tangent_macd_line_positive(**func_and_params[6][Map.param]) \
+                cls.is_tangent_macd_line_positive(**func_and_params[8][Map.param]) \
                 and
-                cls.is_tangent_macd_line_positive(**func_and_params[7][Map.param])
-            ) \
-            and cls.is_psar_rising(**func_and_params[8][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[9][Map.param])
-        if can_buy:
-            cls.is_keltner_roi_above_trigger(**func_and_params[10][Map.param])
+                cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param])
+            )
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
-        buy_limit = vars_map.get(Map.value, k_keltner_middle_1min)
-        return can_buy, report, buy_limit
+        return can_buy, report
 
     @classmethod
-    def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
+    def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
+        def has_switched_up_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
+            """
+            To check if supertrend has switched up then down since buy
+            """
+            if index >= 0:
+                raise ValueError(f"Index must be negative, instead '{index}'")
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            # Price
+            marketprice_df = marketprice.to_pd()
+            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            # Supertrends
+            supertrends = list(marketprice.get_super_trend())
+            supertrends.reverse()
+            supertrends_df = pd.DataFrame({Map.time: marketprice_df[Map.time], Map.supertrend: supertrends})
+            supertrends_df.set_index(Map.time, drop=False, inplace=True)
+            marketprice_df[Map.supertrend] = supertrends_df[Map.supertrend]
+            # Prepare
+            buy_time_round = _MF.round_time(buy_time, period)
+            now_time = marketprice_df[Map.time].iloc[index]
+            sub_marketprice_df = marketprice_df[(marketprice_df[Map.time] >= buy_time_round) & (marketprice_df[Map.time] <= now_time)]
+            rising_zone_df = sub_marketprice_df[sub_marketprice_df[Map.close] > sub_marketprice_df[Map.supertrend]]
+            # Check
+            has_switched = (rising_zone_df.shape[0] > 0) and (sub_marketprice_df.loc[now_time, Map.close] < sub_marketprice_df.loc[now_time, Map.supertrend])
+            # Put
+            trade_zone_start =  _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[0])
+            trade_zone_end =    _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[-1])
+            rising_zone_start = _MF.unix_to_date(rising_zone_df[Map.time].iloc[0]) if rising_zone_df.shape[0] > 0 else None
+            rising_zone_end =   _MF.unix_to_date(rising_zone_df[Map.time].iloc[-1]) if rising_zone_df.shape[0] > 0 else None
+            vars_map.put(has_switched,                      Map.condition,  f'has_switched_up_down_{period_str}[{index}]')
+            vars_map.put(_MF.unix_to_date(buy_time),        Map.value,      f'has_switched_up_down_{period_str}[{index}]_buy_time')
+            vars_map.put(_MF.unix_to_date(buy_time_round),  Map.value,      f'has_switched_up_down_{period_str}[{index}]_buy_time_round')
+            vars_map.put(_MF.unix_to_date(now_time),        Map.value,      f'has_switched_up_down_{period_str}[{index}]_now_time')
+            vars_map.put(trade_zone_start,                  Map.value,      f'has_switched_up_down_{period_str}[{index}]_trade_zone_start')
+            vars_map.put(trade_zone_end,                    Map.value,      f'has_switched_up_down_{period_str}[{index}]_trade_zone_end')
+            vars_map.put(rising_zone_start,                 Map.value,      f'has_switched_up_down_{period_str}[{index}]_rising_zone_start')
+            vars_map.put(rising_zone_end,                   Map.value,      f'has_switched_up_down_{period_str}[{index}]_rising_zone_end')
+            return has_switched
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
-        period_15min = Broker.PERIOD_15MIN
         periods = [
-            period_1min,
-            period_15min
+            period_1min
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
+        # Datas
+        buy_time = datas[Map.time]  # in second
         # Params
         now_index = -1
         # Add price
@@ -502,13 +534,11 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
-            {Map.callback: cls.is_psar_rising,          Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
+            {Map.callback: has_switched_up_down, Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_sell = not cls.is_psar_rising(**func_and_params[0][Map.param]) \
-            or not cls.is_supertrend_rising(**func_and_params[1][Map.param])
+        can_sell = has_switched_up_down(**func_and_params[0][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
@@ -778,16 +808,15 @@ class Solomon(Strategy):
         period_1min = Broker.PERIOD_1MIN
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
-            can_buy, buy_condition, buy_limit = cls.can_buy(broker, pair, marketprices)
+            can_buy, buy_condition = cls.can_buy(broker, pair, marketprices)
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
-                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_LIMIT, limit=buy_limit)
-            elif (trade is not None) and (not can_buy):
-                cls._backtest_update_trade(trade, Map.buy, Order.STATUS_CANCELED)
-                trade = None
+                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.close)
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
-            can_sell, sell_condition = cls.can_sell(broker, pair, marketprices)
+            sell_datas = {}
+            sell_datas[Map.time] = trade[Map.buy][Map.time]
+            can_sell, sell_condition = cls.can_sell(broker, pair, marketprices, sell_datas)
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
             sell_conditions.append(sell_condition)
             if can_sell:
