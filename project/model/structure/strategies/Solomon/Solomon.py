@@ -483,8 +483,10 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, float]:
-        KEEP_RATE =     50/100
-        KEEP_TRIGGER =  2/100
+        KEEP_RATE_1 =     30/100
+        KEEP_TRIGGER_1 =  1/100
+        KEEP_RATE_2 =     50/100
+        KEEP_TRIGGER_2 =  2/100
         def can_stop_losses(vars_map: Map, keep_trigger: float, keep_rate: float, buy_price: float, max_roi: float, sell_fee_rate: float) -> bool:
             stop_price = None
             # Check
@@ -532,14 +534,16 @@ class Solomon(Strategy):
         func_and_params = [
             {Map.callback: cls.is_psar_rising,          Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
             {Map.callback: cls.is_supertrend_rising,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: can_stop_losses,             Map.param: dict(vars_map=vars_map, keep_trigger=KEEP_TRIGGER, keep_rate=KEEP_RATE, buy_price=buy_price, max_roi=max_roi, sell_fee_rate=maker_fee)}
+            {Map.callback: can_stop_losses,             Map.param: dict(vars_map=vars_map, keep_trigger=KEEP_TRIGGER_2, keep_rate=KEEP_RATE_2, buy_price=buy_price, max_roi=max_roi, sell_fee_rate=maker_fee)},
+            {Map.callback: can_stop_losses,             Map.param: dict(vars_map=vars_map, keep_trigger=KEEP_TRIGGER_1, keep_rate=KEEP_RATE_1, buy_price=buy_price, max_roi=max_roi, sell_fee_rate=maker_fee)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
         can_sell = not cls.is_psar_rising(**func_and_params[0][Map.param]) \
             or not cls.is_supertrend_rising(**func_and_params[1][Map.param])
         # Stop Price
-        can_stop_losses(**func_and_params[2][Map.param])
+        can_stop_losses(**func_and_params[2][Map.param]) \
+        or can_stop_losses(**func_and_params[3][Map.param])
         stop_price = vars_map.get(Map.value, k_stop_ptice)
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
