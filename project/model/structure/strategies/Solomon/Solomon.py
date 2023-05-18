@@ -334,14 +334,37 @@ class Solomon(Strategy):
                 elif position is not None:
                     self.cancel(pair, marketprices=marketprices)
             elif position.has_position():
-                can_sell, sell_report = self.can_sell(broker, pair, marketprices)
+                r_asset = pair.get_right()
+                # Can sell
+                # +++ Prepare datas
+                sell_datas = {}
+                k_max_roi = Map.key(Map.maximum, Map.roi)
+                sell_max_price = position.extrem_prices(broker).get(Map.maximum)
+                buy_order =             position.get_buy_order()
+                buy_price =             buy_order.get_execution_price()
+                buy_price_value =       buy_price.get_value()
+                buy_amount =            buy_order.get_executed_amount()
+                fee_price =             buy_order.get_fee(r_asset)
+                fee_rate =              fee_price/buy_amount
+                sell_datas[k_max_roi] = _MF.progress_rate(sell_max_price, buy_price_value) - fee_rate
+                sell_datas[Map.buy] =   buy_price_value
+                # +++ Ask to sell
+                can_sell, sell_report, sell_stop_float = self.can_sell(broker, pair, marketprices, sell_datas)
+                sell_stop_price = Price(sell_stop_float, r_asset) if isinstance(sell_stop_float, float) else sell_stop_float
                 # Report Buy
                 sell_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
                 sell_report = self._new_row_condition(sell_report, current_func, loop_start_date, turn_start_date, sell_marketprice_1min, pair, can_sell, -1)
                 sell_reports.append(sell_report)
                 # Check
+                is_stop_set = sell_stop_price is not None
+                if (can_sell and position.is_submitted(Map.sell)) \
+                    or (is_stop_set and position.is_submitted(Map.sell) and (sell_stop_price != position.get_sell_order().get_stop_price())):
+                    self.cancel(pair, marketprices)
                 if can_sell:
                     self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
+                elif is_stop_set and (not position.is_submitted(Map.sell)):
+                    # self.sell(pair, Order.TYPE_STOP_LIMIT, stop=sell_stop_price, limit=sell_stop_price, marketprices=marketprices)
+                    self.sell(pair, Order.TYPE_STOP, stop=sell_stop_price, marketprices=marketprices)
             position = get_position(pair)
             if (position is not None) and position.is_closed():
                 self._repport_positions(marketprices=marketprices)
