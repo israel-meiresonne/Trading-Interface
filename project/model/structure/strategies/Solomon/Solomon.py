@@ -431,7 +431,7 @@ class Solomon(Strategy):
         return report
 
     @classmethod
-    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float]:
+    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
         TRIGGE_KELTNER = 1/100
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
@@ -449,7 +449,7 @@ class Solomon(Strategy):
         # Params
         now_index = -1
         prev_index_2 =  -2
-        k_keltner_middle_1min = f'keltner_middle_{period_strs[period_1min]}[-1]'
+        price_line = Map.low if Config.get(Config.STAGE_MODE) == Config.STAGE_1 else Map.close
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -464,6 +464,7 @@ class Solomon(Strategy):
         func_and_params = [
             {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=False)},
             {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=TRIGGE_KELTNER, index=now_index)},
+            {Map.callback: cls.is_compare_price_and_keltner_line,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, compare='<=', price_line=price_line, keltner_line=Map.middle, index=now_index)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
@@ -473,36 +474,33 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=0, index=now_index)}
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
         can_buy = cls.is_tangent_market_trend_positive(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
+            and cls.is_compare_price_and_keltner_line(**func_and_params[2][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
             and (
-                cls.is_macd_line_positive(**func_and_params[4][Map.param])
+                cls.is_macd_line_positive(**func_and_params[5][Map.param])
                 or
-                cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param])
+                cls.is_tangent_macd_line_positive(**func_and_params[6][Map.param])
             ) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[6][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[7][Map.param]) \
             and (
-                cls.is_macd_line_positive(**func_and_params[7][Map.param]) \
+                cls.is_macd_line_positive(**func_and_params[8][Map.param]) \
                 or
-                cls.is_tangent_macd_line_positive(**func_and_params[8][Map.param]) \
+                cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param]) \
                 and
-                cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param])
+                cls.is_tangent_macd_line_positive(**func_and_params[10][Map.param])
             ) \
-            and cls.is_psar_rising(**func_and_params[10][Map.param]) \
-            and cls.is_supertrend_rising(**func_and_params[11][Map.param])
-        if can_buy:
-            cls.is_keltner_roi_above_trigger(**func_and_params[12][Map.param])
+            and cls.is_psar_rising(**func_and_params[11][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[12][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
-        buy_limit = vars_map.get(Map.value, k_keltner_middle_1min)
-        return can_buy, report, buy_limit
+        return can_buy, report
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, float]:
@@ -839,14 +837,11 @@ class Solomon(Strategy):
         period_1min = Broker.PERIOD_1MIN
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
-            can_buy, buy_condition, buy_limit = cls.can_buy(broker, pair, marketprices)
+            can_buy, buy_condition = cls.can_buy(broker, pair, marketprices)
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
-                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_LIMIT, limit=buy_limit)
-            elif (trade is not None) and (not can_buy):
-                cls._backtest_update_trade(trade, Map.buy, Order.STATUS_CANCELED)
-                trade = None
+                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.mean)
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             sell_datas = {}
             k_max_roi = Map.key(Map.maximum, Map.roi)
