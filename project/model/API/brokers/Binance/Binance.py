@@ -104,17 +104,17 @@ class Binance(Broker, MyJson):
             stream_dict[pair].append(period) if period not in stream_dict[pair] else None
         return stream_dict
 
-    def exist_event_callback(self, event_name: str, callback: Callable) -> bool:
-        api_event_name = self.EVENT_BROKER_TO_API[event_name]
-        BinanceAPI.exist_event_callback(api_event_name, callback)
+    def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
+        api_event = self.EVENT_BROKER_TO_API[event]
+        return BinanceAPI.exist_event_streams(api_event, callback, streams)
 
-    def add_event_callback(self, event_name: str, callback: Callable) -> None:
-        api_event_name = self.EVENT_BROKER_TO_API[event_name]
-        BinanceAPI.add_event_callback(api_event_name, callback)
+    def add_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
+        api_event = self.EVENT_BROKER_TO_API[event]
+        BinanceAPI.add_event_streams(api_event, callback, streams)
 
-    def delete_event_callback(self, event_name: str, callback: Callable) -> None:
-        api_event_name = self.EVENT_BROKER_TO_API[event_name]
-        BinanceAPI.delete_event_callback(api_event_name, callback)
+    def remove_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
+        api_event = self.EVENT_BROKER_TO_API[event]
+        BinanceAPI.remove_event_streams(api_event, callback, streams)
 
     @staticmethod
     def generate_stream(params: Map) -> str:
