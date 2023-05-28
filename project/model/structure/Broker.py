@@ -18,7 +18,7 @@ class Broker(ABC):
     PERIOD_6H =     PERIOD_1H * 6
     EVENT_NEW_PRICE =   'BROKER_EVENT_NEW_PRICE'
     EVENT_NEW_PERIOD =  'BROKER_EVENT_NEW_PERIOD'
-    EVENT_NAMES = [
+    EVENTS = [
         EVENT_NEW_PRICE,
         EVENT_NEW_PERIOD
         ]
@@ -100,16 +100,18 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def exist_event_callback(self, event_name: str, callback: Callable) -> bool:
+    def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
         """
-        To check if callback exist
+        To check if callback exist on the event of the given streams
 
         Parameters:
         -----------
-        event_name: str
+        event: str
             Name of a supported event
         callback: Callable
             The callback to look for
+        streams: list[str]
+            List of stream to check
 
         Return:
         -------
@@ -119,30 +121,34 @@ class Broker(ABC):
         pass
 
     @abstractmethod
-    def add_event_callback(self, event_name: str, callback: Callable) -> None:
+    def add_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
         """
-        To hook callback to Broker's event
+        To hook a callback on an event of the given streams
 
         Parameters:
         -----------
-        event_name: str
+        event: str
             Name of a supported event to hook on
         callback: Callable
             The callback to trigger
+        streams: list[str]
+            List of stream
         """
         pass
 
     @abstractmethod
-    def delete_event_callback(self, event_name: str, callback: Callable) -> None:
+    def remove_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
         """
-        To delete callback from Broker's event
+        To remove a callback hooked on an event of the given streams
 
         Parameters:
         -----------
-        event_name: str
+        event: str
             Name of a supported event
         callback: Callable
             The callback to delete
+        streams: list[str]
+            List of stream
         """
         pass
 
