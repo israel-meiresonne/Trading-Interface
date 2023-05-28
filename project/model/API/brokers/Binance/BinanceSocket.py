@@ -37,7 +37,7 @@ class BinanceSocket(BinanceAPI):
     _THREAD_NAME_WEBSOCKET_MANGER =         'websocket_manager'
     _THREAD_NAME_WEBSOCKET_EVENT_HANDLER =  'websocket_event_handler'
     _THREAD_NAME_WEBSOCKET_EVENT_WAITING =  'websocket_event_waiting'
-    _THREAD_NAME_EVENT_CALLBACK =           'event_callback'
+    _THREAD_NAME_EVENT_STREAM =             'event_stream'
     _TIMEOUT_RUN_WEBSOCKET =                10
     _TIMEOUT_CLOSE_WEBSOCKET =              10
     _SLEEP_WAIT_NEW_MESSAGE =               1
@@ -46,7 +46,7 @@ class BinanceSocket(BinanceAPI):
     _SLEEP_RUN_WEBSOCKET =                  1
     _SLEEP_MANAGER_RUN_WEBSOCKET =          1
     _SLEEP_MANAGER_LOOP =                   1
-    _SLEEP_POST_CALLBACK_EVENT =            0.0001
+    _SLEEP_POST_EVENT_STREAM =              0.0001
     MAX_N_PERIOD_OFFSET =                   5
 
     def __init__(self, streams: list):
@@ -67,10 +67,10 @@ class BinanceSocket(BinanceAPI):
         self.__room_post_event =            None
         self.__thread_event_handler =       None
         self.__websocket_messages =         None
-        self.__event_callbacks =            None
-        self.__thread_event_callback =      None
-        self.__room_event_callback =        None
-        self.__queue_event_callback =       None
+        self.__event_streams =              None
+        self.__thread_event_stream =        None
+        self.__room_event_stream =          None
+        self.__queue_event_stream =         None
         self._set_streams(streams)
 
     # ——————————————————————————————————————————— SELF GETTER/SETTER FUNCTION DOWN —————————————————————————————————————
@@ -590,113 +590,151 @@ class BinanceSocket(BinanceAPI):
 
     # ——————————————————————————————————————————— CALLBACK EVENT DOWN
 
-    def _check_event_callback(self, event_name: str, callback: Callable) -> Callable:
-        _MF.check_allowed_values(event_name, self.EVENT_NAMES)
-        _MF.check_type(callback, Callable)
-        return True
-
-    def _get_event_callbacks(self) -> Map:
+    def reset_module_event_streams(self) -> None:
         """
-        To get callback
-
-        Return:
-        -------
-        return: dict[str, dict[str, Callable]]
-
-        dict[event_name{str}][id(callback){int}] -> {Callable} # The callback
+        To reset all parameters required to manage hook of callback on stream's events
         """
-        event_callbacks = self.__event_callbacks
-        if event_callbacks is None:
-            self.__event_callbacks = event_callbacks = Map()
-        return event_callbacks
+        self.reset_event_streams()
+        self._reset_thread_event_stream()
+        self._reset_queue_event_stream()
+        self._reset_room_post_event_stream()
 
-    def exist_event_callback(self, event_name: str, callback: Callable) -> bool:
-        self._check_event_callback(event_name, callback)
-        callbacks = self._get_event_callbacks()
-        exist = callbacks.get(event_name, id(callback)) is not None
-        return exist
+    def _reset_thread_event_stream(self) -> None:
+        self.__thread_event_stream = None
 
-    def add_event_callback(self, event_name: str, callback: Callable) -> None:
-        self._check_event_callback(event_name, callback)
-        callbacks = self._get_event_callbacks()
-        callback_id = id(callback)
-        if callbacks.get(event_name, callback_id) is not None:
-            callback_str =          callback.__str__()
-            found_callback =        callbacks.get(event_name, callback_id)
-            found_callback_str =    found_callback.__str__()
-            found_callback_id =     id(found_callback)
-            raise ValueError(f"This callback 'name={callback_str}, id={callback_id}' already exist (name={found_callback_str}, id={found_callback_id})")
-        callbacks.put(callback, event_name, callback_id)
-
-    def delete_event_callback(self, event_name: str, callback: Callable) -> None:
-        self._check_event_callback(event_name, callback)
-        callbacks = self._get_event_callbacks()
-        callback_id = id(callback)
-        callbacks.put(None, event_name, callback_id)
-        del callbacks.get_map()[event_name][callback_id]
-
-    def _reset_thread_event_callback(self) -> None:
-        self.__thread_event_callback = None
-
-    def _get_thread_event_callback(self) -> threading.Thread:
+    def _get_thread_event_stream(self) -> threading.Thread:
         """
-        To get thread that manage events
+        To get thread that manage stream events
         """
-        event_thread = self.__thread_event_callback
-        if (event_thread is None) or (not event_thread.is_alive()):
+        thread_event_stream = self.__thread_event_stream
+        if (thread_event_stream is None) or (not thread_event_stream.is_alive()):
             class_name = self.__class__.__name__
-            thread_name = self._THREAD_NAME_EVENT_CALLBACK
-            event_thread, output = _MF.wrap_thread(self._thread_callback_event, class_name, thread_name, repport=True)
-            self.__thread_event_callback = event_thread
-        return event_thread
+            thread_name = self._THREAD_NAME_EVENT_STREAM
+            thread_event_stream, output = _MF.wrap_thread(self._treat_event_stream, class_name, thread_name, repport=True)
+            _MF.output(output) if self._DEBUG else None
+            self.__thread_event_stream = thread_event_stream
+        return thread_event_stream
 
-    def _get_room_post_event_callback(self) -> WaitingRoom:
+    def _reset_room_post_event_stream(self) -> None:
+        self.__room_event_stream = None
+    
+    def _get_room_post_event_stream(self) -> WaitingRoom:
         """
-        To get queue where to wait to post callback events
+        To get queue where to wait to post stream events
 
         Returns:
         --------
         reeturn: WaitingRoom
-            Queue where to wait to post callback events
+            Queue where to wait to post stream events
         """
-        room = self.__room_event_callback
+        room = self.__room_event_stream
         if room is None:
-            self.__room_event_callback = room = WaitingRoom('post-callback-event')
+            self.__room_event_stream = room = WaitingRoom('post-stream-event')
         return room
 
-    def _get_queu_event_callback(self) -> list[dict]:
+    def _reset_queue_event_stream(self) -> None:
+        self.__queue_event_stream = None
+
+    def _get_queu_event_stream(self) -> dict[str, dict]:
         """
-        To get list of callback to execute
+        To get dict of callback to execute
+
+        Return:
+        -------
+        return: dict[dict]
+            Dict of callback to execute
+
+        dict[event_stream_id{str}]: {dict} # Event values
         """
-        queue = self.__queue_event_callback
+        queue = self.__queue_event_stream
         if queue is None:
-            self.__queue_event_callback = queue = []
+            self.__queue_event_stream = queue = {}
         return queue
 
-    def _post_event_callback(self, event_name: str, **kwargs) -> None:
-        event_callbacks = self._get_event_callbacks()
-        callbacks_dict = event_callbacks.get(event_name)
-        if (callbacks_dict is not None) and (len(callbacks_dict) > 0):
-            room = self._get_room_post_event_callback()
-            ticket = room.join_room()
-            while not room.my_turn(ticket):
-                _MF.sleep(self._SLEEP_POST_CALLBACK_EVENT)
-            callback_queue = self._get_queu_event_callback()
-            callback_queue.append({Map.callback: event_name, Map.data: kwargs})
-            self._get_thread_event_callback().start() if not self._get_thread_event_callback().is_alive() else None
-            room.quit_room(ticket)
+    def reset_event_streams(self) -> None:
+        self.__event_streams = None
 
-    def _thread_callback_event(self) -> None:
-        callback_queue = self._get_queu_event_callback()
-        event_callbacks = self._get_event_callbacks()
+    def _get_event_streams(self) -> Map:
+        """
+        To get collection streams hanging callback for each supported event
+
+        Return:
+        -------
+        return: Map
+            Collection streams hanging callback for event
+
+        Map[stream{str}][event{str}][callback_id{str}]: {Callable} # The callback's id
+        """
+        event_streams = self.__event_streams
+        if event_streams is None:
+            self.__event_streams = event_streams = Map()
+        return event_streams
+
+    def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
+        """
+        To check if callback exist on the event of the given streams
+        """
+        exist = False
+        callback_id = self._new_event_callback_id(callback)
+        event_streams = self._get_event_streams()
+        n_stream = len(streams)
+        i = 0
+        while (i < n_stream) and (event_streams.get(streams[i], event, callback_id) is not None):
+            i += 1
+        exist = i >= n_stream
+        return exist
+
+    def add_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
+        """
+        To hook a callback on an event of the given streams
+        """
+        self._check_event_callback(event, callback, streams)
+        callback_id = self._new_event_callback_id(callback)
+        event_streams = self._get_event_streams()
+        [event_streams.put(callback, stream, event, callback_id) for stream in streams]
+
+    def remove_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
+        """
+        To remove a callback hooked on an event of the given streams
+        """
+        self._check_event_callback(event, callback, streams)
+        callback_id = self._new_event_callback_id(callback)
+        event_streams = self._get_event_streams()
+        for stream in streams:
+            if event_streams.get(stream, event, callback_id) is not None:
+                event_streams_dict = event_streams.get_map()
+                event_streams_dict[stream][event][callback_id] = None
+                del event_streams_dict[stream][event][callback_id]
+                if len(event_streams_dict[stream][event]) == 0:
+                    del event_streams_dict[stream][event]
+                    if len(event_streams_dict[stream]) == 0:
+                        del event_streams_dict[stream]
+
+    def _post_event_stream(self, event: str, stream: str, **kwargs) -> None:
+        """
+        To add to queue event occured on a stream to be treated
+        """
+        room = self._get_room_post_event_stream()
+        ticket = room.join_room()
+        while not room.my_turn(ticket):
+            _MF.sleep(self._SLEEP_POST_EVENT_STREAM)
+        event_queue = self._get_queu_event_stream()
+        event_stream_id = self._new_event_stream_id(event, stream)
+        event_queue[event_stream_id] = {Map.event: event, Map.stream: stream, Map.param: kwargs}
+        self._get_thread_event_stream().start() if not self._get_thread_event_stream().is_alive() else None
+        room.quit_room(ticket)
+
+    def _treat_event_stream(self) -> None:
+        event_queue = self._get_queu_event_stream()
+        event_streams = self._get_event_streams()
         class_name = self.__class__.__name__
-        while self.is_running() and (len(callback_queue) > 0):
-            event_name = callback_queue[0][Map.callback]
-            params = callback_queue[0][Map.data]
-            dict_callbacks = event_callbacks.get(event_name).copy()
-            [_MF.catch_exception(callback, class_name, repport=True, **params) for callback_id, callback in dict_callbacks.items()]
-            del callback_queue[0]
-        self._reset_thread_event_callback()
+        while self.is_running() and (len(event_queue) > 0):
+            event_stream_id = list(event_queue.keys())[0]
+            event_row = event_queue[event_stream_id]
+            callbacks = event_streams.get(event_row[Map.stream], event_row[Map.event]).copy()
+            [_MF.catch_exception(callback, class_name, repport=True, **event_row[Map.param]) for _, callback in callbacks.items()]
+            del event_queue[event_stream_id]
+        self._reset_thread_event_stream()
 
     # ——————————————————————————————————————————— CALLBACK EVENT UP
     # ——————————————————————————————————————————— SELF GETTER/SETTER FUNCTION UP ———————————————————————————————————————
@@ -843,10 +881,11 @@ class BinanceSocket(BinanceAPI):
                 def compare_time() -> str:
                     equal = new_row[-1][0] == market_hist[-1][0]
                     return f"new_row(Time) == market_hist(Time) ('{equal}'): '{milli_to_date(new_row[-1][0])}' == '{milli_to_date(market_hist[-1][0])}'"
-                def print_end() -> None:
-                    _MF.output(f"{_MF.prefix()}kline: new close[-1] '{new_row[-1, 4]}'.") if BinanceSocket._VERBOSE else None
-                    _MF.output(f"{_MF.prefix()}kline: history close[-1] '{market_hists.get(stream)[-1, 4]}'.") if BinanceSocket._VERBOSE else None
-                    _MF.output(f"{_MF.prefix()}kline: history close[-2] '{market_hists.get(stream)[-2, 4]}'.") if BinanceSocket._VERBOSE else None
+                def end_debug() -> None:
+                    output = _MF.prefix() + \
+                        f" {stream}: new close[-1]->'{new_row[-1, 4]}',"\
+                        f" {stream}: history close[:-2] ->'(-2){market_hists.get(stream)[-2, 4]}, (-1){market_hists.get(stream)[-1, 4]}'"
+                    _MF.output(output)
                 def build_new_row(pay_load: dict) -> np.ndarray:
                     new_row_list = [
                         pay_load['k']['t'],    # 0.  Open time
@@ -868,21 +907,17 @@ class BinanceSocket(BinanceAPI):
                     return new_row
                 def is_market_history_correct(stream: str, new_row: np.ndarray, market_history: np.ndarray) -> bool:
                     return self.are_open_times_constant(stream, market_history) and self.is_new_open_time_correct(stream, new_row, market_history)
-                def post_callback_event(event_name: str, event_time: int, merged_pair: str, period_str: str, new_prices: np.ndarray) -> None:
+                def post_callback_event(event: str, stream: str, event_time: int, merged_pair: str, period_str: str, new_prices: np.ndarray) -> None:
                     new_prices[:, 0] = new_prices[:, 0]/1000
                     new_prices[:, 6] = new_prices[:, 6]/1000
                     params = {
+                        Map.event:  event,
                         Map.time:   event_time/1000,
                         Map.pair:   Pair(self.symbol_to_pair(merged_pair)),
                         Map.period: self.get_interval(period_str),
                         Map.price:  new_prices
                     }
-                    if event_name == self.EVENT_NEW_PRICE:
-                        self._post_event_callback(event_name, params=params)
-                    elif event_name == self.EVENT_NEW_PERIOD:
-                        self._post_event_callback(event_name, params=params)
-                    else:
-                        raise ValueError(f"This event '{event_name}' is not supported")
+                    self._post_event_stream(event, stream, params=params)
                 rq = BinanceAPI.RQ_KLINES
                 symbol = pay_load['s']
                 period_str = pay_load['k']['i']
@@ -897,25 +932,32 @@ class BinanceSocket(BinanceAPI):
                 else:
                     print(_MF.prefix() + compare_time()) if BinanceSocket._VERBOSE else None
                     stage = Config.get(Config.STAGE_MODE)
-                    IS_NEW_PERIOD = False
-                    if new_row[-1][0] == market_hist[-1][0]:   # compare open time
-                        print(_MF.prefix() + f"REPLACE LAST") if BinanceSocket._VERBOSE else None
+                    new_price_event = self.EVENT_NEW_PRICE
+                    new_period_event = self.EVENT_NEW_PERIOD
+                    occured_events = []
+                    if new_row[-1][0] == market_hist[-1][0]:
+                        print(_MF.prefix() + f"REPLACE LAST ROW") if BinanceSocket._VERBOSE else None
                         market_hist[-1] = new_row
                         update_fake_api(stream, symbol, period_str) if stage == Config.STAGE_2 else None
+                        occured_events.append(new_price_event)
                     elif new_row[-1][0] > market_hist[-1][0]:
-                        print(_MF.prefix() + f"PUSH NEW LINE") if BinanceSocket._VERBOSE else None
+                        print(_MF.prefix() + f"PUSH NEW ROW") if BinanceSocket._VERBOSE else None
                         new_market_hist = np.vstack((market_hist, new_row))
                         market_hists.put(new_market_hist, stream)
                         update_fake_api(stream, symbol, period_str) if stage == Config.STAGE_2 else None
-                        IS_NEW_PERIOD = True
+                        occured_events.append(new_period_event)
+                        occured_events.append(new_price_event) if (new_row[-1][4] != market_hist[-1][4]) else None
                     elif BinanceSocket._VERBOSE:
                         new_date = _MF.unix_to_date(int(new_row[-1][0]/1000))
                         market_date = _MF.unix_to_date(int(market_hist[-1][0]/1000))
                         error = f"Stream event '{stream}' is older than market's newest row (market='{market_date}', new_date='{new_date}')"
                         _MF.output(_MF.prefix() + _red + error + _normal)
-                    print_end() if BinanceSocket._VERBOSE else None
-                    post_callback_event(self.EVENT_NEW_PRICE, event_time, symbol, period_str, new_row.copy())
-                    post_callback_event(self.EVENT_NEW_PERIOD, event_time, symbol, period_str, new_row.copy()) if IS_NEW_PERIOD else None
+                    end_debug() if BinanceSocket._VERBOSE else None
+                    event_streams = self._get_event_streams()
+                    for event in occured_events:
+                        callbacks = event_streams.get(stream, event)
+                        if (callbacks is not None) and (len(callbacks) > 0):
+                            post_callback_event(event, stream, event_time, symbol, period_str, new_row.copy())
 
             def root_event(event: str, pay_load: dict) -> None:
                 if event == 'kline':
@@ -1139,6 +1181,7 @@ class BinanceSocket(BinanceAPI):
         self._reset_websocket_messages()
         self._reset_room_post_event()
         self._reset_thread_event_handler()
+        self.reset_module_event_streams()
 
     def _manage_run(self) -> None:
         """
@@ -1165,8 +1208,8 @@ class BinanceSocket(BinanceAPI):
                 n_ws_messages = len(self._get_websocket_messages())
                 n_event = len(self._get_room_post_event().get_tickets())
                 # Event Callback Post + Treat
-                n_post_callback = len(self._get_room_post_event_callback().get_tickets())
-                n_treat_callback = len(self._get_queu_event_callback())
+                n_post_callback = len(self._get_room_post_event_stream().get_tickets())
+                n_treat_callback = len(self._get_queu_event_stream())
                 # Write room
                 n_post_write = FileManager.n_wait()
                 n_write = FileManager.n_write()
@@ -1513,6 +1556,28 @@ class BinanceSocket(BinanceAPI):
         _MF.output(f"{_MF.prefix()}New Thread '{thread_name}'!"
               ) if output and _cls._DEBUG else None
         return new_thread
+
+    @classmethod
+    def _check_event_callback(cls, event_name: str, callback: Callable, streams: list[str]) -> Callable:
+        _MF.check_allowed_values(event_name, cls.EVENT_NAMES)
+        _MF.check_type(callback, Callable)
+        _MF.check_type(streams, list)
+        _MF.check_type('-'.join(streams), str)
+        return True
+
+    @staticmethod
+    def _new_event_callback_id(callback: Callable) -> str:
+        """
+        To generate id for callback
+        """
+        return f'{callback.__name__}_{id(callback)}'
+
+    @staticmethod
+    def _new_event_stream_id(event: str, stream: str) -> str:
+        """
+        To generate id for stream events
+        """
+        return f'{stream}_{event}'
 
     @staticmethod
     def _group_streams(streams: list) -> List[list]:

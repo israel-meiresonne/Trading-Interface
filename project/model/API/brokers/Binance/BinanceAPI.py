@@ -819,16 +819,16 @@ class BinanceAPI(ABC):
         return match_format
 
     @classmethod
-    def exist_event_callback(cls, event_name: str, callback: Callable) -> bool:
-        return cls._SOCKET.exist_event_callback(event_name, callback)
+    def exist_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> bool:
+        return cls._SOCKET.exist_event_streams(event, callback, streams)
 
     @classmethod
-    def add_event_callback(cls, event_name: str, callback: Callable) -> None:
-        cls._SOCKET.add_event_callback(event_name, callback)
+    def add_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> None:
+        cls._SOCKET.add_event_streams(event, callback, streams)
 
     @classmethod
-    def delete_event_callback(cls, event_name: str, callback: Callable) -> None:
-        cls._SOCKET.delete_event_callback(event_name, callback)
+    def remove_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> None:
+        cls._SOCKET.remove_event_streams(event, callback, streams)
 
     # ——————————————————————————————————————————— SOCKET UP
 
