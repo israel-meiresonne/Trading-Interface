@@ -611,7 +611,7 @@ class BinanceSocket(BinanceAPI):
             class_name = self.__class__.__name__
             thread_name = self._THREAD_NAME_EVENT_STREAM
             thread_event_stream, output = _MF.wrap_thread(self._treat_event_stream, class_name, thread_name, repport=True)
-            _MF.output(output) if self._DEBUG else None
+            _MF.output(output) if self._VERBOSE else None
             self.__thread_event_stream = thread_event_stream
         return thread_event_stream
 
@@ -669,6 +669,12 @@ class BinanceSocket(BinanceAPI):
         if event_streams is None:
             self.__event_streams = event_streams = Map()
         return event_streams
+
+    def get_event_streams(self) -> list[str]:
+        """
+        To get list of streams holding callbacks hooked to their events 
+        """
+        return self._get_event_streams().get_keys()
 
     def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
         """
