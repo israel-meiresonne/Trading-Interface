@@ -104,6 +104,9 @@ class Binance(Broker, MyJson):
             stream_dict[pair].append(period) if period not in stream_dict[pair] else None
         return stream_dict
 
+    def get_event_streams(cls) -> list[str]:
+        return BinanceAPI.get_event_streams()
+
     def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
         api_event = self.EVENT_BROKER_TO_API[event]
         return BinanceAPI.exist_event_streams(api_event, callback, streams)

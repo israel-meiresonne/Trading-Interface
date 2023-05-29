@@ -235,28 +235,31 @@ class Solomon(Strategy):
             self._callback_trade(params, marketprices)
         else:
             if not self.is_market_analyse_on():
-                # Add streams
-                # # Analyse streams
-                analyse_pairs =     MarketPrice.get_spot_pairs(broker.__class__.__name__, Asset('USDT'))
+                C_Y = _MF.C_YELLOW
+                S_N = _MF.S_NORMAL
+                # Analyse streams
+                r_asset = self.get_wallet().get_initial().get_asset()
+                all_market_pairs =     MarketPrice.get_spot_pairs(broker.__class__.__name__, r_asset)
                 analyse_periods =   self._MARKET_ANALYSE_TREND_PERIODS
-                analyse_streams =  broker.generate_streams(analyse_pairs, analyse_periods)
-                # # Strategy streams
+                analyse_streams =  broker.generate_streams(all_market_pairs, analyse_periods)
+                # Strategy streams
                 broker_pairs =       self.get_broker_pairs()
                 required_periods =   self._REQUIRED_PERIODS
                 strategy_streams =  broker.generate_streams(broker_pairs, required_periods)
-                # # 1min period
-                stream_1min = broker.generate_streams(analyse_pairs, [Broker.PERIOD_1MIN])
-                # # Add      
+                stream_1min = broker.generate_streams(broker_pairs, [Broker.PERIOD_1MIN])
+                #  Add
                 streams = _MF.remove_duplicates([*strategy_streams, *analyse_streams, *stream_1min])
                 broker.add_streams(streams)
                 # Start analyse
                 self.set_market_analyse_on(True)
                 x = lambda : type(self.get_market_trend(analyse_periods[0]))
                 wait_time = 60 * 10
-                _MF.output(_MF.prefix() + f"Waiting the first analyse...")
+                _MF.output(_MF.prefix() + f"{C_Y}Waiting the first analyse...{S_N}")
                 _MF.wait_while(x, pd.DataFrame, wait_time, to_raise=Exception("The time to wait market's analyse is out"))
-                _MF.output(_MF.prefix() + f"End wait the first analyse!")
-            broker.add_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade) if (not broker.exist_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)) else None
+                _MF.output(_MF.prefix() + f"{C_Y}End wait the first analyse!{S_N}")
+                # Hook callback
+                broker_event = Broker.EVENT_NEW_PERIOD
+                broker.add_event_streams(broker_event, self._callback_trade, stream_1min) if (not broker.exist_event_streams(broker_event, self._callback_trade, stream_1min)) else None
         stack = self.get_stack()
         stack_key = self.K_BUY_SELL_CONDITION
         if stack.get(stack_key) is not None:
@@ -268,10 +271,10 @@ class Solomon(Strategy):
                 FileManager.write_csv(file, fields, rows, overwrite=False, make_dir=True)
 
     def _callback_trade(self, params: dict, marketprices: Map = None) -> None:
-        def explode_params(params: dict) -> tuple[int, Pair, int, np.ndarray]:
+        def explode_params(params: dict) -> tuple[str, int, Pair, int, np.ndarray]:
             return tuple(params.values())
         def get_position(pair: Pair) -> HandTrade:
-            return _MF.catch_exception(self.get_position, self.__class__.__name__, repport=False, **{Map.pair: pair})
+            return self.get_position(pair) if self.exist_position(pair) else None
         def can_stalk(unix_time: int, pair: Pair, period: int, stalk_interval: int) -> bool:
             can = False
             stack = self.get_stack()
@@ -292,8 +295,8 @@ class Solomon(Strategy):
             k_broker_pair_dict = Map.key(Map.broker, Map.pair, dict.__name__)
             k_broker_pair_size = Map.key(Map.broker, Map.pair, Map.size)
             k_broker_pair_id = Map.key(Map.broker, Map.pair, Map.id)
-            broker_pair_size = stack.get(   k_broker_pair, k_broker_pair_size)
-            broker_pair_id = stack.get(     k_broker_pair, k_broker_pair_id)
+            broker_pair_size = stack.get(k_broker_pair, k_broker_pair_size)
+            broker_pair_id = stack.get(k_broker_pair, k_broker_pair_id)
             broker_pairs = self.get_broker_pairs()
             if (broker_pair_size is None) \
                 or (broker_pair_id is None) \
@@ -303,14 +306,11 @@ class Solomon(Strategy):
                 stack.put(broker_pair_dict,     k_broker_pair, k_broker_pair_dict)
                 stack.put(len(broker_pairs),    k_broker_pair, k_broker_pair_size)
                 stack.put(id(broker_pairs),     k_broker_pair, k_broker_pair_id)
-                # _MF.output(_MF.prefix() + _MF.C_GREEN + "Set 'broker_pair_dict'" + _MF.S_NORMAL)
             broker_pair_dict = stack.get(k_broker_pair, k_broker_pair_dict)
             return stream_pair in broker_pair_dict
         # # #
         period_1min = Broker.PERIOD_1MIN
-        event_time, pair, event_period, market_row = explode_params(params)
-        if (params[Map.period] != period_1min) or (not can_stalk(unix_time=event_time, pair=pair, period=event_period, stalk_interval=period_1min)) or (not is_pair_allowed(params[Map.pair])):
-            return None
+        event, event_time, pair, event_period, market_row = explode_params(params)
         position = get_position(pair)
         if ((not self.is_max_position_reached()) or (position is not None)):
             broker = self.get_broker()
@@ -330,7 +330,13 @@ class Solomon(Strategy):
                 buy_reports.append(buy_report)
                 if can_buy:
                     buy_limit_price = Price(buy_limit, pair.get_right())
-                    self.buy(pair, Order.TYPE_LIMIT, limit=buy_limit_price, marketprices=marketprices)
+                    buy_place_new_order = True
+                    if position is not None:
+                        old_buy_limit_price = position.get_buy_order().get_limit_price()
+                        buy_place_new_order = buy_limit_price != old_buy_limit_price
+                        self.cancel(pair, marketprices=marketprices) if buy_place_new_order else None
+                        buy_place_new_order = not position.is_executed(Map.buy)
+                    self.buy(pair, Order.TYPE_LIMIT, limit=buy_limit_price, marketprices=marketprices) if buy_place_new_order else None
                 elif position is not None:
                     self.cancel(pair, marketprices=marketprices)
             elif position.has_position():
@@ -377,7 +383,9 @@ class Solomon(Strategy):
 
     def stop(self) -> None:
         broker = self.get_broker()
-        broker.delete_event_callback(Broker.EVENT_NEW_PERIOD, self._callback_trade)
+        streams = broker.get_event_streams()
+        for event in Broker.EVENTS:
+            broker.remove_event_streams(event, self._callback_trade, streams)
         super().stop()
 
     # ——————————————————————————————————————————— OTHERS SELF UP
