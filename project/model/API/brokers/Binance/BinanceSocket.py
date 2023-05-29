@@ -888,9 +888,10 @@ class BinanceSocket(BinanceAPI):
                     equal = new_row[-1][0] == market_hist[-1][0]
                     return f"new_row(Time) == market_hist(Time) ('{equal}'): '{milli_to_date(new_row[-1][0])}' == '{milli_to_date(market_hist[-1][0])}'"
                 def end_debug() -> None:
+                    f_market_hist = market_hists.get(stream)
                     output = _MF.prefix() + \
                         f" {stream}: new close[-1]->'{new_row[-1, 4]}',"\
-                        f" {stream}: history close[:-2] ->'(-2){market_hists.get(stream)[-2, 4]}, (-1){market_hists.get(stream)[-1, 4]}'"
+                        f" history '{f_market_hist.shape}': close[:-2] ->'(-2){f_market_hist[-2, 4]}, (-1){f_market_hist[-1, 4]}'"
                     _MF.output(output)
                 def build_new_row(pay_load: dict) -> np.ndarray:
                     new_row_list = [
@@ -949,6 +950,7 @@ class BinanceSocket(BinanceAPI):
                     elif new_row[-1][0] > market_hist[-1][0]:
                         print(_MF.prefix() + f"PUSH NEW ROW") if BinanceSocket._VERBOSE else None
                         new_market_hist = np.vstack((market_hist, new_row))
+                        new_market_hist = np.delete(new_market_hist, 0, axis=0)
                         market_hists.put(new_market_hist, stream)
                         update_fake_api(stream, symbol, period_str) if stage == Config.STAGE_2 else None
                         occured_events.append(new_period_event)

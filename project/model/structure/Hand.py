@@ -36,6 +36,7 @@ class Hand(MyJson):
     _INTERVAL_BACKUP =          60*15
     STACK =                     None
     K_MARKET_TRENDS =           'K_MARKET_TRENDS'
+    _MARKET_ANALYSE_N_PERIOD =  100
     _MARKET_ANALYSE_TREND_PERIODS = [
         Broker.PERIOD_5MIN
         ]
@@ -1402,7 +1403,7 @@ class Hand(MyJson):
         pair_streams = list(broker.get_streams().keys())
         pairs = [pair_stream for pair_stream in pair_streams if pair_stream.get_right() == r_asset]
         periods = self._MARKET_ANALYSE_TREND_PERIODS
-        max_n_period = self._N_PERIOD
+        max_n_period = self._MARKET_ANALYSE_N_PERIOD
         market_analyses = MarketPrice.analyse_market(broker, pairs, periods, n_period=max_n_period, marketprices=marketprices)
         for period, market_analyse_df in market_analyses.items():
             period_str = broker.period_to_str(period)
