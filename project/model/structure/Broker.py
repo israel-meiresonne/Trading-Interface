@@ -100,6 +100,13 @@ class Broker(ABC):
         pass
 
     @abstractmethod
+    def get_event_streams(cls) -> list[str]:
+        """
+        To get list of streams holding callbacks hooked to their events 
+        """
+        pass
+
+    @abstractmethod
     def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
         """
         To check if callback exist on the event of the given streams
