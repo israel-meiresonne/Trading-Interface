@@ -819,6 +819,10 @@ class BinanceAPI(ABC):
         return match_format
 
     @classmethod
+    def get_event_streams(cls) -> list[str]:
+        return cls._SOCKET.get_event_streams()
+
+    @classmethod
     def exist_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> bool:
         return cls._SOCKET.exist_event_streams(event, callback, streams)
 
