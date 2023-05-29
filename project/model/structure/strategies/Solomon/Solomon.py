@@ -258,7 +258,7 @@ class Solomon(Strategy):
                 _MF.wait_while(x, pd.DataFrame, wait_time, to_raise=Exception("The time to wait market's analyse is out"))
                 _MF.output(_MF.prefix() + f"{C_Y}End wait the first analyse!{S_N}")
                 # Hook callback
-                broker_event = Broker.EVENT_NEW_PERIOD
+                broker_event = Broker.EVENT_NEW_PRICE
                 broker.add_event_streams(broker_event, self._callback_trade, stream_1min) if (not broker.exist_event_streams(broker_event, self._callback_trade, stream_1min)) else None
         stack = self.get_stack()
         stack_key = self.K_BUY_SELL_CONDITION
@@ -322,23 +322,14 @@ class Solomon(Strategy):
             turn_start_date = _MF.unix_to_date(unix_time)
             current_func = self._callback_trade.__name__
             if (position is None) or (not position.is_executed(Map.buy)):
-                can_buy, buy_report, buy_limit = self.can_buy(broker, pair, marketprices)
-                report_buy_limit = -1 if buy_limit is None else buy_limit
+                can_buy, buy_report = self.can_buy(broker, pair, marketprices)
+                report_buy_limit = -1
                 # Report Buy
                 buy_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
                 buy_report = self._new_row_condition(buy_report, current_func, loop_start_date, turn_start_date, buy_marketprice_1min, pair, can_buy, limit=report_buy_limit)
                 buy_reports.append(buy_report)
                 if can_buy:
-                    buy_limit_price = Price(buy_limit, pair.get_right())
-                    buy_place_new_order = True
-                    if position is not None:
-                        old_buy_limit_price = position.get_buy_order().get_limit_price()
-                        buy_place_new_order = buy_limit_price != old_buy_limit_price
-                        self.cancel(pair, marketprices=marketprices) if buy_place_new_order else None
-                        buy_place_new_order = not position.is_executed(Map.buy)
-                    self.buy(pair, Order.TYPE_LIMIT, limit=buy_limit_price, marketprices=marketprices) if buy_place_new_order else None
-                elif position is not None:
-                    self.cancel(pair, marketprices=marketprices)
+                    self.buy(pair, Order.TYPE_MARKET, marketprices=marketprices)
             elif position.has_position():
                 r_asset = pair.get_right()
                 # Can sell
@@ -369,8 +360,8 @@ class Solomon(Strategy):
                 if can_sell:
                     self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
                 elif is_stop_set and (not position.is_submitted(Map.sell)):
-                    # self.sell(pair, Order.TYPE_STOP_LIMIT, stop=sell_stop_price, limit=sell_stop_price, marketprices=marketprices)
-                    self.sell(pair, Order.TYPE_STOP, stop=sell_stop_price, marketprices=marketprices)
+                    self.sell(pair, Order.TYPE_STOP_LIMIT, stop=sell_stop_price, limit=sell_stop_price, marketprices=marketprices)
+                    # self.sell(pair, Order.TYPE_STOP, stop=sell_stop_price, marketprices=marketprices)
             position = get_position(pair)
             if (position is not None) and position.is_closed():
                 self._repport_positions(marketprices=marketprices)
