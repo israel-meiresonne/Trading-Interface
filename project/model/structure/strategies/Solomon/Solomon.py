@@ -433,6 +433,7 @@ class Solomon(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
         KELTNER_PARAMS_1 = {'multiple': 0.5}
         KELTNER_PARAMS_2 = {'multiple': 0.25}
+        TRIGGER_KELTNER = 0.5/100
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_15min =  Broker.PERIOD_15MIN
@@ -460,6 +461,7 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
+            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigger_keltner=TRIGGER_KELTNER, index=now_index)},
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_ema_positive,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
@@ -473,21 +475,21 @@ class Solomon(Strategy):
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_buy = True
+        can_buy = cls.is_keltner_roi_above_trigger(**func_and_params[0][Map.param])
         if can_buy:
-            superMACD = cls.is_supertrend_rising(**func_and_params[0][Map.param]), cls.is_macd_line_positive(**func_and_params[1][Map.param])
+            superMACD = cls.is_supertrend_rising(**func_and_params[1][Map.param]), cls.is_macd_line_positive(**func_and_params[2][Map.param])
             if superMACD[0] and superMACD[1]:
                 can_buy = can_buy \
-                    and cls.is_tangent_ema_positive(**func_and_params[2][Map.param]) \
-                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[3][Map.param])
+                    and cls.is_tangent_ema_positive(**func_and_params[3][Map.param]) \
+                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[4][Map.param])
             elif not superMACD[1]: # [TRUE, FALSE] OR [FALSE, FALSE] => [Any, FALSE] => not [Any, FALSE]][1]
                 can_buy = can_buy \
-                    and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
                     and cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param]) \
                     and cls.is_tangent_macd_line_positive(**func_and_params[6][Map.param]) \
-                    and cls.is_price_deep_enough(**func_and_params[7][Map.param]) \
-                    and cls.is_tangent_ema_positive(**func_and_params[8][Map.param]) \
-                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[9][Map.param])
+                    and cls.is_tangent_macd_line_positive(**func_and_params[7][Map.param]) \
+                    and cls.is_price_deep_enough(**func_and_params[8][Map.param]) \
+                    and cls.is_tangent_ema_positive(**func_and_params[9][Map.param]) \
+                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[10][Map.param])
             else:
                 can_buy = False
         # Report
