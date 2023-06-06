@@ -931,7 +931,7 @@ class Solomon(Strategy):
         is_valid_index = index_macd_switch in marketprice_df.index
         switch_date = _MF.unix_to_date(marketprice_df[Map.time].iloc[index_macd_switch]) if is_valid_index else None
         # Check
-        price_deep_enough = (is_valid_index) and (marketprice_df[Map.high].iloc[index_macd_switch] <= marketprice_df[Map.keltner].iloc[index_macd_switch])
+        price_deep_enough = bool((is_valid_index) and (marketprice_df[Map.high].iloc[index_macd_switch] <= marketprice_df[Map.keltner].iloc[index_macd_switch]))
         # Put
         switch_high =       marketprice_df[Map.high].iloc[index_macd_switch] if is_valid_index else None
         switch_keltner =    keltner[index_macd_switch] if is_valid_index else None
