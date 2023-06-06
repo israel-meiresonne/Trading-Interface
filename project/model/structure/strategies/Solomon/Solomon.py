@@ -25,9 +25,7 @@ class Solomon(Strategy):
     _MAX_POSITION =             10
     KELTER_SUPPORT =            None
     _REQUIRED_PERIODS = [
-        Broker.PERIOD_1MIN,
-        Broker.PERIOD_15MIN,
-        Broker.PERIOD_1H
+        Broker.PERIOD_1MIN
         ]
     PSAR_1 =                    dict(step=.6, max_step=.6)
     EMA_PARAMS_1 =              {'n_period': 5}
@@ -220,6 +218,7 @@ class Solomon(Strategy):
     """
 
     def _trade_inner(self, marketprices: Map = Map()) -> None:
+        stack = self.get_stack()
         broker = self.get_broker()
         if Config.get(Config.STAGE_MODE) == Config.STAGE_1:
             pair = self.get_pair()
@@ -234,33 +233,16 @@ class Solomon(Strategy):
             }
             self._callback_trade(params, marketprices)
         else:
-            if not self.is_market_analyse_on():
-                C_Y = _MF.C_YELLOW
-                S_N = _MF.S_NORMAL
-                # Analyse streams
-                r_asset = self.get_wallet().get_initial().get_asset()
-                all_market_pairs =     MarketPrice.get_spot_pairs(broker.__class__.__name__, r_asset)
-                analyse_periods =   self._MARKET_ANALYSE_TREND_PERIODS
-                analyse_streams =  broker.generate_streams(all_market_pairs, analyse_periods)
-                # Strategy streams
-                broker_pairs =       self.get_broker_pairs()
-                required_periods =   self._REQUIRED_PERIODS
-                strategy_streams =  broker.generate_streams(broker_pairs, required_periods)
-                stream_1min = broker.generate_streams(broker_pairs, [Broker.PERIOD_1MIN])
-                #  Add
-                streams = _MF.remove_duplicates([*strategy_streams, *analyse_streams, *stream_1min])
-                broker.add_streams(streams)
-                # Start analyse
-                self.set_market_analyse_on(True)
-                x = lambda : type(self.get_market_trend(analyse_periods[0]))
-                wait_time = 60 * 10
-                _MF.output(_MF.prefix() + f"{C_Y}Waiting the first analyse...{S_N}")
-                _MF.wait_while(x, pd.DataFrame, wait_time, to_raise=Exception("The time to wait market's analyse is out"))
-                _MF.output(_MF.prefix() + f"{C_Y}End wait the first analyse!{S_N}")
-                # Hook callback
-                broker_event = Broker.EVENT_NEW_PRICE
-                broker.add_event_streams(broker_event, self._callback_trade, stream_1min) if (not broker.exist_event_streams(broker_event, self._callback_trade, stream_1min)) else None
-        stack = self.get_stack()
+            broker_event = Broker.EVENT_NEW_PERIOD
+            broker_callback = self._callback_trade
+            broker_pairs = self.get_broker_pairs()
+            required_periods = self._REQUIRED_PERIODS
+            strategy_streams = broker.generate_streams(broker_pairs, required_periods)
+            stream_1min = broker.generate_streams(broker_pairs, [Broker.PERIOD_1MIN])
+            all_streams = _MF.remove_duplicates([*strategy_streams, *stream_1min])
+            if (not broker.is_active()) or (not broker.exist_event_streams(broker_event, broker_callback, all_streams)):
+                broker.add_streams(all_streams)
+                broker.add_event_streams(broker_event, broker_callback, stream_1min)
         stack_key = self.K_BUY_SELL_CONDITION
         if stack.get(stack_key) is not None:
             stack_copy = stack.get(stack_key).copy()
@@ -331,37 +313,22 @@ class Solomon(Strategy):
                 if can_buy:
                     self.buy(pair, Order.TYPE_MARKET, marketprices=marketprices)
             elif position.has_position():
-                r_asset = pair.get_right()
                 # Can sell
                 # +++ Prepare datas
                 sell_datas = {}
                 k_max_roi = Map.key(Map.maximum, Map.roi)
                 sell_max_price = position.extrem_prices(broker).get(Map.maximum)
-                buy_order =             position.get_buy_order()
-                buy_price =             buy_order.get_execution_price()
-                buy_price_value =       buy_price.get_value()
-                buy_amount =            buy_order.get_executed_amount()
-                fee_price =             buy_order.get_fee(r_asset)
-                fee_rate =              fee_price/buy_amount
-                sell_datas[k_max_roi] = _MF.progress_rate(sell_max_price, buy_price_value) - fee_rate
-                sell_datas[Map.buy] =   buy_price_value
+                buy_order = position.get_buy_order()
+                sell_datas[Map.time] = int(buy_order.get_execution_time()/1000)
                 # +++ Ask to sell
-                can_sell, sell_report, sell_stop_float = self.can_sell(broker, pair, marketprices, sell_datas)
-                sell_stop_price = Price(sell_stop_float, r_asset) if isinstance(sell_stop_float, float) else sell_stop_float
-                # Report Buy
+                can_sell, sell_report = self.can_sell(broker, pair, marketprices, sell_datas)
+                # Report Sell
                 sell_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
                 sell_report = self._new_row_condition(sell_report, current_func, loop_start_date, turn_start_date, sell_marketprice_1min, pair, can_sell, -1)
                 sell_reports.append(sell_report)
                 # Check
-                is_stop_set = sell_stop_price is not None
-                if (can_sell and position.is_submitted(Map.sell)) \
-                    or (is_stop_set and position.is_submitted(Map.sell) and (sell_stop_price != position.get_sell_order().get_stop_price())):
-                    self.cancel(pair, marketprices)
                 if can_sell:
                     self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
-                elif is_stop_set and (not position.is_submitted(Map.sell)):
-                    self.sell(pair, Order.TYPE_STOP_LIMIT, stop=sell_stop_price, limit=sell_stop_price, marketprices=marketprices)
-                    # self.sell(pair, Order.TYPE_STOP, stop=sell_stop_price, marketprices=marketprices)
             position = get_position(pair)
             if (position is not None) and position.is_closed():
                 self._repport_positions(marketprices=marketprices)
@@ -435,12 +402,8 @@ class Solomon(Strategy):
         KELTNER_PARAMS_2 = {'multiple': 0.25}
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
-        period_15min =  Broker.PERIOD_15MIN
-        period_1h =     Broker.PERIOD_1H
         periods = [
-            period_1min,
-            period_15min,
-            period_1h
+            period_1min
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
@@ -578,10 +541,8 @@ class Solomon(Strategy):
             return has_switched
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
-        period_15min = Broker.PERIOD_15MIN
         periods = [
-            period_1min,
-            period_15min
+            period_1min
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
