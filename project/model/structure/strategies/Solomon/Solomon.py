@@ -433,7 +433,7 @@ class Solomon(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
         KELTNER_PARAMS_1 = {'multiple': 0.5}
         KELTNER_PARAMS_2 = {'multiple': 0.25}
-        TRIGGER_KELTNER = 1/100
+        TRIGGER_KELTNER = 2/100
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_15min =  Broker.PERIOD_15MIN
