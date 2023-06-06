@@ -233,7 +233,7 @@ class Solomon(Strategy):
             }
             self._callback_trade(params, marketprices)
         else:
-            broker_event = Broker.EVENT_NEW_PERIOD
+            broker_event = Broker.EVENT_NEW_PRICE
             broker_callback = self._callback_trade
             broker_pairs = self.get_broker_pairs()
             required_periods = self._REQUIRED_PERIODS
