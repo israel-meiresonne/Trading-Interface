@@ -498,7 +498,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
-        def supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
+        def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
             """
@@ -506,6 +506,7 @@ class Solomon(Strategy):
                 raise ValueError(f"Index must be negative, instead '{index}'")
             period_str = broker.period_to_str(period)
             marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice.reset_collections()
             now_time = marketprice.get_time()
             # Price
             marketprice_df = marketprice.to_pd().copy()
@@ -513,28 +514,69 @@ class Solomon(Strategy):
             # Supertrends
             supertrends = list(marketprice.get_super_trend())
             supertrends.reverse()
-            marketprice_df[Map.supertrend] = pd.Series(supertrends)
+            marketprice_df[Map.supertrend] = pd.Series(supertrends, index=marketprice_df.index)
             # Prepare
             buy_time_round = _MF.round_time(buy_time, period)
             index_time = marketprice_df[Map.time].iloc[index]
             sub_marketprice_df = marketprice_df[(marketprice_df[Map.time] >= buy_time_round) & (marketprice_df[Map.time] <= index_time)]
             rising_zone_df = sub_marketprice_df[sub_marketprice_df[Map.close] > sub_marketprice_df[Map.supertrend]]
             # Check
-            has_switched = (rising_zone_df.shape[0] > 0) and (sub_marketprice_df.loc[index_time, Map.close] < sub_marketprice_df.loc[index_time, Map.supertrend])
+            has_switched = bool((rising_zone_df.shape[0] > 0) and (sub_marketprice_df.loc[index_time, Map.close] < sub_marketprice_df.loc[index_time, Map.supertrend]))
             # Put
             trade_zone_start =  _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[0])
             trade_zone_end =    _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[-1])
             rising_zone_start = _MF.unix_to_date(rising_zone_df[Map.time].iloc[0]) if rising_zone_df.shape[0] > 0 else None
             rising_zone_end =   _MF.unix_to_date(rising_zone_df[Map.time].iloc[-1]) if rising_zone_df.shape[0] > 0 else None
-            vars_map.put(has_switched,                      Map.condition,  f'supertrend_switched_down_{period_str}[{index}]')
-            vars_map.put(_MF.unix_to_date(now_time),        Map.value,      f'supertrend_switched_down_{period_str}[{index}]_now_date')
-            vars_map.put(_MF.unix_to_date(index_time),        Map.value,      f'supertrend_switched_down_{period_str}[{index}]_index_date')            
-            vars_map.put(_MF.unix_to_date(buy_time),        Map.value,      f'supertrend_switched_down_{period_str}[{index}]_buy_date')
-            vars_map.put(_MF.unix_to_date(buy_time_round),  Map.value,      f'supertrend_switched_down_{period_str}[{index}]_buy_date_round')
-            vars_map.put(trade_zone_start,                  Map.value,      f'supertrend_switched_down_{period_str}[{index}]_trade_zone_start')
-            vars_map.put(trade_zone_end,                    Map.value,      f'supertrend_switched_down_{period_str}[{index}]_trade_zone_end')
-            vars_map.put(rising_zone_start,                 Map.value,      f'supertrend_switched_down_{period_str}[{index}]_rising_zone_start')
-            vars_map.put(rising_zone_end,                   Map.value,      f'supertrend_switched_down_{period_str}[{index}]_rising_zone_end')
+            vars_map.put(has_switched,                      Map.condition,  f'has_supertrend_switched_down_{period_str}[{index}]')
+            vars_map.put(_MF.unix_to_date(now_time),        Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_now_date')
+            vars_map.put(_MF.unix_to_date(index_time),      Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_index_date')            
+            vars_map.put(_MF.unix_to_date(buy_time),        Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_buy_date')
+            vars_map.put(_MF.unix_to_date(buy_time_round),  Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_buy_date_round')
+            vars_map.put(trade_zone_start,                  Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_trade_zone_start')
+            vars_map.put(trade_zone_end,                    Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_trade_zone_end')
+            vars_map.put(rising_zone_start,                 Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_rising_zone_start')
+            vars_map.put(rising_zone_end,                   Map.value,      f'has_supertrend_switched_down_{period_str}[{index}]_rising_zone_end')
+            return has_switched
+        def has_macd_line_switched_positive(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int, macd_line: str, macd_params: dict = {}) -> bool:
+            """
+            To check if MACD has switched up since buy
+            """
+            if index >= 0:
+                raise ValueError(f"Index must be negative, instead '{index}'")
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice.reset_collections()
+            now_time = marketprice.get_time()
+            # Price
+            marketprice_df = marketprice.to_pd().copy()
+            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            # Supertrends
+            macd = list(marketprice.get_macd(**macd_params).get_map()[macd_line])
+            macd.reverse()
+            marketprice_df[Map.macd] = pd.Series(macd, index=marketprice_df.index)
+            # Prepare
+            buy_time_round = _MF.round_time(buy_time, period)
+            index_time = marketprice_df[Map.time].iloc[index]
+            sub_marketprice_df = marketprice_df[(marketprice_df[Map.time] >= buy_time_round) & (marketprice_df[Map.time] <= index_time)]
+            rising_zone_df = sub_marketprice_df[sub_marketprice_df[Map.macd] > 0]
+            # Check
+            has_switched = (rising_zone_df.shape[0] > 0)
+            # Put
+            trade_zone_start =  _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[0])
+            trade_zone_end =    _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[-1])
+            rising_zone_start = _MF.unix_to_date(rising_zone_df[Map.time].iloc[0]) if rising_zone_df.shape[0] > 0 else None
+            rising_zone_end =   _MF.unix_to_date(rising_zone_df[Map.time].iloc[-1]) if rising_zone_df.shape[0] > 0 else None
+            param_str = _MF.param_to_str(macd_params)
+            prefix = f'has_{macd_line}_switched_positive_{period_str}_{param_str}_[{index}]'
+            vars_map.put(has_switched,                      Map.condition,  prefix)
+            vars_map.put(_MF.unix_to_date(now_time),        Map.value,      f'{prefix}_now_date')
+            vars_map.put(_MF.unix_to_date(index_time),      Map.value,      f'{prefix}_index_date')            
+            vars_map.put(_MF.unix_to_date(buy_time),        Map.value,      f'{prefix}_buy_date')
+            vars_map.put(_MF.unix_to_date(buy_time_round),  Map.value,      f'{prefix}_buy_date_round')
+            vars_map.put(trade_zone_start,                  Map.value,      f'{prefix}_trade_zone_start')
+            vars_map.put(trade_zone_end,                    Map.value,      f'{prefix}_trade_zone_end')
+            vars_map.put(rising_zone_start,                 Map.value,      f'{prefix}_rising_zone_start')
+            vars_map.put(rising_zone_end,                   Map.value,      f'{prefix}_rising_zone_end')
             return has_switched
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
@@ -562,8 +604,8 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
-            {Map.callback: cls.is_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: supertrend_switched_down,    Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
+            {Map.callback: has_macd_line_switched_positive,     Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: has_supertrend_switched_down,        Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_psar_rising,                  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
@@ -571,8 +613,8 @@ class Solomon(Strategy):
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        if cls.is_macd_line_positive(**func_and_params[0][Map.param]):
-            can_sell = supertrend_switched_down(**func_and_params[1][Map.param])
+        if has_macd_line_switched_positive(**func_and_params[0][Map.param]):
+            can_sell = has_supertrend_switched_down(**func_and_params[1][Map.param])
         else:
             can_sell = not cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
                 and not cls.is_tangent_ema_positive(**func_and_params[3][Map.param]) \
@@ -870,12 +912,12 @@ class Solomon(Strategy):
         ema = marketprice.get_ema(**ema_params)
         ema = list(ema)
         ema.reverse()
-        marketprice_df[Map.ema] = pd.Series(ema)
+        marketprice_df[Map.ema] = pd.Series(ema, index=marketprice_df.index)
         # Keltner
         keltner_map = marketprice.get_keltnerchannel(**keltner_params)
         keltner = list(keltner_map.get_map()[keltner_line])
         keltner.reverse()
-        marketprice_df[Map.keltner] = pd.Series(keltner)
+        marketprice_df[Map.keltner] = pd.Series(keltner, index=marketprice_df.index)
         # Cook
         k_ema_diff = Map.key(Map.ema, 'diff')
         marketprice_df[k_ema_diff] = marketprice_df[Map.ema].diff()
@@ -917,12 +959,12 @@ class Solomon(Strategy):
         keltner_map = marketprice.get_keltnerchannel(**keltner_params)
         keltner = list(keltner_map.get_map()[keltner_line])
         keltner.reverse()
-        marketprice_df[Map.keltner] = pd.Series(keltner)
+        marketprice_df[Map.keltner] = pd.Series(keltner, index=marketprice_df.index)
         # MACD
         macd_map = marketprice.get_macd(**macd_params)
         macd = list(macd_map.get_map()[macd_line])
         macd.reverse()
-        marketprice_df[Map.macd] = pd.Series(macd)
+        marketprice_df[Map.macd] = pd.Series(macd, index=marketprice_df.index)
         # Cook
         k_macd_diff = Map.key(Map.macd, 'diff')
         marketprice_df[k_macd_diff] = marketprice_df[Map.macd].diff()
