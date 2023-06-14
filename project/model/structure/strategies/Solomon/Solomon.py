@@ -31,6 +31,7 @@ class Solomon(Strategy):
     EMA_PARAMS_1 =              {'n_period': 5}
     K_BUY_SELL_CONDITION =      'K_BUY_SELL_CONDITION'
     K_EDITED_MARKET_TRENDS =    'K_EDITED_MARKET_TRENDS'
+    COMPARATORS =               ['==', '>', '<', '<=', '>=']
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STALK DOWN
@@ -551,6 +552,11 @@ class Solomon(Strategy):
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Datas
         buy_time = datas[Map.time]  # in second
+        buy_price = datas[Map.buy]
+        buy_fee_rate = datas[Map.fee]
+        fees = broker.get_trade_fee(pair)
+        maker_fee = fees.get(Map.maker)
+        trade_fees = buy_fee_rate + maker_fee
         # Params
         now_index = -1
         # Add price
@@ -567,20 +573,18 @@ class Solomon(Strategy):
         func_and_params = [
             {Map.callback: has_macd_line_switched_positive,     Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: has_supertrend_switched_down,        Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.is_psar_rising,                  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
+            {Map.callback: cls.compare_keltner_floor_and_rate,  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
         if has_macd_line_switched_positive(**func_and_params[0][Map.param]):
             can_sell = has_supertrend_switched_down(**func_and_params[1][Map.param])
         else:
-            can_sell = not cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-                and not cls.is_tangent_ema_positive(**func_and_params[3][Map.param]) \
-                and not cls.is_psar_rising(**func_and_params[4][Map.param]) \
-                and not cls.is_supertrend_rising(**func_and_params[5][Map.param]) \
+            can_sell = not cls.is_tangent_ema_positive(**func_and_params[2][Map.param]) \
+                and not cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+                and cls.compare_keltner_floor_and_rate(**func_and_params[4][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
@@ -707,6 +711,43 @@ class Solomon(Strategy):
         vars_map.put(keltner_low[-2],               Map.value,      f'keltner_low_{period_str}[-2]')
         vars_map.put(keltner_low[index],            Map.value,      f'keltner_low_{period_str}[{index}]')
         return close_bellow_keltner_range
+
+    @classmethod
+    def compare_keltner_floor_and_rate(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, \
+        comparator: str, keltner_line: str, buy_price: float, rate: float) -> bool:
+        comparators = cls.COMPARATORS
+        _MF.check_allowed_values(comparator, comparators)
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_time = marketprice.get_time()
+        keltner_map = marketprice.get_keltnerchannel(multiple=1)
+        keltner = list(keltner_map.get_map()[keltner_line])
+        keltner.reverse()
+        # Prapare
+        keltner_floor = (keltner[index] - buy_price) / buy_price
+        # Check
+        if comparator == comparators[0]:
+            check = keltner_floor == rate
+        elif comparator == comparators[1]:
+            check = keltner_floor > rate
+        elif comparator == comparators[2]:
+            check = keltner_floor < rate
+        elif comparator == comparators[3]:
+            check = keltner_floor <= rate
+        elif comparator == comparators[4]:
+            check = keltner_floor >= rate
+        # Put
+        k_base = f'compare_keltner_floor_{keltner_line}_{comparator}_{period_str}[{index}]'
+        prev_index = index - 1
+        vars_map.put(check,                         Map.condition,  k_base)
+        vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'{k_base}_date')
+        vars_map.put(buy_price,                     Map.value,      f'{k_base}_buy_price')
+        vars_map.put(keltner_floor,                 Map.value,      f'{k_base}_keltner_floor')
+        vars_map.put(rate,                          Map.value,      f'{k_base}_rate')
+        vars_map.put(keltner[index],                Map.value,      f'{k_base}_keltner_[{index}]')
+        vars_map.put(keltner[prev_index],           Map.value,      f'{k_base}_keltner_[{prev_index}]')
+        return check
 
     @classmethod
     def is_last_min_market_trend_bellow(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, trigger: float, is_int_round: bool, window: int = None) -> bool:
@@ -861,7 +902,7 @@ class Solomon(Strategy):
     @classmethod
     def compare_exetrem_ema_and_keltner(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, \
         comapare: str, ema_exetrem: str, keltner_line: str, ema_params: dict = {}, keltner_params: dict = {}) -> bool:
-        compares = ['==', '>', '<', '<=', '>=']
+        compares = cls.COMPARATORS
         _MF.check_allowed_values(ema_exetrem, [Map.minimum, Map.maximum])
         _MF.check_allowed_values(comapare, compares)
         period_str = broker.period_to_str(period)
@@ -976,6 +1017,8 @@ class Solomon(Strategy):
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             sell_datas = {}
             sell_datas[Map.time] = trade[Map.buy][Map.time]
+            sell_datas[Map.buy] = trade[Map.buy][Map.execution]
+            sell_datas[Map.fee] = trade[Map.buy][Map.fee]
             can_sell, sell_condition = cls.can_sell(broker, pair, marketprices, sell_datas)
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
             sell_conditions.append(sell_condition)
