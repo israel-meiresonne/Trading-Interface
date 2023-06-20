@@ -462,6 +462,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
+        MAX_ROI_TRIGGER = 1.2/100
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
@@ -542,6 +543,18 @@ class Solomon(Strategy):
             vars_map.put(rising_zone_start,                 Map.value,      f'{prefix}_rising_zone_start')
             vars_map.put(rising_zone_end,                   Map.value,      f'{prefix}_rising_zone_end')
             return has_switched
+        def compare_max_roi_and_trigger(vars_map: Map, comparator: str, buy_price: float, high_price: float, trigger: float) -> bool:
+            # Prepare
+            max_roi = _MF.progress_rate(high_price, buy_price)
+            # Check
+            compare = _MF.compare_first_and_second(comparator, max_roi, trigger)
+            # Put
+            prefix = f'compare_max_roi_{comparator}_{trigger}'
+            vars_map.put(compare,       Map.condition,  prefix)
+            vars_map.put(buy_price,     Map.value,      f'{prefix}_buy_price')
+            vars_map.put(high_price,    Map.value,      f'{prefix}_high_price')
+            vars_map.put(max_roi,       Map.value,      f'{prefix}_max_roi')
+            return compare
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         periods = [
@@ -551,12 +564,13 @@ class Solomon(Strategy):
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Datas
-        buy_time = datas[Map.time]  # in second
-        buy_price = datas[Map.buy]
-        buy_fee_rate = datas[Map.fee]
-        fees = broker.get_trade_fee(pair)
-        maker_fee = fees.get(Map.maker)
-        trade_fees = buy_fee_rate + maker_fee
+        buy_time =              datas[Map.time]  # in second
+        buy_price =             datas[Map.buy]
+        buy_fee_rate =          datas[Map.fee]
+        position_higher_price = datas[Map.maximum]
+        fees =                  broker.get_trade_fee(pair)
+        maker_fee =             fees.get(Map.maker)
+        trade_fees =            buy_fee_rate + maker_fee
         # Params
         now_index = -1
         # Add price
@@ -574,8 +588,9 @@ class Solomon(Strategy):
             {Map.callback: has_macd_line_switched_positive,     Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: has_supertrend_switched_down,        Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
             {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
             {Map.callback: cls.compare_keltner_floor_and_rate,  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
+            {Map.callback: compare_max_roi_and_trigger,         Map.param: dict(vars_map=vars_map, comparator='>=', buy_price=buy_price, high_price=position_higher_price, trigger=MAX_ROI_TRIGGER)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
@@ -583,8 +598,14 @@ class Solomon(Strategy):
             can_sell = has_supertrend_switched_down(**func_and_params[1][Map.param])
         else:
             can_sell = not cls.is_tangent_ema_positive(**func_and_params[2][Map.param]) \
-                and not cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
-                and cls.compare_keltner_floor_and_rate(**func_and_params[4][Map.param])
+                and (
+                        (
+                            cls.compare_keltner_floor_and_rate(**func_and_params[3][Map.param]) \
+                            and not cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param])
+                        ) \
+                        or
+                        compare_max_roi_and_trigger(**func_and_params[5][Map.param])
+                    )
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
@@ -1016,9 +1037,10 @@ class Solomon(Strategy):
                 trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.mean)
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             sell_datas = {}
-            sell_datas[Map.time] = trade[Map.buy][Map.time]
-            sell_datas[Map.buy] = trade[Map.buy][Map.execution]
-            sell_datas[Map.fee] = trade[Map.buy][Map.fee]
+            sell_datas[Map.time] =      trade[Map.buy][Map.time]
+            sell_datas[Map.buy] =       trade[Map.buy][Map.execution]
+            sell_datas[Map.fee] =       trade[Map.buy][Map.fee]
+            sell_datas[Map.maximum] =   trade[Map.maximum]
             can_sell, sell_condition = cls.can_sell(broker, pair, marketprices, sell_datas)
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
             sell_conditions.append(sell_condition)
