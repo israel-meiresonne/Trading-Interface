@@ -602,8 +602,10 @@ class Solomon(Strategy):
             return has_switched_up_down
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
+        period_15min =  Broker.PERIOD_15MIN
         periods = [
-            period_1min
+            period_1min,
+            period_15min
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
@@ -629,6 +631,8 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
+            {Map.callback: cls.is_supertrend_rising,                        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_psar_rising,                              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
             {Map.callback: has_macd_line_switched_positive,                 Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: has_supertrend_switched_down,                    Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
             {Map.callback: has_macd_line_switched_positive_then_negative,   Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
@@ -636,17 +640,23 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
             {Map.callback: cls.compare_keltner_floor_and_rate,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
+            {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        if has_macd_line_switched_positive(**func_and_params[0][Map.param]):
-            can_sell = has_supertrend_switched_down(**func_and_params[1][Map.param]) \
-                or has_macd_line_switched_positive_then_negative(**func_and_params[2][Map.param]) \
-                and not cls.is_supertrend_rising(**func_and_params[3][Map.param])
+        can_sell = cls.is_supertrend_rising(**func_and_params[0][Map.param]) \
+            and cls.is_psar_rising(**func_and_params[1][Map.param])
+        if can_sell:
+            if has_macd_line_switched_positive(**func_and_params[2][Map.param]):
+                can_sell = has_supertrend_switched_down(**func_and_params[3][Map.param]) \
+                    or has_macd_line_switched_positive_then_negative(**func_and_params[4][Map.param]) \
+                    and not cls.is_supertrend_rising(**func_and_params[5][Map.param])
+            else:
+                can_sell = not cls.is_tangent_ema_positive(**func_and_params[6][Map.param]) \
+                    and not cls.is_tangent_macd_line_positive(**func_and_params[7][Map.param]) \
+                    and cls.compare_keltner_floor_and_rate(**func_and_params[8][Map.param])
         else:
-            can_sell = not cls.is_tangent_ema_positive(**func_and_params[4][Map.param]) \
-                and not cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param]) \
-                and cls.compare_keltner_floor_and_rate(**func_and_params[6][Map.param])
+            can_sell = not cls.is_tangent_ema_positive(**func_and_params[9][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
