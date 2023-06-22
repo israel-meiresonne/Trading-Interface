@@ -618,7 +618,8 @@ class Solomon(Strategy):
         maker_fee = fees.get(Map.maker)
         trade_fees = buy_fee_rate + maker_fee
         # Params
-        now_index = -1
+        now_index =     -1
+        prev_index_2 =  -2
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -640,6 +641,10 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
             {Map.callback: cls.compare_keltner_floor_and_rate,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
+            {Map.callback: cls.is_supertrend_rising,                        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_psar_rising,                              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, ema_params=cls.EMA_PARAMS_1)},
+            {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
@@ -656,7 +661,13 @@ class Solomon(Strategy):
                     and not cls.is_tangent_macd_line_positive(**func_and_params[7][Map.param]) \
                     and cls.compare_keltner_floor_and_rate(**func_and_params[8][Map.param])
         else:
-            can_sell = not cls.is_tangent_ema_positive(**func_and_params[9][Map.param])
+            is_less_risky_zone = cls.is_supertrend_rising(**func_and_params[9][Map.param]) \
+                or cls.is_psar_rising(**func_and_params[10][Map.param])
+            if is_less_risky_zone:
+                can_sell = not cls.is_tangent_ema_positive(**func_and_params[11][Map.param]) \
+                    and not cls.is_tangent_ema_positive(**func_and_params[12][Map.param])
+            else:
+                can_sell = not cls.is_tangent_ema_positive(**func_and_params[13][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
