@@ -476,6 +476,10 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
+        KEEP_RATE_1 =       30/100
+        KEEP_TRIGGER_1 =    1/100
+        PROFIT_TRIGGER =    5/100
+        MAX_PROFIT =        10/100
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
@@ -602,6 +606,42 @@ class Solomon(Strategy):
             vars_map.put(rising_zone_start,                 Map.value,      f'{prefix}_rising_zone_start')
             vars_map.put(rising_zone_end,                   Map.value,      f'{prefix}_rising_zone_end')
             return has_switched_up_down
+        def can_stop_losses(vars_map: Map, keep_trigger: float, keep_rate: float, buy_price: float, max_price: float, buy_fee_rate: float, sell_fee_rate: float) -> bool:
+            stop_price = None
+            # Prepare
+            max_roi = (max_price - buy_price) / buy_price
+            # Check
+            can_stop = max_roi >= keep_trigger
+            if can_stop:
+                stop_price = (1 + max_roi * keep_rate + buy_fee_rate + sell_fee_rate) * buy_price
+            # Put
+            vars_map.put(can_stop,      Map.condition,  k_base_can_stop)
+            vars_map.put(keep_rate,     Map.value,      f'{k_base_can_stop}_keep_rate')
+            vars_map.put(keep_trigger,  Map.value,      f'{k_base_can_stop}_keep_trigger')
+            vars_map.put(buy_price,     Map.value,      f'{k_base_can_stop}_buy_price')
+            vars_map.put(max_price,     Map.value,      f'{k_base_can_stop}_max_price')
+            vars_map.put(max_roi,       Map.value,      f'{k_base_can_stop}_max_roi')
+            vars_map.put(buy_fee_rate,  Map.value,      f'{k_base_can_stop}_buy_fee_rate')
+            vars_map.put(sell_fee_rate, Map.value,      f'{k_base_can_stop}_sell_fee_rate')
+            vars_map.put(stop_price,    Map.value,      k_stop_price)
+            return can_stop
+        def can_take_profit(vars_map: Map, profit_trigger: float, buy_price: float, now_close: float, final_roi: float) -> tuple[bool, dict, float, float]:
+            limit_price = None
+            # Prepare
+            now_roi = (now_close - buy_price) / buy_price
+            # Check
+            can_take = now_roi >= profit_trigger
+            if can_take:
+                limit_price = buy_price * (1 + final_roi)
+            # Put
+            vars_map.put(can_take,          Map.condition,  k_base_can_take)
+            vars_map.put(profit_trigger,    Map.value,      f'{k_base_can_take}_profit_trigger')
+            vars_map.put(buy_price,         Map.value,      f'{k_base_can_take}_buy_price')
+            vars_map.put(now_close,         Map.value,      f'{k_base_can_take}_now_close')
+            vars_map.put(final_roi,         Map.value,      f'{k_base_can_take}_final_roi')
+            vars_map.put(now_roi,           Map.value,      f'{k_base_can_take}_now_roi')
+            vars_map.put(limit_price,       Map.value,      k_limit_price)
+            return can_take
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         periods = [
@@ -613,21 +653,27 @@ class Solomon(Strategy):
         # Datas
         buy_time = datas[Map.time]  # in second
         buy_price = datas[Map.buy]
+        position_max_price = datas[Map.maximum]
         buy_fee_rate = datas[Map.fee]
         fees = broker.get_trade_fee(pair)
         maker_fee = fees.get(Map.maker)
         trade_fees = buy_fee_rate + maker_fee
         # Params
         now_index = -1
+        k_base_can_stop = 'can_stop_losses'
+        k_base_can_take = 'can_take_profit'
+        k_stop_price = f'{k_base_can_stop}_stop_price'
+        k_limit_price = f'{k_base_can_take}_limit_price'
+        now_close = marketprice_1min_pd[Map.close].iloc[-1]
         # Add price
-        vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
-        vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
-        vars_map.put(marketprice_1min_pd[Map.low].iloc[-1],    Map.value, f'low_{period_strs[period_1min]}[-1]')
-        vars_map.put(marketprice_1min_pd[Map.low].iloc[-2],    Map.value, f'low_{period_strs[period_1min]}[-2]')
-        vars_map.put(marketprice_1min_pd[Map.high].iloc[-1],   Map.value, f'high_{period_strs[period_1min]}[-1]')
-        vars_map.put(marketprice_1min_pd[Map.high].iloc[-2],   Map.value, f'high_{period_strs[period_1min]}[-2]')
-        vars_map.put(marketprice_1min_pd[Map.close].iloc[-1],  Map.value, f'close_{period_strs[period_1min]}[-1]')
-        vars_map.put(marketprice_1min_pd[Map.close].iloc[-2],  Map.value, f'close_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],    Map.value, f'open_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],    Map.value, f'open_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.low].iloc[-1],     Map.value, f'low_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.low].iloc[-2],     Map.value, f'low_{period_strs[period_1min]}[-2]')
+        vars_map.put(marketprice_1min_pd[Map.high].iloc[-1],    Map.value, f'high_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.high].iloc[-2],    Map.value, f'high_{period_strs[period_1min]}[-2]')
+        vars_map.put(now_close,                                 Map.value, f'close_{period_strs[period_1min]}[-1]')
+        vars_map.put(marketprice_1min_pd[Map.close].iloc[-2],   Map.value, f'close_{period_strs[period_1min]}[-2]')
         # Set header
         this_func = cls.can_sell
         func_and_params = [
@@ -638,6 +684,8 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
             {Map.callback: cls.compare_keltner_floor_and_rate,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
+            {Map.callback: can_take_profit,                                 Map.param: dict(vars_map=vars_map, profit_trigger=PROFIT_TRIGGER, buy_price=buy_price, now_close=now_close, final_roi=MAX_PROFIT)},
+            {Map.callback: can_stop_losses,                                 Map.param: dict(vars_map=vars_map, keep_trigger=KEEP_TRIGGER_1, keep_rate=KEEP_RATE_1, buy_price=buy_price, max_price=position_max_price, buy_fee_rate=buy_fee_rate, sell_fee_rate=maker_fee)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
@@ -649,9 +697,13 @@ class Solomon(Strategy):
             can_sell = not cls.is_tangent_ema_positive(**func_and_params[4][Map.param]) \
                 and not cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param]) \
                 and cls.compare_keltner_floor_and_rate(**func_and_params[6][Map.param])
+        # Algo Order
+        can_take_profit(**func_and_params[7][Map.param]) or can_stop_losses(**func_and_params[8][Map.param])
+        limit_price = vars_map.get(Map.value, k_limit_price)
+        stop_price = vars_map.get(Map.value, k_stop_price)
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
-        return can_sell, report
+        return can_sell, report, limit_price, stop_price
 
     @classmethod
     def is_psar_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, psar_params: dict = {}) -> bool:
@@ -1080,14 +1132,32 @@ class Solomon(Strategy):
                 trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.mean)
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             sell_datas = {}
-            sell_datas[Map.time] = trade[Map.buy][Map.time]
-            sell_datas[Map.buy] = trade[Map.buy][Map.execution]
-            sell_datas[Map.fee] = trade[Map.buy][Map.fee]
-            can_sell, sell_condition = cls.can_sell(broker, pair, marketprices, sell_datas)
+            sell_datas[Map.time] =      trade[Map.buy][Map.time]
+            sell_datas[Map.buy] =       trade[Map.buy][Map.execution]
+            sell_datas[Map.fee] =       trade[Map.buy][Map.fee]
+            sell_datas[Map.maximum] =   trade[Map.maximum]
+            can_sell, sell_condition, sell_limit_price, sell_stop_price = cls.can_sell(broker, pair, marketprices, sell_datas)
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
             sell_conditions.append(sell_condition)
+            # Manage Order
+            is_algo_price_set = (sell_limit_price is not None) if sell_limit_price else (sell_stop_price is not None)
+            algo_price = sell_limit_price if (is_algo_price_set and sell_limit_price) else sell_stop_price
+            if (can_sell and is_order_set(Map.sell)) \
+                or (is_algo_price_set and is_order_set(Map.sell) \
+                    and (
+                            (algo_price != trade[Map.sell][Map.limit]) \
+                            or 
+                            (algo_price != trade[Map.sell][Map.stop])
+                        )
+                    ):
+                cls._backtest_update_trade(trade, Map.sell, Order.STATUS_CANCELED)
             if can_sell:
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
+            elif is_algo_price_set and (not is_order_set(Map.sell)):
+                if sell_limit_price:
+                    cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_limit_price)
+                else:
+                    cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_STOP_LIMIT, limit=sell_stop_price, stop=sell_stop_price)
         return trade
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
