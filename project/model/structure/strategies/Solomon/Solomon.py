@@ -476,7 +476,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
-        MAX_PROFIT = 1.7/100
+        MAX_PROFIT = 3.5/100
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
