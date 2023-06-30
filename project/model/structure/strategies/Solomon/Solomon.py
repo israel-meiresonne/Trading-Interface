@@ -476,10 +476,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
-        STOP_TRIGGER =      2/100
-        MIN_PROFIT =        0.10/100
-        PROFIT_TRIGGER =    2/100
-        MAX_PROFIT =        5/100
+        MAX_PROFIT = 1.7/100
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
@@ -684,8 +681,7 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
             {Map.callback: cls.compare_keltner_floor_and_rate,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
-            {Map.callback: can_take_profit,                                 Map.param: dict(vars_map=vars_map, profit_trigger=PROFIT_TRIGGER, buy_price=buy_price, now_close=now_close, final_roi=MAX_PROFIT)},
-            {Map.callback: can_stop_losses,                                 Map.param: dict(vars_map=vars_map, stop_trigger=STOP_TRIGGER, buy_price=buy_price, max_price=position_max_price, min_profit=MIN_PROFIT, buy_fee_rate=buy_fee_rate, sell_fee_rate=maker_fee)}
+            {Map.callback: can_take_profit,                                 Map.param: dict(vars_map=vars_map, profit_trigger=0, buy_price=buy_price, now_close=now_close, final_roi=MAX_PROFIT)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
@@ -698,9 +694,9 @@ class Solomon(Strategy):
                 and not cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param]) \
                 and cls.compare_keltner_floor_and_rate(**func_and_params[6][Map.param])
         # Algo Order
-        can_take_profit(**func_and_params[7][Map.param]) or can_stop_losses(**func_and_params[8][Map.param])
+        can_take_profit(**func_and_params[7][Map.param])
         limit_price = vars_map.get(Map.value, k_limit_price)
-        stop_price = vars_map.get(Map.value, k_stop_price)
+        stop_price = None
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report, limit_price, stop_price
