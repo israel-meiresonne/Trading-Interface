@@ -476,10 +476,10 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
-        KEEP_RATE_1 =       30/100
-        KEEP_TRIGGER_1 =    1/100
-        PROFIT_TRIGGER =    5/100
-        MAX_PROFIT =        10/100
+        STOP_TRIGGER =      2/100
+        MIN_PROFIT =        0.10/100
+        PROFIT_TRIGGER =    2/100
+        MAX_PROFIT =        5/100
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
@@ -606,20 +606,20 @@ class Solomon(Strategy):
             vars_map.put(rising_zone_start,                 Map.value,      f'{prefix}_rising_zone_start')
             vars_map.put(rising_zone_end,                   Map.value,      f'{prefix}_rising_zone_end')
             return has_switched_up_down
-        def can_stop_losses(vars_map: Map, keep_trigger: float, keep_rate: float, buy_price: float, max_price: float, buy_fee_rate: float, sell_fee_rate: float) -> bool:
+        def can_stop_losses(vars_map: Map, stop_trigger: float, buy_price: float, max_price: float, min_profit: float, buy_fee_rate: float, sell_fee_rate: float) -> bool:
             stop_price = None
             # Prepare
             max_roi = (max_price - buy_price) / buy_price
             # Check
-            can_stop = max_roi >= keep_trigger
+            can_stop = max_roi >= stop_trigger
             if can_stop:
-                stop_price = (1 + max_roi * keep_rate + buy_fee_rate + sell_fee_rate) * buy_price
+                stop_price = buy_price * (1 + min_profit + buy_fee_rate + sell_fee_rate)
             # Put
             vars_map.put(can_stop,      Map.condition,  k_base_can_stop)
-            vars_map.put(keep_rate,     Map.value,      f'{k_base_can_stop}_keep_rate')
-            vars_map.put(keep_trigger,  Map.value,      f'{k_base_can_stop}_keep_trigger')
+            vars_map.put(stop_trigger,  Map.value,      f'{k_base_can_stop}_stop_trigger')
             vars_map.put(buy_price,     Map.value,      f'{k_base_can_stop}_buy_price')
             vars_map.put(max_price,     Map.value,      f'{k_base_can_stop}_max_price')
+            vars_map.put(min_profit,    Map.value,      f'{k_base_can_stop}_min_profit')
             vars_map.put(max_roi,       Map.value,      f'{k_base_can_stop}_max_roi')
             vars_map.put(buy_fee_rate,  Map.value,      f'{k_base_can_stop}_buy_fee_rate')
             vars_map.put(sell_fee_rate, Map.value,      f'{k_base_can_stop}_sell_fee_rate')
@@ -685,7 +685,7 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
             {Map.callback: cls.compare_keltner_floor_and_rate,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
             {Map.callback: can_take_profit,                                 Map.param: dict(vars_map=vars_map, profit_trigger=PROFIT_TRIGGER, buy_price=buy_price, now_close=now_close, final_roi=MAX_PROFIT)},
-            {Map.callback: can_stop_losses,                                 Map.param: dict(vars_map=vars_map, keep_trigger=KEEP_TRIGGER_1, keep_rate=KEEP_RATE_1, buy_price=buy_price, max_price=position_max_price, buy_fee_rate=buy_fee_rate, sell_fee_rate=maker_fee)}
+            {Map.callback: can_stop_losses,                                 Map.param: dict(vars_map=vars_map, stop_trigger=STOP_TRIGGER, buy_price=buy_price, max_price=position_max_price, min_profit=MIN_PROFIT, buy_fee_rate=buy_fee_rate, sell_fee_rate=maker_fee)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
