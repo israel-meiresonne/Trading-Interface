@@ -399,10 +399,42 @@ class Solomon(Strategy):
         return report
 
     @classmethod
-    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
+    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
         KELTNER_PARAMS_1 = {'multiple': 0.5}
         KELTNER_PARAMS_2 = {'multiple': 0.25}
         TRIGGER_KELTNER = 1/100
+        def has_bought_since_negative_tangent_ema(vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, last_buy_time: int, ema_params: dict = {}) -> bool:
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice.reset_collections()
+            marketprice_df = marketprice.to_pd().copy()
+            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            now_time = marketprice.get_time()
+            index = -1
+            prev_index = index - 1
+            # EMA
+            ema = marketprice.get_ema(**ema_params)
+            ema = list(ema)
+            ema.reverse()
+            marketprice_df[Map.ema] = pd.Series(ema, index=marketprice_df.index)
+            # Cook
+            k_ema_diff = Map.key(Map.ema, 'diff')
+            marketprice_df[k_ema_diff] = marketprice_df[Map.ema].diff()
+            time_last_neg_ema = marketprice_df[marketprice_df[k_ema_diff] < 0][Map.time].iloc[-1]
+            # Check
+            has_bought = time_last_neg_ema <= last_buy_time
+            # Put
+            param_str = _MF.param_to_str(ema_params)
+            k_base = f'has_bought_since_negative_tangent_ema_{period_str}_{param_str}'
+            vars_map.put(has_bought,                                        Map.condition,  k_base)
+            vars_map.put(_MF.unix_to_date(now_time),                        Map.value,      f'{k_base}_now_date')
+            vars_map.put(_MF.unix_to_date(last_buy_time),                   Map.value,      f'{k_base}_last_buy_date')
+            vars_map.put(_MF.unix_to_date(time_last_neg_ema),               Map.value,      f'{k_base}_last_ema_neg_date')
+            vars_map.put(ema[index],                                        Map.value,      f'{k_base}_[{index}]')
+            vars_map.put(ema[prev_index],                                   Map.value,      f'{k_base}_[{prev_index}]')
+            vars_map.put(marketprice_df.loc[time_last_neg_ema, Map.ema],    Map.value,      f'{k_base}_ema_of_last_neg')
+            vars_map.put(marketprice_df.loc[time_last_neg_ema, k_ema_diff], Map.value,      f'{k_base}_ema_diff_of_last_neg')
+            return has_bought
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_15min =  Broker.PERIOD_15MIN
@@ -413,6 +445,8 @@ class Solomon(Strategy):
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
+        # Params
+        last_buy_time = datas[Map.buy] if datas[Map.buy] is not None else 0 # in second
         # Params
         now_index = -1
         prev_index_2 =  -2
@@ -429,6 +463,7 @@ class Solomon(Strategy):
         this_func = cls.can_buy
         func_and_params = [
             {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigger_keltner=TRIGGER_KELTNER, index=now_index)},
+            {Map.callback: has_bought_since_negative_tangent_ema,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, last_buy_time=last_buy_time, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_tangent_ema_positive,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
             {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
@@ -447,27 +482,28 @@ class Solomon(Strategy):
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
         can_buy = cls.is_keltner_roi_above_trigger(**func_and_params[0][Map.param]) \
-            and cls.is_tangent_ema_positive(**func_and_params[1][Map.param])
+            and not has_bought_since_negative_tangent_ema(**func_and_params[1][Map.param]) \
+            and cls.is_tangent_ema_positive(**func_and_params[2][Map.param])
         if can_buy:
             is_risky_zone = (
-                                not cls.is_supertrend_rising(**func_and_params[2][Map.param]) \
-                                or not cls.is_psar_rising(**func_and_params[3][Map.param])
+                                not cls.is_supertrend_rising(**func_and_params[3][Map.param]) \
+                                or not cls.is_psar_rising(**func_and_params[4][Map.param])
                             )
-            can_buy = cls.is_compare_price_and_keltner_line(**func_and_params[4][Map.param]) if is_risky_zone else can_buy
+            can_buy = cls.is_compare_price_and_keltner_line(**func_and_params[5][Map.param]) if is_risky_zone else can_buy
         if can_buy:
-            superMACD = cls.is_supertrend_rising(**func_and_params[5][Map.param]), cls.is_macd_line_positive(**func_and_params[6][Map.param])
+            superMACD = cls.is_supertrend_rising(**func_and_params[6][Map.param]), cls.is_macd_line_positive(**func_and_params[7][Map.param])
             if superMACD[0] and superMACD[1]:
                 can_buy = can_buy \
-                    and cls.is_tangent_ema_positive(**func_and_params[7][Map.param]) \
-                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[8][Map.param])
+                    and cls.is_tangent_ema_positive(**func_and_params[8][Map.param]) \
+                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[9][Map.param])
             elif not superMACD[1]: # [TRUE, FALSE] OR [FALSE, FALSE] => [Any, FALSE] => not [Any, FALSE]][1]
                 can_buy = can_buy \
-                    and cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param]) \
                     and cls.is_tangent_macd_line_positive(**func_and_params[10][Map.param]) \
                     and cls.is_tangent_macd_line_positive(**func_and_params[11][Map.param]) \
-                    and cls.is_price_deep_enough(**func_and_params[12][Map.param]) \
-                    and cls.is_tangent_ema_positive(**func_and_params[13][Map.param]) \
-                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[14][Map.param])
+                    and cls.is_tangent_macd_line_positive(**func_and_params[12][Map.param]) \
+                    and cls.is_price_deep_enough(**func_and_params[13][Map.param]) \
+                    and cls.is_tangent_ema_positive(**func_and_params[14][Map.param]) \
+                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[15][Map.param])
             else:
                 can_buy = False
         # Report
@@ -1121,7 +1157,9 @@ class Solomon(Strategy):
         period_1min = Broker.PERIOD_1MIN
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
-            can_buy, buy_condition = cls.can_buy(broker, pair, marketprices)
+            buy_datas = {}
+            buy_datas[Map.buy] = trades[-1][Map.buy][Map.time] if len(trades) > 0 else None
+            can_buy, buy_condition = cls.can_buy(broker, pair, marketprices, buy_datas)
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
