@@ -512,7 +512,6 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
-        MAX_ROI_TRIGGER = 1.7/100
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
@@ -675,19 +674,47 @@ class Solomon(Strategy):
             vars_map.put(now_roi,           Map.value,      f'{k_base_can_take}_now_roi')
             vars_map.put(limit_price,       Map.value,      k_limit_price)
             return can_take
-        def is_max_roi_reached(vars_map: Map, max_roi_trigger: float, buy_price: float, max_price: float) -> bool:
+        def is_max_roi_reached(vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, buy_time: int, buy_price: float, max_price: float) -> bool:
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice.reset_collections()
+            now_time = marketprice.get_time()
+            # Keys
+            k_keltner_high =    Map.key(Map.keltner, Map.high)
+            k_keltner_low =     Map.key(Map.keltner, Map.low)
+            k_keltner_roi =     Map.key(Map.keltner, Map.roi)
+            # Price
+            marketprice_df = marketprice.to_pd().copy()
+            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            # Keltner
+            keltner_map = marketprice.get_keltnerchannel(multiple=1)
+            keltner_high = list(keltner_map.get(Map.high))
+            keltner_high.reverse()
+            marketprice_df[k_keltner_high] = pd.Series(keltner_high, index=marketprice_df.index)
+            keltner_low = list(keltner_map.get(Map.low))
+            keltner_low.reverse()
+            marketprice_df[k_keltner_low] = pd.Series(keltner_low, index=marketprice_df.index)
             # Prepare
             max_roi = (max_price - buy_price) / buy_price
+            marketprice_df[k_keltner_roi] = (marketprice_df[k_keltner_high] - marketprice_df[k_keltner_low]) / marketprice_df[k_keltner_low]
+            sub_marketprice_df = marketprice_df[(marketprice_df[Map.time] >= buy_time) & (marketprice_df[Map.time] <= now_time)]
+            max_roi_trigger = min(sub_marketprice_df[k_keltner_roi])
             # Check
             max_roi_reached = max_roi >= max_roi_trigger
             # Put
-            k_base = f'is_max_roi_reached'
-            vars_map.put(max_roi_reached,   Map.condition,  k_base)
-            vars_map.put(max_roi_trigger,   Map.value,      f'{k_base}_max_roi_trigger')
-            vars_map.put(buy_price,         Map.value,      f'{k_base}_buy_price')
-            vars_map.put(max_price,         Map.value,      f'{k_base}_max_price')
-            vars_map.put(max_roi,           Map.value,      f'{k_base}_max_roi')
-            vars_map.put(buy_fee_rate,      Map.value,      f'{k_base}_buy_fee_rate')
+            k_base = f'is_max_roi_reached_{period_str}'
+            trade_zone_start =  _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[0])
+            trade_zone_end =    _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[-1])
+            vars_map.put(max_roi_reached,               Map.condition,  k_base)
+            vars_map.put(_MF.unix_to_date(buy_time),    Map.value,      f'{k_base}_buy_date')
+            vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'{k_base}_now_date')
+            vars_map.put(max_roi_trigger,               Map.value,      f'{k_base}_max_roi_trigger')
+            vars_map.put(buy_price,                     Map.value,      f'{k_base}_buy_price')
+            vars_map.put(max_price,                     Map.value,      f'{k_base}_max_price')
+            vars_map.put(max_roi,                       Map.value,      f'{k_base}_max_roi')
+            vars_map.put(buy_fee_rate,                  Map.value,      f'{k_base}_buy_fee_rate')
+            vars_map.put(trade_zone_start,              Map.value,      f'{k_base}_trade_zone_start')
+            vars_map.put(trade_zone_end,                Map.value,      f'{k_base}_trade_zone_end')
             return max_roi_reached
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
@@ -724,7 +751,7 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
-            {Map.callback: is_max_roi_reached,                              Map.param: dict(vars_map=vars_map, max_roi_trigger=MAX_ROI_TRIGGER, buy_price=buy_price, max_price=position_max_price)},
+            {Map.callback: is_max_roi_reached,                              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, buy_time=buy_time, buy_price=buy_price, max_price=position_max_price)},
             {Map.callback: cls.is_tangent_rsi_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
             {Map.callback: has_macd_line_switched_positive,                 Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: has_supertrend_switched_down,                    Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
