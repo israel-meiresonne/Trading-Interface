@@ -1179,7 +1179,9 @@ class Solomon(Strategy):
         # Cook
         k_macd_diff = Map.key(Map.macd, 'diff')
         marketprice_df[k_macd_diff] = marketprice_df[Map.macd].diff()
-        index_macd_switch = marketprice_df[marketprice_df[k_macd_diff] < 0].index[-1] + 1
+        index_step = abs(marketprice_df.index[-1] - marketprice_df.index[-2])
+        neg_marketprice_df = marketprice_df[marketprice_df[k_macd_diff] < 0]
+        index_macd_switch = (neg_marketprice_df.index[-1] + index_step) if (neg_marketprice_df.shape[0] > 0) else None
         is_valid_index = index_macd_switch in marketprice_df.index
         switch_date = _MF.unix_to_date(marketprice_df[Map.time].iloc[index_macd_switch]) if is_valid_index else None
         # Check
