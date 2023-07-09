@@ -235,7 +235,7 @@ class Solomon(Strategy):
             }
             self._callback_trade(params, marketprices)
         else:
-            broker_event = Broker.EVENT_NEW_PRICE
+            broker_event = Broker.EVENT_NEW_PERIOD
             broker_callback = self._callback_trade
             broker_pairs = self.get_broker_pairs()
             required_periods = self._REQUIRED_PERIODS
@@ -306,7 +306,10 @@ class Solomon(Strategy):
             turn_start_date = _MF.unix_to_date(unix_time)
             current_func = self._callback_trade.__name__
             if (position is None) or (not position.is_executed(Map.buy)):
-                can_buy, buy_report = self.can_buy(broker, pair, marketprices)
+                last_position = self.get_last_position(pair)
+                buy_datas = {}
+                buy_datas[Map.buy] = int(last_position.get_buy_order().get_execution_time()/1000) if last_position is not None else None
+                can_buy, buy_report = self.can_buy(broker, pair, marketprices, buy_datas)
                 report_buy_limit = -1
                 # Report Buy
                 buy_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
@@ -315,14 +318,17 @@ class Solomon(Strategy):
                 if can_buy:
                     self.buy(pair, Order.TYPE_MARKET, marketprices=marketprices)
             elif position.has_position():
-                # Can sell
-                # +++ Prepare datas
+                # Prepare datas
                 sell_datas = {}
-                k_max_roi = Map.key(Map.maximum, Map.roi)
-                sell_max_price = position.extrem_prices(broker).get(Map.maximum)
                 buy_order = position.get_buy_order()
-                sell_datas[Map.time] = int(buy_order.get_execution_time()/1000)
-                # +++ Ask to sell
+                buy_price = buy_order.get_execution_price()
+                buy_fee = buy_order.get_fee(buy_price.get_asset())
+                buy_amount = buy_order.get_executed_amount()
+                sell_datas[Map.time] =      int(buy_order.get_execution_time()/1000)
+                sell_datas[Map.buy] =       buy_price.get_value()
+                sell_datas[Map.maximum] =   position.extrem_prices(broker).get(Map.maximum)
+                sell_datas[Map.fee] =       buy_fee/buy_amount
+                # Ask to sell
                 can_sell, sell_report = self.can_sell(broker, pair, marketprices, sell_datas)
                 # Report Sell
                 sell_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
@@ -331,6 +337,7 @@ class Solomon(Strategy):
                 # Check
                 if can_sell:
                     self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
+                    self._add_last_position_id(position.get_id())
             position = get_position(pair)
             if (position is not None) and position.is_closed():
                 self._repport_positions(marketprices=marketprices)
@@ -421,7 +428,7 @@ class Solomon(Strategy):
             marketprice_df[k_ema_diff] = marketprice_df[Map.ema].diff()
             time_last_neg_ema = marketprice_df[marketprice_df[k_ema_diff] < 0][Map.time].iloc[-1]
             # Check
-            has_bought = time_last_neg_ema <= last_buy_time
+            has_bought = bool(time_last_neg_ema <= last_buy_time)
             # Put
             param_str = _MF.param_to_str(ema_params)
             k_base = f'has_bought_since_negative_tangent_ema_{period_str}_{param_str}'
@@ -619,7 +626,7 @@ class Solomon(Strategy):
                 rising_zone_start = _MF.unix_to_date(rising_zone_df[Map.time].iloc[0])
                 rising_zone_end =   _MF.unix_to_date(rising_zone_end_time)
             # Check
-            has_switched_up_down = (rising_zone_df.shape[0] > 0) and (rising_zone_end_time < index_time)
+            has_switched_up_down = bool((rising_zone_df.shape[0] > 0) and (rising_zone_end_time < index_time))
             # Put
             trade_zone_start =  _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[0])
             trade_zone_end =    _MF.unix_to_date(sub_marketprice_df[Map.time].iloc[-1])
@@ -722,7 +729,7 @@ class Solomon(Strategy):
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Datas
-        buy_time = datas[Map.time]  # in second
+        buy_time = _MF.round_time(datas[Map.time], period_1min)  # in second
         buy_price = datas[Map.buy]
         position_max_price = datas[Map.maximum]
         buy_fee_rate = datas[Map.fee]
