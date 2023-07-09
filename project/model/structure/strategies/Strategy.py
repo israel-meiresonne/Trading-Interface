@@ -8,6 +8,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Hand import Hand
 from model.tools.FileManager import FileManager
+from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
@@ -21,8 +22,9 @@ class Strategy(Hand, ABC):
     _MAX_POSITION = 5
 
     def __init__(self, capital: Price, broker_class: Callable, pair: Pair = None) -> None:
-        self.__pair =           None
-        self.__sleep_trade =    None
+        self.__pair =               None
+        self.__sleep_trade =        None
+        self.__last_position_ids =  None
         super().__init__(capital, broker_class)
         if pair is not None:
             self._set_pair(pair)
@@ -71,6 +73,53 @@ class Strategy(Hand, ABC):
         To get interval between two trade
         """
         return self.__sleep_trade
+
+    def _get_last_position_ids(self) -> Map:
+        """
+        To get collection of id of last position bought for each pair ever bought
+
+        Returns:
+        --------
+        return: Map
+            Collection of id
+        
+            Map[Pair.__hash__()] -> {str}  # id of the last position bought
+        """
+        last_position_ids = self.__last_position_ids
+        if last_position_ids is None:
+            self.__last_position_ids = last_position_ids = Map()
+        return last_position_ids
+
+    def get_last_position(self, pair: Pair) -> HandTrade:
+        """
+        To get last position bought on the given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            The Pair to get the last position
+
+        Returns:
+        --------
+        return: HandTrade
+            Last position bought on the given Pair else None
+        """
+        last_id = self._get_last_position_ids().get(pair)
+        last_position = self.get_closed_position(last_id) if last_id is not None else None
+        return last_position
+
+    def _add_last_position_id(self, trade_id: str) -> None:
+        """
+        To add id of the last position bought
+
+        Parameters:
+        -----------
+        position: HandTrade
+            The last position bought
+        """
+        last_position = self.get_closed_position(trade_id)
+        pair = last_position.get_buy_order().get_pair()
+        self._get_last_position_ids().put(trade_id, pair)
 
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
