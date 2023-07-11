@@ -1110,37 +1110,73 @@ class BinanceSocket(BinanceAPI):
     # ——————————————————————————————————————————— MARKET HISTORY UP
     # ——————————————————————————————————————————— MANAGE RUN DOWN
 
+    def is_stream_active(self, stream: str) -> bool:
+        """
+        To check if a stream still receive new price from Broker
+
+        Parameters:
+        -----------
+        stream: str
+            The stream to check
+
+        Return:
+        -------
+        return: bool
+            True if the stream still active else False
+        """
+        _, period_str = self.split_stream(stream)
+        period = self.get_interval(period_str)
+        n_period_offset = self.MAX_N_PERIOD_OFFSET
+        max_time_offset_milli = period * n_period_offset * 1000
+        market_history_np = self.get_market_history_np(stream)
+        open_time_milli = market_history_np[-1, 0]
+        now_time_milli = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
+        time_offset_milli = now_time_milli - open_time_milli
+        return time_offset_milli <= max_time_offset_milli
+
+    def remove_inactive_stream(self, streams: list[str]) -> list[str]:
+        """
+        To remove inactive streams
+
+        Deleted:
+        1. Delete market history of inactive streams
+        2. Delete inactive streams from BinanceSocket.streams
+
+        Parameters:
+        -----------
+        streams: list[str]
+            Streams to filter (their market histories must be set)
+
+        Returns:
+        --------
+        return: list[str]
+            Filtered list of active streams
+        """
+        inactive_streams = []
+        active_streams = []
+        for stream in streams:
+            if not self.is_stream_active(stream):
+                inactive_streams.append(stream)
+                self._disable_market_history(stream)
+                if BinanceSocket._DEBUG:
+                    print('\n') if _MF.OUTPUT else None
+                    _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}Stream '{stream}' to be deleted because it's inactive{_MF.S_NORMAL}")
+            else:
+                active_streams.append(stream)
+        self._delete_streams(inactive_streams)
+        if BinanceSocket._DEBUG:
+            print('\n') if _MF.OUTPUT else None
+            _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}'{len(inactive_streams)}' inactive streams deleted{_MF.S_NORMAL}")
+        return active_streams
+
     def run(self) -> None:
         """
         To establish connection to stream through WebSocket
         """
-        def is_stream_active(stream: str) -> bool:
-            """
-            To check if a stream still receive new price from Broker
-
-            Parameters:
-            -----------
-            stream: str
-                The stream to check
-
-            Return:
-            -------
-            return: bool
-                True if the stream still active else False
-            """
-            _, period_str = self.split_stream(stream)
-            period = self.get_interval(period_str)
-            n_period_offset = self.MAX_N_PERIOD_OFFSET
-            max_time_offset_milli = period * n_period_offset * 1000
-            market_history_np = self.get_market_history_np(stream)
-            open_time_milli = market_history_np[-1, 0]
-            now_time_milli = _MF.get_timestamp(unit=_MF.TIME_MILLISEC)
-            time_offset_milli = now_time_milli - open_time_milli
-            return time_offset_milli <= max_time_offset_milli
         def initialize_market_histories() -> None:
             self._load_streams()
             streams = self.get_streams()
-            offsetted_streams = []
+            # offsetted_streams = []
             # Loop
             starttime = _MF.get_timestamp()
             n_turn = len(streams)
@@ -1151,16 +1187,7 @@ class BinanceSocket(BinanceAPI):
                     out = _MF.loop_progression(starttime, turn, n_turn, message=f"initialize market history '{stream}'")
                     _MF.static_output(out)
                 self._set_market_history(stream, raise_error=True)
-                if not is_stream_active(stream):
-                    offsetted_streams.append(stream)
-                    self._disable_market_history(stream)
-                    if BinanceSocket._DEBUG:
-                        print('\n') if _MF.OUTPUT else None
-                        _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}Stream '{stream}' to be deleted because it's inactive{_MF.S_NORMAL}")
-            self._delete_streams(offsetted_streams)
-            if BinanceSocket._DEBUG:
-                print('\n') if _MF.OUTPUT else None
-                _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}'{len(offsetted_streams)}' streams deleted{_MF.S_NORMAL}")
+            self.remove_inactive_stream(streams)
         if self.is_running():
             raise Exception("Connection is already active")
         initialize_market_histories()
@@ -1224,7 +1251,7 @@ class BinanceSocket(BinanceAPI):
                 msg = f"Running_WebSocket: ({n_running}/{n_wss}) == Post_Update_Room: ({n_call}) == Update_Room: ({n_market_reset})"
                 msg += f" == Post_Event_Room: '{n_event}' == N_Message: '{n_ws_messages}'"
                 msg += f" == Post_Callback_Room: '{n_post_callback}' == Treat_Callback: '{n_treat_callback}'"
-                msg += f" == Post_Wite_Room: '{n_post_write}' == N_To_Write: '{n_write}'"
+                msg += f" == Post_Write_Room: '{n_post_write}' == N_To_Write: '{n_write}'"
                 _MF.output(f"{pfx()}" + _purple + msg + _normal) if BinanceSocket._DEBUG else None
             elif key == "B":
                 n_socket = kwargs[Map.websocket]
@@ -1331,17 +1358,20 @@ class BinanceSocket(BinanceAPI):
                 self._delete_streams(new_streams)
                 self.add_new_streams(new_streams)
                 return None
-            # Close last WebSocket
-            last_ws = get_last_websocket()
-            url_streams = self.url_to_streams(last_ws.get_url())
-            self._delete_websocket(last_ws.get_id())
-            # Run new WebSocket
-            real_new_streams = _MF.remove_duplicates([*url_streams, *new_streams])
-            real_new_streams.sort()
-            new_wss = self._new_websockets(real_new_streams)
-            run_websockets(new_wss)
+            # Remove inactive streams
+            new_active_streams = self.remove_inactive_stream(new_streams)
+            if len(new_active_streams) > 0:
+                # Close last WebSocket
+                last_ws = get_last_websocket()
+                url_streams = self.url_to_streams(last_ws.get_url())
+                self._delete_websocket(last_ws.get_id())
+                # Run new WebSocket
+                real_new_active_streams = _MF.remove_duplicates([*url_streams, *new_active_streams])
+                real_new_active_streams.sort()
+                new_wss = self._new_websockets(real_new_active_streams)
+                run_websockets(new_wss)
             thd_add_streams = None
-            output('D2', **{Map.stream: new_streams})
+            output('D2', **{Map.stream: new_active_streams})
 
         def close_connection() -> None:
             """
