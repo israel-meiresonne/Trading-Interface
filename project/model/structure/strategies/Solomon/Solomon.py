@@ -245,6 +245,9 @@ class Solomon(Strategy):
             if (not broker.is_active()) or (not broker.exist_event_streams(broker_event, broker_callback, all_streams)):
                 broker.add_streams(all_streams)
                 broker.add_event_streams(broker_event, broker_callback, stream_1min)
+                added_streams = broker.get_streams()
+                added_pairs = list(added_streams.keys())
+                self._set_broker_pairs(added_pairs)
         stack_key = self.K_BUY_SELL_CONDITION
         if stack.get(stack_key) is not None:
             stack_copy = stack.get(stack_key).copy()
