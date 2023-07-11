@@ -1608,7 +1608,7 @@ class BinanceSocket(BinanceAPI):
         """
         To generate id for callback
         """
-        return f'{callback.__name__}_{id(callback)}'
+        return f'{callback.__name__}_{callback.__hash__()}'
 
     @staticmethod
     def _new_event_stream_id(event: str, stream: str) -> str:
