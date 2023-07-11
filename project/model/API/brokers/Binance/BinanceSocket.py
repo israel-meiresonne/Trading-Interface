@@ -1134,28 +1134,31 @@ class BinanceSocket(BinanceAPI):
         time_offset_milli = now_time_milli - open_time_milli
         return time_offset_milli <= max_time_offset_milli
 
-    def remove_inactive_stream(self, streams: list[str]) -> list[str]:
+    def initialize_market_histories(self, streams: list[str], raise_error: bool) -> tuple[list[str], list[str], list[str]]:
         """
-        To remove inactive streams
-
-        Deleted:
-        1. Delete market history of inactive streams
-        2. Delete inactive streams from BinanceSocket.streams
-
-        Parameters:
-        -----------
-        streams: list[str]
-            Streams to filter (their market histories must be set)
-
-        Returns:
-        --------
-        return: list[str]
-            Filtered list of active streams
+        To manage initialization of market histories of streams
         """
-        inactive_streams = []
+        def output() -> None:
+            loop[Map.turn] += 1
+            out = _MF.loop_progression(loop[Map.start], loop[Map.turn], loop[Map.size], message=f"initialize market history '{stream}'")
+            _MF.static_output(out)
         active_streams = []
+        inactive_streams = []
+        failed_streams = []
+        # Loop
+        loop = {}
+        loop[Map.start] = _MF.get_timestamp()
+        loop[Map.size] = len(streams)
+        loop[Map.turn] = 0
         for stream in streams:
-            if not self.is_stream_active(stream):
+            output() if self._DEBUG else None
+            set_market_failed = not self._set_market_history(stream, raise_error=raise_error)
+            if set_market_failed:
+                failed_streams.append(stream)
+                if BinanceSocket._DEBUG:
+                    print('\n') if _MF.OUTPUT else None
+                    _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}Stream '{stream}'s market history failed to be set{_MF.S_NORMAL}")
+            elif not self.is_stream_active(stream):
                 inactive_streams.append(stream)
                 self._disable_market_history(stream)
                 if BinanceSocket._DEBUG:
@@ -1167,30 +1170,17 @@ class BinanceSocket(BinanceAPI):
         if BinanceSocket._DEBUG:
             print('\n') if _MF.OUTPUT else None
             _MF.output(_MF.prefix() + f"{_MF.C_LIGHT_YELLOW}'{len(inactive_streams)}' inactive streams deleted{_MF.S_NORMAL}")
-        return active_streams
+        return active_streams, inactive_streams, failed_streams
 
     def run(self) -> None:
         """
         To establish connection to stream through WebSocket
         """
-        def initialize_market_histories() -> None:
-            self._load_streams()
-            streams = self.get_streams()
-            # offsetted_streams = []
-            # Loop
-            starttime = _MF.get_timestamp()
-            n_turn = len(streams)
-            turn = 0
-            for stream in streams:
-                if self._DEBUG:
-                    turn += 1
-                    out = _MF.loop_progression(starttime, turn, n_turn, message=f"initialize market history '{stream}'")
-                    _MF.static_output(out)
-                self._set_market_history(stream, raise_error=True)
-            self.remove_inactive_stream(streams)
         if self.is_running():
             raise Exception("Connection is already active")
-        initialize_market_histories()
+        self._load_streams()
+        streams = self.get_streams()
+        self.initialize_market_histories(streams, raise_error=True)
         self._turn_on()
         wait_time = 0
         max_wait_time = self.get_run_restart_interval()
@@ -1346,21 +1336,23 @@ class BinanceSocket(BinanceAPI):
 
             new_streams = self._load_streams()
             output('D0', **{Map.stream: new_streams})
-            # Load market histories
-            faileds = [new_stream for new_stream in new_streams if (not self.is_running()) or (not self._set_market_history(new_stream, raise_error=False))]
-            failed = (len(faileds) > 0)
-            run_stopped = (not self.is_running())
-            if failed or run_stopped:
-                output('D1', **{Map.stream: new_streams,
-                                Map.market: failed,
-                                Map.stop: run_stopped
-                                })
-                self._delete_streams(new_streams)
-                self.add_new_streams(new_streams)
-                return None
-            # Remove inactive streams
-            new_active_streams = self.remove_inactive_stream(new_streams)
-            if len(new_active_streams) > 0:
+            # initialize market histories
+            is_success = True
+            new_active_streams = []
+            if self.is_running():
+                new_active_streams, inactive_streams, failed_streams = self.initialize_market_histories(new_streams, raise_error=False)
+                failed = len(failed_streams) > 0
+                run_stopped = (not self.is_running())
+                is_success = not (failed or run_stopped)
+                if not is_success :
+                    output('D1', **{Map.stream: new_streams,
+                                    Map.market: failed,
+                                    Map.stop: run_stopped
+                                    })
+                    self._delete_streams(new_streams)
+                    self.add_new_streams(new_streams)
+            # Start new stream
+            if is_success and (len(new_active_streams) > 0):
                 # Close last WebSocket
                 last_ws = get_last_websocket()
                 url_streams = self.url_to_streams(last_ws.get_url())
@@ -1370,8 +1362,8 @@ class BinanceSocket(BinanceAPI):
                 real_new_active_streams.sort()
                 new_wss = self._new_websockets(real_new_active_streams)
                 run_websockets(new_wss)
-            thd_add_streams = None
-            output('D2', **{Map.stream: new_active_streams})
+                thd_add_streams = None
+            output('D2', **{Map.stream: new_active_streams}) if is_success else None
 
         def close_connection() -> None:
             """
@@ -1608,7 +1600,7 @@ class BinanceSocket(BinanceAPI):
         """
         To generate id for callback
         """
-        return f'{callback.__name__}_{id(callback)}'
+        return f'{callback.__name__}_{callback.__hash__()}'
 
     @staticmethod
     def _new_event_stream_id(event: str, stream: str) -> str:
