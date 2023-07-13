@@ -1244,7 +1244,7 @@ class Solomon(Strategy):
             sell_conditions.append(sell_condition)
             # Manage Order
             if can_sell:
-                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.mean)
         return trade
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
