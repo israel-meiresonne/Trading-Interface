@@ -458,8 +458,8 @@ class Solomon(Strategy):
         # Params
         last_buy_time = datas[Map.buy] if datas[Map.buy] is not None else 0 # in second
         # Params
-        now_index = -1
-        prev_index_2 =  -2
+        now_index =     -1 - 1
+        prev_index_2 =  -2 - 1
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -743,7 +743,7 @@ class Solomon(Strategy):
         maker_fee = fees.get(Map.maker)
         trade_fees = buy_fee_rate + maker_fee
         # Params
-        now_index = -1
+        now_index = -1 - 1
         k_base_can_stop = 'can_stop_losses'
         k_base_can_take = 'can_take_profit'
         k_stop_price = f'{k_base_can_stop}_stop_price'
@@ -1236,7 +1236,7 @@ class Solomon(Strategy):
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
-                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.mean)
+                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.open)
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             sell_datas = {}
             sell_datas[Map.time] =      trade[Map.buy][Map.time]
@@ -1248,7 +1248,7 @@ class Solomon(Strategy):
             sell_conditions.append(sell_condition)
             # Manage Order
             if can_sell:
-                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.open)
         return trade
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
