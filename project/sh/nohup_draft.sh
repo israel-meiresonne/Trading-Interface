@@ -2,7 +2,12 @@
 
 DRAFT_FILE='sh/start_draft.sh'
 TRASH='/dev/null'
-SLEEP_TIME=10
+SLEEP_TIME=15
+# PAIRS[1]='COCOS/USDT'
+# PAIRS[2]='CTXC/USDT'
+# PAIRS[3]='DOGE/USDT'
+# PAIRS[4]='GTO/USDT'
+# PAIRS[5]='MITH/USDT'
 
 # # # # # # # # #
 #   Backtest    #
@@ -11,12 +16,12 @@ SLEEP_TIME=10
 # REPORT_MODE='Record'
 # FUNC='backtest2'
 # STRATEGY='Solomon'
-# DAY_ID='January_2021_January_2023'
+# DAY_ID='January_2023_10_April_2023'
 # PAIRS[1]='COCOS/USDT'
 # PAIRS[2]='CTXC/USDT'
-# PAIRS[3]='DOGE/USDT'
-# PAIRS[4]='GTO/USDT'
-# PAIRS[5]='MITH/USDT'
+# PAIRS[3]='DASH/USDT'
+# PAIRS[4]='LINK/USDT'
+# PAIRS[5]='XTZ/USDT'
 
 # for i in {1..5} ; do
 #     PAIR=${PAIRS[$i]}
@@ -31,11 +36,13 @@ SLEEP_TIME=10
 #   Loop Backtest   #
 # # # # # # # # # # #
 
-# SESSION_ID='?'
+# SESSION_ID="$1"
 # REPORT_MODE='Record'
 # FUNC='loop_backtest2'
 # STRATEGY='Solomon'
-# DAY_ID='January_2021_January_2023'
+# # DAY_ID='May_2021'
+# # DAY_ID='May_2022'
+# DAY_ID='20_October_2022_20_November_2022'
 
 # for i in {1..5} ; do
 #     echo "$(date -u '+%Y-%m-%d_%H.%M.%S') >> $i"
@@ -49,6 +56,16 @@ SLEEP_TIME=10
 #   Other   #
 # # # # # # #
 
-# FUNC='download_market_histories'
-# REPORT_MODE='Record'
-# nohup echo $(echo "No!$REPORT_MODE!$FUNC" | sed 's#!#\n#g' | sh "$DRAFT_FILE") &!
+FUNC='print_market_trend'
+REPORT_MODE='Record'
+# REPORT_MODE='Print'
+
+# STRATEGY='Solomon'
+# DAY_ID='May_2021'
+# DAY_ID='May_2022'
+# PAIR='BTC/USDT'
+# PAIR="$1"
+
+nohup echo $(echo "No!$REPORT_MODE!$FUNC" | sed 's#!#\n#g' | sh "$DRAFT_FILE" > "$TRASH" 2>&1) > "$TRASH" 2>&1 &!
+# nohup echo $(echo "No!$REPORT_MODE!$FUNC!$STRATEGY!$DAY_ID!$PAIR" | sed "s#!#\n#g" | sh "$DRAFT_FILE" > "$TRASH" 2>&1) > "$TRASH" 2>&1 &!
+# echo "No!$REPORT_MODE!$FUNC!$STRATEGY!$DAY_ID!$PAIR" | sed "s#!#\n#g" | sh "$DRAFT_FILE"
