@@ -22,16 +22,17 @@ from model.structure.database.ModelAccess import ModelAccess
 
 
 class ModelFeature(ModelAccess):
-    OUTPUT = False
-    TIME_SEC = "time_sec"
-    TIME_MILLISEC = "time_millisec"
-    FORMAT_D_H_M_S_MS = '%Y-%m-%d %H:%M:%S.%f'
-    FORMAT_D_H_M_S = '%Y-%m-%d %H:%M:%S'
-    FORMAT_D_H_M_S_FOR_FILE = '%Y-%m-%d_%H.%M.%S'
-    TIME_ZONE_UTC = 'UTC'
-    _IMPORTS = None
-    _REGEX_FILE_PYTHON = r'^.+\.py$'
-    _IMPORT_ROOTS = ['model/']
+    OUTPUT =                    False
+    TIME_SEC =                  "time_sec"
+    TIME_MILLISEC =             "time_millisec"
+    FORMAT_D_H_M_S_MS =         '%Y-%m-%d %H:%M:%S.%f'
+    FORMAT_D_H_M_S =            '%Y-%m-%d %H:%M:%S'
+    FORMAT_D_H_M_S_FOR_FILE =   '%Y-%m-%d_%H.%M.%S'
+    TIME_ZONE_UTC =             'UTC'
+    _IMPORTS =                  None
+    _REGEX_FILE_PYTHON =        r'^.+\.py$'
+    _IMPORT_ROOTS =             ['model/']
+    COMPARATORS =               ('==', '>', '<', '<=', '>=')
     # Styles
     S_NORMAL =          '\033[0m'
     S_BOLD =            '\033[1m'
@@ -668,7 +669,7 @@ class ModelFeature(ModelAccess):
         return returned
 
     @staticmethod
-    def generate_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
+    def __new_thread(target: FunctionType, base_name: str, n_code: int = 5, **kwargs) -> Tuple[threading.Thread, str]:
         """
         To create a new thread
 
@@ -719,7 +720,7 @@ class ModelFeature(ModelAccess):
             'repport': repport,
             **kwargs
             }
-        thread, output = _cls.generate_thread(target=wrap, base_name=base_name, **wrap_kwargs)
+        thread, output = _cls.__new_thread(target=wrap, base_name=base_name, **wrap_kwargs)
         return thread, output
 
     @staticmethod
@@ -954,3 +955,31 @@ class ModelFeature(ModelAccess):
     def check_allowed_values(cls, value, alloweds: list) -> None:
         if value not in alloweds:
             raise ValueError(f"Value must be '{' or '.join(alloweds)}', instead '{value} (type={type(value)})'")
+
+    @classmethod
+    def param_to_str(cls, params: dict) -> str:
+        param_str = ''
+        if len(params) > 0:
+            for key, value in params.items():
+                param_str += f'{key}={value}' if len(param_str) == 0 else f'_{key}={value}'
+        return param_str
+
+    @classmethod
+    def compare_first_and_second(cls, comparator: str, first: float, second: float) -> bool:
+        """
+        To compare the first value to the second with the comparator
+        """
+        comparators = cls.COMPARATORS
+        cls.check_allowed_values(comparator, comparators)
+        if comparator == comparators[0]:
+            check = first == second
+        elif comparator == comparators[1]:
+            check = first > second
+        elif comparator == comparators[2]:
+            check = first < second
+        elif comparator == comparators[3]:
+            check = first <= second
+        elif comparator == comparators[4]:
+            check = first >= second
+        return check
+        

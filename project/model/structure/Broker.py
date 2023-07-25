@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import List
+from typing import Callable, List
 
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.tools.BrokerRequest import BrokerRequest
@@ -16,6 +16,12 @@ class Broker(ABC):
     PERIOD_30MIN =  PERIOD_1MIN * 30
     PERIOD_1H =     PERIOD_1MIN * 60
     PERIOD_6H =     PERIOD_1H * 6
+    EVENT_NEW_PRICE =   'BROKER_EVENT_NEW_PRICE'
+    EVENT_NEW_PERIOD =  'BROKER_EVENT_NEW_PERIOD'
+    EVENTS = [
+        EVENT_NEW_PRICE,
+        EVENT_NEW_PERIOD
+        ]
 
     @abstractmethod
     def is_active(self) ->  bool:
@@ -90,6 +96,66 @@ class Broker(ABC):
         -------
         return: dict[Pair, list[int]]
             Stream converted into a Collection of Pair with list of period of each stream running
+        """
+        pass
+
+    @abstractmethod
+    def get_event_streams(cls) -> list[str]:
+        """
+        To get list of streams holding callbacks hooked to their events 
+        """
+        pass
+
+    @abstractmethod
+    def exist_event_streams(self, event: str, callback: Callable, streams: list[str]) -> bool:
+        """
+        To check if callback exist on the event of the given streams
+
+        Parameters:
+        -----------
+        event: str
+            Name of a supported event
+        callback: Callable
+            The callback to look for
+        streams: list[str]
+            List of stream to check
+
+        Return:
+        -------
+        return: bool
+            True if the callback exist else False
+        """
+        pass
+
+    @abstractmethod
+    def add_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
+        """
+        To hook a callback on an event of the given streams
+
+        Parameters:
+        -----------
+        event: str
+            Name of a supported event to hook on
+        callback: Callable
+            The callback to trigger
+        streams: list[str]
+            List of stream
+        """
+        pass
+
+    @abstractmethod
+    def remove_event_streams(self, event: str, callback: Callable, streams: list[str]) -> None:
+        """
+        To remove a callback hooked on an event of the given streams
+
+        Parameters:
+        -----------
+        event: str
+            Name of a supported event
+        callback: Callable
+            The callback to delete
+        streams: list[str]
+            List of stream
         """
         pass
 

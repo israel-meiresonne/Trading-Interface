@@ -4,8 +4,10 @@ from model.API.brokers.Binance.Binance import Binance
 from model.structure.Broker import Broker
 
 from model.structure.strategies.Strategy import Strategy
+from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
@@ -18,18 +20,31 @@ class StrategyChild(Strategy):
         return cls.__new__(cls)
 
     @classmethod
-    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> None:
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
         pass
 
-class TestStrategy(unittest.TestCase, StrategyChild):
+    def _trade_inner(self, marketprices: Map) -> dict:
+        pass
+
+class TestStrategy(unittest.TestCase, StrategyChild, Order):
     def setUp(self) -> None:
+        Config.update(Config.STAGE_MODE, Config.STAGE_1)
         self.pair1 = pair1 = Pair('BTC/USDT')
+        self.pair2 = pair2 = Pair('ETH/USDT')
         self.r_asset = r_asset = pair1.get_right()
+        self.l_asset = l_asset = pair1.get_left()
         self.capital = capital = Price(1000, r_asset)
         self.broker_class = broker_class = Binance
         # Strategy
         self.strategy1 = StrategyChild(capital, broker_class)
         self.strategy2 = StrategyChild(capital, broker_class, pair1)
+        # HandTrade1
+        self.buy_amount1 = buy_amount1 = Price(100, r_asset)
+        self.buy_order1, self.buy_order_params1 = self.new_buy_order(pair1, buy_amount1)
+        buy_order1 = self.buy_order1
+        self.sell_quantity1 = sell_quantity1 = Price(100, l_asset)
+        self.sell_order1, self.sell_order_params1 = self.new_sell_order(pair1, sell_quantity1)
+        self.hand_trade1 = HandTrade(buy_order1)
 
     def tearDown(self) -> None:
         self.broker_switch(False)
@@ -51,6 +66,46 @@ class TestStrategy(unittest.TestCase, StrategyChild):
             self.BROKER.close() if self.BROKER is not None else None
             Config.update(Config.STAGE_MODE, init_stage) if init_stage is not None else None
         return self.BROKER
+
+    def new_buy_order(self, pair: Pair, buy_amount: Price) -> tuple[Order, Map]:
+        buy_order_params = Map({
+            Map.pair: pair,
+            Map.move: Order.MOVE_BUY,
+            Map.amount: buy_amount,
+            Map.stop: None,
+            Map.limit: None
+        })
+        buy_order = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, buy_order_params)
+        return buy_order, buy_order_params
+
+    def new_sell_order(self, pair: Pair, sell_quantity: Price) -> tuple[Order, Map]:
+        sell_order_params = Map({
+            Map.pair: pair,
+            Map.move: Order.MOVE_SELL,
+            Map.quantity: sell_quantity,
+            Map.stop: None,
+            Map.limit: None
+        })
+        sell_order = Order.generate_broker_order(Binance.__name__, Order.TYPE_MARKET, sell_order_params)
+        return sell_order, sell_order_params
+
+    def _set_market(self) -> None:
+        pass
+
+    def _set_limit(self) -> None:
+        pass
+
+    def _set_stop_loss(self) -> None:
+        pass
+
+    def _set_stop_limit(self) -> None:
+        pass
+
+    def generate_order(self) -> Map:
+        pass
+
+    def generate_cancel_order(self) -> Map:
+        pass
 
     def test_set_max_position(self) -> None:
         strategy1 = self.strategy1
@@ -122,6 +177,36 @@ class TestStrategy(unittest.TestCase, StrategyChild):
         # Wront type
         with self.assertRaises(TypeError):
             strategy1.set_sleep_trade(str(exp1))
+
+    def test_get_add_get_last_position_id(self) -> None:
+        strategy = self.strategy1
+        position_1 = self.hand_trade1
+        buy_order_1 = self.buy_order1
+        buy_order_2 = buy_order_1.copy()
+        sell_order_1 = self.sell_order1
+        buy_order_1._set_status(Order.STATUS_COMPLETED)
+        sell_order_1._set_status(Order.STATUS_COMPLETED)
+        position_1.set_sell_order(sell_order_1)
+        pair_1 = buy_order_1.get_pair()
+        position_2 = HandTrade(buy_order_2)
+        # Get all last ids
+        exp_1 = strategy._get_last_position_ids()
+        result_1 = strategy._get_last_position_ids()
+        self.assertEqual(exp_1, result_1)
+        self.assertEqual(exp_1.get_id(), result_1.get_id())
+        # Get
+        self.assertIsNone(strategy.get_last_position(pair_1))
+        # Add
+        strategy._add_closed_position(position_1)
+        strategy._add_last_position_id(position_1.get_id())
+        exp_2 = position_1
+        result_2 = strategy.get_last_position(pair_1)
+        self.assertEqual(exp_2.get_id(), result_2.get_id())
+        self.assertEqual(exp_2, result_2)
+        # Can't add
+        with self.assertRaises(ValueError):
+            strategy._add_last_position_id(position_2.get_id())
+            
 
     def test_get_path_backtest_file(self) -> None:
         session_id = Config.get(Config.SESSION_ID)

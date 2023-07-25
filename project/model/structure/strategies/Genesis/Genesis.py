@@ -1,7 +1,8 @@
 import time
 from typing import List
-
 from model.structure.Broker import Broker
+
+
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
 from model.tools.Map import Map
@@ -9,8 +10,8 @@ from model.tools.MyJson import MyJson
 from model.tools.Pair import Pair
 
 
-class Solomon(Strategy):
-    PREFIX_ID =             'solomon_'
+class Genesis(Strategy):
+    PREFIX_ID =             'genesis_'
     KELTER_SUPPORT =        None
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
@@ -37,7 +38,7 @@ class Solomon(Strategy):
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
     @classmethod
-    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> dict:
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
         pass
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
@@ -46,7 +47,7 @@ class Solomon(Strategy):
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
-        instance = Solomon.__new__(Solomon)
+        instance = Genesis.__new__(Genesis)
         exec(MyJson.get_executable())
         return instance
 

@@ -7,6 +7,7 @@ from config.Config import Config
 
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.tools.Asset import Asset
 from model.tools.HandTrade import HandTrade
 from model.tools.FileManager import FileManager
 from model.tools.Map import Map
@@ -33,6 +34,12 @@ class Hand(MyJson):
     _N_PERIOD =                 300
     _STALK_FUNCTIONS =          None
     _INTERVAL_BACKUP =          60*15
+    STACK =                     None
+    K_MARKET_TRENDS =           'K_MARKET_TRENDS'
+    _MARKET_ANALYSE_N_PERIOD =  100
+    _MARKET_ANALYSE_TREND_PERIODS = [
+        Broker.PERIOD_5MIN
+        ]
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
         # Broker.PERIOD_5MIN,
@@ -256,6 +263,24 @@ class Hand(MyJson):
             self.__positions = {}
         return self.__positions
 
+    def exist_position(self, pair: Pair) -> bool:
+        """
+        To check if Hand holds a position on the given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            Pair to check
+
+        Returns:
+        --------
+        return: bool
+            True if exist a position on the given Pair else False
+        """
+        positions = self.get_positions()
+        pair_str = pair.__str__()
+        return pair_str in positions
+
     def get_position(self, pair: Pair) -> HandTrade:
         """
         To get position of the given pair
@@ -271,9 +296,9 @@ class Hand(MyJson):
             Position of the given pair
         """
         positions = self.get_positions()
+        if not self.exist_position(pair):
+            raise ValueError(f"A position for this pair '{pair.__str__().upper()}' don't exist")
         pair_str = pair.__str__()
-        if pair_str not in positions:
-            raise ValueError(f"A position for this pair '{pair_str.upper()}' don't exist")
         return positions[pair_str]
 
     def _add_position(self, position: HandTrade) -> None:
@@ -286,9 +311,10 @@ class Hand(MyJson):
             Position to add
         """
         positions = self.get_positions()
-        pair_str = position.get_buy_order().get_pair().__str__()
-        if pair_str in positions:
-            raise ValueError(f"A position for this pair '{pair_str.upper()}' alrady exist")
+        pair = position.get_buy_order().get_pair()
+        if self.exist_position(pair):
+            raise ValueError(f"A position for this pair '{pair.__str__().upper()}' alrady exist")
+        pair_str = pair.__str__()
         positions[pair_str] = position
 
     def _remove_position(self, pair: Pair) -> None:
@@ -564,9 +590,12 @@ class Hand(MyJson):
         """
         thread = self.__thread_stalk
         if thread is None:
-            self.__thread_stalk, output = _MF.generate_thread(self._manage_stalk, base_name=self._THREAD_STALK)
+            thread_name = self._THREAD_STALK
+            class_name = self.__class__.__name__
+            thread, output = _MF.wrap_thread(self._manage_stalk, class_name, thread_name, repport=True)
             _MF.output(output)
-        return self.__thread_stalk
+            self.__thread_stalk = thread
+        return thread
 
     def _reset_thread_position(self) -> None:
         self.__thread_position = None
@@ -611,9 +640,12 @@ class Hand(MyJson):
         """
         thread = self.__thread_position
         if thread is None:
-            self.__thread_position, output = _MF.generate_thread(self._manage_positions, base_name=self._THREAD_POSITION)
+            thread_name = self._THREAD_POSITION
+            class_name = self.__class__.__name__
+            thread, output = _MF.wrap_thread(self._manage_positions, class_name, thread_name, repport=True)
             _MF.output(output)
-        return self.__thread_position
+            self.__thread_position = thread
+        return thread
 
     def _reset_thread_market_analyse(self) -> None:
         self.__thread_market_analyse = None
@@ -658,9 +690,12 @@ class Hand(MyJson):
         """
         thread = self.__thread_market_analyse
         if thread is None:
-            self.__thread_market_analyse, output = _MF.generate_thread(self._manage_market_analyse, base_name=self._THREAD_MARKET_ANALYSE)
+            thread_name = self._THREAD_MARKET_ANALYSE
+            class_name = self.__class__.__name__
+            thread, output = _MF.wrap_thread(self._manage_market_analyse, class_name, thread_name, repport=True)
             _MF.output(output)
-        return self.__thread_market_analyse
+            self.__thread_market_analyse = thread
+        return thread
 
     def _set_backup(self, backup: str) -> None:
         self.__backup = backup
@@ -720,6 +755,7 @@ class Hand(MyJson):
             broker_class = self.get_broker_class()
             fiat_asset = self.get_wallet().get_initial().get_asset()
             broker_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
+            self._set_broker_pairs(broker_pairs)
         return broker_pairs
 
     def _get_stalk_pairs(self) -> List[Pair]:
@@ -1356,13 +1392,6 @@ class Hand(MyJson):
         """
         To print analyse of market's trend
         """
-        def join_df(pair: Pair, base_df: pd.DataFrame, to_join: pd.DateOffset) -> pd.DataFrame:
-            if base_df.shape[0] == 0:
-                base_df = pd.DataFrame({pair: to_join[pair]}, index=to_join.index)
-            else:
-                base_df = base_df.join(to_join)
-            return base_df
-
         def write(period_str: str, analyse: pd.DataFrame) -> None:
             file_path = self.get_path_file_market_trend(period_str)
             rows = analyse.to_dict('records')
@@ -1370,51 +1399,16 @@ class Hand(MyJson):
             FileManager.write_csv(file_path, fields, rows, overwrite=True, make_dir=True)
 
         broker = self.get_broker()
-        pairs = self.get_broker_pairs()
-        periods = self._REQUIRED_PERIODS
-        for period in periods:
-            if not self.is_market_analyse_on():
-                break
-            supertrends_df = pd.DataFrame()
-            closes_df = pd.DataFrame()
-            for pair in pairs:
-                if not self.is_market_analyse_on():
-                    break
-                marketprice = self._marketprice(pair, period, marketprices)
-                open_times = list(marketprice.get_times())
-                open_times.reverse()
-                closes = list(marketprice.get_closes())
-                closes.reverse()
-                supertrends = list(marketprice.get_super_trend())
-                supertrends.reverse()
-                # Close
-                new_closes_df = pd.DataFrame({pair: closes}, index=open_times)
-                closes_df = join_df(pair, closes_df, new_closes_df)
-                # Supertrend
-                new_supertrends_df = pd.DataFrame({pair: supertrends}, index=open_times)
-                supertrends_df = join_df(pair, supertrends_df, new_supertrends_df)
-            # Supertrend str
-            supertrends_str_df = pd.DataFrame(columns=closes_df.columns, index=closes_df.index)
-            supertrends_str_df[closes_df.columns] = ''
-            supertrends_str_df[(closes_df > supertrends_df)] = MarketPrice.SUPERTREND_RISING
-            supertrends_str_df[(closes_df < supertrends_df)] = MarketPrice.SUPERTREND_DROPPING
-            # Print
-            # ••• prepare
+        r_asset = Asset('USDT')
+        pair_streams = list(broker.get_streams().keys())
+        pairs = [pair_stream for pair_stream in pair_streams if pair_stream.get_right() == r_asset]
+        periods = self._MARKET_ANALYSE_TREND_PERIODS
+        max_n_period = self._MARKET_ANALYSE_N_PERIOD
+        market_analyses = MarketPrice.analyse_market(broker, pairs, periods, n_period=max_n_period, marketprices=marketprices)
+        for period, market_analyse_df in market_analyses.items():
             period_str = broker.period_to_str(period)
-            analyse_df = pd.DataFrame([], index=supertrends_str_df.index)
-            # ••• build market dates
-            market_dates = [_MF.unix_to_date(open_time) for open_time in list(analyse_df.index)]
-            market_dates_df = pd.DataFrame({Map.date: market_dates}, index=analyse_df.index)
-            # ••• build rows to print
-            analyse_df[Map.date] = _MF.unix_to_date(_MF.get_timestamp())
-            analyse_df['market_date'] = market_dates_df[Map.date]
-            analyse_df[Map.period] = period_str
-            analyse_df['n_pair'] = supertrends_str_df.shape[1]
-            analyse_df['n_rise'] = supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_RISING].count(axis=1)
-            analyse_df['rise_rate'] = analyse_df['n_rise']/analyse_df['n_pair']
-            analyse_df['n_drop'] = supertrends_str_df[supertrends_str_df == MarketPrice.SUPERTREND_DROPPING].count(axis=1)
-            analyse_df['drop_rate'] = analyse_df['n_drop']/analyse_df['n_pair']
-            write(period_str, analyse_df)
+            write(period_str, market_analyse_df)
+            self._set_market_trend(period, market_analyse_df)
 
     # ••• FUNCTION SELF THREAD MARKET ANALYSE UP
     # ••• FUNCTION SELF BUY/SELL DOWN
@@ -1446,6 +1440,8 @@ class Hand(MyJson):
             raise ValueError(f"The pair to buy's right Asset must be '{r_asset_exp.__str__().upper()}', instead '{pair.__str__().upper()}'")
         if self.is_max_position_reached():
             raise Exception(f"The max number of position allowed '{self.get_max_position()}' is already reached")
+        if self.exist_position(pair):
+            raise ValueError(f"A position for this pair '{pair.__str__().upper()}' alrady exist")
         # Start
         self._set_buying(True)
         # Order
@@ -1883,6 +1879,46 @@ class Hand(MyJson):
         vars_map.put(keltner_high[-1], 'keltner_high[-1]')
         vars_map.put(keltner_low[-1], 'keltner_low[-1]')
         return keltner_roi_above_trigger
+
+    @classmethod
+    def get_stack(cls) -> Map:
+        """
+        To get collection important values stored for a re-use
+
+        Return:
+        -------
+        return: Map
+            Collection important values
+        """
+        stack = cls.STACK
+        if stack is None:
+            cls.STACK = stack = Map()
+        return stack
+
+    @classmethod
+    def _set_market_trend(cls, period: int, market_trend_df: pd.DataFrame) -> pd.DataFrame:
+        _MF.check_type(period, int)
+        _MF.check_type(market_trend_df, pd.DataFrame)
+        cls.get_stack().put(market_trend_df, cls.K_MARKET_TRENDS, period)
+
+    @classmethod
+    def get_market_trend(cls, period: int) -> pd.DataFrame:
+        _MF.check_type(period, int)
+        k_market_trends = cls.K_MARKET_TRENDS
+        stage = Config.get(Config.STAGE_MODE)
+        _stack = cls.get_stack()
+        market_trend_df = _stack.get(k_market_trends, period)
+        if stage == Config.STAGE_1:
+            if market_trend_df is None:
+                market_trend_file = f"content/storage/MarketPrice/histories/stock/market_trend/supertrend/{period}.csv"
+                project_dir = FileManager.get_project_directory()
+                market_trend_df = pd.read_csv(project_dir + market_trend_file, index_col=0)
+                cls._set_market_trend(period, market_trend_df)
+        elif stage in [Config.STAGE_2, Config.STAGE_3]:
+            pass
+        else:
+            raise Exception(f"Behavior not implemeted for this stage '{stage}'")
+        return market_trend_df
 
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:

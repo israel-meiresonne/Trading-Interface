@@ -1,6 +1,6 @@
 from abc import ABC
 from time import sleep
-from typing import List, Any, Union
+from typing import Callable, List, Union
 
 from requests import get as rq_get, Response
 from requests import post as rq_post
@@ -460,6 +460,13 @@ class BinanceAPI(ABC):
     """
     _SYMBOL_TO_PAIR = None
     _EXCLUDE_ASSET = ['bchsv', 'bttc']
+    # API EVENTS
+    EVENT_NEW_PRICE =   'API_EVENT_NEW_PRICE'
+    EVENT_NEW_PERIOD =  'API_EVENT_NEW_PERIOD'
+    EVENT_NAMES = [
+        EVENT_NEW_PRICE,
+        EVENT_NEW_PERIOD
+        ]
     # Variables
     _ORDER_RQ_REGEX = r'^RQ_ORDER.*$'
     _TEST_MODE = None
@@ -810,6 +817,22 @@ class BinanceAPI(ABC):
             raise ValueError(
                 f"The stream '{stream}' must match regex '{regex}'")
         return match_format
+
+    @classmethod
+    def get_event_streams(cls) -> list[str]:
+        return cls._SOCKET.get_event_streams()
+
+    @classmethod
+    def exist_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> bool:
+        return cls._SOCKET.exist_event_streams(event, callback, streams)
+
+    @classmethod
+    def add_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> None:
+        cls._SOCKET.add_event_streams(event, callback, streams)
+
+    @classmethod
+    def remove_event_streams(cls, event: str, callback: Callable, streams: list[str]) -> None:
+        cls._SOCKET.remove_event_streams(event, callback, streams)
 
     # ——————————————————————————————————————————— SOCKET UP
 

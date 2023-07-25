@@ -114,6 +114,159 @@ class TestBinanceSocket(unittest.TestCase, BinanceSocket):
                 print(e)
 
     # ——————————————————————————————————————————— TEST SELF FUNCTION DOWN ——————————————————————————————————————————————
+    # ——————————————————————————————————————————— CALLBACK EVENT DOWN
+
+    def test_check_event_callback(self) -> None:
+        bws = self.bws_multi
+        streams = self.streams
+        # Correct event name
+        self.assertTrue(bws._check_event_callback(bws.EVENT_NEW_PERIOD, int, streams))
+        # Unsupported event name
+        with self.assertRaises(ValueError):
+            bws._check_event_callback('wrong_event_name', int, streams)
+        # No callable callback
+        with self.assertRaises(TypeError):
+            bws._check_event_callback(bws.EVENT_NEW_PRICE, 'no_callable', streams)
+        # Wrong streams
+        with self.assertRaises(TypeError):
+            bws._check_event_callback(bws.EVENT_NEW_PRICE, int, 'not_list')
+        with self.assertRaises(TypeError):
+            bws._check_event_callback(bws.EVENT_NEW_PRICE, int, [1,2,3])
+
+    def test_get_add_delete_event_streams(self) -> None:
+        bws = self.bws_multi
+        callback1 = lambda : 'callback1'
+        callback_id_1 = self._new_event_callback_id(callback1)
+        callback2 = lambda : 'callback2'
+        callback_id_2 = self._new_event_callback_id(callback2)
+        callback3 = lambda : 'callback3'
+        callback_id_3 = self._new_event_callback_id(callback3)
+        streams = self.streams[:3]
+        event_new_period = self.EVENT_NEW_PERIOD
+        event_new_price = self.EVENT_NEW_PRICE
+        """
+        Get
+        """
+        result1_1 = bws._get_event_streams()
+        self.assertIsInstance(result1_1, Map)
+        exp1_2 = result1_1
+        result1_2 = bws._get_event_streams()
+        self.assertEqual(exp1_2.get_id(), result1_2.get_id())
+        self.assertEqual(id(exp1_2), id(result1_2))
+        self.assertFalse(bws.exist_event_streams(event_new_period, callback1, streams))
+        """
+        Add
+        """
+        # Add success
+        bws.add_event_streams(event_new_period, callback1, streams[:1])
+        bws.add_event_streams(event_new_period, callback2, streams[:2])
+        bws.add_event_streams(event_new_period, callback2, streams[:2]) # Hang twice the same function
+        bws.add_event_streams(event_new_price, callback3, streams[:3])
+        exp2_1 = Map({
+            streams[0]: {
+                event_new_period: {
+                    callback_id_1: callback1,
+                    callback_id_2: callback2
+                },
+                event_new_price: {
+                    callback_id_3: callback3
+                }
+            },
+            streams[1]: {
+                event_new_period: {
+                    callback_id_2: callback2
+                },
+                event_new_price: {
+                    callback_id_3: callback3
+                }
+            },
+            streams[2]: {
+                event_new_price: {
+                    callback_id_3: callback3
+                }
+            }
+        })
+        result2_1 = bws._get_event_streams()
+        self.assertEqual(exp2_1, result2_1)
+        self.assertTrue(bws.exist_event_streams(event_new_period, callback1, streams[:1]))
+        self.assertTrue(bws.exist_event_streams(event_new_period, callback2, streams[:2]))
+        self.assertTrue(bws.exist_event_streams(event_new_price, callback3, streams[:3]))
+        """
+        Remove
+        """
+        exp3_1 = Map({
+            streams[0]: {
+                event_new_period: {
+                    # callback_id_1: callback1,
+                    callback_id_2: callback2
+                },
+                # event_new_price: {
+                #     callback_id_3: callback3
+                # }
+            },
+            streams[1]: {
+                event_new_period: {
+                    callback_id_2: callback2
+                },
+                # event_new_price: {
+                #     callback_id_3: callback3
+                # }
+            },
+            # streams[2]: {
+            #     event_new_price: {
+            #         callback_id_3: callback3
+            #     }
+            # }
+        })
+        #
+        bws.remove_event_streams(event_new_period, callback1, streams[:1])
+        bws.remove_event_streams(event_new_price, callback3, streams[:3])
+        bws.remove_event_streams(event_new_price, int, streams) # Don't exist
+        result3_1 = bws._get_event_streams()
+        self.assertEqual(exp3_1, result3_1)
+
+    def debug_handling_callback_event(self) -> None:
+        # BinanceSocket._VERBOSE = True
+        bws = self.bws_multi
+        b = _MF.C_BLUE
+        n = _MF.S_NORMAL
+        event_new_period = self.EVENT_NEW_PERIOD
+        event_new_price = self.EVENT_NEW_PRICE
+        pairs = MarketPrice.get_spot_pairs('Binance', Asset('usdt'))
+        periods = [60, 60*5, 60*15]
+        streams = Binance.generate_streams(pairs, periods)
+        one_pair = Pair('BTC/USDT')
+        one_stream = Binance.generate_stream(Map({Map.pair: one_pair, Map.period: 60}))
+        # Callbacks
+        prompt = lambda params : f" event={params[Map.event]}," + \
+                f" event_time={_MF.unix_to_date(params[Map.time])}," + \
+                f" pair={params[Map.pair]}," + \
+                f" period={params[Map.period]}," + \
+                f" close={params[Map.price][-1, 4]}," + \
+                f" open_time={_MF.unix_to_date(params[Map.price][-1, 0])}," + \
+                f" close_time={_MF.unix_to_date(params[Map.price][-1, 6])}"
+        new_price_callback = lambda params : print(_MF.prefix() + f"{b}{prompt(params)}{n}")
+        new_period_callback = lambda params : print(_MF.prefix() + f"{b}{prompt(params)}{n}")
+        # btc_event = lambda params : new_price_callback(params)
+        # Hang events
+        bws.add_event_streams(event_new_price, new_price_callback, [one_stream])
+        bws.add_event_streams(event_new_period, new_period_callback, [one_stream])
+        #
+        # bws.add_event_streams(event_new_period, new_period_callback, ['dogeusdt@kline_3m'])
+        # bws.remove_event_streams(event_new_period, new_period_callback, ['dogeusdt@kline_3m'])
+        # bws.add_event_streams(event_new_price, new_price_callback, ['dogeusdt@kline_3m'])
+        # bws.remove_event_streams(event_new_price, new_price_callback, ['dogeusdt@kline_3m'])
+        #
+        # Start socket
+        # bws.add_new_streams(streams[:10])
+        # bws.add_new_streams([one_stream, *streams[:5]])
+        bws.add_new_streams([one_stream])
+        bws.run()
+        _MF.console(**vars())
+        bws.close()
+        # self._VERBOSE = False
+
+    # ——————————————————————————————————————————— CALLBACK EVENT UP
 
     def test_urls_url(self) -> None:
         bws = self.bws_multi

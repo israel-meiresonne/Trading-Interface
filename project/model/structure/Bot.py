@@ -188,9 +188,9 @@ class Bot(MyJson):
         prefix = _MF.prefix
         # Start Strategy
         strategy = self.get_strategy()
-        strategy.add_streams()
-        strategy.set_stalk_on(on=True)
+        # strategy.add_streams()
         """
+        strategy.set_stalk_on(on=True)
         strategy.set_position_on(on=True)
         strategy.set_market_analyse_on(on=True)
         """

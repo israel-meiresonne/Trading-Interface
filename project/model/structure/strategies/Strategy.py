@@ -8,6 +8,7 @@ from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.Hand import Hand
 from model.tools.FileManager import FileManager
+from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.Order import Order
@@ -21,8 +22,9 @@ class Strategy(Hand, ABC):
     _MAX_POSITION = 5
 
     def __init__(self, capital: Price, broker_class: Callable, pair: Pair = None) -> None:
-        self.__pair =           None
-        self.__sleep_trade =    None
+        self.__pair =               None
+        self.__sleep_trade =        None
+        self.__last_position_ids =  None
         super().__init__(capital, broker_class)
         if pair is not None:
             self._set_pair(pair)
@@ -72,6 +74,53 @@ class Strategy(Hand, ABC):
         """
         return self.__sleep_trade
 
+    def _get_last_position_ids(self) -> Map:
+        """
+        To get collection of id of last position bought for each pair ever bought
+
+        Returns:
+        --------
+        return: Map
+            Collection of id
+        
+            Map[Pair.__hash__()] -> {str}  # id of the last position bought
+        """
+        last_position_ids = self.__last_position_ids
+        if last_position_ids is None:
+            self.__last_position_ids = last_position_ids = Map()
+        return last_position_ids
+
+    def get_last_position(self, pair: Pair) -> HandTrade:
+        """
+        To get last position bought on the given Pair
+
+        Parameters:
+        -----------
+        pair: Pair
+            The Pair to get the last position
+
+        Returns:
+        --------
+        return: HandTrade
+            Last position bought on the given Pair else None
+        """
+        last_id = self._get_last_position_ids().get(pair)
+        last_position = self.get_closed_position(last_id) if last_id is not None else None
+        return last_position
+
+    def _add_last_position_id(self, trade_id: str) -> None:
+        """
+        To add id of the last position bought
+
+        Parameters:
+        -----------
+        position: HandTrade
+            The last position bought
+        """
+        last_position = self.get_closed_position(trade_id)
+        pair = last_position.get_buy_order().get_pair()
+        self._get_last_position_ids().put(trade_id, pair)
+
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
 
@@ -91,7 +140,7 @@ class Strategy(Hand, ABC):
         return self.get_sleep_trade()
 
     @abstractmethod
-    def _trade_inner(self, marketprices: Map) -> None:
+    def _trade_inner(self, marketprices: Map) -> dict:
         """
         To execute code in Strategy.trade()
         NOTE: This function is called in Strategy.trade(), after update of Order and before to return the sleep time
@@ -171,7 +220,10 @@ class Strategy(Hand, ABC):
             pd_rows.loc[:,'min_loss_roi'] =         roi_losses.max()
             pd_rows.loc[:,'mean_loss_roi'] =        roi_losses.mean()
             pd_rows.loc[:,'max_loss_roi'] =         roi_losses.min()
+            pd_rows['cumul_sum_roi'] =              pd_rows[Map.roi].cumsum()
             pd_rows.loc[:,'sum_roi'] =              pd_rows[Map.roi].sum()
+            pd_rows.loc[:,'min_sum_roi'] =          pd_rows['cumul_sum_roi'].min()
+            pd_rows.loc[:,'max_sum_roi'] =          pd_rows['cumul_sum_roi'].max()
             pd_rows.loc[:,'sum_fee'] =              pd_rows['buy_fee'].sum() + pd_rows['sell_fee'].sum()
             pd_rows.loc[:,'sum_roi_no_fee'] =       pd_rows.loc[:,'sum_roi'] + pd_rows.loc[:,'sum_fee']
             pd_rows.loc[:,'start_price'] =          stats[Map.open]
@@ -189,6 +241,15 @@ class Strategy(Hand, ABC):
 
     @classmethod
     def _backtest_loop(cls, broker: Broker, pair: Pair, starttime: int, endtime: int) -> tuple[list[dict], list[dict], list[dict]]:
+        def try_execute(broker: Broker, marketprices: Map, trade: dict) -> dict:
+            cls._backtest_execute_trade(broker, marketprices, trade) if trade is not None else None
+            if (trade is not None) \
+                and (trade[Map.buy][Map.status] == Order.STATUS_COMPLETED) \
+                and (trade[Map.sell] is not None) \
+                and (trade[Map.sell][Map.status] == Order.STATUS_COMPLETED):
+                trades.append(trade)
+                trade = None
+            return trade
         def output(i: int, marketprice: MarketPrice, output_starttime: int, output_n_turn: int) -> tuple[int, int]:
             output_turn = i
             if i == 0:
@@ -216,7 +277,6 @@ class Strategy(Hand, ABC):
             stats[Map.close] = close
             stats[Map.high] = high if ((stats[Map.high] is None) or (high > stats[Map.high])) else stats[Map.high]
             stats[Map.low] = low if ((stats[Map.low] is None) or (low < stats[Map.low])) else stats[Map.low]
-        enddate = _MF.unix_to_date(endtime)
         pair_str = pair.__str__()
         required_periods = cls._REQUIRED_PERIODS
         required_periods.sort()
@@ -256,22 +316,18 @@ class Strategy(Hand, ABC):
             output_starttime, output_n_turn = output(i, marketprice, output_starttime, output_n_turn)
             # Stats
             update_stats(i, stats, marketprice)
+            # Execution 2
+            trade = try_execute(broker, marketprices, trade)
             # Trade
-            trade = cls._backtest_loop_inner(broker, marketprices, pair, trade, buy_conditions, sell_conditions)
-            # Execution
-            cls._backtest_execute_trade(broker, marketprices, trade) if trade is not None else None
-            if (trade is not None) \
-                and (trade[Map.buy][Map.status] == Order.STATUS_COMPLETED) \
-                and (trade[Map.sell] is not None) \
-                and (trade[Map.sell][Map.status] == Order.STATUS_COMPLETED):
-                trades.append(trade)
-                trade = None
+            trade = cls._backtest_loop_inner(broker, marketprices, pair, trades, trade, buy_conditions, sell_conditions)
+            # Execution 2
+            trade = try_execute(broker, marketprices, trade)
         print() # To clean static print output()
         return trades, buy_conditions, sell_conditions, stats
 
     @classmethod
     @abstractmethod
-    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, buy_conditions: list, sell_conditions: list) -> None:
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
         pass
 
     @classmethod
@@ -370,12 +426,10 @@ class Strategy(Hand, ABC):
 
     @classmethod
     def _backtest_execute_trade(cls, broker: Broker, marketprices: Map, trade: dict) -> None:
-        if trade[Map.buy][Map.status] is None:
+        if (trade[Map.buy][Map.status] is None) or (trade[Map.buy][Map.status] not in Order.FINAL_STATUS):
             order = trade[Map.buy]
-        elif (trade[Map.buy][Map.status] == Order.STATUS_COMPLETED) and (trade[Map.sell][Map.status] is None):
-            order = trade[Map.sell]
         else:
-            raise Exception(f"Unknown state buy_status='{trade[Map.buy][Map.status]}', sell_status='{trade[Map.sell][Map.status]}'")
+            order = trade[Map.sell]
         cls._backtest_execute_order(broker, marketprices, order) if order is not None else None
         cls.__backtest_trade_set_exetremums(broker, marketprices, trade)
         cls._print_trade(trade, 'EXECUTE_TRADE')
@@ -484,7 +538,7 @@ class Strategy(Hand, ABC):
     @classmethod
     def _backtest_execute_order(cls, broker: Broker, marketprices: Map, order: dict) -> None:
         if order[Map.status] in Order.FINAL_STATUS:
-            raise ValueError(f"Can't update order's status '{order[Map.status]}' because it's final")
+            return None
         period_1min = Broker.PERIOD_1MIN
         pair = order[Map.pair]
         fee_rates = broker.get_trade_fee(pair)
@@ -525,7 +579,7 @@ class Strategy(Hand, ABC):
                 trigger_prices = sub_marketprice[sub_marketprice[Map.high] >= stop]
             if trigger_prices.shape[0] > 0:
                 reach_time = trigger_prices.loc[trigger_prices.index[0], Map.time]
-                order[Map.timestamp] = reach_time
+                order[Map.timestamp] = int(reach_time)
                 cls._backtest_execute_order(broker, marketprices, order)
         else:
             raise Exception(f"Unknown order type '{order_type}'")
