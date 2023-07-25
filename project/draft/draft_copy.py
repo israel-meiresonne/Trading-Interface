@@ -343,7 +343,7 @@ class Draft(Order, Hand):
         broker = Draft.get_broker()
         broker_name = broker.__class__.__name__
         starttime = int(_MF.date_to_unix('2020-01-01 0:00:00'))
-        endtime =   int(_MF.date_to_unix('2023-01-23 00:00:00'))
+        endtime =   int(_MF.date_to_unix('2023-07-15 00:00:00'))
         fiat_asset = Asset('USDT')
         pairs = all_pairs = MarketPrice.get_spot_pairs(broker_name, fiat_asset)
         # pairs = existing_pairs = MarketPrice.history_pairs(broker_name, active_path=False)
@@ -463,6 +463,10 @@ class Draft(Order, Hand):
                 Map.start:1621555200,
                 Map.end:1621641600
                 },
+            'May_2021': {
+                Map.start:  1619827200,
+                Map.end:    1622505600
+                },
             'February_2021': {
                 Map.start:1612137600,
                 Map.end:1614556800
@@ -506,7 +510,63 @@ class Draft(Order, Hand):
             '01_23_January_2023': {
                 Map.start:  1672531200,
                 Map.end:    1674432000
-                }
+                },
+            '12_20_February_2023': {
+                Map.start:  1676160000,
+                Map.end:    1676851200
+                },
+            'January_2021_March_2023': {
+                Map.start:  1609459200,
+                Map.end:    1677628800
+                },
+            'January_2023_March_2023': {
+                Map.start:  1672531200,
+                Map.end:    1677628800
+                },
+            'January_2023_April_2023': {
+                Map.start:  1672531200,
+                Map.end:    1680307200
+                },
+            '19_February_2023': {
+                Map.start:  1676764800,
+                Map.end:    1676851200
+                },
+            '01_March_2021_12_May_2021': {
+                Map.start:  1614556800,
+                Map.end:    1620777600
+                },
+            '2023-04-02_12.03.31_Solomon-v4.1': {
+                Map.start:  1680437011,
+                Map.end:    1680825600
+                },
+            'January_2021_10_April_2023': {
+                Map.start:  1609459200,
+                Map.end:    1681084800
+                },
+            'January_2021_july_2023': {
+                Map.start:  1609459200,
+                Map.end:    1688169600
+                },
+            'January_2023_10_April_2023': {
+                Map.start:  1672531200,
+                Map.end:    1681084800
+                },
+            'January_2023_may_2023': {
+                Map.start:  1672531200,
+                Map.end:    1682899200
+                },
+            'January_2023_june_2023': {
+                Map.start:  1672531200,
+                Map.end:    1685577600
+                },
+            '20_October_2022_20_November_2022': {
+                Map.start:  1666224000,
+                Map.end:    1668902400
+                },
+            'May_2022': {Map.start: 1651363200,Map.end: 1654041600},
+            'January_2021_July_2021': {Map.start: 1609459200,Map.end: 1625097600},
+            'January_2022_July_2022': {Map.start: 1640995200,Map.end: 1656633600},
+            '2023-07-11_17.03.36_Solomon-v5.3.1.11.1': {Map.start: 1689095520,Map.end: 1689260760}
         }
         return dates
 
@@ -655,7 +715,8 @@ class Draft(Order, Hand):
                 new_session_id = session_id + new_str
             Config.update_session_id(new_session_id)
         # Vars
-        file_path = 'draft/jupiter/2023-01-07_20.06.31_top_keltner_roi.csv'
+        dir_actual_session = Config.get(Config.DIR_ACTUAL_SESSION)
+        file_path = dir_actual_session + 'pairs_backtest_loop.csv'
         absolut_file_path = FileManager.get_project_directory() + file_path
         # Input
         strategy_class = cls.input_strategy_class()
@@ -1552,20 +1613,78 @@ class Draft(Order, Hand):
                                   fields, rows, overwrite=True, make_dir=True)
 
     @classmethod
-    def draft(cls) -> None:
-        Config.update(Config.STAGE_MODE, Config.STAGE_2)
-        broker = cls.get_broker()
-        pairs = MarketPrice.get_spot_pairs('Binance', Asset('USDT'))
+    def print_market_trend(cls) -> None:
+        def absolut_to_relatif(absolut_path: str) -> str:
+            project_dir = FileManager.get_project_directory()
+            relatif_path = absolut_path.replace(project_dir, '')
+            return relatif_path
+        old_stage = Config.get(Config.STAGE_MODE)
+        # new_stage = Config.STAGE_2
+        new_stage = Config.STAGE_1
+        Config.update(Config.STAGE_MODE, new_stage)
+        #
+        brokker_obj = Draft.get_broker()
+        view = Draft.get_view()
+        broker_class = brokker_obj.__class__
+        broker_str = broker_class.__name__
+        pairs = MarketPrice.history_pairs(broker_str, active_path=False) # [:3]
+        if new_stage == Config.STAGE_1:
+            starttime = int(_MF.date_to_unix('2020-01-01 0:00:00'))
+            endtime =   int(_MF.date_to_unix('2023-07-15 00:00:00'))
+        else:
+            endtime =   _MF.get_timestamp()
+            starttime = endtime - 24 * 3600 * 9
         periods = [
-            Broker.PERIOD_1MIN,
+            # Broker.PERIOD_1MIN,
+            Broker.PERIOD_5MIN,
+            Broker.PERIOD_15MIN,
+            Broker.PERIOD_30MIN,
             Broker.PERIOD_1H,
-            # Broker.PERIOD_6H
-            ]
-        streams = broker.generate_streams(pairs, periods)
-        broker.add_streams(streams)
-        _MF.OUTPUT = False
-        broker.get_streams()
-        _MF.console(**vars())
+            Broker.PERIOD_6H
+        ]
+        #
+        absolute_market_analyse_file_dir = FileManager.get_project_directory() + f'supertrend/'
+        relatif_market_analyse_file_dir = absolut_to_relatif(absolute_market_analyse_file_dir)
+        FileManager.make_directory(relatif_market_analyse_file_dir)
+        for period in periods:
+            marketprices = Map()
+            for pair in pairs:
+                _MF.static_output(_MF.prefix() + f"Loading {period}, {pair}...")
+                try:
+                    if new_stage == Config.STAGE_1:
+                        marketprice_pd = MarketPrice.load_marketprice(broker_str, pair, period, active_path=False)
+                    else:
+                        marketprice_pd = MarketPrice.marketprices(brokker_obj, pair, period, endtime, starttime=starttime)
+                    marketprice_obj = MarketPrice.new_marketprice(broker_class, marketprice_pd.to_numpy().tolist(), pair, period)
+                    marketprices.put(marketprice_obj, pair, period)
+                except Exception as e:
+                    print(e)
+            _MF.static_output(_MF.prefix() + f"Analysing {period}...")
+            market_analyses = MarketPrice.analyse_market(brokker_obj, pairs, [period], endtime=endtime, starttime=starttime, marketprices=marketprices)
+            market_analyse_file = f'{absolute_market_analyse_file_dir}{period}.csv'
+            market_analyses[period].to_csv(market_analyse_file)
+        _MF.output("End")
+        #
+        # for period, market_analyse in market_analyses.items():
+        #
+        Config.update(Config.STAGE_MODE, old_stage)
+
+    @classmethod
+    def draft(cls) -> None:
+        file_dir = 'market_analyse-0/'
+        files = FileManager.get_files(file_dir)
+        new_file_dir = 'market_analyse-1/'
+        project_dir = FileManager.get_project_directory()
+        FileManager.make_directory(new_file_dir)
+        for file in files:
+            absolut_file = project_dir + file_dir + file
+            # period = int(file.replace('.csv', ''))
+            df = pd.read_csv(absolut_file, index_col=0)
+            # df.set_index(df.columns[0], drop=False, inplace=True)
+            df['sum_rise_drop'] =   df['n_rise'] + df['n_drop']
+            df['rise_rate'] =       df['n_rise'] / df['sum_rise_drop']
+            df['drop_rate'] =       df['n_drop'] / df['sum_rise_drop']
+            df.to_csv(project_dir + new_file_dir + file)
 
     @classmethod
     def main(cls) -> None:
@@ -1577,7 +1696,8 @@ class Draft(Order, Hand):
             cls.draft,
             cls.backtest2,
             cls.loop_backtest2,
-            cls.download_market_histories
+            cls.download_market_histories,
+            cls.print_market_trend
             # cls.analyse_market_trend,
             # cls.analyse_backtest,
             # cls.format_orders_to_trades,
