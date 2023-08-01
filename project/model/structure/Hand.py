@@ -1913,6 +1913,7 @@ class Hand(MyJson):
                 market_trend_file = f"content/storage/MarketPrice/histories/stock/market_trend/supertrend/{period}.csv"
                 project_dir = FileManager.get_project_directory()
                 market_trend_df = pd.read_csv(project_dir + market_trend_file, index_col=0)
+                market_trend_df.insert(0, Map.time, market_trend_df.index)
                 cls._set_market_trend(period, market_trend_df)
         elif stage in [Config.STAGE_2, Config.STAGE_3]:
             pass
