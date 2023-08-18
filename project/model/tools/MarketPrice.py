@@ -356,9 +356,10 @@ class MarketPrice(ABC):
                 Map.high:   highs,
                 Map.low:    lows
                 }
-            
-            self.__pd = prices_pd = pd.DataFrame(prices)
-        return prices_pd
+            prices_pd = pd.DataFrame(prices)
+            prices_pd.set_index(Map.time, drop=False, inplace=True)
+            self.__pd = prices_pd
+        return prices_pd.copy()
 
     @staticmethod
     def check_volume_side(side: str) -> bool:
