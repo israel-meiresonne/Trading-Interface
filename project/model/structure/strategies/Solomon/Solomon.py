@@ -8,7 +8,6 @@ from config.Config import Config
 from model.structure.Broker import Broker
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
-from model.tools.Asset import Asset
 from model.tools.FileManager import FileManager
 from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
@@ -26,13 +25,27 @@ class Solomon(Strategy):
     KELTER_SUPPORT =            None
     _REQUIRED_PERIODS = [
         Broker.PERIOD_1MIN,
-        Broker.PERIOD_15MIN
+        Broker.PERIOD_5MIN,
+        Broker.PERIOD_1H
         ]
     PSAR_1 =                    dict(step=.6, max_step=.6)
     EMA_PARAMS_1 =              {'n_period': 5}
+    EMA_PARAMS_2 =              {'n_period': 200}
+    KELTNER_PARAMS_0 =          {'multiple': 1}
+    KELTNER_PARAMS_1 =          {'multiple': 0.5}
+    KELTNER_PARAMS_2 =          {'multiple': 0.25}
     K_BUY_SELL_CONDITION =      'K_BUY_SELL_CONDITION'
     K_EDITED_MARKET_TRENDS =    'K_EDITED_MARKET_TRENDS'
     COMPARATORS =               ['==', '>', '<', '<=', '>=']
+    KELTNER_ZONE_H_INF =        'HIGH_INFINITY'
+    KELTNER_ZONE_M_H =          'MIDDLE_HIGH'
+    KELTNER_ZONE_L_M =          'LOW_MIDDLE'
+    KELTNER_ZONE_INF_L =        'INFINITY_LOW'
+    RISK_SAFE =                 'SAFE'
+    RISK_MODERATE =             'MODERATE'
+    RISK_RISKY =                'RISKY'
+    BUY_CASE_WAVE =             'WAVE'
+    BUY_CASE_LONG =             'LONG_RISE'
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STALK DOWN
@@ -130,94 +143,6 @@ class Solomon(Strategy):
 
     # ——————————————————————————————————————————— STALK UP
     # ——————————————————————————————————————————— TRADE DOWN
-
-    """
-    def _trade_inner(self, marketprices: Map = Map()) -> None:
-        def get_unix_time(broker: Broker, period_1min: int, pair: Pair) -> int:
-            if is_stage_one:
-                marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
-                unix_time = marketprice_1min.get_time()
-            else:
-                unix_time = _MF.get_timestamp()
-            return unix_time
-        def manage_position(broker: Broker, position: HandTrade, period_1min: int, r_asset: Asset, class_name: str, current_func: str, loop_start_date: str, buy_reports: list, sell_reports: list) -> None:
-            turn_start_date = _MF.unix_to_date(_MF.get_timestamp())
-            pair = position.get_buy_order().get_pair()
-            unix_time = get_unix_time(broker, period_1min, pair)
-            if not position.is_executed(Map.buy):
-                buy_settime = int(position.get_buy_order().get_settime()/1000)
-                buy_next_update_time = _MF.round_time(buy_settime, period_1min) + period_1min
-                can_buy, buy_report, buy_limit_float, _ = self.can_buy(broker, pair, marketprices)
-                # Report Buy
-                buy_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
-                buy_report = self._new_row_condition(buy_report, current_func, loop_start_date, turn_start_date, buy_marketprice_1min, pair, can_buy, buy_limit_float)
-                buy_reports.append(buy_report)
-                # Check
-                if not can_buy:
-                    self.cancel(pair, marketprices=marketprices)
-                elif can_buy and (unix_time >= buy_next_update_time):
-                    buy_limit = Price(buy_limit_float, r_asset)
-                    self.cancel(pair, marketprices=marketprices)
-                    self.buy(pair, Order.TYPE_LIMIT, limit=buy_limit, marketprices=marketprices)
-            if position.has_position():
-                is_sell_submitted = position.is_submitted(Map.sell)
-                is_next_minute = False
-                if is_sell_submitted:
-                    sell_settime = int(position.get_sell_order().get_settime()/1000)
-                    sell_next_update_time = _MF.round_time(sell_settime, period_1min) + period_1min
-                    is_next_minute = unix_time >= sell_next_update_time
-                can_sell, sell_report, sell_limit_float = self.can_sell(broker, pair, marketprices)
-                sell_limit = Price(sell_limit_float, r_asset)
-                # Report Buy
-                sell_marketprice_1min = self._marketprice(broker, pair, period_1min, marketprices)
-                sell_report = self._new_row_condition(sell_report, current_func, loop_start_date, turn_start_date, sell_marketprice_1min, pair, can_sell, sell_limit_float)
-                sell_reports.append(sell_report)
-                # Check
-                if can_sell:
-                    self.cancel(pair, marketprices=marketprices) if is_sell_submitted else None
-                    self.sell(pair, Order.TYPE_MARKET, marketprices=marketprices)
-                elif (not can_sell) and (not is_sell_submitted):
-                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
-                elif (not can_sell) and is_sell_submitted and is_next_minute:
-                    self.cancel(pair, marketprices=marketprices)
-                    self.sell(pair, Order.TYPE_LIMIT, limit=sell_limit, marketprices=marketprices)
-            if position.is_closed():
-                p = _MF.catch_exception(self.get_position, class_name, repport=False, **{Map.pair: pair})
-                is_position_moved_to_closed = p is None
-                if not is_position_moved_to_closed:
-                    self._repport_positions(marketprices=marketprices)
-                    self._move_closed_position(pair)
-        # Stage 1
-        is_stage_one = Config.get(Config.STAGE_MODE) == Config.STAGE_1
-        if is_stage_one:
-            self.set_stalk_on(on=False) if self.is_stalk_on() else None
-            self._stalk_market()
-        #
-        broker = self.get_broker()
-        positions = self.get_positions().copy()
-        period_1min = Broker.PERIOD_1MIN
-        r_asset = self.get_wallet().get_initial().get_asset()
-        class_name = self.__class__.__name__
-        buy_reports = []
-        sell_reports = []
-        loop_start_date = _MF.unix_to_date(_MF.get_timestamp())
-        current_func = self._trade_inner.__name__
-        for _, position in positions.items():
-            loop_params = dict(
-                broker=broker,
-                position=position,
-                period_1min=period_1min,
-                r_asset=r_asset,
-                class_name=class_name,
-                current_func=current_func,
-                loop_start_date=loop_start_date,
-                buy_reports=buy_reports,
-                sell_reports=sell_reports
-            )
-            _MF.catch_exception(manage_position, class_name, **loop_params)
-        self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
-        self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
-    """
 
     def _trade_inner(self, marketprices: Map = Map()) -> None:
         stack = self.get_stack()
@@ -409,16 +334,22 @@ class Solomon(Strategy):
         return report
 
     @classmethod
-    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
-        KELTNER_PARAMS_1 = {'multiple': 0.5}
-        KELTNER_PARAMS_2 = {'multiple': 0.25}
-        TRIGGER_KELTNER = 1/100
+    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
+        FEE_MULTIPLE =      2.5
+        SMT_DEEP_TRIGGER =  10/100
+        SMT_RISE_CEILING =  15/100
+        SMT_RISE_INCREASE = 10/100
+        FUNC_TO_PARAMS =    {}
+        def get_callback_id(callback: Callable) -> str:
+            return Map.key(callback.__name__, str(callback.__hash__()))
+        def get_params(callback: Callable) -> list:
+            return FUNC_TO_PARAMS[get_callback_id(callback)]
         def has_bought_since_negative_tangent_ema(vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, last_buy_time: int, ema_params: dict = {}) -> bool:
             period_str = broker.period_to_str(period)
             marketprice = cls._marketprice(broker, pair, period, marketprices)
             marketprice.reset_collections()
-            marketprice_df = marketprice.to_pd().copy()
-            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            marketprice_df = marketprice.to_pd()
+            # marketprice_df = marketprice_df.set_index(Map.time, drop=False)
             now_time = marketprice.get_time()
             index = -1
             prev_index = index - 1
@@ -445,21 +376,86 @@ class Solomon(Strategy):
             vars_map.put(marketprice_df.loc[time_last_neg_ema, Map.ema],    Map.value,      f'{k_base}_ema_of_last_neg')
             vars_map.put(marketprice_df.loc[time_last_neg_ema, k_ema_diff], Map.value,      f'{k_base}_ema_diff_of_last_neg')
             return has_bought
+        def buy_case(vars_map: Map) -> str:
+            func_params = get_params(buy_case)
+            case_value = None
+            k_base = 'buy_case'
+            vars_map.put(case_value, Map.value, k_base)
+            if cls.compare_trigger_and_market_trend(**func_params[0]):
+                case_value = cls.BUY_CASE_WAVE
+            elif cls.is_market_trend_deep_and_rise(**func_params[1]):
+                case_value = cls.BUY_CASE_LONG
+            vars_map.put(case_value, Map.value, k_base) if case_value is not None else None
+            return case_value
+        def are_profits_above_fees(vars_map: Map, fee_coef: float, buy_sell_fees: float) -> bool:
+            func_params = get_params(are_profits_above_fees)
+            # Check
+            p_profit = potential_profit(**func_params[0])
+            fee_trigger = fee_coef * buy_sell_fees
+            profits_above_fees = (p_profit is not None) and (p_profit >= fee_trigger)
+            # Put
+            k_base = f'are_profits_above_fees'
+            vars_map.put(profits_above_fees,    Map.condition,  k_base)
+            vars_map.put(fee_coef,              Map.value,      f'{k_base}_fee_coef')
+            vars_map.put(buy_sell_fees,         Map.value,      f'{k_base}_buy_sell_fees')
+            vars_map.put(p_profit,              Map.value,      f'{k_base}_potential_profit')
+            vars_map.put(fee_trigger,           Map.value,      f'{k_base}_fee_trigger')
+            return profits_above_fees
+        def potential_profit(period: int, price_line: str, index: int) -> float:
+            func_params = get_params(potential_profit)
+            period_str = period_strs[period]
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice_pd = marketprice.to_pd()
+            r_level = risk_level(**func_params[0])
+            buy_keltner_zone = cls.keltner_zone(**func_params[1])
+            sell_price_v = cls.sell_price(**{**func_params[2], 'risk_level': r_level, 'keltner_zone': buy_keltner_zone})
+            buy_price = marketprice_pd[price_line].iloc[index]
+            futur_roi = _MF.progress_rate(sell_price_v, buy_price) if sell_price_v is not None else None
+            # Put
+            k_base = f'potential_profit_{period_str}[{index}]'
+            vars_map.put(futur_roi,         Map.value,  f'{k_base}_futur_roi')
+            vars_map.put(r_level,           Map.value,  f'{k_base}_risk_level')
+            vars_map.put(buy_keltner_zone,  Map.value,  f'{k_base}_keltner_zone')
+            vars_map.put(sell_price_v,      Map.value,  f'{k_base}_sell_price')
+            vars_map.put(buy_price,         Map.value,  f'{k_base}_buy_price[{price_line}]')
+            return futur_roi
+        def risk_level() -> str:
+            func_params = get_params(risk_level)
+            A = ema_bellow_keltner =    cls.compare_ema_and_keltner(**func_params[0])
+            B = supertrend_rising =     cls.is_supertrend_rising(**func_params[1])
+            C = price_falling =         not cls.is_tangent_macd_line_positive(**func_params[2]) \
+                                        and not cls.is_tangent_macd_line_positive(**func_params[3]) \
+                                        and not cls.is_tangent_macd_line_positive(**func_params[4])
+            if A and B and (not C):
+                level = cls.RISK_SAFE
+            elif A and (not B) and (not C):
+                level = cls.RISK_MODERATE
+            elif (not A) or C:
+                level = cls.RISK_RISKY
+            return level
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
-        period_15min =  Broker.PERIOD_15MIN
+        period_5min =   Broker.PERIOD_5MIN
+        period_1h =     Broker.PERIOD_1H
         periods = [
             period_1min,
-            period_15min
+            period_5min,
+            period_1h
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Params
-        last_buy_time = datas[Map.buy] if datas[Map.buy] is not None else 0 # in second
+        fees = broker.get_trade_fee(pair)
+        maker_fee = fees.get(Map.maker)
+        taker_fee = fees.get(Map.taker)
+        trade_fees = taker_fee + maker_fee
+        buy_price_line = Map.open if Config.get_stage() == Config.STAGE_1 else Map.close
         # Params
-        now_index =     -1 - 1
-        prev_index_2 =  -2 - 1
+        now_index =     -1
+        prev_index_2 =  -2
+        prev_index_3 =  -3
+        prev_index_4 =  -4
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -472,56 +468,91 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
-            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigger_keltner=TRIGGER_KELTNER, index=now_index)},
-            {Map.callback: has_bought_since_negative_tangent_ema,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, last_buy_time=last_buy_time, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.is_tangent_ema_positive,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_compare_price_and_keltner_line,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, compare='<=', price_line=Map.close, keltner_line=Map.high, index=now_index)},
-            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_ema_positive,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, comapare='<=', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=KELTNER_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
-            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: buy_case,                                Map.param: dict(vars_map=vars_map)},
+            {Map.callback: cls.compare_trigger_and_market_trend,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=prev_index_2, comparator='>', trigger=SMT_DEEP_TRIGGER, is_int_round=False)},
+            {Map.callback: cls.is_market_trend_deep_and_rise,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, is_int_round=False)},
+            {Map.callback: are_profits_above_fees,                  Map.param: dict(vars_map=vars_map, fee_coef=FEE_MULTIPLE, buy_sell_fees=trade_fees)},
+            {Map.callback: potential_profit,                        Map.param: dict(period=period_1min, price_line=buy_price_line, index=now_index)},
+            {Map.callback: risk_level,                              Map.param: dict()},
+            {Map.callback: cls.keltner_zone,                        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, price_line=buy_price_line, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.sell_price,                          Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, risk_level='risk_level', keltner_zone='keltner_zone', keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.compare_ema_and_keltner,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_4, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_1)},
+            {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, comparator='<', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_price_deep_enough,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, keltner_line=Map.high, macd_line=Map.histogram, keltner_params=KELTNER_PARAMS_2, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_ema_positive,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, comapare='<=', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=KELTNER_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)}
+        ]
+        FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
+            # compare_trigger_and_market_trend
+            # is_market_trend_deep_and_rise
+            func_and_params[1][Map.param],
+            func_and_params[2][Map.param]
+        ]
+        FUNC_TO_PARAMS[get_callback_id(are_profits_above_fees)] = [
+            # potential_profit
+            func_and_params[4][Map.param]
+        ]
+        FUNC_TO_PARAMS[get_callback_id(potential_profit)] = [
+            # risk_level
+            # keltner_zone
+            # sell_price
+            func_and_params[5][Map.param],
+            func_and_params[6][Map.param],
+            func_and_params[7][Map.param]
+        ]
+        FUNC_TO_PARAMS[get_callback_id(risk_level)] = [
+            # compare_ema_and_keltner
+            # is_supertrend_rising
+            # is_tangent_macd_line_positive
+            # is_tangent_macd_line_positive
+            # is_tangent_macd_line_positive
+            func_and_params[8][Map.param],
+            func_and_params[9][Map.param],
+            func_and_params[10][Map.param],
+            func_and_params[11][Map.param],
+            func_and_params[12][Map.param]
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
+        # Keys
+        risk_period_str =   period_strs[func_and_params[4][Map.param][Map.period]]
+        risk_index =        func_and_params[4][Map.param][Map.index]
+        k_risk_level =      f'potential_profit_{risk_period_str}[{risk_index}]_risk_level'
+        k_keltner_zone =    f'potential_profit_{risk_period_str}[{risk_index}]_keltner_zone'
         # Check
-        can_buy = cls.is_keltner_roi_above_trigger(**func_and_params[0][Map.param]) \
-            and not has_bought_since_negative_tangent_ema(**func_and_params[1][Map.param]) \
-            and cls.is_tangent_ema_positive(**func_and_params[2][Map.param])
-        if can_buy:
-            is_risky_zone = (
-                                not cls.is_supertrend_rising(**func_and_params[3][Map.param]) \
-                                or not cls.is_psar_rising(**func_and_params[4][Map.param])
-                            )
-            can_buy = cls.is_compare_price_and_keltner_line(**func_and_params[5][Map.param]) if is_risky_zone else can_buy
-        if can_buy:
-            superMACD = cls.is_supertrend_rising(**func_and_params[6][Map.param]), cls.is_macd_line_positive(**func_and_params[7][Map.param])
-            if superMACD[0] and superMACD[1]:
-                can_buy = can_buy \
-                    and cls.is_tangent_ema_positive(**func_and_params[8][Map.param]) \
-                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[9][Map.param])
-            elif not superMACD[1]: # [TRUE, FALSE] OR [FALSE, FALSE] => [Any, FALSE] => not [Any, FALSE]][1]
-                can_buy = can_buy \
-                    and cls.is_tangent_macd_line_positive(**func_and_params[10][Map.param]) \
-                    and cls.is_tangent_macd_line_positive(**func_and_params[11][Map.param]) \
-                    and cls.is_tangent_macd_line_positive(**func_and_params[12][Map.param]) \
-                    and cls.is_price_deep_enough(**func_and_params[13][Map.param]) \
-                    and cls.is_tangent_ema_positive(**func_and_params[14][Map.param]) \
-                    and cls.compare_exetrem_ema_and_keltner(**func_and_params[15][Map.param])
-            else:
-                can_buy = False
+        can_buy = False
+        buy_case_value = buy_case(**func_and_params[0][Map.param])
+        if buy_case_value == cls.BUY_CASE_WAVE:
+            can_buy = are_profits_above_fees(**func_and_params[3][Map.param]) \
+                and cls.compare_price_and_keltner_line(**func_and_params[13][Map.param]) \
+                and cls.compare_price_and_keltner_line(**func_and_params[14][Map.param]) \
+                and cls.compare_exetrem_ema_and_keltner(**func_and_params[15][Map.param])
+        elif buy_case_value == cls.BUY_CASE_LONG:
+            can_buy = cls.is_tangent_macd_line_positive(**func_and_params[16][Map.param]) \
+                and cls.is_tangent_macd_line_positive(**func_and_params[17][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
-        return can_buy, report
+        cases = {
+            Map.option:     buy_case_value,
+            Map.rank:       vars_map.get(Map.value, k_risk_level),
+            Map.keltner:    vars_map.get(Map.value, k_keltner_zone)
+        }
+        return can_buy, report, cases
 
     @classmethod
-    def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
+    def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, float]:
+        SMT_MAX_DROP =      10/100
+        SELL_RATE_ABOVE =   30/100     
+        SELL_RATE_BELLOW =  50/100
+        FUNC_TO_PARAMS =    {}
+        def get_callback_id(callback: Callable) -> str:
+            return Map.key(callback.__name__, str(callback.__hash__()))
+        def get_params(callback: Callable) -> list:
+            return FUNC_TO_PARAMS[get_callback_id(callback)]
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
             """
             To check if supertrend has switched down since buy
@@ -533,8 +564,8 @@ class Solomon(Strategy):
             marketprice.reset_collections()
             now_time = marketprice.get_time()
             # Price
-            marketprice_df = marketprice.to_pd().copy()
-            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            marketprice_df = marketprice.to_pd()
+            # marketprice_df = marketprice_df.set_index(Map.time, drop=False)
             # Supertrends
             supertrends = list(marketprice.get_super_trend())
             supertrends.reverse()
@@ -572,8 +603,8 @@ class Solomon(Strategy):
             marketprice.reset_collections()
             now_time = marketprice.get_time()
             # Price
-            marketprice_df = marketprice.to_pd().copy()
-            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            marketprice_df = marketprice.to_pd()
+            # marketprice_df = marketprice_df.set_index(Map.time, drop=False)
             # MACD
             macd = list(marketprice.get_macd(**macd_params).get_map()[macd_line])
             macd.reverse()
@@ -613,8 +644,8 @@ class Solomon(Strategy):
             marketprice.reset_collections()
             now_time = marketprice.get_time()
             # Price
-            marketprice_df = marketprice.to_pd().copy()
-            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            marketprice_df = marketprice.to_pd()
+            # marketprice_df = marketprice_df.set_index(Map.time, drop=False)
             # MACD
             macd = list(marketprice.get_macd(**macd_params).get_map()[macd_line])
             macd.reverse()
@@ -694,8 +725,8 @@ class Solomon(Strategy):
             k_keltner_low =     Map.key(Map.keltner, Map.low)
             k_keltner_roi =     Map.key(Map.keltner, Map.roi)
             # Price
-            marketprice_df = marketprice.to_pd().copy()
-            marketprice_df = marketprice_df.set_index(Map.time, drop=False)
+            marketprice_df = marketprice.to_pd()
+            # marketprice_df = marketprice_df.set_index(Map.time, drop=False)
             # Keltner
             keltner_map = marketprice.get_keltnerchannel(multiple=1)
             keltner_high = list(keltner_map.get(Map.high))
@@ -726,24 +757,138 @@ class Solomon(Strategy):
             vars_map.put(trade_zone_start,              Map.value,      f'{k_base}_trade_zone_start')
             vars_map.put(trade_zone_end,                Map.value,      f'{k_base}_trade_zone_end')
             return max_roi_reached
+        def has_market_trend_rose(vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, buy_time: int, is_int_round: bool = False, window: int = None) -> None:
+            func_params = get_params(has_market_trend_rose)
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            now_date = _MF.unix_to_date(marketprice.get_time())
+            buy_date = _MF.unix_to_date(buy_time)
+            # Get trend
+            market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
+            k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+            # Get bracket
+            open_times = list(marketprice.get_times())
+            open_times.reverse()
+            index_time = open_times[index]
+            rounded_buy_time = _MF.round_time(buy_time, period)
+            sub_market_trend_df = market_trend_df[(rounded_buy_time <= market_trend_df.index) & (market_trend_df.index <= index_time)]
+            index_date = _MF.unix_to_date(index_time)
+            rounded_buy_date = _MF.unix_to_date(rounded_buy_time)
+            # Check
+            max_rate = sub_market_trend_df[k_edited_rise_rate].max()
+            rate_trigger = sell_rate(**func_params[0])
+            index_max_rate = sub_market_trend_df[sub_market_trend_df[k_edited_rise_rate] == max_rate].index[-1]
+            max_rate_date = _MF.unix_to_date(index_max_rate)
+            has_reached = bool(max_rate >= rate_trigger)
+            # Put
+            k_base = f'has_market_trend_rose_{period_str}_{is_int_round}_{window}[{index}]'
+            vars_map.put(has_reached,       Map.condition,  k_base)
+            vars_map.put(now_date,          Map.value,      f'{k_base}_now_date')
+            vars_map.put(index_date,        Map.value,      f'{k_base}_index_date')
+            vars_map.put(buy_date,          Map.value,      f'{k_base}_buy_date')
+            vars_map.put(rounded_buy_date,  Map.value,      f'{k_base}_rounded_buy_date')
+            vars_map.put(max_rate_date,     Map.value,      f'{k_base}_max_rate_date')
+            vars_map.put(max_rate,          Map.value,      f'{k_base}_max_rate')
+            vars_map.put(rate_trigger,      Map.value,      f'{k_base}_rate_trigger')
+            return has_reached
+        def sell_rate(period: int, buy_time: int, buy_price: float, keltner_params: dict = {}) -> float:
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice_pd = marketprice.to_pd()
+            now_date = _MF.unix_to_date(marketprice.get_time())
+            buy_date = _MF.unix_to_date(buy_time)
+            # Keltner
+            keltner_map = marketprice.get_keltnerchannel(**keltner_params)
+            keltner = list(keltner_map.get_map()[Map.middle])
+            keltner.reverse()
+            marketprice_pd[Map.keltner] = pd.Series(keltner, index=marketprice_pd.index)
+            # Index
+            rounded_buy_time = _MF.round_time(buy_time, period)
+            index_buy_time = marketprice_pd[marketprice_pd[Map.time] == rounded_buy_time].index[-1]
+            round_buy_date = _MF.unix_to_date(rounded_buy_time)
+            index_buy_date = _MF.unix_to_date(index_buy_time)
+            # Check
+            keltner_at_index = marketprice_pd[Map.keltner][index_buy_time]
+            if buy_price >= keltner_at_index:
+                rate = SELL_RATE_ABOVE
+            else:
+                rate = SELL_RATE_BELLOW
+            # Put
+            # prev_index = index - 1
+            keltner_params_str = _MF.param_to_str(keltner_params)
+            k_base = f'sell_rate_{period_str}_{keltner_params_str}'
+            vars_map.put(rate,              Map.value,  k_base)
+            vars_map.put(now_date,          Map.value,  f'{k_base}_now_date')
+            vars_map.put(buy_date,          Map.value,  f'{k_base}_buy_date')
+            vars_map.put(round_buy_date,    Map.value,  f'{k_base}_round_buy_date')
+            vars_map.put(index_buy_date,    Map.value,  f'{k_base}_index_buy_date')
+            vars_map.put(buy_price,         Map.value,  f'{k_base}_buy_price')
+            vars_map.put(keltner_at_index,  Map.value,  f'{k_base}_keltner_at_index')
+            return rate
+        def has_market_trend_reach_max_drop(vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, buy_time: int, is_int_round: bool = False, window: int = None) -> None:
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            now_date = _MF.unix_to_date(marketprice.get_time())
+            buy_date = _MF.unix_to_date(buy_time)
+            # Get trend
+            market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
+            k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+            # Get bracket
+            open_times = list(marketprice.get_times())
+            open_times.reverse()
+            index_time = open_times[index]
+            rounded_buy_time = _MF.round_time(buy_time, period)
+            trade_zone_df = market_trend_df[(rounded_buy_time <= market_trend_df.index) & (market_trend_df.index <= index_time)]
+            max_rate = trade_zone_df[k_edited_rise_rate].max()
+            index_max_rate = trade_zone_df[trade_zone_df[k_edited_rise_rate] == max_rate].index[-1]
+            fall_zone_df = trade_zone_df[(index_max_rate <= trade_zone_df.index) & (trade_zone_df.index <= index_time)]
+            min_rate = fall_zone_df[k_edited_rise_rate].min()
+            index_min_rate = fall_zone_df[fall_zone_df[k_edited_rise_rate] == min_rate].index[-1]
+            # Check
+            drop_rate = max_rate - min_rate
+            reached_max_drop = bool(drop_rate >= SMT_MAX_DROP)
+            # Put
+            index_date = _MF.unix_to_date(index_time)
+            rounded_buy_date = _MF.unix_to_date(rounded_buy_time)
+            max_rate_date = _MF.unix_to_date(index_max_rate)
+            min_rate_date = _MF.unix_to_date(index_min_rate)
+            k_base = f'has_market_trend_reach_max_drop_{period_str}_{is_int_round}_{window}[{index}]'
+            vars_map.put(reached_max_drop,  Map.condition,  k_base)
+            vars_map.put(now_date,          Map.value,      f'{k_base}_now_date')
+            vars_map.put(index_date,        Map.value,      f'{k_base}_index_date')
+            vars_map.put(buy_date,          Map.value,      f'{k_base}_buy_date')
+            vars_map.put(rounded_buy_date,  Map.value,      f'{k_base}_rounded_buy_date')
+            vars_map.put(max_rate_date,     Map.value,      f'{k_base}_max_rate_date')
+            vars_map.put(max_rate,          Map.value,      f'{k_base}_max_rate')
+            vars_map.put(min_rate_date,     Map.value,      f'{k_base}_min_rate_date')
+            vars_map.put(min_rate,          Map.value,      f'{k_base}_min_rate')
+            vars_map.put(drop_rate,         Map.value,      f'{k_base}_drop_rate')
+            vars_map.put(SMT_MAX_DROP,      Map.value,      f'{k_base}_max_drop')
+            return reached_max_drop
         vars_map = Map()
-        period_1min = Broker.PERIOD_1MIN
+        period_1min =   Broker.PERIOD_1MIN
+        period_5min =   Broker.PERIOD_5MIN
+        period_1h =     Broker.PERIOD_1H
         periods = [
-            period_1min
+            period_1min,
+            period_5min,
+            period_1h
         ]
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Datas
-        buy_time = _MF.round_time(datas[Map.time], period_1min)  # in second
-        buy_price = datas[Map.buy]
-        position_max_price = datas[Map.maximum]
-        buy_fee_rate = datas[Map.fee]
+        buy_time =              _MF.round_time(datas[Map.time], period_1min)  # in second
+        buy_price =             datas[Map.buy]
+        buy_fee_rate =          datas[Map.fee]
+        buy_case =              datas[Map.option]
+        risk_level =            datas[Map.rank]
+        buy_keltner_zone =      datas[Map.keltner]
         fees = broker.get_trade_fee(pair)
         maker_fee = fees.get(Map.maker)
         trade_fees = buy_fee_rate + maker_fee
         # Params
-        now_index = -1 - 1
+        now_index = -1
         k_base_can_stop = 'can_stop_losses'
         k_base_can_take = 'can_take_profit'
         k_stop_price = f'{k_base_can_stop}_stop_price'
@@ -761,31 +906,39 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
-            {Map.callback: is_max_roi_reached,                              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, buy_time=buy_time, buy_price=buy_price, max_price=position_max_price)},
-            {Map.callback: cls.is_tangent_rsi_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
-            {Map.callback: has_macd_line_switched_positive,                 Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: has_supertrend_switched_down,                    Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index)},
-            {Map.callback: has_macd_line_switched_positive_then_negative,   Map.param: dict(vars_map=vars_map, pair=pair, period=period_1min, buy_time=buy_time, index=now_index, macd_line=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_supertrend_rising,                        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_tangent_ema_positive,                     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd)},
-            {Map.callback: cls.compare_keltner_floor_and_rate,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, buy_price=buy_price, rate=trade_fees)},
+            {Map.callback: cls.sell_price,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, risk_level=risk_level, keltner_zone=buy_keltner_zone, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: has_market_trend_rose,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, buy_time=buy_time, is_int_round=False)},
+            {Map.callback: sell_rate,                           Map.param: dict(period=period_1h, buy_time=buy_time, buy_price=buy_price, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.compare_price_and_keltner_line,  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>', price_line=Map.close, keltner_line=Map.high, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)},
+            {Map.callback: has_market_trend_reach_max_drop,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, buy_time=buy_time, is_int_round=False)}
+        ]
+        FUNC_TO_PARAMS[get_callback_id(has_market_trend_rose)] = [
+            # sell_rate
+            func_and_params[2][Map.param]
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        if is_max_roi_reached(**func_and_params[0][Map.param]):
-            can_sell = not cls.is_tangent_rsi_positive(**func_and_params[1][Map.param])
-        elif has_macd_line_switched_positive(**func_and_params[2][Map.param]):
-            can_sell = has_supertrend_switched_down(**func_and_params[3][Map.param]) \
-                or has_macd_line_switched_positive_then_negative(**func_and_params[4][Map.param]) \
-                and not cls.is_supertrend_rising(**func_and_params[5][Map.param])
+        vars_map.put(buy_case, Map.value, f'buy_case')
+        can_sell = False
+        sell_price = None
+        if buy_case == cls.BUY_CASE_WAVE:
+            sell_price = cls.sell_price(**func_and_params[0][Map.param])
+        elif buy_case == cls.BUY_CASE_LONG:
+            can_sell = has_market_trend_rose(**func_and_params[1][Map.param])
+            if can_sell and cls.compare_price_and_keltner_line(**func_and_params[3][Map.param]):
+                can_sell = not cls.is_tangent_ema_positive(**func_and_params[4][Map.param])
+            elif can_sell:
+                keltner_params_str = _MF.param_to_str(cls.KELTNER_PARAMS_0)
+                k_keltner = f'{Map.key(Map.keltner, Map.high, period_strs[period_1min], keltner_params_str)}[{now_index}]'
+                sell_price = vars_map.get(Map.value, k_keltner)
+            if not can_sell:
+                can_sell = has_market_trend_reach_max_drop(**func_and_params[5][Map.param])
         else:
-            can_sell = not cls.is_tangent_ema_positive(**func_and_params[6][Map.param]) \
-                and not cls.is_tangent_macd_line_positive(**func_and_params[7][Map.param]) \
-                and cls.compare_keltner_floor_and_rate(**func_and_params[8][Map.param])
+            raise ValueError(f"Unknown buy case '{buy_case}'")
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
-        return can_sell, report
+        return can_sell, report, sell_price
 
     @classmethod
     def is_psar_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, psar_params: dict = {}) -> bool:
@@ -828,7 +981,7 @@ class Solomon(Strategy):
         return is_rising
 
     @classmethod
-    def is_keltner_roi_above_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, trigger_keltner: float, index: int) -> bool:
+    def is_keltner_roi_above_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, trigger_keltner: float, keltner_params: dict = {}) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         marketprice.reset_collections()
@@ -843,42 +996,45 @@ class Solomon(Strategy):
         keltner_roi = _MF.progress_rate(keltner_high[index], keltner_low[index])
         keltner_roi_above_trigger = keltner_roi >= trigger_keltner
         # Put
-        vars_map.put(keltner_roi_above_trigger, Map.condition,  f'is_keltner_roi_above_trigger_{period_str}[{index}]')
-        vars_map.put(trigger_keltner,           Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_trigger_keltner')
-        vars_map.put(keltner_roi,               Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_keltner_roi')
-        vars_map.put(keltner_low[-1],           Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_low[-1]')
-        vars_map.put(keltner_low[-2],           Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_low[-2]')
-        vars_map.put(keltner_low[index],        Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_low[{index}]')
-        vars_map.put(keltner_middle[-1],        Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_middle[-1]')
-        vars_map.put(keltner_middle[-2],        Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_middle[-2]')
-        vars_map.put(keltner_middle[index],     Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_middle[{index}]')
-        vars_map.put(keltner_high[-1],          Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_high[-1]')
-        vars_map.put(keltner_high[-2],          Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_high[-2]')
-        vars_map.put(keltner_high[index],       Map.value,      f'is_keltner_roi_above_trigger_{period_str}[{index}]_high[{index}]')
+        prev_index = index - 1
+        params_str = _MF.param_to_str(keltner_params)
+        k_base = f'is_keltner_roi_above_trigger_{period_str}[{index}]'
+        vars_map.put(keltner_roi_above_trigger,     Map.condition,  f'is_keltner_roi_above_trigger_{period_str}[{index}]')
+        vars_map.put(trigger_keltner,               Map.value,      f'{k_base}_trigger_keltner')
+        vars_map.put(keltner_roi,                   Map.value,      f'{k_base}_keltner_roi')
+        vars_map.put(keltner_high[index],           Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, params_str)}[{index}]')
+        vars_map.put(keltner_high[prev_index],      Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, params_str)}[{prev_index}]')
+        vars_map.put(keltner_middle[index],         Map.value,      f'{Map.key(Map.keltner, Map.middle, period_str, params_str)}[{index}]')
+        vars_map.put(keltner_middle[prev_index],    Map.value,      f'{Map.key(Map.keltner, Map.middle, period_str, params_str)}[{prev_index}]')
+        vars_map.put(keltner_low[index],            Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, params_str)}[{index}]')
+        vars_map.put(keltner_low[prev_index],       Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, params_str)}[{prev_index}]')
         return keltner_roi_above_trigger
 
     @classmethod
-    def is_compare_price_and_keltner_line(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, compare: str, price_line: str, keltner_line: str, index: int) -> bool:
+    def compare_price_and_keltner_line(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, comparator: str, price_line: str, keltner_line: str, \
+        keltner_params: dict = {}) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         marketprice.reset_collections()
         marketprice_df = marketprice.to_pd()
-        keltner_map = marketprice.get_keltnerchannel(multiple=1)
+        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
         keltner = list(keltner_map.get_map()[keltner_line])
         keltner.reverse()
         # Check
         market_price = marketprice_df[price_line].iloc[index]
         keltner_price = keltner[index]
-        price_compare_keltner_high = bool(eval(f'{market_price} {compare} {keltner_price}'))
+        compare = bool(_MF.compare_first_and_second(comparator, market_price, keltner_price))
         # Put
-        vars_map.put(price_compare_keltner_high,    Map.condition,  f'{price_line}[{index}]_{compare}_keltner_{keltner_line}_{period_str}[{index}]')
-        vars_map.put(keltner[-1],                   Map.value,      f'keltner_{keltner_line}_{period_str}[-1]')
-        vars_map.put(keltner[-2],                   Map.value,      f'keltner_{keltner_line}_{period_str}[-2]')
-        vars_map.put(keltner[index],                Map.value,      f'keltner_{keltner_line}_{period_str}[{index}]')
-        return price_compare_keltner_high
+        prev_index = index - 1
+        params_str = _MF.param_to_str(keltner_params)
+        k_base = f'compare_price[{price_line}]_{comparator}_keltner[{keltner_line}]_{period_str}_{params_str}[{index}]'
+        vars_map.put(compare,               Map.condition,  k_base)
+        vars_map.put(keltner[index],        Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, params_str)}[{index}]')
+        vars_map.put(keltner[prev_index],   Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, params_str)}[{prev_index}]')
+        return compare
 
     @classmethod
-    def is_close_bellow_keltner_range(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, rate: float, index: int) -> bool:
+    def is_close_bellow_keltner_range(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, rate: float, keltner_params: dict = {}) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         marketprice.reset_collections()
@@ -897,45 +1053,38 @@ class Solomon(Strategy):
         market_price = marketprice_df[price_line].iloc[index]
         close_bellow_keltner_range = bool(market_price <= keltner_price)
         # Put
+        prev_index = index - 1
+        params_str = _MF.param_to_str(keltner_params)
         vars_map.put(close_bellow_keltner_range,    Map.condition,  f'close_bellow_keltner_range_{period_str}[{index}]')
         vars_map.put(keltner_range,                 Map.value,      f'keltner_range_{period_str}[{index}]')
         vars_map.put(keltner_piece,                 Map.value,      f'keltner_piece_{period_str}[{index}]')
         vars_map.put(keltner_price,                 Map.value,      f'keltner_price_{period_str}[{index}]')
         vars_map.put(market_price,                  Map.value,      f'market_price_{period_str}[{index}]')
-        vars_map.put(keltner_high[-1],              Map.value,      f'keltner_high_{period_str}[-1]')
-        vars_map.put(keltner_high[-2],              Map.value,      f'keltner_high_{period_str}[-2]')
-        vars_map.put(keltner_high[index],           Map.value,      f'keltner_high_{period_str}[{index}]')
-        vars_map.put(keltner_low[-1],               Map.value,      f'keltner_low_{period_str}[-1]')
-        vars_map.put(keltner_low[-2],               Map.value,      f'keltner_low_{period_str}[-2]')
-        vars_map.put(keltner_low[index],            Map.value,      f'keltner_low_{period_str}[{index}]')
+        vars_map.put(keltner_high[index],           Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, params_str)}[{index}]')
+        vars_map.put(keltner_high[prev_index],      Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, params_str)}[{prev_index}]')
+        vars_map.put(keltner_low[index],            Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, params_str)}[{index}]')
+        vars_map.put(keltner_low[prev_index],       Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, params_str)}[{prev_index}]')
         return close_bellow_keltner_range
 
     @classmethod
     def compare_keltner_floor_and_rate(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, \
-        comparator: str, keltner_line: str, buy_price: float, rate: float) -> bool:
-        comparators = cls.COMPARATORS
-        _MF.check_allowed_values(comparator, comparators)
+        comparator: str, keltner_line: str, buy_price: float, rate: float, keltner_params: dict = {}) -> bool:
+        # comparators = cls.COMPARATORS
+        # _MF.check_allowed_values(comparator, comparators)
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         marketprice.reset_collections()
         now_time = marketprice.get_time()
-        keltner_map = marketprice.get_keltnerchannel(multiple=1)
+        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
         keltner = list(keltner_map.get_map()[keltner_line])
         keltner.reverse()
         # Prapare
         keltner_floor = (keltner[index] - buy_price) / buy_price
         # Check
-        if comparator == comparators[0]:
-            check = keltner_floor == rate
-        elif comparator == comparators[1]:
-            check = keltner_floor > rate
-        elif comparator == comparators[2]:
-            check = keltner_floor < rate
-        elif comparator == comparators[3]:
-            check = keltner_floor <= rate
-        elif comparator == comparators[4]:
-            check = keltner_floor >= rate
+        check = _MF.compare_first_and_second(comparator, keltner_floor, rate)
         # Put
+        prev_index = index - 1
+        params_str = _MF.param_to_str(keltner_params)
         k_base = f'compare_keltner_floor_{keltner_line}_{comparator}_{period_str}[{index}]'
         prev_index = index - 1
         vars_map.put(check,                         Map.condition,  k_base)
@@ -943,8 +1092,8 @@ class Solomon(Strategy):
         vars_map.put(buy_price,                     Map.value,      f'{k_base}_buy_price')
         vars_map.put(keltner_floor,                 Map.value,      f'{k_base}_keltner_floor')
         vars_map.put(rate,                          Map.value,      f'{k_base}_rate')
-        vars_map.put(keltner[index],                Map.value,      f'{k_base}_keltner_[{index}]')
-        vars_map.put(keltner[prev_index],           Map.value,      f'{k_base}_keltner_[{prev_index}]')
+        vars_map.put(keltner[index],                Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, params_str)}[{index}]')
+        vars_map.put(keltner[prev_index],           Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, params_str)}[{prev_index}]')
         return check
 
     @classmethod
@@ -982,7 +1131,7 @@ class Solomon(Strategy):
         return is_bellow
 
     @classmethod
-    def is_market_trend_bellow(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, trigger: float, is_int_round: bool, window: int = None) -> bool:
+    def compare_trigger_and_market_trend(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, comparator: str, trigger: float, is_int_round: bool, window: int = None) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         # Set trend
@@ -995,18 +1144,18 @@ class Solomon(Strategy):
         index_time = open_times[index]
         index_date = _MF.unix_to_date(index_time)
         sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
-        index_trend_date = sub_market_trend_df[k_market_date].iloc[index]
+        index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
         # Check
-        index_rise_rate = sub_market_trend_df[k_edited_rise_rate].iloc[index]
-        is_bellow = bool(index_rise_rate*100 <= trigger*100)
+        index_rise_rate = sub_market_trend_df[k_edited_rise_rate].iloc[-1]
+        # is_bellow = bool(index_rise_rate*100 <= trigger*100)
+        compare = bool(_MF.compare_first_and_second(comparator, trigger*100, index_rise_rate*100))
         # Report
-        vars_map.put(is_bellow,         Map.condition,  f'market_trend_bellow_{period_str}_{window}[{index}]')
-        vars_map.put(is_int_round,      Map.value,      f'market_trend_bellow_is_int_round_{period_str}_{window}[{index}]')
-        vars_map.put(trigger,           Map.value,      f'market_trend_bellow_trigger_{period_str}_{window}[{index}]')
-        vars_map.put(index_date,        Map.value,      f'market_trend_bellow_index_date_{period_str}_{window}[{index}]')
-        vars_map.put(index_trend_date,  Map.value,      f'market_trend_bellow_index_trend_date_{period_str}_{window}[{index}]')
-        vars_map.put(index_rise_rate,   Map.value,      f'market_trend_bellow_index_rise_rate_{period_str}_{window}[{index}]')
-        return is_bellow
+        k_base = f'compare_{trigger}_{comparator}_market_trend({period_str},w={window},int={is_int_round})[{index}]'
+        vars_map.put(compare,           Map.condition,  k_base)
+        vars_map.put(index_date,        Map.value,      f'{k_base}_index_date')
+        vars_map.put(index_trend_date,  Map.value,      f'{k_base}_trend_date')
+        vars_map.put(index_rise_rate,   Map.value,      f'{k_base}_rise_rate')
+        return compare
 
     @classmethod
     def is_tangent_market_trend_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, is_int_round: bool, window: int = None) -> bool:
@@ -1036,6 +1185,71 @@ class Solomon(Strategy):
         vars_map.put(now_rise_rate,     Map.value,      f'tangent_market_trend_positive_now_rise_rate_{period_str}_{window}[{index}]')
         vars_map.put(prev_rise_rate,    Map.value,      f'tangent_market_trend_positive_prev_rise_rate_{period_str}_{window}[{prev_index}]')
         return tangent_positive
+
+    @classmethod
+    def is_market_trend_deep_and_rise(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, fall_ceiling_rate: float, increase_rate: float, is_int_round: bool = False, window: int = None) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        # Set trend
+        market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
+        k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
+        k_market_date = 'market_date'
+        # Get values
+        open_times = list(marketprice.get_times())
+        open_times.reverse()
+        index_time = open_times[index]
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
+        index_date = _MF.unix_to_date(index_time)
+        index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
+        index_last_bellow_ceiling = sub_market_trend_df[sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate].index[-1]
+        index_first_above_ceiling = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] > fall_ceiling_rate) & (sub_market_trend_df.index < index_last_bellow_ceiling)].index[-1]
+        to_loop_df = sub_market_trend_df[(sub_market_trend_df.index >= index_first_above_ceiling) & (sub_market_trend_df.index <= index_time)]
+        i = 2
+        index_fall_start = None
+        while (index_fall_start is None) and (i <= to_loop_df.shape[0]):
+            index_recent_rise_rate = -i + 1
+            index_prev_older_rise_rate = -i
+            rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_recent_rise_rate]
+            prev_older_rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_prev_older_rise_rate]
+            if prev_older_rise_rate > fall_ceiling_rate > rise_rate:
+                index_fall_start = to_loop_df.index[index_recent_rise_rate]
+            i += 1
+        index_to_loop_max_rate = None
+        date_to_loop_max_rate = None
+        if index_fall_start is not None:
+            sub_to_loop_df = to_loop_df[to_loop_df.index > index_fall_start]
+            if sub_to_loop_df.shape[0] > 0:
+                to_loop_max_rate = sub_to_loop_df[k_edited_rise_rate].max()
+                index_to_loop_max_rate = sub_to_loop_df[sub_to_loop_df[k_edited_rise_rate] == to_loop_max_rate].index[-1]
+                index_fall_start = None if index_to_loop_max_rate != index_time else index_fall_start
+                date_to_loop_max_rate = _MF.unix_to_date(index_to_loop_max_rate)
+        deep_fall = None
+        rise_trigger = None
+        fall_zone_start = None
+        deep_fall_date = None
+        if index_fall_start is not None:
+            fall_zone_df = sub_market_trend_df[sub_market_trend_df.index >= index_fall_start]
+            deep_fall = fall_zone_df[k_edited_rise_rate].min()
+            rise_trigger = deep_fall + increase_rate
+            fall_zone_start = _MF.unix_to_date(fall_zone_df.index[0])
+            deep_fall_date = _MF.unix_to_date(fall_zone_df[fall_zone_df[k_edited_rise_rate] == deep_fall].index[-1])
+        # Check
+        rise_rate_at_index = sub_market_trend_df[k_edited_rise_rate].iloc[-1]
+        rise_rate_at_prev_index = sub_market_trend_df[k_edited_rise_rate].iloc[-2]
+        deep_and_rise = bool((rise_trigger is not None) and (rise_rate_at_prev_index < rise_trigger) and (rise_rate_at_index >= rise_trigger))
+        # Report 
+        k_base = f'is_market_trend_deep_and_rise_{period_str}_{fall_ceiling_rate}_{increase_rate}[{index}]'
+        vars_map.put(deep_and_rise,             Map.condition,  k_base)
+        vars_map.put(index_date,                Map.value,      f'{k_base}_index_date')
+        vars_map.put(index_trend_date,          Map.value,      f'{k_base}_index_trend_date')
+        vars_map.put(fall_zone_start,           Map.value,      f'{k_base}_fall_zone_start')
+        vars_map.put(deep_fall_date,            Map.value,      f'{k_base}_deep_fall_date')
+        vars_map.put(deep_fall,                 Map.value,      f'{k_base}_deep_fall')
+        vars_map.put(rise_trigger,              Map.value,      f'{k_base}_rise_trigger')
+        vars_map.put(rise_rate_at_index,        Map.value,      f'{k_base}_rise_rate_at_index')
+        vars_map.put(rise_rate_at_prev_index,   Map.value,      f'{k_base}_rise_rate_at_prev_index')
+        vars_map.put(date_to_loop_max_rate,     Map.value,      f'{k_base}_date_max_between_fall_and_rise')
+        return deep_and_rise
 
     @classmethod
     def is_macd_line_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, line_name: str, macd_params: dict = {}) -> bool:
@@ -1098,6 +1312,91 @@ class Solomon(Strategy):
         return tangent_ema_positive
 
     @classmethod
+    def compare_ema_and_keltner(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, comparator: str, keltner_line: str, \
+        ema_params: dict = {}, keltner_params: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_date = _MF.unix_to_date(marketprice.get_time())
+        marketprice_df = marketprice.to_pd()
+        index_date = _MF.unix_to_date(marketprice_df[Map.time].iloc[index])
+        # EMA
+        ema = marketprice.get_ema(**ema_params)
+        ema = list(ema)
+        ema.reverse()
+        # Keltner
+        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
+        keltner = list(keltner_map.get_map()[keltner_line])
+        keltner.reverse()
+        # Check
+        ema_price = ema[index]
+        keltner_price = keltner[index]
+        compare = _MF.compare_first_and_second(comparator, ema_price, keltner_price)
+        # Put
+        prev_index = index - 1
+        keltner_params_str = _MF.param_to_str(keltner_params)
+        ema_param_str = _MF.param_to_str(ema_params)
+        params_str = Map.key(keltner_params_str, ema_param_str)
+        k_base = f'compare_ema_{comparator}_keltner[{keltner_line}]_{period_str}_{params_str}[{index}]'
+        vars_map.put(compare,               Map.condition,  k_base)
+        vars_map.put(now_date,              Map.value,      f'{k_base}_now_date')
+        vars_map.put(index_date,            Map.value,      f'{k_base}_index_date')
+        vars_map.put(keltner[index],        Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, keltner_params_str)}[{index}]')
+        vars_map.put(keltner[prev_index],   Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, keltner_params_str)}[{prev_index}]')
+        vars_map.put(ema[index],            Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str)}[{index}]')
+        vars_map.put(ema[prev_index],       Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str)}[{prev_index}]')
+        return compare
+
+    @classmethod
+    def compare_exetrem_ema_and_keltner(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, \
+        comparator: str, ema_exetrem: str, keltner_line: str, ema_params: dict = {}, keltner_params: dict = {}) -> bool:
+        _MF.check_allowed_values(ema_exetrem, [Map.minimum, Map.maximum])
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        marketprice_df = marketprice.to_pd()
+        now_time = marketprice.get_time()
+        # EMA
+        k_ema_diff = Map.key(Map.ema, 'diff')
+        ema = marketprice.get_ema(**ema_params)
+        ema = list(ema)
+        ema.reverse()
+        marketprice_df[Map.ema] = pd.Series(ema, index=marketprice_df.index)
+        marketprice_df[k_ema_diff] = marketprice_df[Map.ema].diff()
+        # Keltner
+        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
+        keltner = list(keltner_map.get_map()[keltner_line])
+        keltner.reverse()
+        marketprice_df[Map.keltner] = pd.Series(keltner, index=marketprice_df.index)
+        # Index
+        index_time = marketprice_df[Map.time].iloc[index]
+        sub_marketprice_df = marketprice_df[marketprice_df[Map.time] <= index_time]
+        # Cook
+        index_ema_extrem = sub_marketprice_df[sub_marketprice_df[k_ema_diff] < 0].index[-1] if ema_exetrem == Map.minimum else sub_marketprice_df[sub_marketprice_df[k_ema_diff] > 0].index[-1]
+        extrem_time = sub_marketprice_df[Map.time][index_ema_extrem]
+        # Check
+        extrem_ema = sub_marketprice_df[Map.ema][index_ema_extrem]
+        keltner_at_extrem_ema = sub_marketprice_df[Map.keltner][index_ema_extrem]
+        compare = bool(_MF.compare_first_and_second(comparator, extrem_ema, keltner_at_extrem_ema))
+        # Put
+        prev_index = index - 1
+        keltner_params_str = _MF.param_to_str(keltner_params)
+        ema_param_str = _MF.param_to_str(ema_params)
+        params_str = Map.key(keltner_params_str, ema_param_str)
+        k_base = f'is_{ema_exetrem}_ema_{comparator}_keltner_{keltner_line}_{period_str}_{params_str}'
+        vars_map.put(compare,                       Map.condition,  k_base)
+        vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'{k_base}_date')
+        vars_map.put(_MF.unix_to_date(index_time),  Map.value,      f'{k_base}_index_date')
+        vars_map.put(_MF.unix_to_date(extrem_time), Map.value,      f'{k_base}_extrem_date')
+        vars_map.put(ema[index],                    Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str)}[{index}]')
+        vars_map.put(ema[prev_index],               Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str)}[{prev_index}]')
+        vars_map.put(extrem_ema,                    Map.value,      f'{k_base}_extrem_ema')
+        vars_map.put(keltner[index],                Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, keltner_params_str)}[{index}]')
+        vars_map.put(keltner[prev_index],           Map.value,      f'{Map.key(Map.keltner, keltner_line,    period_str, keltner_params_str)}[{prev_index}]')
+        vars_map.put(keltner_at_extrem_ema,         Map.value,      f'{k_base}_keltner_at_extrem_ema')
+        return compare
+
+    @classmethod
     def is_tangent_rsi_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, rsi_params: dict = {}) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
@@ -1119,62 +1418,12 @@ class Solomon(Strategy):
         return tangent_rsi_positive
 
     @classmethod
-    def compare_exetrem_ema_and_keltner(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, \
-        comapare: str, ema_exetrem: str, keltner_line: str, ema_params: dict = {}, keltner_params: dict = {}) -> bool:
-        compares = cls.COMPARATORS
-        _MF.check_allowed_values(ema_exetrem, [Map.minimum, Map.maximum])
-        _MF.check_allowed_values(comapare, compares)
-        period_str = broker.period_to_str(period)
-        marketprice = cls._marketprice(broker, pair, period, marketprices)
-        marketprice.reset_collections()
-        marketprice_df = marketprice.to_pd().copy()
-        now_time = marketprice.get_time()
-        # EMA
-        ema = marketprice.get_ema(**ema_params)
-        ema = list(ema)
-        ema.reverse()
-        marketprice_df[Map.ema] = pd.Series(ema, index=marketprice_df.index)
-        # Keltner
-        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
-        keltner = list(keltner_map.get_map()[keltner_line])
-        keltner.reverse()
-        marketprice_df[Map.keltner] = pd.Series(keltner, index=marketprice_df.index)
-        # Cook
-        k_ema_diff = Map.key(Map.ema, 'diff')
-        marketprice_df[k_ema_diff] = marketprice_df[Map.ema].diff()
-        index_ema_extrem = marketprice_df[marketprice_df[k_ema_diff] < 0].index[-1] if ema_exetrem == Map.minimum else marketprice_df[marketprice_df[k_ema_diff] > 0].index[-1]
-        extrem_time = marketprice_df[Map.time].iloc[index_ema_extrem]
-        # Check
-        if comapare == compares[0]:
-            check = bool(marketprice_df[Map.ema].iloc[index_ema_extrem] == marketprice_df[Map.keltner].iloc[index_ema_extrem])
-        elif comapare == compares[1]:
-            check = bool(marketprice_df[Map.ema].iloc[index_ema_extrem] > marketprice_df[Map.keltner].iloc[index_ema_extrem])
-        elif comapare == compares[2]:
-            check = bool(marketprice_df[Map.ema].iloc[index_ema_extrem] < marketprice_df[Map.keltner].iloc[index_ema_extrem])
-        elif comapare == compares[3]:
-            check = bool(marketprice_df[Map.ema].iloc[index_ema_extrem] <= marketprice_df[Map.keltner].iloc[index_ema_extrem])
-        elif comapare == compares[4]:
-            check = bool(marketprice_df[Map.ema].iloc[index_ema_extrem] >= marketprice_df[Map.keltner].iloc[index_ema_extrem])
-        # Put
-        param_str = _MF.param_to_str({**ema_params, **keltner_params})
-        vars_map.put(check,                         Map.condition,  f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}')
-        vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_date')
-        vars_map.put(_MF.unix_to_date(extrem_time), Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_extrem_date')
-        vars_map.put(ema[-1],                       Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_ema[-1]')
-        vars_map.put(ema[-2],                       Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_ema[-2]')
-        vars_map.put(ema[index_ema_extrem],         Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_ema_extrem')
-        vars_map.put(keltner[-1],                   Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_keltner[-1]')
-        vars_map.put(keltner[-2],                   Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_keltner[-2]')
-        vars_map.put(keltner[index_ema_extrem],     Map.value,      f'is_{ema_exetrem}_ema_{comapare}_keltner_{keltner_line}_{period_str}_{param_str}_keltner_extrem')
-        return check
-
-    @classmethod
     def is_price_deep_enough(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, \
         keltner_line: str, macd_line: str, keltner_params: dict = {}, macd_params: dict = {}) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         marketprice.reset_collections()
-        marketprice_df = marketprice.to_pd().copy()
+        marketprice_df = marketprice.to_pd()
         now_time = marketprice.get_time()
         # Keltner
         keltner_map = marketprice.get_keltnerchannel(**keltner_params)
@@ -1216,6 +1465,102 @@ class Solomon(Strategy):
         return price_deep_enough
 
     @classmethod
+    def keltner_zone(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, price_line: str, keltner_params: dict = {}) -> str:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_date = _MF.unix_to_date(marketprice.get_time())
+        marketprice_df = marketprice.to_pd()
+        index_date = _MF.unix_to_date(marketprice_df[Map.time].iloc[index])
+        # Keltner
+        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
+        keltner_high = list(keltner_map.get_map()[Map.high])
+        keltner_high.reverse()
+        keltner_middle = list(keltner_map.get_map()[Map.middle])
+        keltner_middle.reverse()
+        keltner_low = list(keltner_map.get_map()[Map.low])
+        keltner_low.reverse()
+        keltner = {
+            Map.high:   keltner_high, 
+            Map.middle: keltner_middle, 
+            Map.low:    keltner_low
+            }
+        # Check
+        market_price = marketprice_df[price_line].iloc[index]
+        if market_price >= keltner[Map.high][index]:
+            zone = cls.KELTNER_ZONE_H_INF   # 'HIGH_INFINITY'
+        elif keltner[Map.middle][index] <= market_price < keltner[Map.high][index]:
+            zone = cls.KELTNER_ZONE_M_H     # 'MIDDLE_HIGH'
+        elif keltner[Map.low][index] <= market_price < keltner[Map.middle][index]:
+            zone = cls.KELTNER_ZONE_L_M     # 'LOW_MIDDLE'
+        elif market_price < keltner[Map.low][index]:
+            zone = cls.KELTNER_ZONE_INF_L   # 'INFINITY_LOW'
+        # Put
+        prev_index = index - 1
+        params_str = _MF.param_to_str(keltner_params)
+        k_base = f'keltner_zone_price[{price_line}]_{period_str}_{params_str}[{index}]'
+        k_keltner = Map.key(Map.keltner, params_str)
+        vars_map.put(zone,                              Map.value,      k_base)
+        vars_map.put(now_date,                          Map.value,      f'{k_base}_now_date')
+        vars_map.put(index_date,                        Map.value,      f'{k_base}_index_date')
+        vars_map.put(keltner[Map.high][index],          Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, params_str)}[{index}]')
+        vars_map.put(keltner[Map.high][prev_index],     Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, params_str)}[{prev_index}]')
+        vars_map.put(keltner[Map.middle][index],        Map.value,      f'{Map.key(Map.keltner, Map.middle, period_str, params_str)}[{index}]')
+        vars_map.put(keltner[Map.middle][prev_index],   Map.value,      f'{Map.key(Map.keltner, Map.middle, period_str, params_str)}[{prev_index}]')
+        vars_map.put(keltner[Map.low][index],           Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, params_str)}[{index}]')
+        vars_map.put(keltner[Map.low][prev_index],      Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, params_str)}[{prev_index}]')
+        return zone
+
+    @classmethod
+    def sell_price(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, risk_level: str, keltner_zone: str, keltner_params: dict = {}) -> float:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_date = _MF.unix_to_date(marketprice.get_time())
+        marketprice_df = marketprice.to_pd()
+        index_date = _MF.unix_to_date(marketprice_df[Map.time].iloc[index])
+        # Keltner
+        keltner_map = marketprice.get_keltnerchannel(**keltner_params)
+        keltner_high = list(keltner_map.get_map()[Map.high])
+        keltner_high.reverse()
+        keltner_middle = list(keltner_map.get_map()[Map.middle])
+        keltner_middle.reverse()
+        keltner_low = list(keltner_map.get_map()[Map.low])
+        keltner_low.reverse()
+        keltner = {
+            Map.high:   keltner_high, 
+            Map.middle: keltner_middle, 
+            Map.low:    keltner_low
+            }
+        # Check
+        zone_L_INF = [cls.KELTNER_ZONE_H_INF, cls.KELTNER_ZONE_M_H, cls.KELTNER_ZONE_L_M]
+        sellPrice = None
+        if ( risk_level == cls.RISK_SAFE ) and (keltner_zone in zone_L_INF):
+            sellPrice = keltner[Map.middle][index]
+        elif ( risk_level == cls.RISK_SAFE ) and (keltner_zone == cls.KELTNER_ZONE_INF_L):
+            sellPrice = keltner[Map.high][index]
+        elif ( risk_level == cls.RISK_MODERATE ) and (keltner_zone in zone_L_INF):
+            sellPrice = None
+        elif ( risk_level == cls.RISK_MODERATE ) and (keltner_zone == cls.KELTNER_ZONE_INF_L):
+            sellPrice = keltner[Map.middle][index]
+        # Put
+        prev_index = index - 1
+        keltner_params_str = _MF.param_to_str(keltner_params)
+        k_base = f'sell_price_{period_str}_{keltner_params_str}[{index}]'
+        vars_map.put(sellPrice,                         Map.value,      f'{k_base}_sellPrice')
+        vars_map.put(now_date,                          Map.value,      f'{k_base}_now_date')
+        vars_map.put(index_date,                        Map.value,      f'{k_base}_index_date')
+        vars_map.put(risk_level,                        Map.value,      f'{k_base}_risk_level')
+        vars_map.put(keltner_zone,                      Map.value,      f'{k_base}_keltner_zone')
+        vars_map.put(keltner[Map.high][index],          Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, keltner_params_str)}[{index}]')
+        vars_map.put(keltner[Map.high][prev_index],     Map.value,      f'{Map.key(Map.keltner, Map.high,   period_str, keltner_params_str)}[{prev_index}]')
+        vars_map.put(keltner[Map.middle][index],        Map.value,      f'{Map.key(Map.keltner, Map.middle, period_str, keltner_params_str)}[{index}]')
+        vars_map.put(keltner[Map.middle][prev_index],   Map.value,      f'{Map.key(Map.keltner, Map.middle, period_str, keltner_params_str)}[{prev_index}]')
+        vars_map.put(keltner[Map.low][index],           Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, keltner_params_str)}[{index}]')
+        vars_map.put(keltner[Map.low][prev_index],      Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, keltner_params_str)}[{prev_index}]')
+        return sellPrice
+
+    @classmethod
     def param_to_str(cls, params: dict) -> str:
         param_str = ''
         if len(params) > 0:
@@ -1231,24 +1576,25 @@ class Solomon(Strategy):
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
             buy_datas = {}
-            buy_datas[Map.buy] = trades[-1][Map.buy][Map.time] if len(trades) > 0 else None
-            can_buy, buy_condition = cls.can_buy(broker, pair, marketprices, buy_datas)
+            can_buy, buy_condition, buy_case = cls.can_buy(broker, pair, marketprices, buy_datas)
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
                 trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.open)
+                trade[Map.condition] = buy_case
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
-            sell_datas = {}
+            sell_datas = trade[Map.condition]
             sell_datas[Map.time] =      trade[Map.buy][Map.time]
             sell_datas[Map.buy] =       trade[Map.buy][Map.execution]
             sell_datas[Map.fee] =       trade[Map.buy][Map.fee]
-            sell_datas[Map.maximum] =   trade[Map.maximum]
-            can_sell, sell_condition = cls.can_sell(broker, pair, marketprices, sell_datas)
+            can_sell, sell_condition, sell_price = cls.can_sell(broker, pair, marketprices, sell_datas)
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
             sell_conditions.append(sell_condition)
             # Manage Order
-            if can_sell:
-                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.open)
+            if sell_price is not None:
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_price)
+            elif can_sell:
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
         return trade
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
