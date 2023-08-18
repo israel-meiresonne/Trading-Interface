@@ -228,3 +228,28 @@ class TestModelFeature(unittest.TestCase, _MF):
         }
         result1 = _MF.group_swings(values, compares)
         self.assertDictEqual(exp1, result1)
+
+    def test_compare_first_and_second(self) -> None:
+        comparators = _MF.COMPARATORS
+        # comparators: tuple[Literal['=='], Literal['>'], Literal['<'], Literal['<='], Literal['>=']]
+        # ==
+        self.assertTrue(_MF.compare_first_and_second(comparators[0], 1, 1))
+        self.assertFalse(_MF.compare_first_and_second(comparators[0], 1, 2))
+        self.assertFalse(_MF.compare_first_and_second(comparators[0], 1, -1))
+        # >
+        self.assertTrue(_MF.compare_first_and_second(comparators[1], 1, -1))
+        self.assertFalse(_MF.compare_first_and_second(comparators[1], 1, 1))
+        self.assertFalse(_MF.compare_first_and_second(comparators[1], 1, 2))
+        # <
+        self.assertTrue(_MF.compare_first_and_second(comparators[2], 1, 2))
+        self.assertFalse(_MF.compare_first_and_second(comparators[2], 1, 1))
+        self.assertFalse(_MF.compare_first_and_second(comparators[2], 1, -1))
+        # <=
+        self.assertTrue(_MF.compare_first_and_second(comparators[3], 1, 2))
+        self.assertTrue(_MF.compare_first_and_second(comparators[3], 1, 1))
+        self.assertFalse(_MF.compare_first_and_second(comparators[3], 1, -1))
+        # >=
+        self.assertTrue(_MF.compare_first_and_second(comparators[4], 1, -1))
+        self.assertTrue(_MF.compare_first_and_second(comparators[4], 1, 1))
+        self.assertFalse(_MF.compare_first_and_second(comparators[4], 1, 2))
+        
