@@ -485,6 +485,12 @@ class Solomon(Strategy):
             # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_0)},
             # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_1)},
             # {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, comparator='<', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: risk_level,                              Map.param: dict()},
+            {Map.callback: cls.compare_ema_and_keltner,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_4, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)}
         ]
@@ -505,18 +511,18 @@ class Solomon(Strategy):
         #     func_and_params[6][Map.param],
         #     func_and_params[7][Map.param]
         # ]
-        # FUNC_TO_PARAMS[get_callback_id(risk_level)] = [
-        #     # compare_ema_and_keltner
-        #     # is_supertrend_rising
-        #     # is_tangent_macd_line_positive
-        #     # is_tangent_macd_line_positive
-        #     # is_tangent_macd_line_positive
-        #     func_and_params[8][Map.param],
-        #     func_and_params[9][Map.param],
-        #     func_and_params[10][Map.param],
-        #     func_and_params[11][Map.param],
-        #     func_and_params[12][Map.param]
-        # ]
+        FUNC_TO_PARAMS[get_callback_id(risk_level)] = [
+            # compare_ema_and_keltner
+            # is_supertrend_rising
+            # is_tangent_macd_line_positive
+            # is_tangent_macd_line_positive
+            # is_tangent_macd_line_positive
+            func_and_params[3][Map.param],
+            func_and_params[4][Map.param],
+            func_and_params[5][Map.param],
+            func_and_params[6][Map.param],
+            func_and_params[7][Map.param]
+        ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Keys
         risk_period_str =   None    # period_strs[func_and_params[4][Map.param][Map.period]]
@@ -532,8 +538,9 @@ class Solomon(Strategy):
         #         and cls.compare_price_and_keltner_line(**func_and_params[14][Map.param]) \
         #         and cls.compare_exetrem_ema_and_keltner(**func_and_params[15][Map.param])
         if buy_case_value == cls.BUY_CASE_LONG:
-            can_buy = cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-                and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
+            can_buy = risk_level() == cls.RISK_SAFE \
+                and cls.is_tangent_macd_line_positive(**func_and_params[8][Map.param]) \
+                and cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
