@@ -338,8 +338,8 @@ class Solomon(Strategy):
         # FEE_MULTIPLE =      2.5
         FEE_MULTIPLE =      1
         SMT_DEEP_TRIGGER =  10/100
-        SMT_RISE_CEILING =  15/100
-        SMT_RISE_INCREASE = 10/100
+        SMT_RISE_CEILING =  50/100
+        SMT_RISE_INCREASE = 1/100
         FUNC_TO_PARAMS =    {}
         def get_callback_id(callback: Callable) -> str:
             return Map.key(callback.__name__, str(callback.__hash__()))
@@ -453,7 +453,7 @@ class Solomon(Strategy):
         maker_fee = fees.get(Map.maker)
         taker_fee = fees.get(Map.taker)
         trade_fees = taker_fee + maker_fee
-        keltner_profit_trigger = FEE_MULTIPLE * trade_fees
+        keltner_trigger = FEE_MULTIPLE * trade_fees
         buy_price_line = Map.open if Config.get_stage() == Config.STAGE_1 else Map.close
         # Params
         now_index =     -1
@@ -488,7 +488,10 @@ class Solomon(Strategy):
             # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_0)},
             # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_1)},
             # {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, comparator='<', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=cls.KELTNER_PARAMS_0)},
-            {Map.callback: cls.compare_keltner_profit_and_trigger,  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>=', price_line=buy_price_line, keltner_line=Map.high, trigger=keltner_profit_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
+            # {Map.callback: cls.compare_keltner_profit_and_trigger,  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>=', price_line=buy_price_line, keltner_line=Map.high, trigger=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)}
             # {Map.callback: cls.is_tangent_ema_positive,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, ema_params=cls.EMA_PARAMS_1)},
             # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<=', price_line=buy_price_line, keltner_line=Map.middle, keltner_params=cls.KELTNER_PARAMS_0)}
             # {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
@@ -533,7 +536,9 @@ class Solomon(Strategy):
         can_buy = False
         buy_case_value = buy_case(**func_and_params[0][Map.param])
         if buy_case_value == cls.BUY_CASE_LONG:
-            can_buy = cls.compare_keltner_profit_and_trigger(**func_and_params[2][Map.param]) \
+            can_buy = cls.is_keltner_roi_above_trigger(**func_and_params[2][Map.param]) \
+                and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+                and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param])
                 # and cls.is_tangent_ema_positive(**func_and_params[3][Map.param]) \
                 # and cls.compare_price_and_keltner_line(**func_and_params[4][Map.param])
                 # and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
@@ -1324,7 +1329,7 @@ class Solomon(Strategy):
             rise_zone_df = fall_zone_df[fall_zone_df.index >= index_deep_fall]
             above_trigger_df = rise_zone_df[rise_zone_df[k_edited_rise_rate] >= rise_trigger]
             mean_time_interval = above_trigger_df[Map.time].diff().mean()
-            is_above_trigger_continous = mean_time_interval == period
+            is_above_trigger_continous = (above_trigger_df.shape[0] == 1) or (mean_time_interval == period)
             is_rise_rate_still_rise = above_trigger_df[above_trigger_df[edited_diff_rise_rate] < 0].shape[0] == 0
             has_bought = rise_zone_df.index[0] <= rounded_last_buy_time <= rise_zone_df.index[-1]
         # Check
