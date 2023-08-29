@@ -527,10 +527,10 @@ class Solomon(Strategy):
                     not cls.is_macd_line_positive(**func_and_params[4][Map.param]) \
                     and cls.is_macd_line_positive(**func_and_params[5][Map.param])
                 )
-                # or (
-                #     not cls.is_macd_line_positive(**func_and_params[6][Map.param]) \
-                #     and cls.is_macd_line_positive(**func_and_params[7][Map.param])
-                # )
+                or (
+                    not cls.is_macd_line_positive(**func_and_params[6][Map.param]) \
+                    and cls.is_macd_line_positive(**func_and_params[7][Map.param])
+                )
             )
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
