@@ -483,12 +483,7 @@ class Solomon(Strategy):
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: risk_level,                          Map.param: dict(vars_map=vars_map)},
-            {Map.callback: cls.compare_ema_and_keltner,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)},
-            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_4, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.compare_ema_and_keltner,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)}
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -507,18 +502,18 @@ class Solomon(Strategy):
         #     func_and_params[6][Map.param],
         #     func_and_params[7][Map.param]
         # ]
-        FUNC_TO_PARAMS[get_callback_id(risk_level)] = [
-            # compare_ema_and_keltner
-            # is_supertrend_rising
-            # is_tangent_macd_line_positive
-            # is_tangent_macd_line_positive
-            # is_tangent_macd_line_positive
-            func_and_params[5][Map.param],
-            func_and_params[6][Map.param],
-            func_and_params[7][Map.param],
-            func_and_params[8][Map.param],
-            func_and_params[9][Map.param]
-        ]
+        # FUNC_TO_PARAMS[get_callback_id(risk_level)] = [
+        #     # compare_ema_and_keltner
+        #     # is_supertrend_rising
+        #     # is_tangent_macd_line_positive
+        #     # is_tangent_macd_line_positive
+        #     # is_tangent_macd_line_positive
+        #     func_and_params[5][Map.param],
+        #     func_and_params[6][Map.param],
+        #     func_and_params[7][Map.param],
+        #     func_and_params[8][Map.param],
+        #     func_and_params[9][Map.param]
+        # ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Keys
         # risk_period_str =   None    # period_strs[func_and_params[4][Map.param][Map.period]]
@@ -526,20 +521,17 @@ class Solomon(Strategy):
         # k_risk_level =      f'potential_profit_{risk_period_str}[{risk_index}]_risk_level'
         # k_keltner_zone =    f'potential_profit_{risk_period_str}[{risk_index}]_keltner_zone'
         # Check
-        r_level = None
         buy_case_value = cls.BUY_CASE_LONG
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
-        if can_buy:
-            r_level = risk_level(**func_and_params[4][Map.param])
-            can_buy = r_level == cls.RISK_SAFE
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+            and cls.compare_ema_and_keltner(**func_and_params[4][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
             Map.option:     buy_case_value,
-            Map.rank:       r_level,        # vars_map.get(Map.value, k_risk_level),
+            Map.rank:       None,           # vars_map.get(Map.value, k_risk_level),
             Map.keltner:    None            # vars_map.get(Map.value, k_keltner_zone)
         }
         return can_buy, report, cases
@@ -1271,7 +1263,7 @@ class Solomon(Strategy):
         open_times = list(marketprice.get_times())
         open_times.reverse()
         index_time = open_times[index]
-        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-1000:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
         '''
@@ -1303,7 +1295,8 @@ class Solomon(Strategy):
         sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
         bellow_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate)]
         bellow_ceiling_df.insert(len(bellow_ceiling_df.columns), k_diff_index, bellow_ceiling_df[Map.index].diff())
-        index_fall_start = bellow_ceiling_df[(bellow_ceiling_df[k_diff_index] > 1) & (bellow_ceiling_df[edited_diff_rise_rate] < 0)].index[-1]
+        start_fall_zones_df = bellow_ceiling_df[(bellow_ceiling_df[k_diff_index] > 1) & (bellow_ceiling_df[edited_diff_rise_rate] < 0)]
+        index_fall_start = start_fall_zones_df.index[-1] if start_fall_zones_df.shape[0] > 0 else None
         deep_fall = None
         rise_trigger = None
         fall_zone_start = None
