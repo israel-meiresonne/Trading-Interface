@@ -339,7 +339,6 @@ class Solomon(Strategy):
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
         SMT_RISE_INCREASE = 1/100
-        RSI_CEILING =       60
         FUNC_TO_PARAMS =    {}
         def get_callback_id(callback: Callable) -> str:
             return Map.key(callback.__name__, str(callback.__hash__()))
@@ -483,8 +482,6 @@ class Solomon(Strategy):
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.compare_rsi_and_trigger,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<=', trigger=RSI_CEILING)},
-            {Map.callback: cls.is_tangent_rsi_positive,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -526,9 +523,7 @@ class Solomon(Strategy):
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
-            and cls.compare_rsi_and_trigger(**func_and_params[4][Map.param]) \
-            and cls.is_tangent_rsi_positive(**func_and_params[5][Map.param])
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
@@ -1265,33 +1260,9 @@ class Solomon(Strategy):
         open_times = list(marketprice.get_times())
         open_times.reverse()
         index_time = open_times[index]
-        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-1000:]
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-300:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
-        '''
-        index_last_bellow_ceiling = sub_market_trend_df[sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate].index[-1]
-        index_first_above_ceiling = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] > fall_ceiling_rate) & (sub_market_trend_df.index < index_last_bellow_ceiling)].index[-1]
-        to_loop_df = sub_market_trend_df[(sub_market_trend_df.index >= index_first_above_ceiling) & (sub_market_trend_df.index <= index_time)]
-        i = 2
-        index_fall_start = None
-        while (index_fall_start is None) and (i <= to_loop_df.shape[0]):
-            index_recent_rise_rate = -i + 1
-            index_prev_older_rise_rate = -i
-            rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_recent_rise_rate]
-            prev_older_rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_prev_older_rise_rate]
-            if prev_older_rise_rate > fall_ceiling_rate > rise_rate:
-                index_fall_start = to_loop_df.index[index_recent_rise_rate]
-            i += 1
-        index_to_loop_max_rate = None
-        date_to_loop_max_rate = None
-        if index_fall_start is not None:
-            sub_to_loop_df = to_loop_df[to_loop_df.index > index_fall_start]
-            if sub_to_loop_df.shape[0] > 0:
-                to_loop_max_rate = sub_to_loop_df[k_edited_rise_rate].max()
-                index_to_loop_max_rate = sub_to_loop_df[sub_to_loop_df[k_edited_rise_rate] == to_loop_max_rate].index[-1]
-                index_fall_start = None if index_to_loop_max_rate != index_time else index_fall_start
-                date_to_loop_max_rate = _MF.unix_to_date(index_to_loop_max_rate)
-        '''
         k_diff_index = 'diff_index'
         indexes = np.arange(stop=sub_market_trend_df.shape[0])
         sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
