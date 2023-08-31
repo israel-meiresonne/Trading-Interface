@@ -335,10 +335,11 @@ class Solomon(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
-        FEE_MULTIPLE =      10
+        FEE_MULTIPLE =      1
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
         SMT_RISE_INCREASE = 1/100
+        RSI_CEILING =       60
         FUNC_TO_PARAMS =    {}
         def get_callback_id(callback: Callable) -> str:
             return Map.key(callback.__name__, str(callback.__hash__()))
@@ -481,7 +482,9 @@ class Solomon(Strategy):
             {Map.callback: cls.is_market_trend_deep_and_rise,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)}
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.compare_rsi_and_trigger,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<=', trigger=RSI_CEILING)},
+            {Map.callback: cls.is_tangent_rsi_positive,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -523,7 +526,9 @@ class Solomon(Strategy):
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+            and cls.compare_rsi_and_trigger(**func_and_params[4][Map.param]) \
+            and cls.is_tangent_rsi_positive(**func_and_params[5][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
@@ -1499,6 +1504,26 @@ class Solomon(Strategy):
         vars_map.put(rsi[index],                    Map.value,      f'{k_base}_[{index}]')
         vars_map.put(rsi[prev_index],               Map.value,      f'{k_base}_[{prev_index}]')
         return tangent_rsi_positive
+
+    @classmethod
+    def compare_rsi_and_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, comparator: str, trigger: float, rsi_params: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_time = marketprice.get_time()
+        rsi = list(marketprice.get_rsis(**rsi_params))
+        rsi.reverse()
+        # Check
+        prev_index = index - 1
+        compare = _MF.compare_first_and_second(comparator, rsi[index], trigger)
+        # Put
+        rsi_param_str = _MF.param_to_str(rsi_params)
+        k_base = f'compare_rsi_{comparator}_{trigger}_{period_str}_{rsi_param_str}[{index}]'
+        vars_map.put(compare,                       Map.condition,  k_base)
+        vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'{k_base}_now_date')
+        vars_map.put(rsi[index],                    Map.value,      f'{Map.key(Map.rsi, period_str, rsi_param_str)}[{index}]')
+        vars_map.put(rsi[prev_index],               Map.value,      f'{Map.key(Map.rsi, period_str, rsi_param_str)}[{prev_index}]')
+        return compare
 
     @classmethod
     def is_price_deep_enough(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, \
