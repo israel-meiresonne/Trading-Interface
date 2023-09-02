@@ -335,8 +335,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
-        # FEE_MULTIPLE =      2.5
-        FEE_MULTIPLE =      1
+        FEE_MULTIPLE =      2.5
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
         SMT_RISE_INCREASE = 0.1/100
@@ -421,7 +420,7 @@ class Solomon(Strategy):
             vars_map.put(sell_price_v,      Map.value,  f'{k_base}_sell_price')
             vars_map.put(buy_price,         Map.value,  f'{k_base}_buy_price[{price_line}]')
             return futur_roi
-        def risk_level() -> str:
+        def risk_level(vars_map: Map) -> str:
             func_params = get_params(risk_level)
             A = ema_bellow_keltner =    cls.compare_ema_and_keltner(**func_params[0])
             B = supertrend_rising =     cls.is_supertrend_rising(**func_params[1])
@@ -434,6 +433,12 @@ class Solomon(Strategy):
                 level = cls.RISK_MODERATE
             elif (not A) or C:
                 level = cls.RISK_RISKY
+            # Put
+            k_base = 'risk_level'
+            vars_map.put(level,                 Map.value,  f'{k_base}_risk_level')
+            vars_map.put(ema_bellow_keltner,    Map.value,  f'{k_base}_ema_bellow_keltner')
+            vars_map.put(supertrend_rising,     Map.value,  f'{k_base}_supertrend_rising')
+            vars_map.put(price_falling,         Map.value,  f'{k_base}_price_falling')
             return level
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
@@ -472,10 +477,11 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
-            {Map.callback: cls.is_market_trend_deep_and_rise,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
-            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
-            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            # {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict()},
+            {Map.callback: cls.is_market_trend_deep_and_rise,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
+            {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
@@ -504,18 +510,18 @@ class Solomon(Strategy):
         #     # is_tangent_macd_line_positive
         #     # is_tangent_macd_line_positive
         #     # is_tangent_macd_line_positive
+        #     func_and_params[5][Map.param],
+        #     func_and_params[6][Map.param],
+        #     func_and_params[7][Map.param],
         #     func_and_params[8][Map.param],
-        #     func_and_params[9][Map.param],
-        #     func_and_params[10][Map.param],
-        #     func_and_params[11][Map.param],
-        #     func_and_params[12][Map.param]
+        #     func_and_params[9][Map.param]
         # ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Keys
-        risk_period_str =   None    # period_strs[func_and_params[4][Map.param][Map.period]]
-        risk_index =        None    # func_and_params[4][Map.param][Map.index]
-        k_risk_level =      f'potential_profit_{risk_period_str}[{risk_index}]_risk_level'
-        k_keltner_zone =    f'potential_profit_{risk_period_str}[{risk_index}]_keltner_zone'
+        # risk_period_str =   None    # period_strs[func_and_params[4][Map.param][Map.period]]
+        # risk_index =        None    # func_and_params[4][Map.param][Map.index]
+        # k_risk_level =      f'potential_profit_{risk_period_str}[{risk_index}]_risk_level'
+        # k_keltner_zone =    f'potential_profit_{risk_period_str}[{risk_index}]_keltner_zone'
         # Check
         buy_case_value = cls.BUY_CASE_LONG
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
@@ -536,8 +542,8 @@ class Solomon(Strategy):
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
             Map.option:     buy_case_value,
-            Map.rank:       vars_map.get(Map.value, k_risk_level),
-            Map.keltner:    vars_map.get(Map.value, k_keltner_zone)
+            Map.rank:       None,           # vars_map.get(Map.value, k_risk_level),
+            Map.keltner:    None            # vars_map.get(Map.value, k_keltner_zone)
         }
         return can_buy, report, cases
 
@@ -1268,7 +1274,7 @@ class Solomon(Strategy):
         open_times = list(marketprice.get_times())
         open_times.reverse()
         index_time = open_times[index]
-        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-1000:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
         '''
@@ -1300,7 +1306,8 @@ class Solomon(Strategy):
         sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
         bellow_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate)]
         bellow_ceiling_df.insert(len(bellow_ceiling_df.columns), k_diff_index, bellow_ceiling_df[Map.index].diff())
-        index_fall_start = bellow_ceiling_df[(bellow_ceiling_df[k_diff_index] > 1) & (bellow_ceiling_df[edited_diff_rise_rate] < 0)].index[-1]
+        start_fall_zones_df = bellow_ceiling_df[(bellow_ceiling_df[k_diff_index] > 1) & (bellow_ceiling_df[edited_diff_rise_rate] < 0)]
+        index_fall_start = start_fall_zones_df.index[-1] if start_fall_zones_df.shape[0] > 0 else None
         deep_fall = None
         rise_trigger = None
         fall_zone_start = None
