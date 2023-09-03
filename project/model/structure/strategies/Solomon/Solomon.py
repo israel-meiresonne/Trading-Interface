@@ -335,7 +335,6 @@ class Solomon(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
-        # FEE_MULTIPLE =      2.5
         FEE_MULTIPLE =      1
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
@@ -483,7 +482,6 @@ class Solomon(Strategy):
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
-            {Map.callback: cls.compare_ema_and_keltner,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)}
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -525,8 +523,7 @@ class Solomon(Strategy):
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
-            and cls.compare_ema_and_keltner(**func_and_params[4][Map.param])
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
@@ -1263,33 +1260,9 @@ class Solomon(Strategy):
         open_times = list(marketprice.get_times())
         open_times.reverse()
         index_time = open_times[index]
-        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-1000:]
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-300:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
-        '''
-        index_last_bellow_ceiling = sub_market_trend_df[sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate].index[-1]
-        index_first_above_ceiling = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] > fall_ceiling_rate) & (sub_market_trend_df.index < index_last_bellow_ceiling)].index[-1]
-        to_loop_df = sub_market_trend_df[(sub_market_trend_df.index >= index_first_above_ceiling) & (sub_market_trend_df.index <= index_time)]
-        i = 2
-        index_fall_start = None
-        while (index_fall_start is None) and (i <= to_loop_df.shape[0]):
-            index_recent_rise_rate = -i + 1
-            index_prev_older_rise_rate = -i
-            rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_recent_rise_rate]
-            prev_older_rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_prev_older_rise_rate]
-            if prev_older_rise_rate > fall_ceiling_rate > rise_rate:
-                index_fall_start = to_loop_df.index[index_recent_rise_rate]
-            i += 1
-        index_to_loop_max_rate = None
-        date_to_loop_max_rate = None
-        if index_fall_start is not None:
-            sub_to_loop_df = to_loop_df[to_loop_df.index > index_fall_start]
-            if sub_to_loop_df.shape[0] > 0:
-                to_loop_max_rate = sub_to_loop_df[k_edited_rise_rate].max()
-                index_to_loop_max_rate = sub_to_loop_df[sub_to_loop_df[k_edited_rise_rate] == to_loop_max_rate].index[-1]
-                index_fall_start = None if index_to_loop_max_rate != index_time else index_fall_start
-                date_to_loop_max_rate = _MF.unix_to_date(index_to_loop_max_rate)
-        '''
         k_diff_index = 'diff_index'
         indexes = np.arange(stop=sub_market_trend_df.shape[0])
         sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
@@ -1502,6 +1475,26 @@ class Solomon(Strategy):
         vars_map.put(rsi[index],                    Map.value,      f'{k_base}_[{index}]')
         vars_map.put(rsi[prev_index],               Map.value,      f'{k_base}_[{prev_index}]')
         return tangent_rsi_positive
+
+    @classmethod
+    def compare_rsi_and_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, comparator: str, trigger: float, rsi_params: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_time = marketprice.get_time()
+        rsi = list(marketprice.get_rsis(**rsi_params))
+        rsi.reverse()
+        # Check
+        prev_index = index - 1
+        compare = _MF.compare_first_and_second(comparator, rsi[index], trigger)
+        # Put
+        rsi_param_str = _MF.param_to_str(rsi_params)
+        k_base = f'compare_rsi_{comparator}_{trigger}_{period_str}_{rsi_param_str}[{index}]'
+        vars_map.put(compare,                       Map.condition,  k_base)
+        vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'{k_base}_now_date')
+        vars_map.put(rsi[index],                    Map.value,      f'{Map.key(Map.rsi, period_str, rsi_param_str)}[{index}]')
+        vars_map.put(rsi[prev_index],               Map.value,      f'{Map.key(Map.rsi, period_str, rsi_param_str)}[{prev_index}]')
+        return compare
 
     @classmethod
     def is_price_deep_enough(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, \
