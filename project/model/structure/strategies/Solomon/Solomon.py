@@ -447,6 +447,7 @@ class Solomon(Strategy):
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Params
+        last_buy_time = datas[Map.buy] if datas[Map.buy] is not None else 0 # in second
         fees = broker.get_trade_fee(pair)
         maker_fee = fees.get(Map.maker)
         taker_fee = fees.get(Map.taker)
@@ -471,7 +472,7 @@ class Solomon(Strategy):
         func_and_params = [
             {Map.callback: buy_case,                                Map.param: dict(vars_map=vars_map)},
             # {Map.callback: cls.compare_trigger_and_market_trend,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=prev_index_2, comparator='>', trigger=SMT_DEEP_TRIGGER, is_int_round=False)},
-            {Map.callback: cls.is_market_trend_deep_and_rise,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, is_int_round=False)},
+            {Map.callback: cls.is_market_trend_deep_and_rise,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
             # {Map.callback: are_profits_above_fees,                  Map.param: dict(vars_map=vars_map, fee_coef=FEE_MULTIPLE, buy_sell_fees=trade_fees)},
             # {Map.callback: potential_profit,                        Map.param: dict(period=period_1min, price_line=buy_price_line, index=now_index)},
             # {Map.callback: risk_level,                              Map.param: dict()},
@@ -1188,9 +1189,10 @@ class Solomon(Strategy):
         return tangent_positive
 
     @classmethod
-    def is_market_trend_deep_and_rise(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, fall_ceiling_rate: float, increase_rate: float, is_int_round: bool = False, window: int = None) -> bool:
+    def is_market_trend_deep_and_rise(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, fall_ceiling_rate: float, increase_rate: float, last_buy_time: int, is_int_round: bool = False, window: int = None) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
+        rounded_last_buy_time = _MF.round_time(last_buy_time, period)
         # Set trend
         market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
         k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
@@ -1199,57 +1201,61 @@ class Solomon(Strategy):
         open_times = list(marketprice.get_times())
         open_times.reverse()
         index_time = open_times[index]
-        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time]
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-300:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
-        index_last_bellow_ceiling = sub_market_trend_df[sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate].index[-1]
-        index_first_above_ceiling = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] > fall_ceiling_rate) & (sub_market_trend_df.index < index_last_bellow_ceiling)].index[-1]
-        to_loop_df = sub_market_trend_df[(sub_market_trend_df.index >= index_first_above_ceiling) & (sub_market_trend_df.index <= index_time)]
-        i = 2
-        index_fall_start = None
-        while (index_fall_start is None) and (i <= to_loop_df.shape[0]):
-            index_recent_rise_rate = -i + 1
-            index_prev_older_rise_rate = -i
-            rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_recent_rise_rate]
-            prev_older_rise_rate = to_loop_df[k_edited_rise_rate].iloc[index_prev_older_rise_rate]
-            if prev_older_rise_rate > fall_ceiling_rate > rise_rate:
-                index_fall_start = to_loop_df.index[index_recent_rise_rate]
-            i += 1
-        index_to_loop_max_rate = None
-        date_to_loop_max_rate = None
-        if index_fall_start is not None:
-            sub_to_loop_df = to_loop_df[to_loop_df.index > index_fall_start]
-            if sub_to_loop_df.shape[0] > 0:
-                to_loop_max_rate = sub_to_loop_df[k_edited_rise_rate].max()
-                index_to_loop_max_rate = sub_to_loop_df[sub_to_loop_df[k_edited_rise_rate] == to_loop_max_rate].index[-1]
-                index_fall_start = None if index_to_loop_max_rate != index_time else index_fall_start
-                date_to_loop_max_rate = _MF.unix_to_date(index_to_loop_max_rate)
+        indexes = np.arange(stop=sub_market_trend_df.shape[0])
+        sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
+        bellow_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate)]
+        above_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] > fall_ceiling_rate) & (sub_market_trend_df[Map.time] < bellow_ceiling_df[Map.time].iloc[-1])] if bellow_ceiling_df.shape[0] > 0 else None
+        start_fall_zones_df = bellow_ceiling_df[bellow_ceiling_df[Map.time] > above_ceiling_df[Map.time].iloc[-1]] if (above_ceiling_df is not None) and (above_ceiling_df.shape[0] > 0) else None
+        index_fall_start = start_fall_zones_df.index[0] if (start_fall_zones_df is not None) and (start_fall_zones_df.shape[0] > 0) else None
         deep_fall = None
         rise_trigger = None
         fall_zone_start = None
         deep_fall_date = None
+        is_above_trigger_continous = None
+        is_rise_rate_still_rise = None
+        has_bought = None
+        time_reach_trigger = None
+        date_reach_trigger = None
         if index_fall_start is not None:
             fall_zone_df = sub_market_trend_df[sub_market_trend_df.index >= index_fall_start]
             deep_fall = fall_zone_df[k_edited_rise_rate].min()
             rise_trigger = deep_fall + increase_rate
             fall_zone_start = _MF.unix_to_date(fall_zone_df.index[0])
+            index_deep_fall = fall_zone_df[fall_zone_df[k_edited_rise_rate] == deep_fall].index[-1]
             deep_fall_date = _MF.unix_to_date(fall_zone_df[fall_zone_df[k_edited_rise_rate] == deep_fall].index[-1])
+        if rise_trigger is not None:
+            rise_zone_df = fall_zone_df[fall_zone_df.index >= index_deep_fall]
+            above_trigger_df = rise_zone_df[rise_zone_df[k_edited_rise_rate] >= rise_trigger]
+            mean_time_interval = above_trigger_df[Map.time].diff().mean()
+            is_above_trigger_continous = (above_trigger_df.shape[0] == 1) or (mean_time_interval == period)
+            is_rise_rate_still_rise = above_trigger_df[above_trigger_df[edited_diff_rise_rate] < 0].shape[0] == 0
+            has_bought = rise_zone_df.index[0] <= rounded_last_buy_time <= rise_zone_df.index[-1]
+            if above_trigger_df.shape[0] > 0:
+                time_reach_trigger = above_trigger_df[Map.time].iloc[0] 
+                date_reach_trigger = _MF.unix_to_date(time_reach_trigger)
         # Check
         rise_rate_at_index = sub_market_trend_df[k_edited_rise_rate].iloc[-1]
         rise_rate_at_prev_index = sub_market_trend_df[k_edited_rise_rate].iloc[-2]
-        deep_and_rise = bool((rise_trigger is not None) and (rise_rate_at_prev_index < rise_trigger) and (rise_rate_at_index >= rise_trigger))
-        # Report 
+        deep_and_rise = bool((rise_trigger is not None) and (time_reach_trigger == index_time))
+        # deep_and_rise = bool((rise_trigger is not None) and (not has_bought) and (rise_rate_at_index >= rise_trigger) and is_above_trigger_continous and is_rise_rate_still_rise)
+        # Report
         k_base = f'is_market_trend_deep_and_rise_{period_str}_{fall_ceiling_rate}_{increase_rate}[{index}]'
-        vars_map.put(deep_and_rise,             Map.condition,  k_base)
-        vars_map.put(index_date,                Map.value,      f'{k_base}_index_date')
-        vars_map.put(index_trend_date,          Map.value,      f'{k_base}_index_trend_date')
-        vars_map.put(fall_zone_start,           Map.value,      f'{k_base}_fall_zone_start')
-        vars_map.put(deep_fall_date,            Map.value,      f'{k_base}_deep_fall_date')
-        vars_map.put(deep_fall,                 Map.value,      f'{k_base}_deep_fall')
-        vars_map.put(rise_trigger,              Map.value,      f'{k_base}_rise_trigger')
-        vars_map.put(rise_rate_at_index,        Map.value,      f'{k_base}_rise_rate_at_index')
-        vars_map.put(rise_rate_at_prev_index,   Map.value,      f'{k_base}_rise_rate_at_prev_index')
-        vars_map.put(date_to_loop_max_rate,     Map.value,      f'{k_base}_date_max_between_fall_and_rise')
+        vars_map.put(deep_and_rise,                 Map.condition,  k_base)
+        vars_map.put(has_bought,                    Map.value,      f'{k_base}_has_bought')
+        vars_map.put(is_above_trigger_continous,    Map.value,      f'{k_base}_is_above_trigger_continous')
+        vars_map.put(is_rise_rate_still_rise,       Map.value,      f'{k_base}_is_rise_rate_still_rise')
+        vars_map.put(index_date,                    Map.value,      f'{k_base}_index_date')
+        vars_map.put(index_trend_date,              Map.value,      f'{k_base}_index_trend_date')
+        vars_map.put(fall_zone_start,               Map.value,      f'{k_base}_fall_zone_start')
+        vars_map.put(deep_fall_date,                Map.value,      f'{k_base}_deep_fall_date')
+        vars_map.put(date_reach_trigger,            Map.value,      f'{k_base}_date_reach_trigger')
+        vars_map.put(deep_fall,                     Map.value,      f'{k_base}_deep_fall')
+        vars_map.put(rise_trigger,                  Map.value,      f'{k_base}_rise_trigger')
+        vars_map.put(rise_rate_at_index,            Map.value,      f'{k_base}_rise_rate_at_index')
+        vars_map.put(rise_rate_at_prev_index,       Map.value,      f'{k_base}_rise_rate_at_prev_index')
         return deep_and_rise
 
     @classmethod
@@ -1577,6 +1583,7 @@ class Solomon(Strategy):
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
             buy_datas = {}
+            buy_datas[Map.buy] = trades[-1][Map.buy][Map.time] if len(trades) > 0 else None
             can_buy, buy_condition, buy_case = cls.can_buy(broker, pair, marketprices, buy_datas)
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
