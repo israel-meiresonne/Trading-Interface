@@ -1263,26 +1263,29 @@ class Solomon(Strategy):
         sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-300:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
-        k_diff_index = 'diff_index'
+        # Detect fall
         indexes = np.arange(stop=sub_market_trend_df.shape[0])
         sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
         bellow_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate)]
-        bellow_ceiling_df.insert(len(bellow_ceiling_df.columns), k_diff_index, bellow_ceiling_df[Map.index].diff())
-        start_fall_zones_df = bellow_ceiling_df[(bellow_ceiling_df[k_diff_index] > 1) & (bellow_ceiling_df[edited_diff_rise_rate] < 0)]
-        index_fall_start = start_fall_zones_df.index[-1] if start_fall_zones_df.shape[0] > 0 else None
+        above_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] > fall_ceiling_rate) & (sub_market_trend_df[Map.time] < bellow_ceiling_df[Map.time].iloc[-1])] if bellow_ceiling_df.shape[0] > 0 else None
+        start_fall_zones_df = bellow_ceiling_df[bellow_ceiling_df[Map.time] > above_ceiling_df[Map.time].iloc[-1]] if (above_ceiling_df is not None) and (above_ceiling_df.shape[0] > 0) else None
+        index_fall_start = start_fall_zones_df.index[0] if (start_fall_zones_df is not None) and (start_fall_zones_df.shape[0] > 0) else None
         deep_fall = None
         rise_trigger = None
         fall_zone_start = None
         deep_fall_date = None
         is_above_trigger_continous = None
         is_rise_rate_still_rise = None
+        has_bought = None
+        time_reach_trigger = None
+        date_reach_trigger = None
         if index_fall_start is not None:
             fall_zone_df = sub_market_trend_df[sub_market_trend_df.index >= index_fall_start]
             deep_fall = fall_zone_df[k_edited_rise_rate].min()
             rise_trigger = deep_fall + increase_rate
             fall_zone_start = _MF.unix_to_date(fall_zone_df.index[0])
             index_deep_fall = fall_zone_df[fall_zone_df[k_edited_rise_rate] == deep_fall].index[-1]
-            deep_fall_date = _MF.unix_to_date(index_deep_fall)
+            deep_fall_date = _MF.unix_to_date(fall_zone_df[fall_zone_df[k_edited_rise_rate] == deep_fall].index[-1])
         if rise_trigger is not None:
             rise_zone_df = fall_zone_df[fall_zone_df.index >= index_deep_fall]
             above_trigger_df = rise_zone_df[rise_zone_df[k_edited_rise_rate] >= rise_trigger]
@@ -1290,20 +1293,26 @@ class Solomon(Strategy):
             is_above_trigger_continous = (above_trigger_df.shape[0] == 1) or (mean_time_interval == period)
             is_rise_rate_still_rise = above_trigger_df[above_trigger_df[edited_diff_rise_rate] < 0].shape[0] == 0
             has_bought = rise_zone_df.index[0] <= rounded_last_buy_time <= rise_zone_df.index[-1]
+            if above_trigger_df.shape[0] > 0:
+                time_reach_trigger = above_trigger_df[Map.time].iloc[0] 
+                date_reach_trigger = _MF.unix_to_date(time_reach_trigger)
         # Check
         rise_rate_at_index = sub_market_trend_df[k_edited_rise_rate].iloc[-1]
         rise_rate_at_prev_index = sub_market_trend_df[k_edited_rise_rate].iloc[-2]
         # deep_and_rise = bool((rise_trigger is not None) and (rise_rate_at_prev_index < rise_trigger) and (rise_rate_at_index >= rise_trigger))
+        # deep_and_rise = bool((rise_trigger is not None) and (time_reach_trigger == index_time))
         deep_and_rise = bool((rise_trigger is not None) and (not has_bought) and (rise_rate_at_index >= rise_trigger) and is_above_trigger_continous and is_rise_rate_still_rise)
         # Report
         k_base = f'is_market_trend_deep_and_rise_{period_str}_{fall_ceiling_rate}_{increase_rate}[{index}]'
         vars_map.put(deep_and_rise,                 Map.condition,  k_base)
+        vars_map.put(has_bought,                    Map.value,      f'{k_base}_has_bought')
         vars_map.put(is_above_trigger_continous,    Map.value,      f'{k_base}_is_above_trigger_continous')
         vars_map.put(is_rise_rate_still_rise,       Map.value,      f'{k_base}_is_rise_rate_still_rise')
         vars_map.put(index_date,                    Map.value,      f'{k_base}_index_date')
         vars_map.put(index_trend_date,              Map.value,      f'{k_base}_index_trend_date')
         vars_map.put(fall_zone_start,               Map.value,      f'{k_base}_fall_zone_start')
         vars_map.put(deep_fall_date,                Map.value,      f'{k_base}_deep_fall_date')
+        vars_map.put(date_reach_trigger,            Map.value,      f'{k_base}_date_reach_trigger')
         vars_map.put(deep_fall,                     Map.value,      f'{k_base}_deep_fall')
         vars_map.put(rise_trigger,                  Map.value,      f'{k_base}_rise_trigger')
         vars_map.put(rise_rate_at_index,            Map.value,      f'{k_base}_rise_rate_at_index')
