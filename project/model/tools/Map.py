@@ -88,6 +88,7 @@ class Map(MyJson):
     offset = "offset"
     size = "size"
     event = "event"
+    median = "median"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
