@@ -84,11 +84,14 @@ class Map(MyJson):
     turn = "turn"
     file = "file"
     column = "column"
+    row = "row"
     content = "content"
     offset = "offset"
     size = "size"
     event = "event"
     median = "median"
+    next = "next"
+    check = "check"
     # Binance
     test_mode = "test_mode"
     # BinanceAPI
