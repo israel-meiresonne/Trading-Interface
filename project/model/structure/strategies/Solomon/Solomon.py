@@ -52,18 +52,18 @@ class Solomon(Strategy):
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— SETTER/GETTER DOWN
 
-    def get_tradable_pairs(self) -> List[Pair]:
-        tradable_pairs = self._tradable_pairs
-        pair = self.get_pair()
-        if (pair is None) and (tradable_pairs is None):
-            r_asset = self.get_wallet().get_initial().get_asset()
-            file_path = self.get_path(Map.left)
-            left_asset_csv = FileManager.get_csv(file_path)
-            tradable_pairs = [Pair(row[Map.left], r_asset) for row in left_asset_csv]
-            self._set_tradable_pairs(tradable_pairs)
-        else:
-            tradable_pairs = super().get_tradable_pairs()
-        return tradable_pairs
+    # def get_tradable_pairs(self) -> List[Pair]:
+    #     tradable_pairs = self._tradable_pairs
+    #     pair = self.get_pair()
+    #     if (pair is None) and (tradable_pairs is None):
+    #         r_asset = self.get_wallet().get_initial().get_asset()
+    #         file_path = self.get_path(Map.left)
+    #         left_asset_csv = FileManager.get_csv(file_path)
+    #         tradable_pairs = [Pair(row[Map.left], r_asset) for row in left_asset_csv]
+    #         self._set_tradable_pairs(tradable_pairs)
+    #     else:
+    #         tradable_pairs = super().get_tradable_pairs()
+    #     return tradable_pairs
 
     # ——————————————————————————————————————————— SETTER/GETTER UP
     # ——————————————————————————————————————————— STALK DOWN
