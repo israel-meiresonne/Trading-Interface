@@ -203,13 +203,13 @@ class Solomon(Strategy):
             # Open streams
             if (not broker.is_active()) or (not broker.exist_event_streams(broker_event, broker_callback, tradable_streams_1min)):
                 broker.add_streams(all_streams)
-                broker.add_event_streams(broker_event, broker_callback, tradable_streams_1min)
                 added_streams = broker.get_streams()
                 added_pairs = list(added_streams.keys())
                 self._set_broker_pairs(added_pairs)
                 added_tradable_pairs = [tradable_pair for tradable_pair in tradable_pairs if tradable_pair in added_pairs]
                 self._set_tradable_pairs(added_tradable_pairs)
                 start_and_wait_market_analyse(market_analyse_periods)
+                broker.add_event_streams(broker_event, broker_callback, tradable_streams_1min)
         stack_key = self.K_BUY_SELL_CONDITION
         if stack.get(stack_key) is not None:
             stack_copy = stack.get(stack_key).copy()
