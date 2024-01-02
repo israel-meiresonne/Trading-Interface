@@ -519,6 +519,10 @@ class Solomon(Strategy):
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_macd_from_negative,           Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.compare_emas,                    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='>=', ema_params_1=cls.EMA_PARAMS_1, ema_params_2=cls.EMA_PARAMS_2)},
+            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2)},
+            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index)}
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -560,7 +564,11 @@ class Solomon(Strategy):
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[2][Map.param]) \
-            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+            and cls.is_macd_from_negative(**func_and_params[4][Map.param]) \
+            and cls.compare_emas(**func_and_params[5][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[6][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[7][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
@@ -1487,6 +1495,41 @@ class Solomon(Strategy):
         return compare
 
     @classmethod
+    def compare_emas(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, comparator: str, ema_params_1: dict = {}, ema_params_2: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_date = _MF.unix_to_date(marketprice.get_time())
+        marketprice_df = marketprice.to_pd()
+        index_date = _MF.unix_to_date(marketprice_df[Map.time].iloc[index])
+        # EMA 1
+        ema_1 = marketprice.get_ema(**ema_params_1)
+        ema_1 = list(ema_1)
+        ema_1.reverse()
+        # EMA 2
+        ema_2 = marketprice.get_ema(**ema_params_2)
+        ema_2 = list(ema_2)
+        ema_2.reverse()
+        # Check
+        ema_price_1 = ema_1[index]
+        ema_price_2 = ema_2[index]
+        compare = _MF.compare_first_and_second(comparator, ema_price_1, ema_price_2)
+        # Put
+        prev_index = index - 1
+        ema_param_str_1 = _MF.param_to_str(ema_params_1)
+        ema_param_str_2 = _MF.param_to_str(ema_params_2)
+        params_str = Map.key(ema_param_str_1, ema_param_str_2)
+        k_base = f'compare_ema1_{comparator}_ema2_{period_str}_{params_str}[{index}]'
+        vars_map.put(compare,           Map.condition,  k_base)
+        vars_map.put(now_date,          Map.value,      f'{k_base}_now_date')
+        vars_map.put(index_date,        Map.value,      f'{k_base}_index_date')
+        vars_map.put(ema_1[index],      Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str_1)}[{index}]')
+        vars_map.put(ema_1[prev_index], Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str_1)}[{prev_index}]')
+        vars_map.put(ema_2[index],      Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str_2)}[{index}]')
+        vars_map.put(ema_2[prev_index], Map.value,      f'{Map.key(Map.ema, period_str, ema_param_str_2)}[{prev_index}]')
+        return compare
+
+    @classmethod
     def is_tangent_rsi_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, rsi_params: dict = {}) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
@@ -1669,6 +1712,59 @@ class Solomon(Strategy):
         vars_map.put(keltner[Map.low][index],           Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, keltner_params_str)}[{index}]')
         vars_map.put(keltner[Map.low][prev_index],      Map.value,      f'{Map.key(Map.keltner, Map.low,    period_str, keltner_params_str)}[{prev_index}]')
         return sellPrice
+
+    @classmethod
+    def is_macd_from_negative(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, macd_params: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        now_time = marketprice.get_time()
+        market_times = list(marketprice.get_times())
+        market_times.reverse()
+        macd_lines = marketprice.get_macd(**macd_params).get_map()
+        macd_macd, macd_signal, macd_histogram = list(macd_lines[Map.macd]), list(macd_lines[Map.signal]), list(macd_lines[Map.histogram])
+        [macd_line.reverse() for macd_line in [macd_macd, macd_signal, macd_histogram]]
+        # Prepare
+        n_histogram = len(macd_histogram)
+        index_positive = n_histogram + index if index < 0 else index
+        zeros = np.zeros((n_histogram,)).tolist()
+        histogram_zero_swings = _MF.group_swings(macd_histogram, zeros)
+        # is_histogram_positive = macd_histogram[index] > 0
+        switch_start_index = histogram_zero_swings[index_positive][0]
+        switch_end_index = histogram_zero_swings[index_positive][1]
+        macd_df = pd.DataFrame({Map.macd: macd_macd, Map.signal: macd_signal, Map.histogram: macd_histogram})
+        swing_macd_df = macd_df.loc[switch_start_index:index_positive+1]
+        negative_swing_macd_df = swing_macd_df[(swing_macd_df[Map.macd] < 0) & (swing_macd_df[Map.signal] < 0)]
+        # Report
+        date_switch_start_index = _MF.unix_to_date(market_times[switch_start_index])
+        date_switch_end_index = _MF.unix_to_date(market_times[switch_end_index])
+        date_start_negative_swing = None
+        date_end_negative_swing = None
+        if negative_swing_macd_df.shape[0] > 0:
+            date_start_negative_swing = _MF.unix_to_date(market_times[negative_swing_macd_df[Map.macd].index[0]])
+            date_end_negative_swing = _MF.unix_to_date(market_times[negative_swing_macd_df[Map.macd].index[-1]])
+        # Check
+        macd_from_negative = negative_swing_macd_df.shape[0] > 0
+        # Put
+        prev_index = index - 1
+        param_str = _MF.param_to_str(macd_params)
+        k_base = f'is_macd_from_negative_{period_str}[{index}]_{param_str}'
+        vars_map.put(macd_from_negative,                    Map.condition,  k_base)
+        vars_map.put(_MF.unix_to_date(now_time),            Map.value,      f'{k_base}_date')
+        vars_map.put(_MF.unix_to_date(market_times[index]), Map.value,      f'{k_base}_index_date')
+        vars_map.put(n_histogram,                           Map.value,      f'{k_base}_n_histogram')
+        vars_map.put(index_positive,                        Map.value,      f'{k_base}_index_positive')
+        vars_map.put(date_switch_start_index,               Map.value,      f'{k_base}_date_switch_start_index')
+        vars_map.put(date_switch_end_index,                 Map.value,      f'{k_base}_date_switch_end_index')
+        vars_map.put(date_start_negative_swing,             Map.value,      f'{k_base}_date_start_negative_swing')
+        vars_map.put(date_end_negative_swing,               Map.value,      f'{k_base}_date_end_negative_swing')
+        vars_map.put(macd_macd[index],                      Map.value,      f'{k_base}_macd_macd[{index}]')
+        vars_map.put(macd_macd[prev_index],                 Map.value,      f'{k_base}_macd_macd[{prev_index}]')
+        vars_map.put(macd_signal[index],                    Map.value,      f'{k_base}_macd_signal[{index}]')
+        vars_map.put(macd_signal[prev_index],               Map.value,      f'{k_base}_macd_signal[{prev_index}]')
+        vars_map.put(macd_histogram[index],                 Map.value,      f'{k_base}_macd_histogram[{index}]')
+        vars_map.put(macd_histogram[prev_index],            Map.value,      f'{k_base}_macd_histogram[{prev_index}]')
+        return macd_from_negative
 
     @classmethod
     def param_to_str(cls, params: dict) -> str:
