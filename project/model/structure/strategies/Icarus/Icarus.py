@@ -677,7 +677,10 @@ class Icarus(TraderClass):
             histogram_dropping = histogram[-1] < 0
             return histogram_dropping
 
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.2.12
+=======
+>>>>>>> Icarus-v7.3
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -758,6 +761,7 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
+<<<<<<< HEAD
 
         def is_bollinger_reached(vars_map: Map) -> bool:
             bollinger = marketprice.get_bollingerbands()
@@ -791,6 +795,8 @@ class Icarus(TraderClass):
         def can_sell_with_macd_5min(vars_map: Map) -> bool:
             return is_roi_positive(vars_map) and is_ema_bellow_ema200(vars_map) and is_tangent_macd_5min_dropping(vars_map)
         """
+=======
+>>>>>>> Icarus-v7.3
 
         def is_buy_period(vars_map: Map) -> bool:
             buy_time = max(cls.get_buy_times(pair))
@@ -1384,6 +1390,7 @@ class Icarus(TraderClass):
         # Check
 <<<<<<< HEAD
         # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+<<<<<<< HEAD
         can_sell = is_bollinger_reached(vars_map)
 >>>>>>> Icarus-v6.8
 =======
@@ -1392,6 +1399,9 @@ class Icarus(TraderClass):
 =======
         can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
 >>>>>>> Icarus-v7.2.13
+=======
+        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+>>>>>>> Icarus-v7.3
         return can_sell
 >>>>>>> Icarus-v5.12
 
@@ -3842,7 +3852,10 @@ class Icarus(TraderClass):
                 macd.reverse()
                 tangent_macd_dropping = macd[-1] <= macd[-2]
                 return tangent_macd_dropping
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.2.12
+=======
+>>>>>>> Icarus-v7.3
 
             vars_map = Map()
             can_sell = False
@@ -3852,6 +3865,7 @@ class Icarus(TraderClass):
             # Check
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             can_sell = is_bollinger_reached(vars_map)
 =======
             can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
@@ -3859,6 +3873,9 @@ class Icarus(TraderClass):
 =======
             can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
 >>>>>>> Icarus-v7.2.13
+=======
+            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+>>>>>>> Icarus-v7.3
             return can_sell
 
         def can_sell_roi(close: float, buy_price: float, max_roi: float, roi_trigger: float, save_rate: float) -> Tuple[bool, float]:
