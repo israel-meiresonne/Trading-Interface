@@ -2064,6 +2064,7 @@ class Icarus(TraderClass):
             return macd_switch_up
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v6.1
 =======
 
@@ -2080,11 +2081,15 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.5
 =======
 >>>>>>> Icarus-v7.2.8
+=======
+
+>>>>>>> Icarus-v7.4
         def is_bellow_keltner(vars_map: Map) -> bool:
             kc = child_marketprice.get_keltnerchannel()
             kc_high = list(kc.get(Map.high))
             kc_high.reverse()
             bellow_keltner = closes[-1] < kc_high[-1]
+<<<<<<< HEAD
 <<<<<<< HEAD
             vars_map.put(bellow_keltner, 'bellow_keltner')
             return bellow_keltner
@@ -2103,6 +2108,10 @@ class Icarus(TraderClass):
             vars_map.put(rsi, Map.rsi)
             return rsi_reached
 
+=======
+            return bellow_keltner
+
+>>>>>>> Icarus-v7.4
         """
 >>>>>>> Icarus-v7.2.8
         def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
@@ -3054,6 +3063,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3172,6 +3182,10 @@ class Icarus(TraderClass):
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
             and is_rsi_reached(vars_map, big_marketprice) and is_bellow_keltner(vars_map)
 >>>>>>> Icarus-v7.2.8
+=======
+        # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_bellow_keltner(vars_map)
+>>>>>>> Icarus-v7.4
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
