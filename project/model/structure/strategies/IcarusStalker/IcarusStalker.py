@@ -457,7 +457,11 @@ class IcarusStalker(StalkerClass):
             f'{key}.macd_histogram_positive': None,
             f'{key}.not_bought_in_macd': None,
             f'{key}.macd_switch_on_dropping_suppertrend': None,
+<<<<<<< HEAD
             f'{key}.psar_rising': None,
+=======
+            f'{key}.big_rsi': None,
+>>>>>>> Icarus-v9.1.5
 
             f'{key}.macd_starttime': None,
             f'{key}.macd_endtime': None,
@@ -672,9 +676,13 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v9.1.4
             f'{key}.big_ema[-1]': None,
             f'{key}.big_ema_200[-1]': None,
+<<<<<<< HEAD
             f'{key}.big_supertrend[-1]': None,
             f'{key}.big_macd[-1]': None
 >>>>>>> Icarus-v8.3.1
+=======
+            f'{key}.big_rsi[-1]': None
+>>>>>>> Icarus-v9.1.5
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__

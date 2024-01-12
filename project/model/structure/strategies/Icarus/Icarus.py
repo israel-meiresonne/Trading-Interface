@@ -3301,6 +3301,7 @@ class Icarus(TraderClass):
             vars_map.put(repport_map.get('close_above_ema200'), 'macd_switch_close_above_ema200')
             return macd_switch_on_dropping_suppertrend
 
+<<<<<<< HEAD
         def is_psar_rising(vars_map: Map) -> bool:
             psar = list(child_marketprice.get_psar())
             psar.reverse()
@@ -3308,6 +3309,17 @@ class Icarus(TraderClass):
             vars_map.put(psar_rising, 'psar_rising')
             vars_map.put(psar, 'psar')
             return psar_rising
+=======
+        def is_tangent_big_rsi_rising(vars_map: Map) -> bool:
+            rsi = list(big_marketprice.get_rsis())
+            rsi.reverse()
+            # Check
+            tangent_big_rsi_rising = rsi[-1] > rsi[-2]
+            # Put
+            vars_map.put(tangent_big_rsi_rising, 'tangent_big_rsi_rising')
+            vars_map.put(rsi, 'big_rsi')
+            return tangent_big_rsi_rising
+>>>>>>> Icarus-v9.1.5
 
         vars_map = Map()
         # Child
@@ -3325,12 +3337,17 @@ class Icarus(TraderClass):
         can_buy_indicator = is_close_above_ema200(vars_map) and is_big_ema_above_big_ema200(vars_map)\
                 and is_tangent_big_macd_positive(vars_map)\
 <<<<<<< HEAD
+<<<<<<< HEAD
                     and (is_macd_histogram_positive(vars_map) and have_not_bought_in_macd(vars_map) and is_macd_switch_on_dropping_suppertrend(vars_map))
 >>>>>>> Icarus-v9.1.3
 =======
                     and (is_macd_histogram_positive(vars_map) and have_not_bought_in_macd(vars_map) and is_macd_switch_on_dropping_suppertrend(vars_map))\
                         and is_psar_rising(vars_map)
 >>>>>>> Icarus-v9.1.4
+=======
+                    and (is_macd_histogram_positive(vars_map) and have_not_bought_in_macd(vars_map) and is_macd_switch_on_dropping_suppertrend(vars_map))\
+                        and is_tangent_big_rsi_rising(vars_map)
+>>>>>>> Icarus-v9.1.5
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -3414,7 +3431,11 @@ class Icarus(TraderClass):
 =======
         big_supertrend = vars_map.get('big_supertrend')
         big_macd = vars_map.get('big_macd')
+<<<<<<< HEAD
 >>>>>>> Icarus-v8.1.21
+=======
+        big_rsi = vars_map.get('big_rsi')
+>>>>>>> Icarus-v9.1.5
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -3607,7 +3628,11 @@ class Icarus(TraderClass):
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
             f'{key}.not_bought_in_macd': vars_map.get('not_bought_in_macd'),
             f'{key}.macd_switch_on_dropping_suppertrend': vars_map.get('macd_switch_on_dropping_suppertrend'),
+<<<<<<< HEAD
             f'{key}.psar_rising': vars_map.get('psar_rising'),
+=======
+            f'{key}.tangent_big_rsi_rising': vars_map.get('tangent_big_rsi_rising'),
+>>>>>>> Icarus-v9.1.5
 
             f'{key}.macd_starttime': vars_map.get('macd_starttime'),
             f'{key}.macd_endtime': vars_map.get('macd_endtime'),
@@ -4131,9 +4156,13 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v9.1.4
             f'{key}.big_ema[-1]': big_ema[-1] if big_ema is not None else None,
             f'{key}.big_ema_200[-1]': big_ema_200[-1] if big_ema_200 is not None else None,
+<<<<<<< HEAD
             f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None,
             f'{key}.big_macd[-1]': big_macd[-1] if big_macd is not None else None
 >>>>>>> Icarus-v8.3.1
+=======
+            f'{key}.big_rsi[-1]': big_rsi[-1] if big_rsi is not None else None
+>>>>>>> Icarus-v9.1.5
         }
         return can_buy_indicator, repport
 
