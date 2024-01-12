@@ -3106,6 +3106,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.10
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
+<<<<<<< HEAD
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
 <<<<<<< HEAD
                 and is_bellow_keltner(vars_map) and is_closes_above_low_keltner(vars_map)
@@ -3125,6 +3126,9 @@ class Icarus(TraderClass):
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
             and is_roc_positive(vars_map) and is_roc_bounce(vars_map) and is_bellow_keltner(vars_map)
 >>>>>>> Icarus-v7.2.5
+=======
+            and is_roc_positive(vars_map, big_marketprice) and is_bellow_keltner(vars_map)
+>>>>>>> Icarus-v7.2.7
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
