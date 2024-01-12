@@ -13,11 +13,15 @@ from model.tools.Price import Price
 class IcarusStalker(StalkerClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     _CONST_MAX_STRATEGY = 20
 =======
     _CONST_MAX_STRATEGY = 5
 >>>>>>> Icarus-v13.1.4
+=======
+    _CONST_MAX_STRATEGY = 20
+>>>>>>> Icarus-v13.5.1
     _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
     CHILD_STRATEGY = Icarus
     _MARKETPRICE_N_PERIOD = CHILD_STRATEGY.get_marketprice_n_period()
@@ -194,6 +198,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.histogram_switch_positive': None,
 =======
             f'{key}.price_switch_up': None,
+            f'{key}.mean_candle_change_60_above_trigger': None,
             f'{key}.supertrend_rising': None,
             f'{key}.min_macd_histogram_switch_up': None,
 

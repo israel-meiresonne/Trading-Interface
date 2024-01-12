@@ -1595,7 +1595,7 @@ class Icarus(TraderClass):
             and is_supertrend_rising(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
 =======
         # Check
-        can_buy_indicator = is_price_switch_up(vars_map)\
+        can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
             and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
 >>>>>>> Icarus-v13.5
         # Repport
@@ -1610,6 +1610,7 @@ class Icarus(TraderClass):
             f'{key}.histogram_switch_positive': vars_map.get('histogram_switch_positive'),
 =======
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+            f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
 
