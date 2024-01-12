@@ -1183,6 +1183,7 @@ class Solomon(Strategy):
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict]:
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         def has_switched_up_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
 =======
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, float]:
@@ -1196,6 +1197,9 @@ class Solomon(Strategy):
 =======
         MAX_PROFIT = 3.5/100
 >>>>>>> Solomon-v5.3.1.9.4
+=======
+        MAX_PROFIT = 5/100
+>>>>>>> Solomon-v5.3.1.9.5
         def has_supertrend_switched_down(vars_map: Map, pair: Pair, period: int, buy_time: int, index: int) -> bool:
 >>>>>>> Solomon-v5.3.1.2.1
             """
