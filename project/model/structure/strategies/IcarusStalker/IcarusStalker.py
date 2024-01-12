@@ -216,6 +216,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.mean_candle_change_60_above_trigger': None,
 =======
             f'{key}.ema_rising': None,
+<<<<<<< HEAD
             f'{key}.rsi_rising': None,
 >>>>>>> Icarus-v5.12
             f'{key}.supertrend_rising': None,
@@ -239,6 +240,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.keltner_roi': None,
 
 >>>>>>> Icarus-v13.5.1.1.2
+=======
+            f'{key}.histogram_rising': None,
+            f'{key}.prev_histogram_dropping': None,
+            f'{key}.macd_switch_up': None,
+            f'{key}.rsi_ok': None,
+            f'{key}.rsi_trigger': None,
+>>>>>>> Icarus-v6.1
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,

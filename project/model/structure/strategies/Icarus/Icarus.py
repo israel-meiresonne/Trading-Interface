@@ -1795,6 +1795,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def is_histogram_switch_positive(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
@@ -1821,6 +1822,33 @@ class Icarus(TraderClass):
                 raise ValueError(f"Price lists must have  the same size, instead '{n_open}'!='{n_close}' (open!=close)")
             return close_prices[i] - open_prices[i]
 >>>>>>> Icarus-v13.1.3
+=======
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        def is_ema_rising(vars_map: Map) -> bool:
+            # EMA
+            ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
+            ema.reverse()
+            ema_rising = closes[-1] > ema[-1]
+            # Put
+            vars_map.put(ema, 'ema')
+            vars_map.put(ema_rising, 'ema_rising')
+            return ema_rising
+
+        def is_macd_switch_up(vars_map: Map) -> bool:
+            # MACD
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_rising = histogram[-1] > 0
+            prev_histogram_dropping = histogram[-2] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
+            # Put
+            vars_map.put(histogram, 'histogram')
+            vars_map.put(histogram_rising, 'histogram_rising')
+            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            return macd_switch_up
+>>>>>>> Icarus-v6.1
 
         def is_price_switch_up(vars_map: Map) -> bool:
 >>>>>>> Icarus-v11.1.1
@@ -2419,6 +2447,7 @@ class Icarus(TraderClass):
         rsi.reverse()
         rsi_rising = rsi[-1] > cls._RSI_BUY_TRIGGER
         # Check
+<<<<<<< HEAD
         supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
         supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
         psar_rising = now_psar_trend == MarketPrice.PSAR_RISING
@@ -2426,10 +2455,19 @@ class Icarus(TraderClass):
         # can_buy_indicator = macd_rising and ((psar_switch_up and supertrend_rising) or (supertrend_switch_up and psar_rising))
         # can_buy_indicator = ema_rising and rsi_rising and macd_rising and (supertrend_rising and psar_rising)
         can_buy_indicator = ema_rising and macd_rising and (supertrend_rising and psar_rising)
+=======
+        if is_ema_rising(vars_map):
+            rsi_trigger = 70
+            can_buy_indicator = is_macd_switch_up(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
+        else:
+            rsi_trigger = 50
+            can_buy_indicator = is_macd_switch_up(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
+>>>>>>> Icarus-v6.1
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
+<<<<<<< HEAD
             f'{key}.ema_rising': ema_rising,
             f'{key}.rsi_rising': rsi_rising,
             f'{key}.supertrend_rising': supertrend_rising,
@@ -2439,6 +2477,14 @@ class Icarus(TraderClass):
             f'{key}.macd_rising': macd_rising,
             f'{key}.macd_ok': macd_ok,
             f'{key}.histogram_ok': histogram_ok,
+=======
+            f'{key}.ema_rising': vars_map.get('ema_rising'),
+            f'{key}.histogram_rising': vars_map.get('histogram_rising'),
+            f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
+            f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.rsi_ok': vars_map.get('rsi_ok'),
+            f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
+>>>>>>> Icarus-v6.1
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.supertrend[-1]': supertrend[-1],
