@@ -249,6 +249,7 @@ class IcarusStalker(StalkerClass):
 =======
             f'{key}.histogram_rising': None,
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.prev_histogram_dropping': None,
             f'{key}.macd_switch_up': None,
 <<<<<<< HEAD
@@ -262,9 +263,12 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v6.4.1
 =======
             f'{key}.edited_histogram': None,
+=======
+>>>>>>> Icarus-v6.7.1
             f'{key}.edited_histogram_rising': None,
             f'{key}.edited_prev_histogram_dropping': None,
             f'{key}.edited_macd_switch_up': None,
+            f'{key}.rsi_reached': None,
             f'{key}.will_bounce': None,
             f'{key}.macd_min_index': None,
             f'{key}.macd_min_date': None,
@@ -407,6 +411,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.psar[-3]': None,
             f'{key}.macd[-1]': None,
             f'{key}.macd[-2]': None,
+<<<<<<< HEAD
             f'{key}.histogram[-1]': None,
             f'{key}.histogram[-2]': None,
             f'{key}.ema[-1]': None,
@@ -415,6 +420,12 @@ class IcarusStalker(StalkerClass):
             f'{key}.rsi[-1]': None,
             f'{key}.rsi[-2]': None
 >>>>>>> Icarus-v5.12
+=======
+            f'{key}.macd[-3]': None,
+            f'{key}.rsi[-1]': None,
+            f'{key}.rsi[-2]': None,
+            f'{key}.rsi[-3]': None
+>>>>>>> Icarus-v6.7.1
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__

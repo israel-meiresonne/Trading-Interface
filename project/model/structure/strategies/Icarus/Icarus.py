@@ -1956,6 +1956,15 @@ class Icarus(TraderClass):
             vars_map.put(histogram_rising, 'histogram_rising')
             return histogram_rising
 
+        def is_rsi_reached(vars_map: Map) -> bool:
+            rsi = list(child_marketprice.get_rsis())
+            rsi.reverse()
+            rsi_reached = rsi[-1] > 60
+            # Put
+            vars_map.put(rsi_reached, 'rsi_reached')
+            vars_map.put(rsi, Map.rsi)
+            return rsi_reached
+
         def is_edited_macd_switch_up(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd(signal=cls.MACD_SIGNAL)
@@ -2592,6 +2601,7 @@ class Icarus(TraderClass):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -2649,10 +2659,16 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_histogram_rising(vars_map) and is_edited_macd_switch_up(vars_map) and will_market_bounce(vars_map)
 >>>>>>> Icarus-v6.7
+=======
+        can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) \
+            and is_macd_histogram_rising(vars_map) and is_edited_macd_switch_up(vars_map) \
+                and is_rsi_reached(vars_map) and will_market_bounce(vars_map)
+>>>>>>> Icarus-v6.7.1
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
-        edited_histogram = vars_map.get('edited_histogram'),
+        edited_histogram = vars_map.get('edited_histogram')
+        rsi = vars_map.get(Map.rsi)
         macd = vars_map.get(Map.macd)
         histogram_list = vars_map.get('histogram_list')
         key = Icarus._can_buy_indicator.__name__
@@ -2706,6 +2722,7 @@ class Icarus(TraderClass):
             f'{key}.edited_histogram_rising': vars_map.get('edited_histogram_rising'),
             f'{key}.edited_prev_histogram_dropping': vars_map.get('edited_prev_histogram_dropping'),
             f'{key}.edited_macd_switch_up': vars_map.get('edited_macd_switch_up'),
+            f'{key}.rsi_reached': vars_map.get('rsi_reached'),
             f'{key}.will_bounce': vars_map.get('will_bounce'),
             f'{key}.macd_min_index': vars_map.get('macd_min_index'),
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
@@ -2726,9 +2743,15 @@ class Icarus(TraderClass):
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.macd[-3]': macd[-3] if macd is not None else None,
+<<<<<<< HEAD
             f'{key}.histogram_list[-1]': histogram_list[-1] if len(histogram_list) >= 1 else None,
             f'{key}.histogram_list[-2]': histogram_list[-2] if len(histogram_list) >= 2 else None
 >>>>>>> Icarus-v6.4.1
+=======
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
+            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None,
+            f'{key}.rsi[-3]': rsi[-3] if rsi is not None else None
+>>>>>>> Icarus-v6.7.1
         }
         return can_buy_indicator, repport
 
