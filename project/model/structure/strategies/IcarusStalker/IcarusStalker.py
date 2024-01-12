@@ -12,8 +12,12 @@ from model.tools.Price import Price
 
 class IcarusStalker(StalkerClass):
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     _CONST_MAX_STRATEGY = 20
+=======
+    _CONST_MAX_STRATEGY = 5
+>>>>>>> Icarus-v13.1.4
     _RESET_INTERVAL_ALLOWED_PAIR = 60*15    # in second
     CHILD_STRATEGY = Icarus
     _MARKETPRICE_N_PERIOD = CHILD_STRATEGY.get_marketprice_n_period()
@@ -135,6 +139,7 @@ class IcarusStalker(StalkerClass):
         pair = market_price.get_pair()
         # Big
 <<<<<<< HEAD
+<<<<<<< HEAD
         big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
 <<<<<<< HEAD
@@ -143,12 +148,17 @@ class IcarusStalker(StalkerClass):
         min_marketprice = self._get_market_price(broker, pair, min_period)
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, min_marketprice)
 =======
+=======
+        # big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
+        # big_marketprice = self._get_market_price(broker, pair, big_period)
+>>>>>>> Icarus-v13.1.4
         # little
-        little_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_LITTLE_PERIOD
-        little_marketprice = self._get_market_price(broker, pair, little_period)
+        # little_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_LITTLE_PERIOD
+        # little_marketprice = self._get_market_price(broker, pair, little_period)
         # min
         min_period = self.CHILD_STRATEGY.get_min_period()
         min_marketprice = self._get_market_price(broker, pair, min_period)
+<<<<<<< HEAD
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
 >>>>>>> Icarus-v11.3.2
 =======
@@ -157,6 +167,9 @@ class IcarusStalker(StalkerClass):
         min_marketprice = self._get_market_price(broker, pair, min_period)
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, min_marketprice)
 >>>>>>> Icarus-v13.1.3
+=======
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, min_marketprice)
+>>>>>>> Icarus-v13.1.4
         eligible = child_ok
         # Repport
         key = self._eligible.__name__
@@ -177,11 +190,25 @@ class IcarusStalker(StalkerClass):
         indicator_datas = {
             f'{key}.can_buy_indicator': None,
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.histogram_switch_positive': None,
+=======
+            f'{key}.price_switch_up': None,
+            f'{key}.mean_candle_change_60_above_trigger': None,
+            f'{key}.min_close_bellow_min_keltner_middle': None,
+
+            f'{key}.price_change_1': None,
+            f'{key}.price_change_2': None,
+            f'{key}.min_price_change_1': None,
+
+            f'{key}.mean_candle_change_60_mean_positive_candle': None,
+
+>>>>>>> Icarus-v13.1.4
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,
             f'{key}.min_opens[-1]': None,
+<<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.big_closes[-1]': None,
             f'{key}.histogram[-1]': None,
@@ -274,6 +301,10 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_edited_histogram[-1]': None,
             f'{key}.rsi[-1]': None
 >>>>>>> Icarus-v11.4.4
+=======
+            # f'{key}.big_closes[-1]': None,
+            f'{key}.min_keltner_middle[-1]': None
+>>>>>>> Icarus-v13.1.4
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
