@@ -3861,7 +3861,18 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.13
             return can_sell
 
+        def can_sell_roi(close: float, buy_price: float, max_roi: float, roi_trigger: float, save_rate: float) -> Tuple[bool, float]:
+            can_sell = False
+            sell_price = None
+            if max_roi >= roi_trigger:
+                keep_roi = max_roi * save_rate
+                sell_price = buy_price * (1+keep_roi)
+                can_sell = close <= sell_price
+            return can_sell, sell_price
+
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
+            SELL_ROI_TRIGGER = 3/100
+            ROI_SAVE_RATE = 50/100
             buy_repports = []
             n_period = broker.get_max_n_period()
             fees = broker.get_trade_fee(pair)
@@ -3971,6 +3982,7 @@ class Icarus(TraderClass):
                         **buy_repport
 >>>>>>> Icarus-v7.2.13
                     }
+<<<<<<< HEAD
             elif has_position:
                 can_sell, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
@@ -4060,11 +4072,42 @@ class Icarus(TraderClass):
                     exec_price = get_exec_price(min_marketprice, sell_type)
 >>>>>>> Icarus-v13.5.1.1.2.1
                     # Put
+=======
+                    buy_repports.append(buy_repport)
+                    if can_buy:
+                        buy_time = marketprice.get_time()
+                        exec_price = buy_close = marketprice.get_close()
+                        min_roi_position = None
+                        max_roi_position = None
+                        trade = {
+                            Map.date: _MF.unix_to_date(_MF.get_timestamp()),
+                            Map.pair: pair,
+                            Map.period: str_period,
+                            Map.id: f'{pair_merged}_{str_period}_{i}',
+                            Map.start: start_date,
+                            Map.end: end_date,
+                            'buy_time': buy_time,
+                            'buy_date': _MF.unix_to_date(buy_time),
+                            'buy_close': buy_close,
+                            'buy_price': exec_price,
+                        }
+                elif has_position and (can_sell_roi(closes[-1], trade['buy_price'], max_roi_position, SELL_ROI_TRIGGER, ROI_SAVE_RATE)[0] or can_sell_indicator(marketprice, buy_time)):
+                    sell_by_roi, roi_sell_price = can_sell_roi(closes[-1], trade['buy_price'], max_roi_position, SELL_ROI_TRIGGER, ROI_SAVE_RATE)
+                    sell_time = marketprice.get_time()
+                    sell_close = marketprice.get_close()
+                    exec_price = roi_sell_price if sell_by_roi else sell_close
+>>>>>>> Icarus-v7.2.9
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
+                    trade['sell_close'] = sell_close
                     trade['sell_price'] = exec_price
+<<<<<<< HEAD
                     sell_roi = (trade['sell_price']/trade['buy_price'] - 1)
                     trade[Map.roi] = (sell_roi - maker_fee_rate) if stop_limit_reached else (sell_roi - buy_sell_fee)
+=======
+                    trade['sell_by_roi'] = sell_by_roi
+                    trade[Map.roi] = (trade['sell_price']/trade['buy_price'] - 1) - buy_sell_fee
+>>>>>>> Icarus-v7.2.9
                     trade['roi_losses'] = trade[Map.roi] if trade[Map.roi] < 0 else None
                     trade['roi_wins'] = trade[Map.roi] if trade[Map.roi] > 0 else None
                     trade['roi_neutrals'] = trade[Map.roi] if trade[Map.roi] == 0 else None
