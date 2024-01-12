@@ -1354,7 +1354,6 @@ class Solomon(Strategy):
             now_time = marketprice.get_time()
             # Keys
             k_keltner_high =    Map.key(Map.keltner, Map.high)
-            k_keltner_low =     Map.key(Map.keltner, Map.low)
             k_keltner_roi =     Map.key(Map.keltner, Map.roi)
             # Price
             marketprice_df = marketprice.to_pd()
@@ -1364,12 +1363,9 @@ class Solomon(Strategy):
             keltner_high = list(keltner_map.get(Map.high))
             keltner_high.reverse()
             marketprice_df[k_keltner_high] = pd.Series(keltner_high, index=marketprice_df.index)
-            keltner_low = list(keltner_map.get(Map.low))
-            keltner_low.reverse()
-            marketprice_df[k_keltner_low] = pd.Series(keltner_low, index=marketprice_df.index)
             # Prepare
             max_roi = (max_price - buy_price) / buy_price
-            marketprice_df[k_keltner_roi] = (marketprice_df[k_keltner_high] - marketprice_df[k_keltner_low]) / marketprice_df[k_keltner_low]
+            marketprice_df[k_keltner_roi] = (marketprice_df[k_keltner_high] - marketprice_df[Map.close]) / marketprice_df[Map.close]
             sub_marketprice_df = marketprice_df[(marketprice_df[Map.time] >= buy_time) & (marketprice_df[Map.time] <= now_time)]
             max_roi_trigger = min(sub_marketprice_df[k_keltner_roi])
             # Check
@@ -2693,6 +2689,7 @@ class Solomon(Strategy):
             sell_conditions.append(sell_condition)
             # Manage Order
             if can_sell:
+<<<<<<< HEAD
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
             elif sell_price is not None:
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_price)
@@ -2725,6 +2722,9 @@ class Solomon(Strategy):
             if can_sell:
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
 >>>>>>> Solomon-v5.2
+=======
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.mean)
+>>>>>>> Solomon-v5.3.1.12.1
         return trade
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
