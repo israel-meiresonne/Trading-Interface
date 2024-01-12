@@ -2937,7 +2937,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.1.4
 =======
         # 
-        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
 <<<<<<< HEAD
@@ -3404,6 +3404,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.rsi_ok': vars_map.get('rsi_ok'),
             f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
 >>>>>>> Icarus-v6.1
@@ -3439,6 +3440,8 @@ class Icarus(TraderClass):
 =======
             f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
             f'{key}.big_keltner_low_above_ema': vars_map.get('big_keltner_low_above_ema'),
+=======
+>>>>>>> Icarus-v8.1.20
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.roc_positive': vars_map.get('roc_positive'),
@@ -3459,6 +3462,7 @@ class Icarus(TraderClass):
             f'{key}.tangent_roc_positive': vars_map.get('tangent_roc_positive'),
 >>>>>>> Icarus-v8.1.18
 
+<<<<<<< HEAD
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
 >>>>>>> Icarus-v8.1.13
@@ -3481,6 +3485,8 @@ class Icarus(TraderClass):
             f'{key}.roc_bounce': vars_map.get('roc_bounce'),
             f'{key}.bellow_keltner': vars_map.get('bellow_keltner'),
             f'{key}.lows_above_low_keltner': vars_map.get('lows_above_low_keltner'),
+=======
+>>>>>>> Icarus-v8.1.20
             f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
             f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
             f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
