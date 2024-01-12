@@ -1087,6 +1087,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -1384,6 +1385,9 @@ class Icarus(TraderClass):
 =======
         can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
 >>>>>>> Icarus-v7.2.12
+=======
+        can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
+>>>>>>> Icarus-v7.2.13
         return can_sell
 >>>>>>> Icarus-v5.12
 
@@ -2005,7 +2009,13 @@ class Icarus(TraderClass):
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
 <<<<<<< HEAD
+<<<<<<< HEAD
             histogram_rising = histogram[-1] > 0
+=======
+            histogram_rising = (histogram[-2] > 0) and (histogram[-1] > 0)
+            prev_histogram_dropping = histogram[-3] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
+>>>>>>> Icarus-v7.2.13
             # Put
             vars_map.put(histogram, 'histogram')
             vars_map.put(histogram_rising, 'histogram_rising')
@@ -2979,6 +2989,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3073,6 +3084,11 @@ class Icarus(TraderClass):
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
                 and is_bellow_keltner(vars_map) and is_closes_above_low_keltner(vars_map)
 >>>>>>> Icarus-v7.2.12
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
+            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
+                and is_bellow_keltner(vars_map) and is_closes_above_low_keltner(vars_map)
+>>>>>>> Icarus-v7.2.13
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
@@ -3132,6 +3148,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.rsi_ok': vars_map.get('rsi_ok'),
             f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
 >>>>>>> Icarus-v6.1
@@ -3177,6 +3194,8 @@ class Icarus(TraderClass):
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
 >>>>>>> Icarus-v7.2.10
 =======
+=======
+>>>>>>> Icarus-v7.2.13
             f'{key}.will_bounce': vars_map.get('will_bounce'),
             f'{key}.roc_positive': vars_map.get('roc_positive'),
             f'{key}.roc_bounce': vars_map.get('roc_bounce'),
@@ -3191,6 +3210,7 @@ class Icarus(TraderClass):
             f'{key}.min_close': vars_map.get('min_close'),
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
             f'{key}.min_keltner': vars_map.get('min_keltner'),
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> Icarus-v7.10
@@ -3217,6 +3237,8 @@ class Icarus(TraderClass):
 =======
 =======
 >>>>>>> Icarus-v7.2.12
+=======
+>>>>>>> Icarus-v7.2.13
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -3731,10 +3753,14 @@ class Icarus(TraderClass):
             closes.reverse()
             # Check
 <<<<<<< HEAD
+<<<<<<< HEAD
             can_sell = is_bollinger_reached(vars_map)
 =======
             can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
 >>>>>>> Icarus-v7.2.12
+=======
+            can_sell = is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
+>>>>>>> Icarus-v7.2.13
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
@@ -3745,6 +3771,11 @@ class Icarus(TraderClass):
             buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
             pair_merged = pair.format(Pair.FORMAT_MERGED)
             str_period = BinanceAPI.convert_interval(period)
+<<<<<<< HEAD
+=======
+            big_period = cls.MARKETPRICE_BUY_BIG_PERIOD
+            unban_time = 0
+>>>>>>> Icarus-v7.2.13
             trades = None
             trade = {}
             market_params = {
@@ -3776,6 +3807,7 @@ class Icarus(TraderClass):
                     Map.id: trade_id,
                     **buy_repport
                 }
+<<<<<<< HEAD
                 buy_repports.append(buy_repport)
                 if can_buy:
                     buy_time = min_marketprice.get_time()
@@ -3793,6 +3825,53 @@ class Icarus(TraderClass):
                         'buy_time': buy_time,
                         'buy_date': _MF.unix_to_date(buy_time),
                         'buy_price': exec_price,
+=======
+            broker.add_streams([
+                broker.generate_stream(Map({Map.pair: pair, Map.period: period})),
+                broker.generate_stream(Map({Map.pair: pair, Map.period: big_period}))
+            ])
+            i = 0
+            Bot.update_trade_index(i)
+            marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=True, **market_params)
+            while isinstance(marketprice, MarketPrice):
+                big_marketprice = _MF.catch_exception(MarketPrice.marketprice, Icarus.__name__, repport=False, **big_market_params)
+                open_times = list(marketprice.get_times())
+                open_times.reverse()
+                closes = list(marketprice.get_closes())
+                closes.reverse()
+                highs = list(marketprice.get_highs())
+                highs.reverse()
+                lows = list(marketprice.get_lows())
+                lows.reverse()
+                # Update High/Low price
+                if i == 0:
+                    higher_price = 0
+                    start_date = _MF.unix_to_date(open_times[-1])
+                    end_date = _MF.unix_to_date(open_times[-1])
+                    start_price = closes[-1]
+                else:
+                    end_date = _MF.unix_to_date(open_times[-1])
+                    end_price = closes[-1]
+                    higher_price = highs[-1] if highs[-1] > higher_price else higher_price
+                # Print time
+                sys.stdout.write(f'\r{_MF.prefix()}{_MF.unix_to_date(open_times[-1])}')
+                sys.stdout.flush()
+                has_position = len(trade) != 0
+                period_is_ban = not (open_times[-1] >= unban_time)
+                # Update Max/Min roi
+                if has_position:
+                    high_roi = _MF.progress_rate(highs[-1], trade['buy_price'])
+                    low_roi = _MF.progress_rate(lows[-1], trade['buy_price'])
+                    min_roi_position = low_roi if (min_roi_position is None) or (low_roi < min_roi_position) else min_roi_position
+                    max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
+                # Try buy/sell
+                if (not period_is_ban) and (not has_position):
+                    unban_time = 0
+                    can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice)
+                    buy_repport = {
+                        Map.time: _MF.unix_to_date(open_times[-1]),
+                        **buy_repport
+>>>>>>> Icarus-v7.2.13
                     }
             elif has_position:
                 can_sell, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)

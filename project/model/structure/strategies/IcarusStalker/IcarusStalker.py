@@ -259,6 +259,7 @@ class IcarusStalker(StalkerClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.rsi_ok': None,
             f'{key}.rsi_trigger': None,
 >>>>>>> Icarus-v6.1
@@ -404,6 +405,8 @@ class IcarusStalker(StalkerClass):
             f'{key}.last_min_macd': None,
 >>>>>>> Icarus-v7.2.10
 =======
+=======
+>>>>>>> Icarus-v7.2.13
             f'{key}.will_bounce': None,
             f'{key}.roc_positive': None,
             f'{key}.roc_bounce': None,
