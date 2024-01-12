@@ -516,6 +516,7 @@ class Solomon(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float]:
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         TRIGGE_KELTNER = 1/100
 >>>>>>> Solomon-v1.1.2
 =======
@@ -564,6 +565,9 @@ class Solomon(Strategy):
 =======
         TRIGGE_KELTNER = 2/100
 >>>>>>> Solomon-v5.1.1.4.2
+=======
+        MARKETTREND_N_PERIOD = 5
+>>>>>>> Solomon-v5.1.4.1.2
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_5min =   Broker.PERIOD_5MIN
@@ -643,6 +647,7 @@ class Solomon(Strategy):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             # {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict()},
             {Map.callback: cls.is_market_trend_deep_and_rise,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
@@ -697,6 +702,9 @@ class Solomon(Strategy):
 =======
             {Map.callback: cls.is_market_trend_bellow,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, trigger=MARKET_TREND_TRIGGER, is_int_round=True)},
             {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=False)},
+=======
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=False, window=MARKETTREND_N_PERIOD)},
+>>>>>>> Solomon-v5.1.4.1.2
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
