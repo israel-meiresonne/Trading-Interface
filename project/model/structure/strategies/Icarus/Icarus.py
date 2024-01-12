@@ -103,6 +103,7 @@ class Icarus(TraderClass):
     _MAX_FLOAT_DEFAULT = -1
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     EMA200_N_PERIOD = 200
     EMA50_N_PERIOD = 50
     ROC_WINDOW = 15
@@ -112,6 +113,11 @@ class Icarus(TraderClass):
     EMA_N_PERIOD = 200
     MACD_SIGNAL = 34
 >>>>>>> Icarus-v6.7
+=======
+    EMA_N_PERIOD = 200
+    ROC_WINDOW_15 = 15
+    ROC_WINDOW_7 = 7
+>>>>>>> Icarus-v8.1.18
     _PREDICTIONS = None
 <<<<<<< HEAD
     _FILE_PATH_BACKTEST = f'$class/backtest/$path/$session_backtest.csv'
@@ -2125,6 +2131,7 @@ class Icarus(TraderClass):
         """
 >>>>>>> Icarus-v7.2.8
         def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
+<<<<<<< HEAD
             roc = list(marketprice.get_roc(cls.ROC_WINDOW))
 =======
 =======
@@ -2132,13 +2139,16 @@ class Icarus(TraderClass):
         def is_roc_positive(vars_map: Map) -> bool:
             roc = list(child_marketprice.get_roc(cls.ROC_WINDOW))
 >>>>>>> Icarus-v7.2.4
+=======
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW_15))
+>>>>>>> Icarus-v8.1.18
             roc.reverse()
             roc_positive = roc[-1] > 0
             vars_map.put(roc_positive, 'roc_positive')
             return roc_positive
 
         def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
-            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW_15))
             roc.reverse()
             open_times = list(marketprice.get_times())
             open_times.reverse()
@@ -2847,6 +2857,17 @@ class Icarus(TraderClass):
             vars_map.put(rsi, Map.rsi)
             return tangent_rsi_positive
 
+        def is_tangent_roc_positive(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            roc = list(child_marketprice.get_roc(cls.ROC_WINDOW_7))
+            roc.reverse()
+            # Check
+            tangent_roc_positive = roc[-1] > roc[-2]
+            # Put
+            vars_map.put(tangent_roc_positive, 'tangent_roc_positive')
+            vars_map.put(roc, 'roc_7')
+            return tangent_roc_positive
+
         vars_map = Map()
 <<<<<<< HEAD
         # Child
@@ -2919,8 +2940,12 @@ class Icarus(TraderClass):
         can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
+<<<<<<< HEAD
             and is_tangent_rsi_positive(vars_map)
 >>>>>>> Icarus-v8.1.15
+=======
+                and is_tangent_roc_positive(vars_map)
+>>>>>>> Icarus-v8.1.18
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -2976,6 +3001,7 @@ class Icarus(TraderClass):
         supertrend = vars_map.get(Map.supertrend)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
 =======
         histogram = vars_map.get(Map.histogram)
@@ -2986,6 +3012,9 @@ class Icarus(TraderClass):
 =======
         rsi = vars_map.get(Map.rsi)
 >>>>>>> Icarus-v8.1.15
+=======
+        roc_7 = vars_map.get('roc_7')
+>>>>>>> Icarus-v8.1.18
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -3423,8 +3452,12 @@ class Icarus(TraderClass):
             f'{key}.high_bellow_keltner_high': vars_map.get('high_bellow_keltner_high'),
 =======
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
+<<<<<<< HEAD
             f'{key}.tangent_rsi_positive': vars_map.get('tangent_rsi_positive'),
 >>>>>>> Icarus-v8.1.15
+=======
+            f'{key}.tangent_roc_positive': vars_map.get('tangent_roc_positive'),
+>>>>>>> Icarus-v8.1.18
 
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
@@ -3539,6 +3572,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.10
 =======
             f'{key}.roc[-1]': roc[-1] if roc is not None else None,
+<<<<<<< HEAD
             f'{key}.roc[-2]': roc[-2] if roc is not None else None,
             f'{key}.roc[-3]': roc[-3] if roc is not None else None,
 >>>>>>> Icarus-v7.2.12
@@ -3555,6 +3589,9 @@ class Icarus(TraderClass):
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.ema[-1]': ema[-1] if ema is not None else None,
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+=======
+            f'{key}.roc_7[-1]': roc_7[-1] if roc_7 is not None else None,
+>>>>>>> Icarus-v8.1.18
             f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
 <<<<<<< HEAD
