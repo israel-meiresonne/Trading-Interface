@@ -186,6 +186,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.price_above_prev_high': None,
 =======
             f'{key}.macd_histogram_positive': None,
+<<<<<<< HEAD
             f'{key}.little_edited_macd_histogram_positive': None,
             f'{key}.edited_macd_histogram_positive': None,
             f'{key}.close_3_bellow_keltner_middle_3': None,
@@ -202,6 +203,10 @@ class IcarusStalker(StalkerClass):
 =======
             f'{key}.edited_min_macd_histogram_positive': None,
 >>>>>>> Icarus-v11.3.3
+=======
+            f'{key}.edited_macd_above_peak': None,
+            f'{key}.rsi_above_peak_macd_posive_histogram': None,
+>>>>>>> Icarus-v11.4.4
 
             f'{key}.switch_up_price_change_2': None,
             f'{key}.switch_up_price_change_3': None,
@@ -212,6 +217,10 @@ class IcarusStalker(StalkerClass):
 
             f'{key}.min_macd_signal_peak_date': None,
             f'{key}.min_macd_signal_min_date': None,
+
+            f'{key}.rsi_above_peak_start_interval': None,
+            f'{key}.rsi_above_peak_peak_date': None,
+            f'{key}.rsi_above_peak_rsi_peak': None,
 
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
@@ -228,7 +237,10 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v11.1.1
 =======
             f'{key}.big_closes[-1]': None,
+            f'{key}.macd[-1]': None,
+            f'{key}.signal[-1]': None,
             f'{key}.histogram[-1]': None,
+<<<<<<< HEAD
             f'{key}.little_edited_macd_histogram[-1]': None,
             f'{key}.edited_macd_histogram_positive[-1]': None,
             f'{key}.keltner_middle[-1]': None,
@@ -245,6 +257,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.big_closes[-1]': None,
             f'{key}.min_edited_histogram[-1]': None,
 >>>>>>> Icarus-v11.3.3
+=======
+            f'{key}.edited_macd[-1]': None,
+            f'{key}.edited_signal[-1]': None,
+            f'{key}.edited_histogram[-1]': None,
+            f'{key}.min_edited_histogram[-1]': None,
+            f'{key}.rsi[-1]': None
+>>>>>>> Icarus-v11.4.4
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
