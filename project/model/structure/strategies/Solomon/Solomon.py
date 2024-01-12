@@ -506,6 +506,9 @@ class Solomon(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
         FEE_MULTIPLE =      2.5
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Solomon-v5.4.4.7.1
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
 <<<<<<< HEAD
@@ -837,6 +840,7 @@ class Solomon(Strategy):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             {Map.callback: cls.is_macd_from_negative,           Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.compare_emas,                    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='>=', ema_params_1=cls.EMA_PARAMS_1, ema_params_2=cls.EMA_PARAMS_2)},
             {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2)},
@@ -1067,6 +1071,9 @@ class Solomon(Strategy):
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)}
 >>>>>>> Solomon-v5.4.4.5.1
+=======
+            {Map.callback: cls.compare_ema_and_keltner,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)}
+>>>>>>> Solomon-v5.4.4.7.1
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -1302,6 +1309,7 @@ class Solomon(Strategy):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             and (
                 (
                     not cls.is_macd_line_positive(**func_and_params[4][Map.param]) \
@@ -1326,6 +1334,9 @@ class Solomon(Strategy):
 >>>>>>> Solomon-v5.4.4.3.8
 =======
 >>>>>>> Solomon-v5.4.4.5.1
+=======
+            and cls.compare_ema_and_keltner(**func_and_params[4][Map.param])
+>>>>>>> Solomon-v5.4.4.7.1
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
