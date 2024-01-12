@@ -25,6 +25,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # _RSI_BUY_TRIGGER = 25
     # _RSI_SELL_TRIGGER = 30
     # _RSI_STEP = 10
@@ -52,6 +53,9 @@ class Icarus(TraderClass):
 =======
     _MAX_LOSS = -1/100
 >>>>>>> Icarus-v2.1.2.2
+=======
+    _MAX_LOSS = -1/100
+>>>>>>> Icarus-v5.13
     _ROI_FLOOR_FIXE = 0.002
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -406,12 +410,33 @@ class Icarus(TraderClass):
     def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
         # Get values
         pair = self.get_pair()
+<<<<<<< HEAD
         max_roi = self.max_roi(marketprice)
         buy_price = self.get_buy_order().get_execution_price()
         # Price
         secure_price_value = self._get_max_drop_sell_price(buy_price, max_roi)
 >>>>>>> Icarus-v13.5.1.1.2
         secure_price = Price(secure_price_value, pair.get_right())
+=======
+        buy_price = self._get_orders().get_last_execution().get_execution_price().get_value()
+        # '''
+        if self._get_secure_order() is None:
+            secure_price = TraderClass._secure_order_price(self, bkr, marketprice)
+        else:
+        # '''
+            get_max_close_pred = self.get_max_close_predicted()
+            max_occupation = self.prediction_max_occupation(marketprice)
+            reduce_rate = self.get_prediction_occupation_reduce()
+            # Delta between buy price and prediction price
+            increase_range = get_max_close_pred - buy_price
+            # Eval price corresponding to occupation rate
+            occup_close = increase_range * max_occupation + buy_price
+            # Eval price point to reduce
+            reduce = increase_range * reduce_rate
+            # Reduce price point to occupation to get secure price
+            secure_close = occup_close - reduce
+            secure_price = Price(secure_close, pair.get_right().get_symbol())
+>>>>>>> Icarus-v5.13
         return secure_price
 >>>>>>> Icarus-test
 
@@ -1315,12 +1340,15 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.save_move(market_price)
 =======
 =======
 >>>>>>> Icarus-v13.4.2.3
 =======
 >>>>>>> Icarus-v2.1.2.2
+=======
+>>>>>>> Icarus-v5.13
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -1335,12 +1363,38 @@ class Icarus(TraderClass):
         :return: set of order to execute
                  Map[symbol{str}] => {Order}
         """
+<<<<<<< HEAD
         executions = Map()
+=======
+        '''
+        def is_new_prediction_higher(old_close: float, new_close: float) -> bool:
+            return new_close > old_close
+        '''
+
+        def is_occupation_trigger_reached() -> bool:
+            occup_trigger = self.get_prediction_occupation_secure_trigger()
+            occupation = self.prediction_max_occupation(market_price)
+            return occupation >= occup_trigger
+
+        def is_max_price_higher(old_max_price: float, new_max_price: float) -> bool:
+            return new_max_price > old_max_price
+        '''
+        def is_secure_is_max_loss() -> bool:
+            buy_order = self.get_buy_order()
+            secure_order = self._get_secure_order()
+            return secure_order.get_limit_price().get_value() < buy_order.get_execution_price().get_value()
+        '''
+
+        executions = Map()
+        # max_close_pred = self.get_max_close_predicted()
+        old_max_price = self.get_max_prices()[-1]
+>>>>>>> Icarus-v5.13
         # Evaluate Sell
         can_sell = self.can_sell(market_price)
         if can_sell:
 <<<<<<< HEAD
             self._sell(executions)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1365,6 +1419,13 @@ class Icarus(TraderClass):
             if secure_order is None:
                 self._secure_position(executions)
             elif repport[Map.price] > secure_order.get_limit_price().get_value():
+=======
+        else:
+            # new_max_close_pred = self.get_max_close_predicted()
+            occup_trigger_reached = is_occupation_trigger_reached()
+            max_price_higher = is_max_price_higher(old_max_price, new_max_price=self.get_max_price(market_price))
+            if occup_trigger_reached and max_price_higher:
+>>>>>>> Icarus-v5.13
                 self._move_up_secure_order(executions)
 >>>>>>> Icarus-v13.5.1.1.2
 =======
