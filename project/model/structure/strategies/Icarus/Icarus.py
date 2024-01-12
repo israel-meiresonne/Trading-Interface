@@ -23,6 +23,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # _RSI_BUY_TRIGGER = 25
     # _RSI_SELL_TRIGGER = 30
     # _RSI_STEP = 10
@@ -38,6 +39,9 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.3
 =======
     _MAX_ROI_DROP_TRIGGER = 1/100
+=======
+    _MAX_ROI_DROP_TRIGGER = 1.5/100
+>>>>>>> Icarus-v13.5.1.1.2
     _MAX_ROI_DROP_RATE = 50/100
     _MAX_LOSS = -3/100
 >>>>>>> Icarus-v13.4.1
@@ -191,6 +195,7 @@ class Icarus(TraderClass):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _new_secure_order(self, bkr: Broker, mkt_prc: MarketPrice) -> Order:
         if not self._has_position():
             raise Exception("Strategy must have position to generate secure Order")
@@ -242,6 +247,18 @@ class Icarus(TraderClass):
         # Secure Price
         secure_price_value = self._get_stop_limit_price(buy_price, max_roi)
 >>>>>>> Icarus-v13.3
+=======
+    # ——————————————————————————————————————————— FUNCTION ROI FLOOR UP ————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
+
+    def _secure_order_price(self, bkr: Broker, marketprice: MarketPrice) -> Price:
+        # Get values
+        pair = self.get_pair()
+        max_roi = self.max_roi(marketprice)
+        buy_price = self.get_buy_order().get_execution_price()
+        # Price
+        secure_price_value = self._get_max_drop_sell_price(buy_price, max_roi)
+>>>>>>> Icarus-v13.5.1.1.2
         secure_price = Price(secure_price_value, pair.get_right())
         return secure_price
 >>>>>>> Icarus-test
@@ -294,6 +311,7 @@ class Icarus(TraderClass):
         min_period = self.get_min_period()
         datas = {
             Map.roi: self.get_wallet().get_roi(broker),
+<<<<<<< HEAD
             Map.maximum: self.get_max_price(marketprice),
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -308,6 +326,9 @@ class Icarus(TraderClass):
             # self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
 >>>>>>> Icarus-v13.1.4
 =======
+=======
+            Map.maximum: self.max_roi(marketprice),
+>>>>>>> Icarus-v13.5.1.1.2
             Map.buy: self.get_buy_order().get_execution_price(),
 >>>>>>> Icarus-v13.3
 =======
@@ -329,6 +350,7 @@ class Icarus(TraderClass):
 
     @classmethod
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _get_stop_limit_price(cls, buy_price: float, max_roi: float) -> float:
         if max_roi >= cls._MAX_ROI_DROP_TRIGGER:
             stop_limit_price = buy_price * (1+(max_roi*(1-cls._MAX_ROI_DROP_RATE)))
@@ -337,6 +359,9 @@ class Icarus(TraderClass):
         return stop_limit_price
 =======
     def _get_max_drop_sell_price(cls, buy_price: float, max_roi: float) -> float:
+=======
+    def _get_max_drop_sell_price(cls, buy_price: Price, max_roi: float) -> float:
+>>>>>>> Icarus-v13.5.1.1.2
         sell_price = None
         if max_roi >= cls._MAX_ROI_DROP_TRIGGER:
             sell_price = buy_price * (1+(max_roi*(1-cls._MAX_ROI_DROP_RATE)))
@@ -748,6 +773,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -789,12 +815,18 @@ class Icarus(TraderClass):
         can_place_max_drop_limit(vars_map)
 >>>>>>> Icarus-v13.4.1
 =======
+=======
+>>>>>>> Icarus-v13.5.1.1.2
         can_sell = (is_roi_above_trigger(vars_map) and is_1min_red_sequence_above_green_candle(vars_map))\
             or (
                 (is_supertrend_switch_down(vars_map) or is_psar_switch_down(vars_map)) or is_tangent_macd_negative(vars_map)\
                     and is_min_tangent_rsi_negative(vars_map)
             )
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
+=======
+        can_place_max_drop_limit(vars_map)
+>>>>>>> Icarus-v13.5.1.1.2
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
@@ -853,13 +885,20 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.4
             f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.place_max_drop_limit': vars_map.get('place_max_drop_limit'),
 =======
+=======
+>>>>>>> Icarus-v13.5.1.1.2
             f'{key}.supertrend_switch_down': vars_map.get('supertrend_switch_down'),
             f'{key}.psar_switch_down': vars_map.get('psar_switch_down'),
             f'{key}.tangent_macd_negative': vars_map.get('tangent_macd_negative'),
             f'{key}.min_tangent_rsi_negative': vars_map.get('min_tangent_rsi_negative'),
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
+=======
+            f'{key}.place_max_drop_limit': vars_map.get('place_max_drop_limit'),
+>>>>>>> Icarus-v13.5.1.1.2
             
             f'{key}.ROI_TRIGGER': ROI_TRIGGER,
             f'{key}.roi': roi,
@@ -875,6 +914,7 @@ class Icarus(TraderClass):
             f'{key}.min_roi_reached': vars_map.get('min_roi_reached'),
 >>>>>>> Icarus-v13.3.1
 
+<<<<<<< HEAD
             f'{key}.MIN_ROI_TRIGGER': cls._MIN_ROI_TRIGGER,
             f'{key}.MAX_ROI_DROP_TRIGGER': cls._MAX_ROI_DROP_TRIGGER,
             f'{key}.MAX_ROI_DROP_RATE': cls._MAX_ROI_DROP_RATE,
@@ -887,11 +927,18 @@ class Icarus(TraderClass):
 
             Map.price: vars_map.get('stop_limit_price'),
 
+=======
+>>>>>>> Icarus-v13.5.1.1.2
             f'{key}.supertrend_dropping_1': vars_map.get('supertrend_dropping_1'),
             f'{key}.supertrend_rising_2': vars_map.get('supertrend_rising_2'),
 
             f'{key}.psar_dropping_1': vars_map.get('psar_dropping_1'),
             f'{key}.psar_rising_2': vars_map.get('psar_rising_2'),
+<<<<<<< HEAD
+=======
+
+            Map.price: vars_map.get('stop_limit_price'),
+>>>>>>> Icarus-v13.5.1.1.2
 
             f'{key}.closes[-1]': closes[-1],
 <<<<<<< HEAD
@@ -1090,6 +1137,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
             self._sell(executions)
 <<<<<<< HEAD
+<<<<<<< HEAD
         elif self.get_roi_floor(market_price) != self.get_floor_secure_order():
             self._move_up_secure_order(executions)
         self.save_move(market_price)
@@ -1105,6 +1153,14 @@ class Icarus(TraderClass):
         elif (repport[Map.price] is not None) and (repport[Map.price] > self._get_secure_order().get_limit_price()):
             self._move_up_secure_order(executions)
 >>>>>>> Icarus-v13.3
+=======
+        elif repport[Map.price] is not None:
+            secure_order = self._get_secure_order()
+            if secure_order is None:
+                self._secure_position(executions)
+            elif repport[Map.price] > secure_order.get_limit_price().get_value():
+                self._move_up_secure_order(executions)
+>>>>>>> Icarus-v13.5.1.1.2
         var_param = vars().copy()
         del var_param['self']
         self.save_move(**var_param)
@@ -1268,6 +1324,7 @@ class Icarus(TraderClass):
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         N_CANDLE = 60
         TRIGGER_CANDLE_CHANGE = 0.5/100
+        TRIGGE_KELTNER = 0.1/100
         def price_change(i: int, open_prices: list[float], close_prices: list[float]) -> float:
             n_open = len(open_prices)
             n_close = len(close_prices)
@@ -1494,6 +1551,72 @@ class Icarus(TraderClass):
             vars_map.put(supertrend, Map.supertrend)
             return supertrend_rising
 
+        def is_tangent_macd_histogram_positive(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            tangent_macd_histogram_positive = histogram[-1] > histogram[-2]
+            # Put
+            vars_map.put(tangent_macd_histogram_positive, 'tangent_macd_histogram_positive')
+            vars_map.put(histogram, Map.histogram)
+            return tangent_macd_histogram_positive
+
+        def is_tangent_min_edited_macd_histogram_positive(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            tangent_min_edited_macd_histogram_positive = histogram[-1] > histogram[-2]
+            # Put
+            vars_map.put(tangent_min_edited_macd_histogram_positive, 'tangent_min_edited_macd_histogram_positive')
+            vars_map.put(histogram, 'min_edited_histogram')
+            return tangent_min_edited_macd_histogram_positive
+
+        def is_min_keltner_roi_above_trigger(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            keltner_map = min_marketprice.get_keltnerchannel(multiple=1)
+            keltner_low = list(keltner_map.get(Map.low))
+            keltner_low.reverse()
+            keltner_high = list(keltner_map.get(Map.high))
+            keltner_high.reverse()
+            # Check
+            keltner_roi = _MF.progress_rate(keltner_high[-1], keltner_low[-1])
+            min_keltner_roi_above_trigger = keltner_roi >= TRIGGE_KELTNER
+            # Put
+            vars_map.put(min_keltner_roi_above_trigger, 'min_keltner_roi_above_trigger')
+            vars_map.put(keltner_roi, 'keltner_roi')
+            vars_map.put(keltner_map.get_map(), 'min_keltner')
+            return min_keltner_roi_above_trigger
+
+        def is_psar_rising(vars_map: Map) -> bool:
+            psar = list(child_marketprice.get_psar())
+            psar.reverse()
+            psar_rising = MarketPrice.get_psar_trend(closes, psar, -1) == MarketPrice.PSAR_RISING
+            vars_map.put(psar_rising, 'psar_rising')
+            vars_map.put(psar, Map.psar)
+            return psar_rising
+
+        def is_min_psar_rising(vars_map: Map) -> bool:
+            psar = list(min_marketprice.get_psar())
+            psar.reverse()
+            min_psar_rising = MarketPrice.get_psar_trend(min_closes, psar, -1) == MarketPrice.PSAR_RISING
+            vars_map.put(min_psar_rising, 'min_psar_rising')
+            vars_map.put(psar, 'min_psar')
+            return min_psar_rising
+
+        def is_min_supertrend_rising(vars_map: Map) -> bool:
+            supertrend = list(min_marketprice.get_super_trend())
+            supertrend.reverse()
+            # Check
+            min_supertrend_rising = MarketPrice.get_super_trend_trend(min_closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
+            # Put
+            vars_map.put(min_supertrend_rising, 'min_supertrend_rising')
+            vars_map.put(supertrend, 'min_supertrend')
+            return min_supertrend_rising
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -1596,12 +1719,29 @@ class Icarus(TraderClass):
 =======
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
+<<<<<<< HEAD
             and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
 >>>>>>> Icarus-v13.5
+=======
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)\
+                and is_tangent_macd_histogram_positive(vars_map) and is_tangent_min_edited_macd_histogram_positive(vars_map)\
+                    and is_min_keltner_roi_above_trigger(vars_map) and is_psar_rising(vars_map) and is_min_psar_rising(vars_map) and is_min_supertrend_rising(vars_map)
+>>>>>>> Icarus-v13.5.1.1.2
         # Repport
         min_histogram = vars_map.get('min_histogram')
+        keltner_low = vars_map.get('min_keltner', Map.low)
+        keltner_middle = vars_map.get('min_keltner', Map.middle)
+        keltner_high = vars_map.get('min_keltner', Map.high)
+        min_edited_histogram = vars_map.get('min_edited_histogram')
         supertrend = vars_map.get(Map.supertrend)
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
+=======
+        histogram = vars_map.get(Map.histogram)
+        psar = vars_map.get(Map.psar)
+        min_psar = vars_map.get('min_psar')
+        min_supertrend = vars_map.get('min_supertrend')
+>>>>>>> Icarus-v13.5.1.1.2
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -1613,11 +1753,20 @@ class Icarus(TraderClass):
             f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
+            f'{key}.tangent_macd_histogram_positive': vars_map.get('tangent_macd_histogram_positive'),
+            f'{key}.tangent_min_edited_macd_histogram_positive': vars_map.get('tangent_min_edited_macd_histogram_positive'),
+            f'{key}.min_keltner_roi_above_trigger': vars_map.get('min_keltner_roi_above_trigger'),
+            f'{key}.psar_rising': vars_map.get('psar_rising'),
+            f'{key}.min_psar_rising': vars_map.get('min_psar_rising'),
+            f'{key}.min_supertrend_rising': vars_map.get('min_supertrend_rising'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
 
             f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
+            
+            f'{key}.TRIGGE_KELTNER': TRIGGE_KELTNER,
+            f'{key}.keltner_roi': vars_map.get('keltner_roi'),
 
 >>>>>>> Icarus-v13.1.4
             f'{key}.closes[-1]': closes[-1],
@@ -1722,6 +1871,7 @@ class Icarus(TraderClass):
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
             f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
 >>>>>>> Icarus-v13.1.4
@@ -1729,6 +1879,23 @@ class Icarus(TraderClass):
             f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
             f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None
 >>>>>>> Icarus-v13.5
+=======
+            f'{key}.min_supertrend[-1]': min_supertrend[-1] if min_supertrend is not None else None,
+            f'{key}.min_supertrend[-2]': min_supertrend[-2] if min_supertrend is not None else None,
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
+            f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
+            f'{key}.min_edited_histogram[-2]': min_edited_histogram[-2] if min_edited_histogram is not None else None,
+            f'{key}.psar[-1]': psar[-1] if psar is not None else None,
+            f'{key}.psar[-2]': psar[-2] if psar is not None else None,
+            f'{key}.min_psar[-1]': min_psar[-1] if min_psar is not None else None,
+            f'{key}.min_psar[-2]': min_psar[-2] if min_psar is not None else None,
+            f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
+            f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None,
+            f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
+            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
+            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None
+>>>>>>> Icarus-v13.5.1.1.2
         }
         return can_buy_indicator, repport
 

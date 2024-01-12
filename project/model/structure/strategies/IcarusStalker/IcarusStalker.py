@@ -201,13 +201,25 @@ class IcarusStalker(StalkerClass):
             f'{key}.mean_candle_change_60_above_trigger': None,
             f'{key}.supertrend_rising': None,
             f'{key}.min_macd_histogram_switch_up': None,
+            f'{key}.tangent_macd_histogram_positive': None,
+            f'{key}.tangent_min_edited_macd_histogram_positive': None,
+            f'{key}.min_keltner_roi_above_trigger': None,
+            f'{key}.psar_rising': None,
+            f'{key}.min_psar_rising': None,
+            f'{key}.min_supertrend_rising': None,
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
 
             f'{key}.mean_candle_change_60_mean_positive_candle': None,
 
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.1.4
+=======
+            f'{key}.TRIGGE_KELTNER': None,
+            f'{key}.keltner_roi': None,
+
+>>>>>>> Icarus-v13.5.1.1.2
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,
@@ -312,6 +324,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.supertrend[-1]': None,
             f'{key}.supertrend[-2]': None,
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
             f'{key}.min_keltner_middle[-1]': None
 >>>>>>> Icarus-v13.1.4
@@ -319,6 +332,23 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_histogram[-1]': None,
             f'{key}.min_histogram[-2]': None
 >>>>>>> Icarus-v13.5
+=======
+            f'{key}.min_supertrend[-1]': None,
+            f'{key}.min_supertrend[-2]': None,
+            f'{key}.histogram[-1]': None,
+            f'{key}.histogram[-2]': None,
+            f'{key}.min_edited_histogram[-1]': None,
+            f'{key}.min_edited_histogram[-2]': None,
+            f'{key}.psar[-1]': None,
+            f'{key}.psar[-2]': None,
+            f'{key}.min_psar[-1]': None,
+            f'{key}.min_psar[-2]': None,
+            f'{key}.min_histogram[-1]': None,
+            f'{key}.min_histogram[-2]': None,
+            f'{key}.keltner_low[-1]': None,
+            f'{key}.keltner_middle[-1]': None,
+            f'{key}.keltner_high[-1]': None
+>>>>>>> Icarus-v13.5.1.1.2
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
