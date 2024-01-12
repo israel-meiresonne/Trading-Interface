@@ -1,7 +1,11 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 from typing import List, Tuple
 import numpy as np
+=======
+from typing import Tuple
+>>>>>>> Icarus-v7.2.8
 
 import pandas as pd
 
@@ -2058,20 +2062,39 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Icarus-v7.2.10
 =======
 =======
 >>>>>>> Icarus-v7.2.5
+=======
+>>>>>>> Icarus-v7.2.8
         def is_bellow_keltner(vars_map: Map) -> bool:
             kc = child_marketprice.get_keltnerchannel()
             kc_high = list(kc.get(Map.high))
             kc_high.reverse()
             bellow_keltner = closes[-1] < kc_high[-1]
+<<<<<<< HEAD
             vars_map.put(bellow_keltner, 'bellow_keltner')
             return bellow_keltner
 
 <<<<<<< HEAD
+=======
+            return bellow_keltner
+
+        def is_rsi_reached(vars_map: Map, marketprice: MarketPrice) -> bool:
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            rsi_trigger = 60
+            rsi_reached = rsi[-1] > rsi_trigger
+            vars_map.put(rsi_reached, 'rsi_reached')
+            vars_map.put(rsi_trigger, 'rsi_trigger')
+            vars_map.put(rsi, Map.rsi)
+            return rsi_reached
+
+        """
+>>>>>>> Icarus-v7.2.8
         def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
             roc = list(marketprice.get_roc(cls.ROC_WINDOW))
 =======
@@ -2101,6 +2124,7 @@ class Icarus(TraderClass):
             vars_map.put(roc[last_min_index], 'last_roc_min')
             vars_map.put(roc, 'roc')
             return roc_bounce
+<<<<<<< HEAD
 
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -2174,6 +2198,10 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.4
 =======
 >>>>>>> Icarus-v7.2.5
+=======
+        """
+
+>>>>>>> Icarus-v7.2.8
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -3015,6 +3043,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3129,11 +3158,16 @@ class Icarus(TraderClass):
 =======
             and is_roc_positive(vars_map, big_marketprice) and is_bellow_keltner(vars_map)
 >>>>>>> Icarus-v7.2.7
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
+            and is_rsi_reached(vars_map, big_marketprice) and is_bellow_keltner(vars_map)
+>>>>>>> Icarus-v7.2.8
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
         rsi = vars_map.get(Map.rsi)
         macd = vars_map.get(Map.macd)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3161,6 +3195,9 @@ class Icarus(TraderClass):
         signal = vars_map.get(Map.signal)
         keltner_low = vars_map.get('keltner_low')
 >>>>>>> Icarus-v7.2.12
+=======
+        rsi = vars_map.get(Map.rsi)
+>>>>>>> Icarus-v7.2.8
         key = Icarus._can_buy_indicator.__name__
 >>>>>>> Icarus-v6.4.1
         repport = {
@@ -3185,6 +3222,7 @@ class Icarus(TraderClass):
 =======
 >>>>>>> Icarus-v7.2.10
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3284,6 +3322,10 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.12
 =======
 >>>>>>> Icarus-v7.2.13
+=======
+            f'{key}.rsi_reached': vars_map.get('rsi_reached'),
+            f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
+>>>>>>> Icarus-v7.2.8
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -3293,6 +3335,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.macd[-3]': macd[-3] if macd is not None else None,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3333,6 +3376,11 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.10
 =======
 >>>>>>> Icarus-v7.2.12
+=======
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None,
+            f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None,
+            f'{key}.rsi[-3]': rsi[-3] if rsi is not None else None
+>>>>>>> Icarus-v7.2.8
         }
         return can_buy_indicator, repport
 
@@ -3573,6 +3621,8 @@ class Icarus(TraderClass):
         - open: to use open price
         - mean: to use mean of open_price and close_price in period of 1min
         """
+        import sys
+
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.API.brokers.Binance.BinanceFakeAPI import BinanceFakeAPI
 
@@ -3600,6 +3650,7 @@ class Icarus(TraderClass):
     def backtest_trade_history(cls, pair: Pair, period: int, broker: Broker, buy_type: str, sell_type: str)  -> pd.DataFrame:
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.structure.Bot import Bot
+<<<<<<< HEAD
         import sys
 <<<<<<< HEAD
 
@@ -3740,6 +3791,8 @@ class Icarus(TraderClass):
                     cls.get_min_period(): min_marketprice
 >>>>>>> Icarus-v10.1.1
 =======
+=======
+>>>>>>> Icarus-v7.2.8
     
         def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
 <<<<<<< HEAD
