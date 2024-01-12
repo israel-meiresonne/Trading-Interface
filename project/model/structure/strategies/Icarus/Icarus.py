@@ -288,6 +288,7 @@ class Icarus(TraderClass):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         def is_histogram_negative(vars_map: Map) -> bool:
 =======
         def are_macd_signal_negatives(vars_map: Map) -> bool:
@@ -461,6 +462,33 @@ class Icarus(TraderClass):
             vars_map.put(rsi, 'min_rsi')
             return min_tangent_rsi_negative
 >>>>>>> Icarus-v11.4.5
+=======
+        def can_place_stop_limit_price(vars_map: Map) -> bool:
+            place_stop_limit_price = True
+            # Get Sell Price
+            # Min(Opens(1min)[-2], Closes(1min)[-2])
+            stop_limit_price = min([_1min_opens[-2], _1min_closes[-2]])
+            # Put
+            vars_map.put(place_stop_limit_price, 'place_stop_limit_price')
+            vars_map.put(stop_limit_price, 'stop_limit_price')
+            return place_stop_limit_price
+        
+        def get_buy_period(pair: Pair, period: int) -> int:
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, period)
+            return buy_period
+
+        def is_1min_now_period_above_buy_period(vars_map: Map) -> bool:
+            buy_period = get_buy_period(pair, marketprice_1min.get_period_time())
+            now_period = _1min_open_times[-1]
+            # Check
+            _1min_now_period_above_buy_period = now_period > buy_period
+            # Put
+            vars_map.put(_1min_now_period_above_buy_period, '1min_now_period_above_buy_period')
+            vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
+            vars_map.put(_MF.unix_to_date(now_period), 'now_period')
+            return _1min_now_period_above_buy_period
+>>>>>>> Icarus-v13.2
 
         vars_map = Map()
         can_sell = False
@@ -490,6 +518,8 @@ class Icarus(TraderClass):
         _1min_closes.reverse()
         _1min_opens = list(marketprice_1min.get_opens())
         _1min_opens.reverse()
+        _1min_lows = list(marketprice_1min.get_lows())
+        _1min_lows.reverse()
         _1min_open_times = list(marketprice_1min.get_times())
         _1min_open_times.reverse()
         # MarketPrice Xmin
@@ -504,6 +534,7 @@ class Icarus(TraderClass):
         # marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
 >>>>>>> Icarus-v13.1.4
         # Check
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -527,6 +558,9 @@ class Icarus(TraderClass):
 =======
         can_sell = is_max_roi_above_trigger(vars_map) or ((not is_buy_period(vars_map)) and is_price_switch_down(vars_map))
 >>>>>>> Icarus-v11.1.1
+=======
+        can_sell = is_1min_now_period_above_buy_period(vars_map) and can_place_stop_limit_price(vars_map)
+>>>>>>> Icarus-v13.2
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
@@ -539,6 +573,7 @@ class Icarus(TraderClass):
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.histogram_negative': vars_map.get('histogram_negative'),
@@ -642,6 +677,23 @@ class Icarus(TraderClass):
             f'{key}.min_rsi[-1]': min_rsi[-1] if min_rsi is not None else None,
             f'{key}.min_rsi[-2]': min_rsi[-2] if min_rsi is not None else None
 >>>>>>> Icarus-v11.4.5
+=======
+            f'{key}.1min_now_period_above_buy_period': vars_map.get('1min_now_period_above_buy_period'),
+            f'{key}.place_stop_limit_price': vars_map.get('place_stop_limit_price'),
+
+            f'{key}.buy_period': vars_map.get('buy_period'),
+            f'{key}.now_period': vars_map.get('now_period'),
+            Map.stopPrice: vars_map.get('stop_limit_price'),
+
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.1min_closes[-1]': _1min_closes[-1],
+            f'{key}.1min_closes[-2]': _1min_closes[-2],
+            f'{key}.1min_opens[-1]': _1min_opens[-1],
+            f'{key}.1min_opens[-2]': _1min_opens[-2],
+            f'{key}.1min_lows[-1]': _1min_lows[-1],
+            f'{key}.1min_lows[-2]': _1min_lows[-2]
+>>>>>>> Icarus-v13.2
         }
         return can_sell, repport
 
@@ -728,10 +780,24 @@ class Icarus(TraderClass):
         # Evaluate Sell
         can_sell = self.can_sell(market_price)
         if can_sell:
+<<<<<<< HEAD
             self._sell(executions)
         elif self.get_roi_floor(market_price) != self.get_floor_secure_order():
             self._move_up_secure_order(executions)
         self.save_move(market_price)
+=======
+            # self._sell(executions)
+            secure_order = self._get_secure_order()
+            new_stop_price = repport[Map.stopPrice]
+            if secure_order is None:
+                self._secure_position(executions)
+            elif new_stop_price > secure_order.get_stop_price():
+                self._move_up_secure_order(executions)
+        var_param = vars().copy()
+        del var_param['self']
+        self.save_move(**var_param)
+        self.save_sell_conditions(repport)
+>>>>>>> Icarus-v13.2
         return executions
 
     """
@@ -1701,7 +1767,7 @@ class Icarus(TraderClass):
                         'buy_price': exec_price,
                     }
             elif has_position:
-                can_buy, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
+                can_sell, sell_repport = cls._can_sell_indicator(marketprice, can_sell_params)
                 sell_repport = {
                     Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                     f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),
@@ -1709,10 +1775,17 @@ class Icarus(TraderClass):
                     **sell_repport
                 }
                 sell_repports.append(sell_repport)
-                if can_buy:
+                # Stop Limit Order
+                new_sell_stop_limit_price = sell_repport[Map.stopPrice]
+                if new_sell_stop_limit_price is not None:
+                    sell_stop_limit_price = None if 'sell_stop_limit_price' not in vars() else sell_stop_limit_price
+                    sell_stop_limit_price = new_sell_stop_limit_price if (sell_stop_limit_price is None) or (new_sell_stop_limit_price > sell_stop_limit_price) else sell_stop_limit_price
+                if can_sell and (min_lows[-1] <= sell_stop_limit_price):
                     # Prepare
                     sell_time = min_marketprice.get_time()
-                    exec_price = get_exec_price(min_marketprice, sell_type)
+                    # exec_price = get_exec_price(min_marketprice, sell_type)
+                    exec_price = sell_stop_limit_price
+                    sell_stop_limit_price = None
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
