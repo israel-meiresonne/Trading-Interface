@@ -253,7 +253,12 @@ class Icarus(TraderClass):
             Map.roi: self.get_wallet().get_roi(broker),
             Map.maximum: self.get_max_price(marketprice),
             self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
+<<<<<<< HEAD
             min_period: self.get_marketprice(min_period, n_period, broker)
+=======
+            self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
+            min_period: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker)
+>>>>>>> Icarus-v10.1.1
         }
         return self._can_sell_indicator(marketprice, datas)
     
@@ -354,24 +359,31 @@ class Icarus(TraderClass):
             vars_map.put(macd, Map.macd)
             return bought_macd_in_positive
 
-        def is_tangent_5min_macd_historgram_negative(vars_map: Map) -> bool:
-            macd_map = marketprice_5min.get_macd()
+        def is_tangent_1min_macd_historgram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice_1min.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
             # Check
-            tangent_5min_macd_historgram_negative = histogram[-1] <= histogram[-2]
+            tangent_1min_macd_historgram_negative = histogram[-1] <= histogram[-2]
             # Put
-            vars_map.put(tangent_5min_macd_historgram_negative, 'tangent_5min_macd_historgram_negative')
-            vars_map.put(histogram, 'histogram_5min')
-            return tangent_5min_macd_historgram_negative
+            vars_map.put(tangent_1min_macd_historgram_negative, 'tangent_1min_macd_historgram_negative')
+            vars_map.put(histogram, 'macd_1min')
+            return tangent_1min_macd_historgram_negative
 
         vars_map = Map()
         can_sell = False
         # Vars
 <<<<<<< HEAD
+<<<<<<< HEAD
         # MarketPrice
 =======
 >>>>>>> Icarus-v10.1
+=======
+        roi = datas[Map.roi]
+        marketprice_1min = datas[cls.get_min_period()]
+        marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
+        marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
+>>>>>>> Icarus-v10.1.1
         pair = marketprice.get_pair()
         period = marketprice.get_period_time()
         # Main Period
@@ -400,7 +412,7 @@ class Icarus(TraderClass):
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
         if have_bought_macd_in_positive(vars_map):
-            can_sell = is_tangent_5min_macd_historgram_negative(vars_map)
+            can_sell = is_tangent_1min_macd_historgram_negative(vars_map)
         else:
             can_sell = (not is_buy_period(vars_map))\
                 and (
@@ -410,7 +422,7 @@ class Icarus(TraderClass):
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
-        histogram_5min = vars_map.get('histogram_5min')
+        macd_1min = vars_map.get('macd_1min')
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
@@ -422,7 +434,7 @@ class Icarus(TraderClass):
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None
 =======
             f'{key}.bought_macd_in_positive': vars_map.get('bought_macd_in_positive'),
-            f'{key}.tangent_5min_macd_historgram_negative': vars_map.get('tangent_5min_macd_historgram_negative'),
+            f'{key}.tangent_1min_macd_historgram_negative': vars_map.get('tangent_1min_macd_historgram_negative'),
             f'{key}.its_buy_period': vars_map.get('its_buy_period'),
             f'{key}.histogram_dropping': vars_map.get('histogram_dropping'),
 
@@ -437,8 +449,12 @@ class Icarus(TraderClass):
             f'{key}.closes[-1]': closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+<<<<<<< HEAD
             f'{key}.histogram_5min[-1]': histogram_5min[-1] if histogram_5min is not None else None
 >>>>>>> Icarus-v10.1
+=======
+            f'{key}.macd_1min[-1]': macd_1min[-1] if macd_1min is not None else None
+>>>>>>> Icarus-v10.1.1
         }
         return can_sell, repport
 
@@ -956,6 +972,7 @@ class Icarus(TraderClass):
             Map.period: period,
             'n_period': n_period
             }
+<<<<<<< HEAD
         #
         big_market_params = market_params.copy()
         big_market_params[Map.period] = big_period
@@ -965,10 +982,31 @@ class Icarus(TraderClass):
         #
         min_market_params = market_params.copy()
         min_market_params[Map.period] = min_period
+=======
+        big_market_params = {
+            Map.broker: broker,
+            Map.pair: pair,
+            Map.period: big_period,
+            'n_period': n_period
+            }
+        little_market_params = {
+            Map.broker: broker,
+            Map.pair: pair,
+            Map.period: little_period,
+            'n_period': n_period
+            }
+        min_market_params = {
+            Map.broker: broker,
+            Map.pair: pair,
+            Map.period: min_period,
+            'n_period': n_period
+            }
+>>>>>>> Icarus-v10.1.1
         broker.add_streams([
             broker.generate_stream(Map({Map.pair: pair, Map.period: period})),
             broker.generate_stream(Map({Map.pair: pair, Map.period: big_period})),
-            broker.generate_stream(Map({Map.pair: pair, Map.period: little_period}))
+            broker.generate_stream(Map({Map.pair: pair, Map.period: little_period})),
+            broker.generate_stream(Map({Map.pair: pair, Map.period: min_period})),
         ])
         i = 0
         Bot.update_trade_index(i)
@@ -977,7 +1015,10 @@ class Icarus(TraderClass):
             big_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **big_market_params)
             little_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **little_market_params)
             min_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **min_market_params)
+<<<<<<< HEAD
             # Period
+=======
+>>>>>>> Icarus-v10.1.1
             open_times = list(marketprice.get_times())
             open_times.reverse()
             closes = list(marketprice.get_closes())
@@ -1017,7 +1058,11 @@ class Icarus(TraderClass):
                     Map.maximum: max_roi_position,
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
                     cls.MARKETPRICE_BUY_LITTLE_PERIOD: little_marketprice,
+<<<<<<< HEAD
                     min_period: min_marketprice
+=======
+                    cls.get_min_period(): min_marketprice
+>>>>>>> Icarus-v10.1.1
                 }
             # Try buy/sell
             if not has_position:
