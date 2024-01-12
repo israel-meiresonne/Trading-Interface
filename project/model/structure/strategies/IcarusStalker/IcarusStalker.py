@@ -248,6 +248,7 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v13.5.1.1.2
 =======
             f'{key}.histogram_rising': None,
+<<<<<<< HEAD
             f'{key}.prev_histogram_dropping': None,
             f'{key}.macd_switch_up': None,
 <<<<<<< HEAD
@@ -259,6 +260,19 @@ class IcarusStalker(StalkerClass):
             f'{key}.minute_open_time': None,
             f'{key}.stored_histogram': None,
 >>>>>>> Icarus-v6.4.1
+=======
+            f'{key}.edited_histogram': None,
+            f'{key}.edited_histogram_rising': None,
+            f'{key}.edited_prev_histogram_dropping': None,
+            f'{key}.edited_macd_switch_up': None,
+            f'{key}.will_bounce': None,
+            f'{key}.macd_min_index': None,
+            f'{key}.macd_min_date': None,
+            f'{key}.last_min_macd': None,
+            f'{key}.macd_peak_index': None,
+            f'{key}.macd_peak_date': None,
+            f'{key}.last_peak_macd': None,
+>>>>>>> Icarus-v6.7
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,
