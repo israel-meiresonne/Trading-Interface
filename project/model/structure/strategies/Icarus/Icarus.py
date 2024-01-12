@@ -2287,6 +2287,7 @@ class Icarus(TraderClass):
             # Check
             rsi_above_peak_macd_posive_histogram = rsi[-1] >= rsi_peak
             # Put
+<<<<<<< HEAD
             vars_map.put(rsi_above_peak_macd_posive_histogram, 'rsi_above_peak_macd_posive_histogram')
             vars_map.put(_MF.unix_to_date(open_times[start_index]), 'rsi_above_peak_start_interval')
             vars_map.put(_MF.unix_to_date(peak_time), 'rsi_above_peak_peak_date')
@@ -2442,6 +2443,16 @@ class Icarus(TraderClass):
             vars_map.put(bellow_keltner, 'close_bellow_keltner')
             vars_map.put(keltner_high, 'keltner_high')
             return bellow_keltner
+=======
+            vars_map.put(macd_min_index, 'macd_min_index')
+            vars_map.put(last_min_macd, 'last_min_macd')
+            vars_map.put(macd_peak_index, 'macd_peak_index')
+            vars_map.put(last_peak_macd, 'last_peak_macd')
+            vars_map.put(will_bounce, 'will_bounce')
+            vars_map.put(macd_min_date, 'macd_min_date')
+            vars_map.put(macd_peak_date, 'macd_peak_date')
+            return will_bounce
+>>>>>>> Icarus-v7.13.1
 
         def is_lows_above_low_keltner(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
@@ -2482,6 +2493,32 @@ class Icarus(TraderClass):
             vars_map.put(signal, Map.signal)
             vars_map.put(histogram, Map.histogram)
             return lows_above_low_keltner
+
+        """
+
+        def is_macd_switch_up(vars_map: Map) -> bool:
+            # MACD
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_rising = (histogram[-2] > 0) and (histogram[-1] > 0)
+            prev_histogram_dropping = histogram[-3] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
+            # Put
+            vars_map.put(histogram, 'histogram')
+            vars_map.put(histogram_rising, 'histogram_rising')
+            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            return macd_switch_up
+
+        def is_bellow_keltner(vars_map: Map) -> bool:
+            keltner_map = child_marketprice.get_keltnerchannel()
+            keltner_high = list(keltner_map.get(Map.high))
+            keltner_high.reverse()
+            bellow_keltner = closes[-1] < keltner_high[-1]
+            vars_map.put(bellow_keltner, 'close_bellow_keltner')
+            vars_map.put(keltner_high, 'keltner_high')
+            return bellow_keltner
 
         def is_macd_bellow_bull_peak(vars_map: Map) -> bool:
             def macd_bull_peak_index(closes: list, highs: list, lows: list, macd: list, signal: list, ema: list, supertrend: list) -> Tuple[int, dict]:
@@ -2837,6 +2874,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -2884,6 +2922,9 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and ((is_lows_above_low_keltner(vars_map) or is_bellow_keltner(vars_map)) and is_macd_bellow_bull_peak(vars_map))
 >>>>>>> Icarus-v7.13
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and (is_bellow_keltner(vars_map) and is_macd_bellow_bull_peak(vars_map))
+>>>>>>> Icarus-v7.13.1
         # Repport
         key = cls._can_buy_indicator.__name__
 =======
