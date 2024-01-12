@@ -533,6 +533,7 @@ class Icarus(TraderClass):
 =======
     
     def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
+<<<<<<< HEAD
         def is_buy_period() -> bool:
             period = self.get_period()
             buy_time = int(self.get_buy_order().get_execution_time() / 1000)
@@ -541,6 +542,32 @@ class Icarus(TraderClass):
             open_time = marketprice.get_time()
             return open_time < next_open_time
 >>>>>>> Icarus-v5.12
+=======
+        # Close
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        # Psar
+        supertrend = list(marketprice.get_super_trend())
+        supertrend.reverse()
+        supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        supertrend_dropping = supertrend_trend == MarketPrice.SUPERTREND_DROPPING
+        # Keltner
+        klc = marketprice.get_keltnerchannel()
+        klc_highs = list(klc.get(Map.high))
+        klc_highs.reverse()
+        klc_dropping = closes[-2] < klc_highs[-2]
+        # Rsi
+        rsi = list(marketprice.get_rsis())
+        rsi.reverse()
+        # Psar(Rsi)
+        psar_rsi = list(marketprice.get_psar_rsis())
+        psar_rsi.reverse()
+        psar_rsi_trend = MarketPrice.get_psar_trend(rsi, psar_rsi, -2)
+        psar_rsi_dropping = psar_rsi_trend == MarketPrice.PSAR_DROPPING
+        # Check
+        can_sell = supertrend_dropping or klc_dropping or psar_rsi_dropping
+        return can_sell
+>>>>>>> Icarus-v5.2.1
 
     @classmethod
 <<<<<<< HEAD
@@ -1498,8 +1525,141 @@ class Icarus(TraderClass):
         psars = list(market_price.get_psar())
         psars.reverse()
         psar_trend = MarketPrice.get_psar_trend(closes, psars, -2)
+<<<<<<< HEAD
         psar_ok = psar_trend == MarketPrice.PSAR_RISING
         # Keltner
+=======
+        psar_rising = psar_trend == MarketPrice.PSAR_RISING
+        # Check
+        can_add = psar_rising
+        return can_add
+
+    @staticmethod
+    def can_buy(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> bool:
+        if predictor_marketprice.get_period_time() != Icarus.get_predictor_period():
+            predictor_period = Icarus.get_predictor_period()
+            period = predictor_marketprice.get_period_time()
+            raise ValueError(f"Predictor's MarketPrice must have period '{predictor_period}', instead '{period}'")
+        # indicator
+        indicator_ok = Icarus._can_buy_indicator(child_marketprice)
+        # Check
+        can_buy = indicator_ok and Icarus._can_buy_prediction(predictor_marketprice, child_marketprice)
+        return can_buy
+
+    @staticmethod
+    def _can_buy_indicator(child_marketprice: MarketPrice) -> bool:
+        # Close
+        closes = list(child_marketprice.get_closes())
+        closes.reverse()
+        # Supertrend
+        supertrend = list(child_marketprice.get_super_trend())
+        supertrend.reverse()
+        now_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -3)
+        # Psar
+        psar = list(child_marketprice.get_psar())
+        psar.reverse()
+        now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+        prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -3)
+        # Keltner
+        klc = child_marketprice.get_keltnerchannel()
+        klc_highs = list(klc.get(Map.high))
+        klc_highs.reverse()
+        klc_rising = closes[-2] > klc_highs[-2]
+        # Rsi
+        rsi = list(child_marketprice.get_rsis())
+        rsi.reverse()
+        # Psar(Rsi)
+        psar_rsi = list(child_marketprice.get_psar_rsis())
+        psar_rsi.reverse()
+        psar_rsi_trend = MarketPrice.get_psar_trend(rsi, psar_rsi, -2)
+        psar_rsi_rising = psar_rsi_trend == MarketPrice.PSAR_RISING
+        # Check
+        supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
+        supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
+        psar_switch_up = (now_psar_trend == MarketPrice.PSAR_RISING) and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
+        can_buy_indicator = (psar_switch_up and supertrend_rising and klc_rising and psar_rsi_rising) or (supertrend_switch_up and klc_rising and psar_rsi_rising)
+        return can_buy_indicator
+
+    @staticmethod
+    def _can_buy_prediction(predictor_marketprice: MarketPrice, child_marketprice: MarketPrice) -> bool:
+        close = child_marketprice.get_close()
+        pair = child_marketprice.get_pair()
+        period = Icarus.get_predictor_period()
+        predictor = Predictor(pair, period)
+        max_close_pred = Icarus._predict_max_high(predictor_marketprice, predictor)
+        max_roi_pred = _MF.progress_rate(max_close_pred, close)
+        max_roi_ok = max_roi_pred >= Icarus.get_min_roi_predicted()
+        return max_roi_ok
+    
+    # ——————————————————————————————————————————— STATIC FUNCTION CAN BUY UP ———————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR DOWN ——————————————————————————————————————
+    
+    @staticmethod
+    def _predict_max_high(predictor_marketprice: MarketPrice, predictor: Predictor) -> float:
+        model = predictor.get_model(Predictor.HIGH)
+        n_feature = model.n_feature()
+        highs = list(predictor_marketprice.get_highs())
+        highs.reverse()
+        xs, ys = Predictor.generate_dataset(highs, n_feature)
+        highs_np = Predictor.market_price_to_np(predictor_marketprice, Predictor.HIGH, n_feature)
+        max_close_pred = model.predict(highs_np, fixe_offset=True, xs_offset=xs, ys_offset=ys)[-1,-1]
+        return float(max_close_pred)
+    
+    @staticmethod
+    def predictor_market_price(bkr: Broker, pair: Pair) -> MarketPrice:
+        period = Icarus.get_predictor_period()
+        n_period = Icarus.get_predictor_n_period()
+        marketprice = Icarus._market_price(bkr, pair, period, n_period)
+        return marketprice
+
+    # ——————————————————————————————————————————— STATIC FUNCTION PRREDICTOR UP ————————————————————————————————————————
+    # ——————————————————————————————————————————— STATIC FUNCTION DOWN —————————————————————————————————————————————————
+
+    @staticmethod
+    def json_instantiate(object_dic: dict) -> object:
+        _class_token = MyJson.get_class_name_token()
+        instance = Icarus(Map({
+            Map.pair: Pair('@json/@json'),
+            Map.maximum: None,
+            Map.capital: Price(1, '@json'),
+            Map.rate: 1,
+            Map.period: 0
+        }))
+        exec(MyJson.get_executable())
+        return instance
+
+    def save_move(self, **agrs) -> None:
+        args_map = Map(agrs)
+        market_price = agrs['market_price']
+        bkr = self.get_broker()
+        predictor_marketprice = agrs['predictor_marketprice']
+        roi = self.get_wallet().get_roi(bkr)
+        has_position = self._has_position()
+        closes = list(market_price.get_closes())
+        closes.reverse()
+        rsis = list(market_price.get_rsis())
+        rsis.reverse()
+        secure_odr = self._get_secure_order()
+        roi_position = self.get_roi_position()
+        max_roi = self.max_roi(market_price)
+        max_price_id = self._get_max_price_id()
+        max_price = self.get_max_price(market_price)
+        max_loss = self.get_max_loss()
+        """
+        can buy
+        """
+        # Psar Rsi
+        psar_rsis = list(market_price.get_psar_rsis())
+        psar_rsis.reverse()
+        # Supertrend
+        supertrends = list(market_price.get_super_trend())
+        supertrends.reverse()
+        # Psar
+        psars = list(market_price.get_psar())
+        psars.reverse()
+        # Keltner Buy
+>>>>>>> Icarus-v5.2.1
         klc = market_price.get_keltnerchannel()
         klc_highs = list(klc.get(Map.high))
         klc_highs.reverse()
