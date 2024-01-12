@@ -1284,9 +1284,13 @@ class Icarus(TraderClass):
 =======
             price_change_1 = price_change(-1, opens, closes)
             price_change_2 = price_change(-2, opens, closes)
+<<<<<<< HEAD
             min_price_change_1 = price_change(-1, min_opens, min_closes)
             price_switch_up = (price_change_1 > abs(price_change_2)) and (min_price_change_1 > 0)
 >>>>>>> Icarus-v13.4.2.2
+=======
+            price_switch_up = (price_change_1 > abs(price_change_2))
+>>>>>>> Icarus-v13.5
             # Put
 <<<<<<< HEAD
             vars_map.put(histogram_switch_positive, 'histogram_switch_positive')
@@ -1318,6 +1322,7 @@ class Icarus(TraderClass):
             vars_map.put(price_switch_up, 'price_switch_up')
             vars_map.put(price_change_1, 'price_change_1')
             vars_map.put(price_change_2, 'price_change_2')
+<<<<<<< HEAD
             vars_map.put(price_change_3, 'price_change_3')
             return price_switch_up
 
@@ -1453,6 +1458,21 @@ class Icarus(TraderClass):
             vars_map.put(macd, Map.macd)
             vars_map.put(histogram, Map.histogram)
             return rsi_above_peak_macd_posive_histogram
+=======
+            return price_switch_up
+
+        def is_min_macd_histogram_switch_up(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            min_macd_histogram_switch_up = (histogram[-1] > 0) and (histogram[-2] < 0)
+            # Put
+            vars_map.put(min_macd_histogram_switch_up, 'min_macd_histogram_switch_up')
+            vars_map.put(histogram, 'min_histogram')
+            return min_macd_histogram_switch_up
+>>>>>>> Icarus-v13.5
 
         def is_mean_candle_change_60_above_trigger(vars_map: Map) -> bool:
             mean_candle_change = MarketPrice.mean_candle_variation(opens[-N_CANDLE:], closes[-N_CANDLE:])
@@ -1508,6 +1528,7 @@ class Icarus(TraderClass):
         highs.reverse()
 >>>>>>> Icarus-v11.1.5
         # Big
+<<<<<<< HEAD
 <<<<<<< HEAD
         # Check
 <<<<<<< HEAD
@@ -1572,8 +1593,13 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v11.3.3
 =======
             and is_supertrend_rising(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
+=======
+        # Check
+        can_buy_indicator = is_price_switch_up(vars_map)\
+            and is_supertrend_rising(vars_map) and is_min_macd_histogram_switch_up(vars_map)
+>>>>>>> Icarus-v13.5
         # Repport
-        min_keltner_middle = vars_map.get('min_keltner_middle')
+        min_histogram = vars_map.get('min_histogram')
         supertrend = vars_map.get(Map.supertrend)
 >>>>>>> Icarus-v13.4.2
         key = cls._can_buy_indicator.__name__
@@ -1584,13 +1610,11 @@ class Icarus(TraderClass):
             f'{key}.histogram_switch_positive': vars_map.get('histogram_switch_positive'),
 =======
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
-            f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
-            f'{key}.min_close_bellow_min_keltner_middle': vars_map.get('min_close_bellow_min_keltner_middle'),
+            f'{key}.min_macd_histogram_switch_up': vars_map.get('min_macd_histogram_switch_up'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
-            f'{key}.min_price_change_1': vars_map.get('min_price_change_1'),
 
             f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
 
@@ -1696,9 +1720,14 @@ class Icarus(TraderClass):
 =======
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
             f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
 >>>>>>> Icarus-v13.1.4
+=======
+            f'{key}.min_histogram[-1]': min_histogram[-1] if min_histogram is not None else None,
+            f'{key}.min_histogram[-2]': min_histogram[-2] if min_histogram is not None else None
+>>>>>>> Icarus-v13.5
         }
         return can_buy_indicator, repport
 
