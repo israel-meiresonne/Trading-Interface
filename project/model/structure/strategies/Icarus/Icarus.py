@@ -567,7 +567,10 @@ class Icarus(TraderClass):
         # Check
         can_sell = supertrend_dropping or klc_dropping or psar_rsi_dropping
         return can_sell
+<<<<<<< HEAD
 >>>>>>> Icarus-v5.2.1
+=======
+>>>>>>> Icarus-v5.3.1
 
     @classmethod
 <<<<<<< HEAD
