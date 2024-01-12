@@ -283,6 +283,7 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v8.3.1
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
 
@@ -388,6 +389,8 @@ class IcarusStalker(StalkerClass):
 =======
 =======
 >>>>>>> Icarus-v8.3.4
+=======
+>>>>>>> Icarus-v8.3.8
             f'{key}.min_close_date': None,
             f'{key}.min_close': None,
             f'{key}.min_keltner_date': None,

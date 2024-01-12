@@ -3085,6 +3085,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map) \
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and is_big_macd_rising(vars_map) \
@@ -3097,6 +3098,9 @@ class Icarus(TraderClass):
         can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
             and is_roc_positive(vars_map, big_marketprice) \
 >>>>>>> Icarus-v8.3.4
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and is_big_macd_rising(vars_map) \
+>>>>>>> Icarus-v8.3.8
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3249,6 +3253,7 @@ class Icarus(TraderClass):
             f'{key}.ema_above_ema200': vars_map.get('ema_above_ema200'),
 >>>>>>> Icarus-v8.3.1
 
+<<<<<<< HEAD
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
 
@@ -3315,6 +3320,8 @@ class Icarus(TraderClass):
 =======
 =======
 >>>>>>> Icarus-v8.3.4
+=======
+>>>>>>> Icarus-v8.3.8
             f'{key}.min_close_date': vars_map.get('min_close_date'),
             f'{key}.min_close': vars_map.get('min_close'),
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
