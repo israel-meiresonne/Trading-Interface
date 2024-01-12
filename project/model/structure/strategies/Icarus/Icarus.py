@@ -1714,6 +1714,7 @@ class Icarus(TraderClass):
         rsis = list(market_price.get_rsis())
         rsis.reverse()
         secure_odr = self._get_secure_order()
+<<<<<<< HEAD
         roi_position = self.get_roi_position(market_price)
         max_roi = self.get_max_roi(market_price)
         roi_floor = self.get_roi_floor(market_price)
@@ -1750,6 +1751,18 @@ class Icarus(TraderClass):
         histograms = list(macd_map.get(Map.histogram))
         histograms.reverse()
         macd_ok = (macds[-2] > 0) and (signals[-2] > 0) and (histograms[-2] > 0)
+=======
+        roi_position = self.get_roi_position()
+        max_roi = self.max_roi(market_price)
+        max_price_id = self._get_max_price_id()
+        max_price = self.get_max_price(market_price)
+        max_loss = self.get_max_loss()
+        """
+        can buy
+        """
+        # Prediction
+        buy_price = self.get_buy_order().get_execution_price() if has_position else None
+>>>>>>> Icarus-v13.1.1
         # Map to print
         params_map = Map({
             'class': self.__class__.__name__,
