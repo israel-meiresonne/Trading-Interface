@@ -93,6 +93,7 @@ class Genesis(Strategy):
 
     @classmethod
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
+        TRIGGE_KELTNER = 2/100
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
         period_5min = Broker.PERIOD_5MIN
@@ -114,12 +115,14 @@ class Genesis(Strategy):
         this_func = cls.can_buy
         func_and_params = [
             {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=TRIGGE_KELTNER, index=now_index)},
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_buy = cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, now_index) \
-            and cls.is_supertrend_rising(**func_and_params[0][Map.param])
+        can_buy = cls.is_tangent_market_trend_positive(**func_and_params[0][Map.param]) \
+            and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[2][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         return can_buy, report
@@ -174,6 +177,35 @@ class Genesis(Strategy):
         vars_map.put(supertrends[-2],       Map.value,      f'supertrend_{period_str}[-2]')
         vars_map.put(supertrends[index],    Map.value,      f'supertrend_{period_str}[{index}]')
         return is_rising
+
+    @classmethod
+    def is_keltner_roi_above_trigger(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, trigge_keltner: float, index: int) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        # marketprice.reset_collections()
+        keltner_map = marketprice.get_keltnerchannel(multiple=1)
+        keltner_low = list(keltner_map.get(Map.low))
+        keltner_low.reverse()
+        keltner_middle = list(keltner_map.get(Map.middle))
+        keltner_middle.reverse()
+        keltner_high = list(keltner_map.get(Map.high))
+        keltner_high.reverse()
+        # Check
+        keltner_roi = _MF.progress_rate(keltner_high[index], keltner_low[index])
+        keltner_roi_above_trigger = keltner_roi >= trigge_keltner
+        # Put
+        vars_map.put(keltner_roi_above_trigger, Map.condition,  f'keltner_roi_above_trigger_{period_str}[{index}]')
+        vars_map.put(keltner_roi,               Map.value,      f'keltner_roi_{period_str}')
+        vars_map.put(keltner_low[-1],           Map.value,      f'keltner_low_{period_str}[-1]')
+        vars_map.put(keltner_low[-2],           Map.value,      f'keltner_low_{period_str}[-2]')
+        vars_map.put(keltner_low[index],        Map.value,      f'keltner_low_{period_str}[{index}]')
+        vars_map.put(keltner_middle[-1],        Map.value,      f'keltner_middle_{period_str}[-1]')
+        vars_map.put(keltner_middle[-2],        Map.value,      f'keltner_middle_{period_str}[-2]')
+        vars_map.put(keltner_middle[index],     Map.value,      f'keltner_middle_{period_str}[{index}]')
+        vars_map.put(keltner_high[-1],          Map.value,      f'keltner_high_{period_str}[-1]')
+        vars_map.put(keltner_high[-2],          Map.value,      f'keltner_high_{period_str}[-2]')
+        vars_map.put(keltner_high[index],       Map.value,      f'keltner_high_{period_str}[{index}]')
+        return keltner_roi_above_trigger
 
     @classmethod
     def is_tangent_market_trend_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int) -> bool:
