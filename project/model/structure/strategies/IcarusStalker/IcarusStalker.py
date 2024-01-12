@@ -411,14 +411,19 @@ class IcarusStalker(StalkerClass):
             f'{key}.roc_positive': None,
             f'{key}.roc_bounce': None,
             f'{key}.bellow_keltner': None,
-            f'{key}.closes_above_low_keltner': None,
+            f'{key}.lows_above_low_keltner': None,
             f'{key}.last_roc_peak_date': None,
             f'{key}.last_roc_peak': None,
             f'{key}.last_roc_min_date': None,
             f'{key}.last_roc_min': None,
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.2.12
             f'{key}.min_close_date': None,
             f'{key}.min_close': None,
+=======
+            f'{key}.min_low_date': None,
+            f'{key}.min_low': None,
+>>>>>>> Icarus-v7.2.14
             f'{key}.min_keltner_date': None,
             f'{key}.min_keltner': None,
             f'{key}.closes[-1]': None,
