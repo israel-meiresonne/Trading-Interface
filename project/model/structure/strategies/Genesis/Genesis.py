@@ -1,10 +1,13 @@
 import time
 from typing import Callable, List
+
+import pandas as pd
+
+from config.Config import Config
 from model.structure.Broker import Broker
-
-
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
+from model.tools.FileManager import FileManager
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
@@ -92,6 +95,7 @@ class Genesis(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
+        period_5min = Broker.PERIOD_5MIN
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in [period_1min]}
@@ -109,11 +113,13 @@ class Genesis(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
-            {Map.callback: cls.is_supertrend_rising,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_buy = cls.is_supertrend_rising(**func_and_params[0][Map.param])
+        can_buy = cls.is_tangent_market_trend_positive(vars_map, broker, pair, period_5min, marketprices, now_index) \
+            and cls.is_supertrend_rising(**func_and_params[0][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         return can_buy, report
@@ -122,6 +128,7 @@ class Genesis(Strategy):
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
         vars_map = Map()
         period_1min = Broker.PERIOD_1MIN
+        period_5min = Broker.PERIOD_5MIN
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in [period_1min]}
@@ -139,11 +146,13 @@ class Genesis(Strategy):
         # Set header
         this_func = cls.can_sell
         func_and_params = [
-            {Map.callback: cls.is_supertrend_rising,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)}
         ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
-        can_sell = not cls.is_supertrend_rising(**func_and_params[0][Map.param])
+        can_sell = not cls.is_tangent_market_trend_positive(**func_and_params[0][Map.param]) \
+            or not cls.is_supertrend_rising(**func_and_params[1][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report
@@ -167,6 +176,30 @@ class Genesis(Strategy):
         return is_rising
 
     @classmethod
+    def is_tangent_market_trend_positive(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        market_trend_df = cls.get_market_trend(period)
+        now_time = marketprice.get_time()
+        now_date = _MF.unix_to_date(now_time)
+        sub_market_trend_df = market_trend_df[market_trend_df.index <= now_time]
+        prev_index = index - 1
+        now_trend_date = sub_market_trend_df['market_date'].iloc[index]
+        prev_trend_date = sub_market_trend_df['market_date'].iloc[prev_index]
+        # Check
+        now_rise_rate = sub_market_trend_df['rise_rate'].iloc[index]
+        prev_rise_rate = sub_market_trend_df['rise_rate'].iloc[prev_index]
+        tangent_positive = now_rise_rate > prev_rise_rate
+        # Report
+        vars_map.put(tangent_positive,  Map.condition,  f'tangent_market_trend_positive_{period_str}[{index}]')
+        vars_map.put(now_date,          Map.value,      f'tangent_trend_now_date{period_str}[{index}]')
+        vars_map.put(now_trend_date,    Map.value,      f'tangent_trend_now_trend_date{period_str}[{index}]')
+        vars_map.put(prev_trend_date,   Map.value,      f'tangent_trend_prev_trend_date{period_str}[{prev_index}]')
+        vars_map.put(now_rise_rate,     Map.value,      f'tangent_trend_now_rise_rate{period_str}[{index}]')
+        vars_map.put(prev_rise_rate,    Map.value,      f'tangent_trend_prev_rise_rate{period_str}[{prev_index}]')
+        return tangent_positive
+
+    @classmethod
     def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trade: dict, buy_conditions: list, sell_conditions: list) -> dict:
         period_1min = Broker.PERIOD_1MIN
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
@@ -184,6 +217,27 @@ class Genesis(Strategy):
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
         return trade
 >>>>>>> Genesis-v1
+
+    # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
+    # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
+
+    @classmethod
+    def get_market_trend(cls, period: int) -> pd.DataFrame:
+        _MF.check_type(period, int)
+        MARKET_TRENDS = 'MARKET_TRENDS'
+        stage = Config.get(Config.STAGE_MODE)
+        if stage == Config.STAGE_1:
+            _stack = cls.get_stack()
+            market_trend_df = _stack.get(MARKET_TRENDS, period)
+            if market_trend_df is None:
+                strategy_storage_dir = Config.get(Config.DIR_STRATEGY_STORAGE)
+                market_trend_file = f"{strategy_storage_dir}{cls.__name__}/market_trend/supertrend/{period}.csv"
+                project_dir = FileManager.get_project_directory()
+                market_trend_df = pd.read_csv(project_dir + market_trend_file, index_col=0)
+                _stack.put(market_trend_df, MARKET_TRENDS, period)
+        else:
+            raise Exception(f"Behavior not implemeted for this stage '{stage}'")
+        return market_trend_df
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN
