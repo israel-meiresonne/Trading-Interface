@@ -219,6 +219,7 @@ class IcarusStalker(StalkerClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.histogram_switch_positive': None,
 =======
             f'{key}.price_switch_up': None,
@@ -236,6 +237,17 @@ class IcarusStalker(StalkerClass):
             f'{key}.psar_rising': None,
             f'{key}.min_psar_rising': None,
             f'{key}.min_supertrend_rising': None,
+=======
+            f'{key}.macd_switch_up': None,
+            f'{key}.will_macd_bounce': None,
+            f'{key}.big_macd_rising': None,
+            f'{key}.big_supertrend_rising': None,
+            f'{key}.roc_positive': None,
+            f'{key}.roc_bounce': None,
+            f'{key}.close_bellow_keltner_high': None,
+            f'{key}.closes_above_low_keltner': None,
+            f'{key}.high_bellow_keltner_high': None,
+>>>>>>> Icarus-v8.1.13
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
@@ -523,9 +535,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_keltner': None,
 
             f'{key}.closes[-1]': None,
+<<<<<<< HEAD
             f'{key}.high[-1]': None,
             f'{key}.low[-1]': None,
             f'{key}.histogram[-1]': None,
+=======
+            f'{key}.highs[-1]': None,
+>>>>>>> Icarus-v8.1.13
             f'{key}.macd[-1]': None,
             f'{key}.signal[-1]': None,
             f'{key}.ema[-1]': None,
