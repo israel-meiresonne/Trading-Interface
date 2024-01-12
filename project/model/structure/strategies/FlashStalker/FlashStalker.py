@@ -18,6 +18,7 @@ class FlashStalker(IcarusStalker):
             f'{key}.big_macd_historgram_positive': None,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.not_bought_in_macd': None,
             f'{key}.macd_starttime': None,
             f'{key}.macd_endtime': None,
@@ -42,6 +43,12 @@ class FlashStalker(IcarusStalker):
             f'{key}.keltner_middle[-1]': None,
             f'{key}.ema[-1]': None
 >>>>>>> Flash-v2.6.2
+=======
+            f'{key}.rsi_rising': None,
+            f'{key}.closes[-1]': None,
+            f'{key}.big_keltner_high2_5[-1]': None,
+            f'{key}.rsi[-1]': None
+>>>>>>> Flash-v2.6.6
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__

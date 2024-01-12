@@ -98,6 +98,7 @@ class Flash(Icarus):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         def have_not_bought_in_macd(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
@@ -154,6 +155,16 @@ class Flash(Icarus):
             vars_map.put(ema, Map.ema)
             return keltner_above_ema
 >>>>>>> Flash-v2.6.2
+=======
+        def is_rsi_rising(vars_map: Map) -> bool:
+            rsi = list(child_marketprice.get_rsis())
+            rsi.reverse()
+            rsi_rising = rsi[-1] > rsi[-2]
+            # Put
+            vars_map.put(rsi_rising, 'rsi_rising')
+            vars_map.put(rsi, Map.rsi)
+            return rsi_rising
+>>>>>>> Flash-v2.6.6
 
         vars_map = Map()
         pair = child_marketprice.get_pair()
@@ -161,6 +172,7 @@ class Flash(Icarus):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -198,6 +210,14 @@ class Flash(Icarus):
         keltner_middle = vars_map.get('keltner_middle')
         ema = vars_map.get( Map.ema)
 >>>>>>> Flash-v2.6.2
+=======
+        can_buy_indicator = is_close_above_big_keltner(vars_map) \
+            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) \
+                and is_rsi_rising(vars_map)
+        # Repport
+        big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
+        rsi = vars_map.get(Map.rsi)
+>>>>>>> Flash-v2.6.6
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -206,6 +226,7 @@ class Flash(Icarus):
             f'{key}.prev_high_bellow_keltner': vars_map.get('prev_high_bellow_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.not_bought_in_macd': vars_map.get('not_bought_in_macd'),
@@ -232,6 +253,12 @@ class Flash(Icarus):
             f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
             f'{key}.ema[-1]': ema[-1] if ema is not None else None
 >>>>>>> Flash-v2.6.2
+=======
+            f'{key}.rsi_rising': vars_map.get('rsi_rising'),
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None
+>>>>>>> Flash-v2.6.6
         }
         return can_buy_indicator, repport
 
