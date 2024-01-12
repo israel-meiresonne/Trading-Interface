@@ -134,6 +134,7 @@ class IcarusStalker(StalkerClass):
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
         # Big
+<<<<<<< HEAD
         big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
 <<<<<<< HEAD
@@ -150,6 +151,12 @@ class IcarusStalker(StalkerClass):
         min_marketprice = self._get_market_price(broker, pair, min_period)
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
 >>>>>>> Icarus-v11.3.2
+=======
+        # min
+        min_period = self.CHILD_STRATEGY.get_min_period()
+        min_marketprice = self._get_market_price(broker, pair, min_period)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, min_marketprice)
+>>>>>>> Icarus-v13.1.3
         eligible = child_ok
         # Repport
         key = self._eligible.__name__
@@ -175,6 +182,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,
             f'{key}.min_opens[-1]': None,
+<<<<<<< HEAD
             f'{key}.big_closes[-1]': None,
             f'{key}.histogram[-1]': None,
             f'{key}.histogram[-2]': None
@@ -243,6 +251,8 @@ class IcarusStalker(StalkerClass):
 <<<<<<< HEAD
             f'{key}.little_edited_macd_histogram[-1]': None,
             f'{key}.edited_macd_histogram_positive[-1]': None,
+=======
+>>>>>>> Icarus-v13.1.3
             f'{key}.keltner_middle[-1]': None,
             f'{key}.keltner_middle[-2]': None,
             f'{key}.keltner_middle[-3]': None
