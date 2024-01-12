@@ -814,6 +814,7 @@ class Solomon(Strategy):
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, float]:
+<<<<<<< HEAD
         SMT_MAX_DROP =      10/100
         SELL_RATE_ABOVE =   30/100     
         SELL_RATE_BELLOW =  50/100
@@ -844,6 +845,12 @@ class Solomon(Strategy):
             index_time = marketprice_df[Map.time].iloc[index]
             sub_marketprice_df = marketprice_df[(marketprice_df[Map.time] >= buy_time_round) & (marketprice_df[Map.time] <= index_time)]
             rising_zone_df = sub_marketprice_df[sub_marketprice_df[Map.close] > sub_marketprice_df[Map.supertrend]]
+=======
+        KEEP_RATE =     30/100
+        KEEP_TRIGGER =  1/100
+        def can_stop_losses(vars_map: Map, keep_trigger: float, keep_rate: float, buy_price: float, max_roi: float, sell_fee_rate: float) -> bool:
+            stop_price = None
+>>>>>>> Solomon-v5.1.2.1.1
             # Check
             has_switched = bool((rising_zone_df.shape[0] > 0) and (sub_marketprice_df.loc[index_time, Map.close] < sub_marketprice_df.loc[index_time, Map.supertrend]))
             # Put
