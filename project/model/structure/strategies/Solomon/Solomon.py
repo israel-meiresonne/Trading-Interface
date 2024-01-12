@@ -381,6 +381,7 @@ class Solomon(Strategy):
 
     @classmethod
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _can_buy_sell_new_report(cls, caller_callback: Callable, header_dict: dict, can_result: bool, vars_map: Map) -> dict:
         caller_callback_name = caller_callback.__name__
         boolean_keys = header_dict[Map.condition]
@@ -503,6 +504,10 @@ class Solomon(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float]:
         TRIGGE_KELTNER = 1/100
 >>>>>>> Solomon-v1.1.2
+=======
+    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict, float, dict]:
+        TRIGGE_KELTNER = 0/100
+>>>>>>> Solomon-v1.1.3.b
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_5min =   Broker.PERIOD_5MIN
