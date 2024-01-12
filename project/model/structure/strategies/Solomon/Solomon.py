@@ -1391,6 +1391,7 @@ class Solomon(Strategy):
         SMT_MAX_DROP =      10/100
         SELL_RATE_ABOVE =   30/100     
         SELL_RATE_BELLOW =  50/100
+        RSI_TRIGGER =       70
         FUNC_TO_PARAMS =    {}
         def get_callback_id(callback: Callable) -> str:
             return Map.key(callback.__name__, str(callback.__hash__()))
@@ -2017,6 +2018,40 @@ class Solomon(Strategy):
             vars_map.put(keltner[index],            Map.value,  f'{Map.key(Map.keltner, keltner_line, period_str, params_str)}[{index}]')
             vars_map.put(keltner[prev_index],       Map.value,  f'{Map.key(Map.keltner, keltner_line, period_str, params_str)}[{prev_index}]')
             return sell_price
+        def has_rsi_reached_trigger(vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, buy_time: int, trigger: float, rsi_params: dict = {}) -> bool:
+            period_str = broker.period_to_str(period)
+            marketprice = cls._marketprice(broker, pair, period, marketprices)
+            marketprice.reset_collections()
+            marketprice_df = marketprice.to_pd()
+            now_date = _MF.unix_to_date(marketprice.get_time())
+            # RSI
+            rsi = list(marketprice.get_rsis(**rsi_params))
+            rsi.reverse()
+            marketprice_df[Map.rsi] = pd.Series(rsi, index=marketprice_df.index)
+            # Prepare
+            rounded_buy_time = _MF.round_time(buy_time, period)
+            time_at_index = marketprice_df[Map.time].iloc[index]
+            trade_zone_df = marketprice_df[(marketprice_df[Map.time] >= rounded_buy_time) & (marketprice_df[Map.time] <= time_at_index)]
+            above_trigger_df = trade_zone_df[trade_zone_df[Map.rsi] >= trigger]
+            buy_date = _MF.unix_to_date(buy_time)
+            date_start_trade_zone = _MF.unix_to_date(trade_zone_df[Map.time].iloc[0])
+            date_end_trade_zone = _MF.unix_to_date(trade_zone_df[Map.time].iloc[-1])
+            # Check
+            prev_index = index - 1
+            reached_trigger = above_trigger_df.shape[0] > 0
+            # Put
+            date_rsi_reach = _MF.unix_to_date(above_trigger_df[Map.time].iloc[0]) if reached_trigger else None
+            rsi_param_str = _MF.param_to_str(rsi_params)
+            k_base = f'has_rsi_reached_trigger_{period_str}_{rsi_param_str}[{index}]'
+            vars_map.put(reached_trigger,       Map.condition,  k_base)
+            vars_map.put(now_date,              Map.value,      f'{k_base}_now_date')
+            vars_map.put(buy_date,              Map.value,      f'{k_base}_buy_date')
+            vars_map.put(trigger,               Map.value,      f'{k_base}_trigger')
+            vars_map.put(date_start_trade_zone, Map.value,      f'{k_base}_date_start_trade_zone')
+            vars_map.put(date_end_trade_zone,   Map.value,      f'{k_base}_date_end_trade_zone')
+            vars_map.put(rsi[index],            Map.value,      f'{Map.key(Map.rsi, period_str, rsi_param_str)}[{index}]')
+            vars_map.put(rsi[prev_index],       Map.value,      f'{Map.key(Map.rsi, period_str, rsi_param_str)}[{prev_index}]')
+            return reached_trigger
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_5min =   Broker.PERIOD_5MIN
@@ -2255,6 +2290,7 @@ class Solomon(Strategy):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             {Map.callback: has_market_trend_reach_max_drop, Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, buy_time=buy_time, is_int_round=False)}
 =======
             {Map.callback: cls.is_roi_compare_trigger,          Map.param: dict(vars_map=vars_map, compare='>=', roi=position_roi, trigger=max_profit_rate)},
@@ -2322,6 +2358,12 @@ class Solomon(Strategy):
             {Map.callback: has_market_trend_reach_max_drop, Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, buy_time=buy_time, is_int_round=False)},
             # {Map.callback: keltner_roi_sell_price,          Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, keltner_line=Map.high, buy_price=buy_price, keltner_coef=2, keltner_params=cls.KELTNER_PARAMS_0)}
 >>>>>>> Solomon-v5.4.4.2.2
+=======
+            # {Map.callback: keltner_roi_sell_price,          Map.param: dict()}
+            {Map.callback: has_market_trend_reach_max_drop, Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, buy_time=buy_time, is_int_round=False)},
+            {Map.callback: has_rsi_reached_trigger,         Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, buy_time=buy_time, trigger=RSI_TRIGGER)},
+            {Map.callback: cls.is_tangent_ema_positive,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, ema_params=cls.EMA_PARAMS_1)}
+>>>>>>> Solomon-v5.4.4.4.2
         ]
         # FUNC_TO_PARAMS[get_callback_id(has_market_trend_rose)] = [
         #     # sell_rate
@@ -2443,23 +2485,12 @@ class Solomon(Strategy):
 =======
         vars_map.put(buy_case, Map.value, f'buy_case')
         can_sell = False
-        sell_price = None
-        # if buy_case == cls.BUY_CASE_WAVE:
-        #     sell_price = cls.sell_price(**func_and_params[0][Map.param])
-        # elif buy_case == cls.BUY_CASE_LONG:
-        if buy_case == cls.BUY_CASE_LONG:
-            # can_sell = has_market_trend_rose(**func_and_params[1][Map.param])
-            # if can_sell and cls.compare_price_and_keltner_line(**func_and_params[3][Map.param]):
-            #     can_sell = not cls.is_tangent_ema_positive(**func_and_params[4][Map.param])
-            # elif can_sell:
-            #     keltner_params_str = _MF.param_to_str(cls.KELTNER_PARAMS_0)
-            #     k_keltner = f'{Map.key(Map.keltner, Map.high, period_strs[period_1min], keltner_params_str)}[{now_index}]'
-            #     sell_price = vars_map.get(Map.value, k_keltner)
-            # if not can_sell:
-            can_sell = has_market_trend_reach_max_drop(**func_and_params[0][Map.param])
-            # sell_price = keltner_roi_sell_price(**func_and_params[1][Map.param])
-        else:
-            raise ValueError(f"Unknown buy case '{buy_case}'")
+        sell_price = None 
+        can_sell = has_market_trend_reach_max_drop(**func_and_params[0][Map.param]) \
+                or (
+                    has_rsi_reached_trigger(**func_and_params[1][Map.param]) \
+                    and not cls.is_tangent_ema_positive(**func_and_params[2][Map.param])
+                )
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report, sell_price
