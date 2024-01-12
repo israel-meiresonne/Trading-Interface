@@ -1908,6 +1908,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.1.3
 =======
     def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+<<<<<<< HEAD
 =======
     def _get_histograms(cls) -> Map:
         """
@@ -1956,6 +1957,8 @@ class Icarus(TraderClass):
     @classmethod
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, minute_marketprice: MarketPrice) -> Tuple[bool, dict]:
 >>>>>>> Icarus-v6.4.1
+=======
+>>>>>>> Icarus-v7.1
         def is_ema_rising(vars_map: Map) -> bool:
             # EMA
             ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
@@ -1967,9 +1970,13 @@ class Icarus(TraderClass):
             return ema_rising
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         def is_macd_switch_up(vars_map: Map) -> bool:
             # MACD
 =======
+=======
+        """
+>>>>>>> Icarus-v7.1
         def is_macd_negative(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -2637,6 +2644,7 @@ class Icarus(TraderClass):
         closes.reverse()
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -2699,6 +2707,10 @@ class Icarus(TraderClass):
             and is_macd_histogram_rising(vars_map) and is_edited_macd_switch_up(vars_map) \
                 and is_rsi_reached(vars_map) and will_market_bounce(vars_map)
 >>>>>>> Icarus-v6.7.1
+=======
+        # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+        can_buy_indicator = is_ema_rising(vars_map) and is_macd_switch_up(vars_map)
+>>>>>>> Icarus-v7.1
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
