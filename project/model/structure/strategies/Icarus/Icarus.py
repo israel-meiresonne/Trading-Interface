@@ -1091,6 +1091,22 @@ class Icarus(TraderClass):
                 macd_bellow_supertrend_peak = macd[-1] < peak_macd if peak_macd is not None else False
             return macd_bellow_supertrend_peak
 
+        def are_macd_signal_negatives(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
+            return macd_signal_negatives
+
+        def is_tangent_macd_dropping(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            tangent_macd_dropping = macd[-1] <= macd[-2]
+            return tangent_macd_dropping
+
         vars_map = Map()
 =======
         def is_rsi_dropping() -> bool:
@@ -1167,6 +1183,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -1225,6 +1242,12 @@ class Icarus(TraderClass):
                         or can_sell_with_macd_5min(vars_map)
                         )
 >>>>>>> Icarus-v8.3.7
+=======
+        can_sell = (not is_buy_period(vars_map)) \
+            and (
+                is_histogram_dropping(vars_map)\
+                or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map))
+>>>>>>> Icarus-v9.1
             )
 <<<<<<< HEAD
 <<<<<<< HEAD
