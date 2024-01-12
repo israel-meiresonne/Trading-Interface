@@ -384,6 +384,7 @@ class Icarus(TraderClass):
             return its_buy_period
 
         def is_macd_histogram_negative(vars_map: Map) -> bool:
+            marketprice.reset_collections()
             macd_map = marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
@@ -393,6 +394,18 @@ class Icarus(TraderClass):
             vars_map.put(macd_histogram_negative, 'macd_histogram_negative')
             vars_map.put(histogram, Map.histogram)
             return macd_histogram_negative
+
+        def is_edited_macd_histogram_negative(vars_map: Map) -> bool:
+            marketprice.reset_collections()
+            macd_map = marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            edited_macd_histogram_negative = histogram[-1] < 0
+            # Put
+            vars_map.put(edited_macd_histogram_negative, 'edited_macd_histogram_negative')
+            vars_map.put(histogram, 'edited_histogram')
+            return edited_macd_histogram_negative
 
         vars_map = Map()
         can_sell = False
@@ -435,6 +448,7 @@ class Icarus(TraderClass):
         marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         if have_bought_macd_in_positive(vars_map):
@@ -508,6 +522,27 @@ class Icarus(TraderClass):
             f'{key}.opens[-1]': opens[-1],
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None
 >>>>>>> Icarus-v11.1.10
+=======
+        can_sell = is_max_roi_above_trigger(vars_map) or (is_edited_macd_histogram_negative(vars_map) and is_macd_histogram_negative(vars_map))
+        # Repport
+        histogram = vars_map.get(Map.histogram)
+        edited_histogram = vars_map.get('edited_histogram')
+        key = cls._can_buy_indicator.__name__
+        repport = {
+            f'{key}._can_sell_indicator': can_sell,
+            f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
+            f'{key}.macd_histogram_negative': vars_map.get('macd_histogram_negative'),
+            f'{key}.edited_macd_histogram_negative': vars_map.get('edited_macd_histogram_negative'),
+
+            f'{key}.roi_trigger': ROI_TRIGGER,
+            f'{key}.max_roi': max_roi,
+            f'{key}.roi': roi,
+
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.edited_histogram[-1]': edited_histogram[-1] if edited_histogram is not None else None
+>>>>>>> Icarus-v11.1.13
         }
         return can_sell, repport
 
@@ -736,9 +771,49 @@ class Icarus(TraderClass):
             price_change_2 = price_change(-2)
             price_above_prev_high = (price_change_2 < 0) and (highs[-1] >= highs[-2])
             # Put
+<<<<<<< HEAD
             vars_map.put(price_above_prev_high, 'price_above_prev_high')
             vars_map.put(price_change_2, 'above_prev_high_price_change_2')
             return price_above_prev_high
+=======
+            vars_map.put(price_switch_up, 'price_switch_up')
+            vars_map.put(price_change_2, 'price_change_2')
+            vars_map.put(price_change_3, 'price_change_3')
+            return price_switch_up
+
+        def is_macd_histogram_positive(vars_map: Map) -> bool:
+            child_marketprice.reset_collections()
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(macd_histogram_positive, 'macd_histogram_positive')
+            vars_map.put(histogram, Map.histogram)
+            return macd_histogram_positive
+
+        def is_little_edited_macd_histogram_positive(vars_map: Map) -> bool:
+            macd_map = little_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            little_edited_macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(little_edited_macd_histogram_positive, 'little_edited_macd_histogram_positive')
+            vars_map.put(histogram, 'little_edited_macd_histogram')
+            return little_edited_macd_histogram_positive
+>>>>>>> Icarus-v11.1.13
+
+        def is_close_3_bellow_keltner_middle_3(vars_map: Map) -> bool:
+            keltner = child_marketprice.get_keltnerchannel()
+            keltner_middle = list(keltner.get(Map.middle))
+            keltner_middle.reverse()
+            close_3_bellow_keltner_middle_3 = closes[-3] < keltner_middle[-3]
+            # Put
+            vars_map.put(close_3_bellow_keltner_middle_3, f'close_3_bellow_keltner_middle_3')
+            vars_map.put(keltner_middle, 'keltner_middle')
+            return close_3_bellow_keltner_middle_3
 
         vars_map = Map()
         # Child
@@ -770,12 +845,22 @@ class Icarus(TraderClass):
         big_closes.reverse()
         # Check
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_buy_indicator = is_histogram_switch_positive(vars_map)
 =======
         can_buy_indicator = is_price_switch_up(vars_map) or is_price_above_prev_high(vars_map)
 >>>>>>> Icarus-v11.1.1
         # Repport
         histogram = vars_map.get(Map.histogram)
+=======
+        can_buy_indicator = is_price_switch_up(vars_map)\
+            and is_macd_histogram_positive(vars_map) and is_little_edited_macd_histogram_positive(vars_map)\
+                and is_close_3_bellow_keltner_middle_3(vars_map)
+        # Repport
+        histogram = vars_map.get(Map.histogram)
+        little_edited_macd_histogram = vars_map.get('little_edited_macd_histogram')
+        keltner_middle = vars_map.get('keltner_middle')
+>>>>>>> Icarus-v11.1.13
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -790,7 +875,13 @@ class Icarus(TraderClass):
             f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None
 =======
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
+<<<<<<< HEAD
             f'{key}.price_above_prev_high': vars_map.get('price_above_prev_high'),
+=======
+            f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
+            f'{key}.little_edited_macd_histogram_positive': vars_map.get('little_edited_macd_histogram_positive'),
+            f'{key}.close_3_bellow_keltner_middle_3': vars_map.get('close_3_bellow_keltner_middle_3'),
+>>>>>>> Icarus-v11.1.13
 
             f'{key}.switch_up_price_change_2': vars_map.get('switch_up_price_change_2'),
             f'{key}.switch_up_price_change_3': vars_map.get('switch_up_price_change_3'),
@@ -799,9 +890,18 @@ class Icarus(TraderClass):
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
+<<<<<<< HEAD
             f'{key}.highs[-1]': highs[-1],
             f'{key}.big_closes[-1]': big_closes[-1]
 >>>>>>> Icarus-v11.1.1
+=======
+            f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
+            f'{key}.little_edited_macd_histogram[-1]': little_edited_macd_histogram[-1] if little_edited_macd_histogram is not None else None,
+            f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
+            f'{key}.keltner_middle[-2]': keltner_middle[-2] if keltner_middle is not None else None,
+            f'{key}.keltner_middle[-3]': keltner_middle[-3] if keltner_middle is not None else None
+>>>>>>> Icarus-v11.1.13
         }
         return can_buy_indicator, repport
 
