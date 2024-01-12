@@ -5,7 +5,11 @@ from typing import List, Tuple
 import numpy as np
 =======
 from typing import Tuple
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.2.8
+=======
+import numpy as np
+>>>>>>> Icarus-v7.6
 
 import pandas as pd
 
@@ -2057,10 +2061,15 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.12
             macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
+<<<<<<< HEAD
             vars_map.put(histogram, 'edited_histogram')
             vars_map.put(histogram_rising, 'edited_histogram_rising')
             vars_map.put(prev_histogram_dropping, 'edited_prev_histogram_dropping')
             vars_map.put(macd_switch_up, 'edited_macd_switch_up')
+=======
+            vars_map.put(histogram, 'histogram')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+>>>>>>> Icarus-v7.6
             return macd_switch_up
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -2068,6 +2077,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v6.1
 =======
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -2416,6 +2426,9 @@ class Icarus(TraderClass):
                 return last_macd_peak_index
 
             child_marketprice.reset_collections()
+=======
+        def is_macd_bounce(vars_map: Map) -> bool:
+>>>>>>> Icarus-v7.6
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
 >>>>>>> Icarus-v6.7
@@ -2426,6 +2439,7 @@ class Icarus(TraderClass):
             signal.reverse()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
+<<<<<<< HEAD
             if histogram[-1] <= 0:
                 raise ValueError(f"MACD's histogram must be positive, instead histogram='{histogram[-1]}'")
             # Get interval
@@ -2763,6 +2777,27 @@ class Icarus(TraderClass):
             vars_map.put(ema, Map.ema)
             vars_map.put(supertrend, Map.supertrend)
             return macd_bellow_bull_peak
+=======
+            n_macd = len(macd)
+            peak_zeros = min_zeros = np.zeros(n_macd)
+            # Min
+            macd_min_index = MarketPrice.last_extremum_index(macd, min_zeros, -1, excludes=[])
+            # Peak
+            peak_excludes = [-1]
+            macd_peak_index = MarketPrice.last_extremum_index(macd, peak_zeros, 1, excludes=peak_excludes)
+            while (signal[macd_peak_index] < 0) or (histogram[macd_peak_index] < 0):
+                peak_excludes.append(macd_peak_index)
+                macd_peak_index = MarketPrice.last_extremum_index(macd, peak_zeros, 1, excludes=peak_excludes)
+            # Check
+            macd_bounce = macd[macd_peak_index] > abs(macd[macd_min_index])
+            # Put
+            vars_map.put(macd_bounce, 'macd_bounce')
+            vars_map.put(_MF.unix_to_date(open_times[macd_peak_index]), 'macd_peak_date')
+            vars_map.put(macd[macd_peak_index], 'last_peak_macd')
+            vars_map.put(_MF.unix_to_date(open_times[macd_min_index]), 'macd_min_date')
+            vars_map.put(macd[macd_min_index], 'last_min_macd')
+            return macd_bounce
+>>>>>>> Icarus-v7.6
 
         vars_map = Map()
 <<<<<<< HEAD
@@ -3064,6 +3099,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3186,6 +3222,9 @@ class Icarus(TraderClass):
         # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
         can_buy_indicator = is_macd_switch_up(vars_map) and is_bellow_keltner(vars_map)
 >>>>>>> Icarus-v7.4
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_macd_bounce(vars_map)
+>>>>>>> Icarus-v7.6
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
@@ -3226,6 +3265,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v6.4.1
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3354,6 +3394,17 @@ class Icarus(TraderClass):
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
 >>>>>>> Icarus-v7.2.10
+=======
+            f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+            f'{key}.macd_bounce': vars_map.get('macd_bounce'),
+            f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
+            f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
+            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
+            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.closes[-2]': closes[-2],
+            f'{key}.closes[-3]': closes[-3],
+>>>>>>> Icarus-v7.6
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
 <<<<<<< HEAD

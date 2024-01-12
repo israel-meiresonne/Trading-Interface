@@ -218,6 +218,7 @@ class IcarusStalker(StalkerClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.histogram_switch_positive': None,
 =======
             f'{key}.price_switch_up': None,
@@ -438,6 +439,17 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v7.10
 =======
 >>>>>>> Icarus-v7.2.10
+=======
+            f'{key}.macd_switch_up': None,
+            f'{key}.macd_bounce': None,
+            f'{key}.macd_peak_date': None,
+            f'{key}.last_peak_macd': None,
+            f'{key}.macd_min_date': None,
+            f'{key}.last_min_macd': None,
+            f'{key}.closes[-1]': None,
+            f'{key}.closes[-2]': None,
+            f'{key}.closes[-3]': None,
+>>>>>>> Icarus-v7.6
             f'{key}.histogram[-1]': None,
             f'{key}.histogram[-2]': None,
             f'{key}.min_edited_histogram[-1]': None,
