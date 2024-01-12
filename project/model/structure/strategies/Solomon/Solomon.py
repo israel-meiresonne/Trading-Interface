@@ -571,6 +571,7 @@ class Solomon(Strategy):
         now_index =     -1
         prev_index_2 =  -2
 <<<<<<< HEAD
+<<<<<<< HEAD
         prev_index_3 =  -3
         prev_index_4 =  -4
 =======
@@ -594,6 +595,8 @@ class Solomon(Strategy):
         vars_map.put(last_sell_date,    Map.value, 'last_sell_date')
         vars_map.put(last_sell_roi,     Map.value, 'last_sell_roi')
 >>>>>>> Solomon-v2.0.2.2
+=======
+>>>>>>> Solomon-v5.1.1.2.1
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -645,6 +648,7 @@ class Solomon(Strategy):
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_macd_line_positive,           Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
+            {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.macd, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_psar_rising,                  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
             {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
@@ -710,12 +714,20 @@ class Solomon(Strategy):
             and (
                 cls.is_macd_line_positive(**func_and_params[2][Map.param]) \
                 or
-                cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])
+                cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param])\
+                and
+                cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param])
             ) \
+<<<<<<< HEAD
             and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
             and cls.is_psar_rising(**func_and_params[5][Map.param]) \
             and cls.is_supertrend_rising(**func_and_params[6][Map.param])
 >>>>>>> Solomon-v5.1.1.2
+=======
+            and cls.is_tangent_macd_line_positive(**func_and_params[5][Map.param]) \
+            and cls.is_psar_rising(**func_and_params[6][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[7][Map.param])
+>>>>>>> Solomon-v5.1.1.2.1
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
@@ -1701,9 +1713,13 @@ class Solomon(Strategy):
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         marketprice.reset_collections()
 <<<<<<< HEAD
+<<<<<<< HEAD
         now_time = marketprice.get_time()
 =======
 >>>>>>> Solomon-v5.1.1.2
+=======
+        now_time = marketprice.get_time()
+>>>>>>> Solomon-v5.1.1.2.1
         macd_lines = marketprice.get_macd(**macd_params).get_map()
         macd_line = list(macd_lines[line_name])
         macd_line.reverse()
@@ -1713,15 +1729,21 @@ class Solomon(Strategy):
         # Put
         param_str = _MF.param_to_str(macd_params)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Solomon-v5.1.1.2.1
         vars_map.put(macd_line_positive,            Map.condition,  f'is_{line_name}_positive_{period_str}[{index}]_{param_str}')
         vars_map.put(_MF.unix_to_date(now_time),    Map.value,      f'is_{line_name}_positive_{period_str}[{index}]_{param_str}_date')
         vars_map.put(macd_line[index],              Map.value,      f'is_{line_name}_positive_{period_str}[{index}]_{param_str}_[{index}]')
         vars_map.put(macd_line[prev_index],         Map.value,      f'is_{line_name}_positive_{period_str}[{index}]_{param_str}_[{prev_index}]')
+<<<<<<< HEAD
 =======
         vars_map.put(macd_line_positive,    Map.condition,  f'is_{line_name}_positive_[{index}]_{param_str}_{period_str}')
         vars_map.put(macd_line[index],      Map.value,      f'is_{line_name}_positive_[{index}]_{param_str}_{period_str}[{index}]')
         vars_map.put(macd_line[prev_index], Map.value,      f'is_{line_name}_positive_[{index}]_{param_str}_{period_str}[{prev_index}]')
 >>>>>>> Solomon-v5.1.1.2
+=======
+>>>>>>> Solomon-v5.1.1.2.1
         return macd_line_positive
 
     @classmethod
