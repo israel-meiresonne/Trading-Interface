@@ -1112,7 +1112,7 @@ class Solomon(Strategy):
         #         and cls.compare_price_and_keltner_line(**func_and_params[14][Map.param]) \
         #         and cls.compare_exetrem_ema_and_keltner(**func_and_params[15][Map.param])
         if buy_case_value == cls.BUY_CASE_LONG:
-            can_buy = risk_level() == cls.RISK_SAFE \
+            can_buy = risk_level() in [cls.RISK_SAFE, cls.RISK_MODERATE] \
                 and cls.is_tangent_macd_line_positive(**func_and_params[8][Map.param]) \
                 and cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param])
 >>>>>>> Solomon-v5.4.2.1.2
