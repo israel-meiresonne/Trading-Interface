@@ -27,5 +27,4 @@ project/tests/datas/tools/TestDeepLearning/
 project/tests/datas/tools/TestPredictor/
 
 project/*env*/
-project/draft/*
-project/sh/nohup_draft.sh
+project/start_*
