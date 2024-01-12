@@ -540,9 +540,41 @@ class Icarus(TraderClass):
             buy_time_rounded = _MF.round_time(buy_time, period)
             next_open_time = buy_time_rounded + period
             open_time = marketprice.get_time()
+<<<<<<< HEAD
             return open_time < next_open_time
 >>>>>>> Icarus-v5.12
 =======
+=======
+            return open_time < first_open_time
+
+        def is_supertrend_dropping() -> bool:
+            supertrend = list(marketprice.get_super_trend())
+            supertrend.reverse()
+            supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -1)
+            return supertrend_trend == MarketPrice.SUPERTREND_DROPPING
+        
+        def is_psar_dropping() -> bool:
+            psar = list(marketprice.get_psar())
+            psar.reverse()
+            psar_trend = MarketPrice.get_psar_trend(closes, psar, -1)
+            return psar_trend == MarketPrice.PSAR_DROPPING
+        
+        def is_macd_dropping() -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            macd_ok = macd[-1] <= macd[-2]
+            return macd_ok
+
+        def is_price_dropping() -> bool:
+            opens = list(marketprice.get_opens())
+            opens.reverse()
+            price_dropping_2 = _MF.progress_rate(closes[-2], opens[-2])
+            price_dropping_3 = _MF.progress_rate(closes[-3], opens[-3])
+            return (price_dropping_2 < 0) and (price_dropping_3 < 0)
+
+        can_sell = False
+>>>>>>> Icarus-v5.9
         # Close
         closes = list(marketprice.get_closes())
         closes.reverse()
@@ -565,7 +597,11 @@ class Icarus(TraderClass):
         psar_rsi_trend = MarketPrice.get_psar_trend(rsi, psar_rsi, -2)
         psar_rsi_dropping = psar_rsi_trend == MarketPrice.PSAR_DROPPING
         # Check
+<<<<<<< HEAD
         can_sell = supertrend_dropping or klc_dropping or psar_rsi_dropping
+=======
+        can_sell = (not is_buy_period()) and (is_price_dropping() or is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+>>>>>>> Icarus-v5.9
         return can_sell
 <<<<<<< HEAD
 >>>>>>> Icarus-v5.2.1
