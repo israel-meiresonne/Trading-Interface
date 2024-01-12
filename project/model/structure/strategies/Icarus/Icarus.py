@@ -21,6 +21,7 @@ from model.tools.Price import Price
 class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # _RSI_BUY_TRIGGER = 25
     # _RSI_SELL_TRIGGER = 30
     # _RSI_STEP = 10
@@ -34,6 +35,11 @@ class Icarus(TraderClass):
     _MAX_ROI_DROP_TRIGGER = 1/100
     _MAX_ROI_DROP_RATE = 50/100
 >>>>>>> Icarus-v13.3
+=======
+    _MAX_ROI_DROP_TRIGGER = 1/100
+    _MAX_ROI_DROP_RATE = 50/100
+    _MAX_LOSS = -3/100
+>>>>>>> Icarus-v13.4.1
     _ROI_FLOOR_FIXE = 0.002
 <<<<<<< HEAD
     # _ROI_STEP = 0.005
@@ -282,6 +288,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             self.MARKETPRICE_BUY_BIG_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_BIG_PERIOD, n_period, broker),
 <<<<<<< HEAD
 =======
@@ -293,6 +300,9 @@ class Icarus(TraderClass):
 =======
             Map.buy: self.get_buy_order().get_execution_price(),
 >>>>>>> Icarus-v13.3
+=======
+            Map.buy: self.get_buy_order().get_execution_price(),
+>>>>>>> Icarus-v13.4.1
             min_period: self.get_marketprice(min_period, n_period, broker)
 =======
             self.MARKETPRICE_BUY_LITTLE_PERIOD: self.get_marketprice(self.MARKETPRICE_BUY_LITTLE_PERIOD, n_period, broker),
@@ -308,12 +318,20 @@ class Icarus(TraderClass):
         return can_sell
 
     @classmethod
+<<<<<<< HEAD
     def _get_stop_limit_price(cls, buy_price: float, max_roi: float) -> float:
         if max_roi >= cls._MAX_ROI_DROP_TRIGGER:
             stop_limit_price = buy_price * (1+(max_roi*(1-cls._MAX_ROI_DROP_RATE)))
         else:
             stop_limit_price = buy_price * (1+cls._MAX_LOSS)
         return stop_limit_price
+=======
+    def _get_max_drop_sell_price(cls, buy_price: float, max_roi: float) -> float:
+        sell_price = None
+        if max_roi >= cls._MAX_ROI_DROP_TRIGGER:
+            sell_price = buy_price * (1+(max_roi*(1-cls._MAX_ROI_DROP_RATE)))
+        return sell_price
+>>>>>>> Icarus-v13.4.1
 
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
@@ -347,6 +365,15 @@ class Icarus(TraderClass):
         ROI_TRIGGER = 0.2/100
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
+
+        def can_place_max_drop_limit(vars_map: Map) -> bool:
+            # Get
+            stop_limit_price = cls._get_max_drop_sell_price(buy_price, max_roi)
+            place_max_drop_limit = stop_limit_price is not None
+            # Put
+            vars_map.put(place_max_drop_limit, 'place_max_drop_limit')
+            vars_map.put(stop_limit_price, 'stop_limit_price')
+            return place_max_drop_limit
 
         def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
             def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
@@ -613,7 +640,10 @@ class Icarus(TraderClass):
         roi = datas[Map.roi]
         max_roi = datas[Map.maximum]
         buy_price = datas[Map.buy]
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.3
+=======
+>>>>>>> Icarus-v13.4.1
         # MarketPrice
 =======
 >>>>>>> Icarus-v10.1
@@ -692,7 +722,11 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.3
 =======
         can_sell = is_roi_above_trigger(vars_map) and is_1min_red_sequence_above_green_candle(vars_map)
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4
+=======
+        can_place_max_drop_limit(vars_map)
+>>>>>>> Icarus-v13.4.1
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
@@ -746,6 +780,7 @@ class Icarus(TraderClass):
             f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
 >>>>>>> Icarus-v13.4
             f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
+            f'{key}.place_max_drop_limit': vars_map.get('place_max_drop_limit'),
             
             f'{key}.ROI_TRIGGER': ROI_TRIGGER,
             f'{key}.roi': roi,
@@ -769,6 +804,8 @@ class Icarus(TraderClass):
             f'{key}.max_roi': max_roi,
             f'{key}.place_max_drop_limit': vars_map.get('place_max_drop_limit'),
             f'{key}.stop_limit_price': vars_map.get('stop_limit_price'),
+            Map.price: vars_map.get('stop_limit_price'),
+
             Map.price: vars_map.get('stop_limit_price'),
 
             f'{key}.closes[-1]': closes[-1],
@@ -1788,6 +1825,7 @@ class Icarus(TraderClass):
         sell_repports = []
         n_period = 300
         fees = broker.get_trade_fee(pair)
+        maker_fee_rate = fees.get(Map.maker)
         taker_fee_rate = fees.get(Map.taker)
         maker_fee_rate = fees.get(Map.maker)
         buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
@@ -1954,6 +1992,7 @@ class Icarus(TraderClass):
                 sell_repports.append(sell_repport)
                 # Stop Limit Order
 <<<<<<< HEAD
+<<<<<<< HEAD
                 new_sell_stop_limit_price = sell_repport[Map.stopPrice]
                 if new_sell_stop_limit_price is not None:
                     sell_stop_limit_price = None if 'sell_stop_limit_price' not in vars() else sell_stop_limit_price
@@ -1981,13 +2020,35 @@ class Icarus(TraderClass):
                 if can_sell or stop_limit_reached:
                     # Prepare
                     sell_time = min_marketprice.get_time()
+=======
+                def get_stop_limit_price(sell_repport: dict, old_sell_stop_limit_price: float) -> float:
+                    stop_limit_price = None
+                    new_sell_stop_limit_price = sell_repport[Map.price]
+                    old_is_None = old_sell_stop_limit_price is None
+                    new_is_None = new_sell_stop_limit_price is None
+                    if (not old_is_None) and (not new_is_None) and (new_sell_stop_limit_price > old_sell_stop_limit_price):
+                        stop_limit_price = new_sell_stop_limit_price
+                    elif (old_is_None) and (not new_is_None):
+                        stop_limit_price = new_sell_stop_limit_price
+                    return stop_limit_price
+                sell_stop_limit_price = None if 'sell_stop_limit_price' not in vars() else sell_stop_limit_price
+                sell_stop_limit_price = get_stop_limit_price(sell_repport, sell_stop_limit_price)
+                stop_limit_reached = (sell_stop_limit_price is not None) and (min_lows[-1] <= sell_stop_limit_price)
+                if can_sell or stop_limit_reached:
+                    # Prepare
+                    sell_time = min_marketprice.get_time()
+                    # exec_price = get_exec_price(min_marketprice, sell_type)
+>>>>>>> Icarus-v13.4.1
                     if can_sell and stop_limit_reached:
                         exec_price = max(sell_stop_limit_price, get_exec_price(min_marketprice, sell_type))
                     else:
                         exec_price = sell_stop_limit_price if stop_limit_reached else get_exec_price(min_marketprice, sell_type)
                     sell_stop_limit_price = None
+<<<<<<< HEAD
                     stop_limit_fee = taker_fee_rate + maker_fee_rate
 >>>>>>> Icarus-v13.3
+=======
+>>>>>>> Icarus-v13.4.1
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
