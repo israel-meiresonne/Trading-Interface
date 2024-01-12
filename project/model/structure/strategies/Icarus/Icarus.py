@@ -773,8 +773,13 @@ class Icarus(TraderClass):
         pass
 
     @classmethod
+<<<<<<< HEAD
     def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice, min_marketprice)
+=======
+    def can_buy(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        indicator_ok, indicator_datas = cls._can_buy_indicator(child_marketprice, big_marketprice, little_marketprice, min_marketprice)
+>>>>>>> Icarus-v11.3.2
         # Check
         can_buy = indicator_ok
         # Repport
@@ -787,6 +792,7 @@ class Icarus(TraderClass):
 
     @classmethod
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
         def is_histogram_switch_positive(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
@@ -794,6 +800,9 @@ class Icarus(TraderClass):
             histogram.reverse()
 =======
     def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice) -> Tuple[bool, dict]:
+=======
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice, big_marketprice: MarketPrice, little_marketprice: MarketPrice, min_marketprice: MarketPrice) -> Tuple[bool, dict]:
+>>>>>>> Icarus-v11.3.2
         def price_change(i: int) -> float:
             return closes[i] - opens[i]
 
@@ -873,6 +882,46 @@ class Icarus(TraderClass):
             return close_above_high_2
 >>>>>>> Icarus-v11.1.5
 
+        def is_min_macd_signal_peak_nearest_than_min(vars_map: Map) -> bool:
+            macd_map = min_marketprice.get_macd()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Get extremums
+            now_index = len(signal) - 1
+            signal_swings = _MF.group_swings(macd, signal)
+            start_index = signal_swings[now_index][0]
+            sub_signal = signal[start_index:]
+            # — Peak
+            signal_peak = max(sub_signal)
+            signal_peak_index = sub_signal.index(signal_peak)
+            # — Min
+            signal_min = min(sub_signal)
+            signal_min_index = sub_signal.index(signal_min)
+            # Dates
+            sub_min_open_times = min_open_times[start_index:]
+            # Check
+            min_macd_signal_peak_nearest_than_min = signal_peak_index > signal_min_index
+            # Put
+            vars_map.put(min_macd_signal_peak_nearest_than_min, 'min_macd_signal_peak_nearest_than_min')
+            vars_map.put(_MF.unix_to_date(sub_min_open_times[signal_peak_index]), 'min_macd_signal_peak_date')
+            vars_map.put(_MF.unix_to_date(sub_min_open_times[signal_min_index]), 'min_macd_signal_min_date')
+            vars_map.put(macd, 'min_macd')
+            vars_map.put(signal, 'min_macd_signal')
+            return min_macd_signal_peak_nearest_than_min
+
+        def is_tangent_min_macd_positive(vars_map: Map) -> bool:
+            macd_map = min_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            # Check
+            tangent_min_macd_positive = macd[-1] > macd[-2]
+            # Put
+            vars_map.put(tangent_min_macd_positive, 'tangent_min_macd_positive')
+            vars_map.put(macd, 'min_macd')
+            return tangent_min_macd_positive
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -888,10 +937,13 @@ class Icarus(TraderClass):
         open_times = list(child_marketprice.get_times())
         open_times.reverse()
         # Min
+<<<<<<< HEAD
         min_closes = list(min_marketprice.get_closes())
         min_closes.reverse()
         min_opens = list(min_marketprice.get_opens())
         min_opens.reverse()
+=======
+>>>>>>> Icarus-v11.3.2
         min_open_times = list(min_marketprice.get_times())
         min_open_times.reverse()
         # Little
@@ -907,6 +959,7 @@ class Icarus(TraderClass):
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -928,6 +981,13 @@ class Icarus(TraderClass):
         little_edited_macd_histogram = vars_map.get('little_edited_macd_histogram')
         keltner_middle = vars_map.get('keltner_middle')
 >>>>>>> Icarus-v11.1.13
+=======
+        can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
+            and (is_min_macd_signal_peak_nearest_than_min(vars_map) or is_tangent_min_macd_positive(vars_map))
+        # Repport
+        min_macd_signal = vars_map.get('min_macd_signal')
+        min_macd = vars_map.get('min_macd')
+>>>>>>> Icarus-v11.3.2
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -944,6 +1004,7 @@ class Icarus(TraderClass):
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.price_above_prev_high': vars_map.get('price_above_prev_high'),
 =======
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
@@ -953,6 +1014,11 @@ class Icarus(TraderClass):
 =======
             f'{key}.close_above_high_2': vars_map.get('close_above_high_2'),
 >>>>>>> Icarus-v11.1.5
+=======
+            f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
+            f'{key}.min_macd_signal_peak_nearest_than_min': vars_map.get('min_macd_signal_peak_nearest_than_min'),
+            f'{key}.tangent_min_macd_positive': vars_map.get('tangent_min_macd_positive'),
+>>>>>>> Icarus-v11.3.2
 
             f'{key}.switch_up_price_change_2': vars_map.get('switch_up_price_change_2'),
             f'{key}.switch_up_price_change_3': vars_map.get('switch_up_price_change_3'),
@@ -961,8 +1027,12 @@ class Icarus(TraderClass):
 
             f'{key}.close_above_high_2_price_change_2': vars_map.get('close_above_high_2_price_change_2'),
 
+            f'{key}.min_macd_signal_peak_date': vars_map.get('min_macd_signal_peak_date'),
+            f'{key}.min_macd_signal_min_date': vars_map.get('min_macd_signal_min_date'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.highs[-1]': highs[-1],
@@ -980,6 +1050,12 @@ class Icarus(TraderClass):
             f'{key}.keltner_middle[-2]': keltner_middle[-2] if keltner_middle is not None else None,
             f'{key}.keltner_middle[-3]': keltner_middle[-3] if keltner_middle is not None else None
 >>>>>>> Icarus-v11.1.13
+=======
+            f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.min_macd_signal[-1]': min_macd_signal[-1] if min_macd_signal is not None else None,
+            f'{key}.min_macd[-1]': min_macd[-1] if min_macd is not None else None,
+            f'{key}.min_macd[-2]': min_macd[-2] if min_macd is not None else None
+>>>>>>> Icarus-v11.3.2
         }
         return can_buy_indicator, repport
 
@@ -1280,7 +1356,10 @@ class Icarus(TraderClass):
             Map.period: min_period,
             'n_period': n_period
             }
+<<<<<<< HEAD
 >>>>>>> Icarus-v10.1.1
+=======
+>>>>>>> Icarus-v11.3.2
         broker.add_streams([
             broker.generate_stream(Map({Map.pair: pair, Map.period: period})),
             broker.generate_stream(Map({Map.pair: pair, Map.period: big_period})),
@@ -1295,9 +1374,12 @@ class Icarus(TraderClass):
             little_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **little_market_params)
             min_marketprice = _MF.catch_exception(MarketPrice.marketprice, cls.__name__, repport=False, **min_market_params)
 <<<<<<< HEAD
+<<<<<<< HEAD
             # Period
 =======
 >>>>>>> Icarus-v10.1.1
+=======
+>>>>>>> Icarus-v11.3.2
             open_times = list(marketprice.get_times())
             open_times.reverse()
             closes = list(marketprice.get_closes())
@@ -1345,8 +1427,12 @@ class Icarus(TraderClass):
                 }
             # Try buy/sell
             if not has_position:
+<<<<<<< HEAD
                 trade_id = f'{pair_merged}_{str_period}_{i}'
                 can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, min_marketprice)
+=======
+                can_buy, buy_repport = cls.can_buy(marketprice, big_marketprice, little_marketprice, min_marketprice)
+>>>>>>> Icarus-v11.3.2
                 buy_repport = {
                     Map.time: _MF.unix_to_date(min_marketprice.get_time()),
                    f'{Map.period}_{Map.time}': _MF.unix_to_date(open_times[-1]),

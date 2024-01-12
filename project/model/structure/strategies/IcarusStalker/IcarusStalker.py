@@ -136,10 +136,20 @@ class IcarusStalker(StalkerClass):
         # Big
         big_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_BIG_PERIOD
         big_marketprice = self._get_market_price(broker, pair, big_period)
+<<<<<<< HEAD
         # min
         min_period = self.CHILD_STRATEGY.get_min_period()
         min_marketprice = self._get_market_price(broker, pair, min_period)
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, min_marketprice)
+=======
+        # little
+        little_period = self.CHILD_STRATEGY.MARKETPRICE_BUY_LITTLE_PERIOD
+        little_marketprice = self._get_market_price(broker, pair, little_period)
+        # min
+        min_period = self.CHILD_STRATEGY.get_min_period()
+        min_marketprice = self._get_market_price(broker, pair, min_period)
+        child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, big_marketprice, little_marketprice, min_marketprice)
+>>>>>>> Icarus-v11.3.2
         eligible = child_ok
         # Repport
         key = self._eligible.__name__
@@ -172,6 +182,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.price_switch_up': None,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.price_above_prev_high': None,
 =======
             f'{key}.macd_histogram_positive': None,
@@ -182,6 +193,11 @@ class IcarusStalker(StalkerClass):
 =======
             f'{key}.close_above_high_2': None,
 >>>>>>> Icarus-v11.1.5
+=======
+            f'{key}.price_change_1_above_2': None,
+            f'{key}.min_macd_signal_peak_nearest_than_min': None,
+            f'{key}.tangent_min_macd_positive': None,
+>>>>>>> Icarus-v11.3.2
 
             f'{key}.switch_up_price_change_2': None,
             f'{key}.switch_up_price_change_3': None,
@@ -190,8 +206,12 @@ class IcarusStalker(StalkerClass):
 
             f'{key}.close_above_high_2_price_change_2': None,
 
+            f'{key}.min_macd_signal_peak_date': None,
+            f'{key}.min_macd_signal_min_date': None,
+
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.highs[-1]': None,
@@ -210,6 +230,12 @@ class IcarusStalker(StalkerClass):
             f'{key}.keltner_middle[-2]': None,
             f'{key}.keltner_middle[-3]': None
 >>>>>>> Icarus-v11.1.13
+=======
+            f'{key}.big_closes[-1]': None,
+            f'{key}.min_macd_signal[-1]': None,
+            f'{key}.min_macd[-1]': None,
+            f'{key}.min_macd[-2]': None
+>>>>>>> Icarus-v11.3.2
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
