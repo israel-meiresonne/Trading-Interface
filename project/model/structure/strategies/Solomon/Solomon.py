@@ -626,6 +626,9 @@ class Solomon(Strategy):
         period_strs = {period: broker.period_to_str(period) for period in periods}
         # Params
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Solomon-v5.4.2.1.1
         last_buy_time = datas[Map.buy] if datas[Map.buy] is not None else 0 # in second
         fees = broker.get_trade_fee(pair)
         maker_fee = fees.get(Map.maker)
@@ -828,6 +831,7 @@ class Solomon(Strategy):
 >>>>>>> Solomon-v5.2
 =======
             {Map.callback: buy_case,                                Map.param: dict(vars_map=vars_map)},
+<<<<<<< HEAD
             {Map.callback: cls.compare_trigger_and_market_trend,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=prev_index_2, comparator='>', trigger=SMT_DEEP_TRIGGER, is_int_round=False)},
             {Map.callback: cls.is_market_trend_deep_and_rise,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, is_int_round=False)},
             {Map.callback: are_profits_above_fees,                  Map.param: dict(vars_map=vars_map, fee_coef=FEE_MULTIPLE, buy_sell_fees=trade_fees)},
@@ -844,6 +848,23 @@ class Solomon(Strategy):
             {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_1)},
             {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, comparator='<', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=cls.KELTNER_PARAMS_0)},
             {Map.callback: risk_level,                              Map.param: dict()},
+=======
+            # {Map.callback: cls.compare_trigger_and_market_trend,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=prev_index_2, comparator='>', trigger=SMT_DEEP_TRIGGER, is_int_round=False)},
+            {Map.callback: cls.is_market_trend_deep_and_rise,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
+            # {Map.callback: are_profits_above_fees,                  Map.param: dict(vars_map=vars_map, fee_coef=FEE_MULTIPLE, buy_sell_fees=trade_fees)},
+            # {Map.callback: potential_profit,                        Map.param: dict(period=period_1min, price_line=buy_price_line, index=now_index)},
+            # {Map.callback: risk_level,                              Map.param: dict()},
+            # {Map.callback: cls.keltner_zone,                        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, price_line=buy_price_line, keltner_params=cls.KELTNER_PARAMS_0)},
+            # {Map.callback: cls.sell_price,                          Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, risk_level='risk_level', keltner_zone='keltner_zone', keltner_params=cls.KELTNER_PARAMS_0)},
+            # {Map.callback: cls.compare_ema_and_keltner,             Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='<', keltner_line=Map.low, ema_params=cls.EMA_PARAMS_2, keltner_params=cls.KELTNER_PARAMS_0)},
+            # {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index)},
+            # {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            # {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            # {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_4, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+            # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='>', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_0)},
+            # {Map.callback: cls.compare_price_and_keltner_line,      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, comparator='<', price_line=buy_price_line, keltner_line=Map.low, keltner_params=cls.KELTNER_PARAMS_1)},
+            # {Map.callback: cls.compare_exetrem_ema_and_keltner,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, comparator='<', ema_exetrem=Map.minimum, keltner_line=Map.low, ema_params=cls.EMA_PARAMS_1, keltner_params=cls.KELTNER_PARAMS_0)},
+>>>>>>> Solomon-v5.4.2.1.1
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_2, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=prev_index_3, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)}
         ]
@@ -2410,6 +2431,9 @@ class Solomon(Strategy):
     @classmethod
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Solomon-v5.4.2.1.1
     def is_market_trend_deep_and_rise(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, fall_ceiling_rate: float, increase_rate: float, last_buy_time: int, is_int_round: bool = False, window: int = None) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
@@ -2432,7 +2456,10 @@ class Solomon(Strategy):
         sub_market_trend_df = market_trend_df[market_trend_df.index <= index_time].iloc[-300:]
         index_date = _MF.unix_to_date(index_time)
         index_trend_date = sub_market_trend_df[k_market_date].iloc[-1]
+<<<<<<< HEAD
         # Detect fall
+=======
+>>>>>>> Solomon-v5.4.2.1.1
         indexes = np.arange(stop=sub_market_trend_df.shape[0])
         sub_market_trend_df.insert(len(sub_market_trend_df.columns), Map.index, indexes)
         bellow_ceiling_df = sub_market_trend_df[(sub_market_trend_df[k_edited_rise_rate] <= fall_ceiling_rate)]
@@ -2468,9 +2495,14 @@ class Solomon(Strategy):
         # Check
         rise_rate_at_index = sub_market_trend_df[k_edited_rise_rate].iloc[-1]
         rise_rate_at_prev_index = sub_market_trend_df[k_edited_rise_rate].iloc[-2]
+<<<<<<< HEAD
         # deep_and_rise = bool((rise_trigger is not None) and (rise_rate_at_prev_index < rise_trigger) and (rise_rate_at_index >= rise_trigger))
         # deep_and_rise = bool((rise_trigger is not None) and (time_reach_trigger == index_time))
         deep_and_rise = bool((rise_trigger is not None) and (not has_bought) and (rise_rate_at_index >= rise_trigger) and is_above_trigger_continous and is_rise_rate_still_rise)
+=======
+        deep_and_rise = bool((rise_trigger is not None) and (time_reach_trigger == index_time))
+        # deep_and_rise = bool((rise_trigger is not None) and (not has_bought) and (rise_rate_at_index >= rise_trigger) and is_above_trigger_continous and is_rise_rate_still_rise)
+>>>>>>> Solomon-v5.4.2.1.1
         # Report
         k_base = f'is_market_trend_deep_and_rise_{period_str}_{fall_ceiling_rate}_{increase_rate}[{index}]'
         vars_map.put(deep_and_rise,                 Map.condition,  k_base)
@@ -2996,6 +3028,9 @@ class Solomon(Strategy):
 <<<<<<< HEAD
             buy_datas = {}
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Solomon-v5.4.2.1.1
             buy_datas[Map.buy] = trades[-1][Map.buy][Map.time] if len(trades) > 0 else None
             can_buy, buy_condition, buy_case = cls.can_buy(broker, pair, marketprices, buy_datas)
 =======
