@@ -3011,7 +3011,11 @@ class Icarus(TraderClass):
         big_closes.reverse()
 >>>>>>> Icarus-v8.1.21
         # 
+<<<<<<< HEAD
         can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map) \
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and is_big_macd_rising(vars_map) \
+>>>>>>> Icarus-v8.3.2
             and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
 <<<<<<< HEAD
@@ -3139,7 +3143,10 @@ class Icarus(TraderClass):
             f'{key}.can_buy_indicator': can_buy_indicator,
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.tangent_macd_positive': vars_map.get('tangent_macd_positive'),
+<<<<<<< HEAD
             f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
+=======
+>>>>>>> Icarus-v8.3.2
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
             f'{key}.roc_positive': vars_map.get('roc_positive'),
             f'{key}.roc_bounce': vars_map.get('roc_bounce'),

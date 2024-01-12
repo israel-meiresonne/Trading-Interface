@@ -239,6 +239,10 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_supertrend_rising': None,
 =======
             f'{key}.macd_switch_up': None,
+<<<<<<< HEAD
+=======
+            f'{key}.tangent_macd_positive': None,
+>>>>>>> Icarus-v8.3.2
             f'{key}.big_macd_rising': None,
             f'{key}.big_supertrend_rising': None,
             f'{key}.roc_positive': None,
