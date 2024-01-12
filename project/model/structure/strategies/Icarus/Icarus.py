@@ -89,6 +89,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.1.4
     _PERIODS_REQUIRRED = [_MIN_PERIOD]
     _MAX_FLOAT_DEFAULT = -1
+<<<<<<< HEAD
     EMA200_N_PERIOD = 200
     EMA50_N_PERIOD = 50
     ROC_WINDOW = 15
@@ -106,6 +107,11 @@ class Icarus(TraderClass):
 =======
     _PREDICTION_FILLING_RATE = 55/100
 >>>>>>> Icarus-v2.1.2.2.1
+=======
+    EMA_N_PERIOD = 200
+    _RSI_BUY_TRIGGER = 60
+    _RSI_SELL_TRIGGER = _RSI_BUY_TRIGGER
+>>>>>>> Icarus-v5.12
 
     def __init__(self, params: Map):
         super().__init__(params)
@@ -498,6 +504,18 @@ class Icarus(TraderClass):
         max_loss = self.get_max_loss()
         can_sell = roi_pos <= max_loss
         return can_sell
+<<<<<<< HEAD
+=======
+    
+    def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
+        def is_buy_period() -> bool:
+            period = self.get_period()
+            buy_time = int(self.get_buy_order().get_execution_time() / 1000)
+            buy_time_rounded = _MF.round_time(buy_time, period)
+            next_open_time = buy_time_rounded + period
+            open_time = marketprice.get_time()
+            return open_time < next_open_time
+>>>>>>> Icarus-v5.12
 
     @classmethod
 <<<<<<< HEAD
@@ -552,6 +570,7 @@ class Icarus(TraderClass):
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
+<<<<<<< HEAD
         def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
             def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
                 green_index = None
@@ -858,6 +877,13 @@ class Icarus(TraderClass):
             return tangent_macd_negative
 
         vars_map = Map()
+=======
+        def is_rsi_dropping() -> bool:
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            return rsi[-1] < self._RSI_SELL_TRIGGER
+
+>>>>>>> Icarus-v5.12
         can_sell = False
         # Vars
 <<<<<<< HEAD
@@ -910,6 +936,7 @@ class Icarus(TraderClass):
         # marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
 >>>>>>> Icarus-v13.1.4
         # Check
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1191,6 +1218,11 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.4.2
         }
         return can_sell, repport
+=======
+        can_sell = is_rsi_dropping() if is_buy_period() else (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+        # can_sell = (not is_buy_period()) and (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+        return can_sell
+>>>>>>> Icarus-v5.12
 
     def _can_sell_prediction(self, predictor_marketprice: MarketPrice, marketprice: MarketPrice) -> bool:
         def is_prediction_reached() -> bool:
@@ -1219,7 +1251,7 @@ class Icarus(TraderClass):
             self._set_max_close_predicted(max_close_predicted=max_close_pred)
             return max_roi_pred >= pred_trigger
 
-        can_sell = is_prediction_reached() and is_new_prediction_better()
+        can_sell = is_prediction_reached() and (not is_new_prediction_better())
         return can_sell
 
     # ——————————————————————————————————————————— FUNCTION CAN SELL UP —————————————————————————————————————————————————
@@ -1498,6 +1530,7 @@ class Icarus(TraderClass):
         return can_buy, repport
 
     @classmethod
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -2093,6 +2126,76 @@ class Icarus(TraderClass):
             f'{key}.keltner_middle[-1]': keltner_middle[-1] if keltner_middle is not None else None,
             f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None
 >>>>>>> Icarus-v13.5.1.1.2
+=======
+    def _can_buy_indicator(cls, child_marketprice: MarketPrice) -> Tuple[bool, dict]:
+        # Close
+        closes = list(child_marketprice.get_closes())
+        closes.reverse()
+        # Supertrend
+        supertrend = list(child_marketprice.get_super_trend())
+        supertrend.reverse()
+        now_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -1)
+        prev_supertrend_trend = MarketPrice.get_super_trend_trend(closes, supertrend, -2)
+        # Psar
+        psar = list(child_marketprice.get_psar())
+        psar.reverse()
+        now_psar_trend = MarketPrice.get_psar_trend(closes, psar, -1)
+        prev_psar_trend = MarketPrice.get_psar_trend(closes, psar, -2)
+        # MACD
+        macd_map = child_marketprice.get_macd()
+        macd = list(macd_map.get(Map.macd))
+        histogram = list(macd_map.get(Map.histogram))
+        histogram.reverse()
+        macd.reverse()
+        histogram_ok = histogram[-1] > 0
+        macd_ok = macd[-1] > macd[-2]
+        macd_rising = macd_ok and histogram_ok
+        # EMA
+        ema = list(child_marketprice.get_ema(cls.EMA_N_PERIOD))
+        ema.reverse()
+        ema_rising = closes[-1] > ema[-1]
+        # RSI
+        rsi = list(child_marketprice.get_rsis())
+        rsi.reverse()
+        rsi_rising = rsi[-1] > cls._RSI_BUY_TRIGGER
+        # Check
+        supertrend_rising = now_supertrend_trend == MarketPrice.SUPERTREND_RISING
+        supertrend_switch_up = supertrend_rising and (prev_supertrend_trend == MarketPrice.SUPERTREND_DROPPING)
+        psar_rising = now_psar_trend == MarketPrice.PSAR_RISING
+        psar_switch_up = psar_rising and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
+        # can_buy_indicator = macd_rising and ((psar_switch_up and supertrend_rising) or (supertrend_switch_up and psar_rising))
+        can_buy_indicator = ema_rising and rsi_rising and macd_rising and (supertrend_rising and psar_rising)
+        # Repport
+        key = cls._can_buy_indicator.__name__
+        repport = {
+            f'{key}.can_buy_indicator': can_buy_indicator,
+            f'{key}.ema_rising': ema_rising,
+            f'{key}.rsi_rising': rsi_rising,
+            f'{key}.supertrend_rising': supertrend_rising,
+            f'{key}.supertrend_switch_up': supertrend_switch_up,
+            f'{key}.psar_rising': psar_rising,
+            f'{key}.psar_switch_up': psar_switch_up,
+            f'{key}.macd_rising': macd_rising,
+            f'{key}.macd_ok': macd_ok,
+            f'{key}.histogram_ok': histogram_ok,
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.closes[-2]': closes[-2],
+            f'{key}.supertrend[-1]': supertrend[-1],
+            f'{key}.supertrend[-2]': supertrend[-2],
+            f'{key}.supertrend[-3]': supertrend[-3],
+            f'{key}.psar[-1]': psar[-1],
+            f'{key}.psar[-2]': psar[-2],
+            f'{key}.psar[-3]': psar[-3],
+            f'{key}.macd[-1]': macd[-1],
+            f'{key}.macd[-2]': macd[-2],
+            f'{key}.histogram[-1]': histogram[-1],
+            f'{key}.histogram[-2]': histogram[-2],
+            f'{key}.ema[-1]': ema[-1],
+            f'{key}.ema[-2]': ema[-2],
+            f'{key}._RSI_BUY_TRIGGER': cls._RSI_BUY_TRIGGER,
+            f'{key}.rsi[-1]': rsi[-1],
+            f'{key}.rsi[-2]': rsi[-2]
+>>>>>>> Icarus-v5.12
         }
         return can_buy_indicator, repport
 

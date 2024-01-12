@@ -141,6 +141,7 @@ class IcarusStalker(StalkerClass):
 
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
+<<<<<<< HEAD
         # Big
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -175,6 +176,19 @@ class IcarusStalker(StalkerClass):
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, min_marketprice)
 >>>>>>> Icarus-v13.1.4
         eligible = child_ok
+=======
+        child_period = self.get_strategy_params().get(Map.period)
+        child_marketprice = self._get_market_price(broker, pair, child_period, nb_period=broker.get_max_n_period())
+        predictor_marketprice = Icarus.predictor_market_price(broker, pair)
+        # Stalker
+        stalker_ok, stalker_datas = Icarus.stalker_can_add(predictor_marketprice)
+        # Child
+        child_datas = {}
+        child_ok = False
+        if stalker_ok:
+            child_ok, child_datas = Icarus.can_buy(predictor_marketprice, child_marketprice)
+        eligible = stalker_ok and child_ok
+>>>>>>> Icarus-v5.12
         # Repport
         key = self._eligible.__name__
         repport = {
@@ -195,10 +209,15 @@ class IcarusStalker(StalkerClass):
             f'{key}.can_buy_indicator': None,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.histogram_switch_positive': None,
 =======
             f'{key}.price_switch_up': None,
             f'{key}.mean_candle_change_60_above_trigger': None,
+=======
+            f'{key}.ema_rising': None,
+            f'{key}.rsi_rising': None,
+>>>>>>> Icarus-v5.12
             f'{key}.supertrend_rising': None,
             f'{key}.min_macd_histogram_switch_up': None,
             f'{key}.tangent_macd_histogram_positive': None,
@@ -341,6 +360,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.min_edited_histogram[-2]': None,
             f'{key}.psar[-1]': None,
             f'{key}.psar[-2]': None,
+<<<<<<< HEAD
             f'{key}.min_psar[-1]': None,
             f'{key}.min_psar[-2]': None,
             f'{key}.min_histogram[-1]': None,
@@ -349,6 +369,18 @@ class IcarusStalker(StalkerClass):
             f'{key}.keltner_middle[-1]': None,
             f'{key}.keltner_high[-1]': None
 >>>>>>> Icarus-v13.5.1.1.2
+=======
+            f'{key}.psar[-3]': None,
+            f'{key}.macd[-1]': None,
+            f'{key}.macd[-2]': None,
+            f'{key}.histogram[-1]': None,
+            f'{key}.histogram[-2]': None,
+            f'{key}.ema[-1]': None,
+            f'{key}.ema[-2]': None,
+            f'{key}._RSI_BUY_TRIGGER': None,
+            f'{key}.rsi[-1]': None,
+            f'{key}.rsi[-2]': None
+>>>>>>> Icarus-v5.12
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
