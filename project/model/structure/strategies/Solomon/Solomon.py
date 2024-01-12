@@ -694,6 +694,11 @@ class Solomon(Strategy):
             {Map.callback: cls.is_last_min_market_trend_bellow,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, trigger=MARKET_TREND_TRIGGER, is_int_round=True)},
 >>>>>>> Solomon-v5.1.4.4.4
             {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=False)},
+<<<<<<< HEAD
+=======
+            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=TRIGGE_KELTNER, index=now_index)},
+            {Map.callback: cls.is_macd_line_positive,               Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
+>>>>>>> Solomon-v5.1.4.4.5
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram)},
             {Map.callback: cls.is_tangent_macd_line_positive,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, line_name=Map.histogram, macd_params=MarketPrice.MACD_PARAMS_1)},
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index)},
@@ -744,11 +749,14 @@ class Solomon(Strategy):
             {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Solomon-v5.1.4.4.1
 =======
 >>>>>>> Solomon-v5.1.4.4.3
 =======
 >>>>>>> Solomon-v5.1.4.4.4
+=======
+>>>>>>> Solomon-v5.1.4.4.5
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -796,6 +804,7 @@ class Solomon(Strategy):
         buy_case_value = cls.BUY_CASE_LONG
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
+<<<<<<< HEAD
             and cls.is_compare_price_and_keltner_line(**func_and_params[2][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
 <<<<<<< HEAD
@@ -864,6 +873,11 @@ class Solomon(Strategy):
             and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
             and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
 >>>>>>> Solomon-v5.1.4.4.4
+=======
+            and not cls.is_macd_line_positive(**func_and_params[2][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[3][Map.param]) \
+            and cls.is_tangent_macd_line_positive(**func_and_params[4][Map.param]) \
+>>>>>>> Solomon-v5.1.4.4.5
             and (
                 cls.is_macd_line_positive(**func_and_params[5][Map.param])
                 or
@@ -875,6 +889,7 @@ class Solomon(Strategy):
                 or
                 cls.is_tangent_macd_line_positive(**func_and_params[9][Map.param]) \
                 and
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -898,6 +913,12 @@ class Solomon(Strategy):
             and cls.is_psar_rising(**func_and_params[11][Map.param]) \
             and cls.is_supertrend_rising(**func_and_params[12][Map.param])
 >>>>>>> Solomon-v5.1.4.4.4
+=======
+                cls.is_tangent_macd_line_positive(**func_and_params[10][Map.param])
+            ) \
+            and cls.is_psar_rising(**func_and_params[11][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[12][Map.param])
+>>>>>>> Solomon-v5.1.4.4.5
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
         cases = {
