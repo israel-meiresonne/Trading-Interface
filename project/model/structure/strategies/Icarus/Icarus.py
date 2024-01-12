@@ -2735,6 +2735,7 @@ class Icarus(TraderClass):
             vars_map.put(histogram, Map.histogram)
             return lows_above_low_keltner
 
+<<<<<<< HEAD
         """
 =======
 >>>>>>> Icarus-v7.2
@@ -2870,6 +2871,8 @@ class Icarus(TraderClass):
 
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> Icarus-v8.3.1
         def is_tangent_macd_positive(vars_map: Map) -> bool:
             macd_map = child_marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -2889,7 +2892,24 @@ class Icarus(TraderClass):
             vars_map.put(psar, 'big_psar')
             return big_psar_rising
 
+<<<<<<< HEAD
 >>>>>>> Icarus-v8.2.1
+=======
+        def is_ema_above_ema200(vars_map: Map) -> bool:
+            ema = list(big_marketprice.get_ema())
+            ema.reverse()
+            big_marketprice.reset_collections()
+            ema_200 = list(big_marketprice.get_ema(cls.EMA_N_PERIOD))
+            ema_200.reverse()
+            # Check
+            ema_above_ema200 = ema[-1] > ema_200[-1]
+            # Put
+            vars_map.put(ema_above_ema200, 'ema_above_ema200')
+            vars_map.put(ema, 'big_ema')
+            vars_map.put(ema_200, 'big_ema_200')
+            return ema_above_ema200
+
+>>>>>>> Icarus-v8.3.1
         def is_big_macd_above_peak(vars_map: Map) -> bool:
             open_times = list(big_marketprice.get_times())
             open_times.reverse()
@@ -2997,6 +3017,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             and is_tangent_rsi_positive(vars_map)
 >>>>>>> Icarus-v8.1.15
 =======
@@ -3008,6 +3029,9 @@ class Icarus(TraderClass):
 =======
                 and is_big_psar_rising(vars_map) and is_big_macd_above_peak(vars_map)
 >>>>>>> Icarus-v8.2.1
+=======
+                and is_big_macd_above_peak(vars_map) and is_big_psar_rising(vars_map) and is_ema_above_ema200(vars_map)
+>>>>>>> Icarus-v8.3.1
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -3066,6 +3090,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
 =======
         histogram = vars_map.get(Map.histogram)
@@ -3102,6 +3127,11 @@ class Icarus(TraderClass):
             f'{key}.min_supertrend_rising': vars_map.get('min_supertrend_rising'),
 =======
         big_psar = vars_map.get('big_psar')
+=======
+        big_psar = vars_map.get('big_psar')
+        big_ema = vars_map.get('big_ema')
+        big_ema_200 = vars_map.get('big_ema_200')
+>>>>>>> Icarus-v8.3.1
         big_supertrend = vars_map.get('big_supertrend')
         big_macd = vars_map.get('big_macd')
         key = cls._can_buy_indicator.__name__
@@ -3116,9 +3146,15 @@ class Icarus(TraderClass):
             f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
+<<<<<<< HEAD
             f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
             f'{key}.big_macd_above_peak': vars_map.get('big_macd_above_peak'),
 >>>>>>> Icarus-v8.2.1
+=======
+            f'{key}.big_macd_above_peak': vars_map.get('big_macd_above_peak'),
+            f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
+            f'{key}.ema_above_ema200': vars_map.get('ema_above_ema200'),
+>>>>>>> Icarus-v8.3.1
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
@@ -3711,6 +3747,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.8
 =======
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+<<<<<<< HEAD
             f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None
 >>>>>>> Icarus-v8.1.15
 =======
@@ -3724,6 +3761,13 @@ class Icarus(TraderClass):
             f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None,
             f'{key}.big_macd[-1]': big_macd[-1] if big_macd is not None else None
 >>>>>>> Icarus-v8.2.1
+=======
+            f'{key}.big_psar[-1]': big_psar[-1] if big_psar is not None else None,
+            f'{key}.big_ema[-1]': big_ema[-1] if big_ema is not None else None,
+            f'{key}.big_ema_200[-1]': big_ema_200[-1] if big_ema_200 is not None else None,
+            f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None,
+            f'{key}.big_macd[-1]': big_macd[-1] if big_macd is not None else None
+>>>>>>> Icarus-v8.3.1
         }
         return can_buy_indicator, repport
 
