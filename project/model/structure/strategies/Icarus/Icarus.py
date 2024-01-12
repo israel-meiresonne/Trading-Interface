@@ -586,6 +586,7 @@ class Icarus(TraderClass):
             # MACD
 >>>>>>> Icarus-v6.8
             macd_map = marketprice.get_macd()
+<<<<<<< HEAD
             macd = list(macd_map.get(Map.macd))
             macd.reverse()
             macd_ok = macd[-1] <= macd[-2]
@@ -666,6 +667,13 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
         def is_histogram_negative(vars_map: Map) -> bool:
 =======
+=======
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_dropping = histogram[-1] < 0
+            return histogram_dropping
+
+>>>>>>> Icarus-v7.2.12
         def are_macd_signal_negatives(vars_map: Map) -> bool:
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
@@ -746,7 +754,6 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
-        """
 
         def is_bollinger_reached(vars_map: Map) -> bool:
             bollinger = marketprice.get_bollingerbands()
@@ -1370,9 +1377,13 @@ class Icarus(TraderClass):
         closes = list(marketprice.get_closes())
         closes.reverse()
         # Check
+<<<<<<< HEAD
         # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
         can_sell = is_bollinger_reached(vars_map)
 >>>>>>> Icarus-v6.8
+=======
+        can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+>>>>>>> Icarus-v7.2.12
         return can_sell
 >>>>>>> Icarus-v5.12
 
@@ -1993,6 +2004,7 @@ class Icarus(TraderClass):
             macd_map = child_marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
+<<<<<<< HEAD
             histogram_rising = histogram[-1] > 0
             # Put
             vars_map.put(histogram, 'histogram')
@@ -2015,6 +2027,10 @@ class Icarus(TraderClass):
             histogram.reverse()
             histogram_rising = histogram[-1] > 0
             prev_histogram_dropping = histogram[-2] < 0
+=======
+            histogram_rising = histogram[-2] > 0
+            prev_histogram_dropping = histogram[-3] < 0
+>>>>>>> Icarus-v7.2.12
             macd_switch_up = histogram_rising and prev_histogram_dropping
             # Put
             vars_map.put(histogram, 'edited_histogram')
@@ -2029,8 +2045,43 @@ class Icarus(TraderClass):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Icarus-v7.2.10
+=======
+        def is_bellow_keltner(vars_map: Map) -> bool:
+            kc = child_marketprice.get_keltnerchannel()
+            kc_high = list(kc.get(Map.high))
+            kc_high.reverse()
+            bellow_keltner = closes[-1] < kc_high[-1]
+            vars_map.put(bellow_keltner, 'bellow_keltner')
+            return bellow_keltner
+
+        def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            roc_positive = roc[-1] > 0
+            vars_map.put(roc_positive, 'roc_positive')
+            return roc_positive
+
+        def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
+            roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+            roc.reverse()
+            open_times = list(marketprice.get_times())
+            open_times.reverse()
+            zeros = np.zeros(len(roc)).tolist()
+            last_min_index = MarketPrice.last_extremum_index(roc, zeros, -1, excludes=[-1])
+            last_peak_index = MarketPrice.last_extremum_index(roc, zeros, 1, excludes=[-1])
+            roc_bounce = abs(roc[last_min_index]) <= 0.5*roc[last_peak_index]
+            vars_map.put(roc_bounce, 'roc_bounce')
+            vars_map.put(_MF.unix_to_date(open_times[last_peak_index]), 'last_roc_peak_date')
+            vars_map.put(roc[last_peak_index], 'last_roc_peak')
+            vars_map.put(_MF.unix_to_date(open_times[last_min_index]), 'last_roc_min_date')
+            vars_map.put(roc[last_min_index], 'last_roc_min')
+            vars_map.put(roc, 'roc')
+            return roc_bounce
+
+>>>>>>> Icarus-v7.2.12
         def is_closes_above_low_keltner(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
@@ -2070,6 +2121,7 @@ class Icarus(TraderClass):
             return closes_above_low_keltner
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         """
 =======
 >>>>>>> Icarus-v7.13
@@ -2087,6 +2139,8 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.1
 =======
 >>>>>>> Icarus-v7.2.10
+=======
+>>>>>>> Icarus-v7.2.12
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -2924,6 +2978,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3013,11 +3068,17 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) and is_closes_above_low_keltner(vars_map)
 >>>>>>> Icarus-v7.2.10
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
+            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
+                and is_bellow_keltner(vars_map) and is_closes_above_low_keltner(vars_map)
+>>>>>>> Icarus-v7.2.12
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
         rsi = vars_map.get(Map.rsi)
         macd = vars_map.get(Map.macd)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3039,6 +3100,11 @@ class Icarus(TraderClass):
         signal = vars_map.get(Map.signal)
         keltner_low = vars_map.get('keltner_low')
 >>>>>>> Icarus-v7.2.10
+=======
+        roc = vars_map.get('roc')
+        signal = vars_map.get(Map.signal)
+        keltner_low = vars_map.get('keltner_low')
+>>>>>>> Icarus-v7.2.12
         key = Icarus._can_buy_indicator.__name__
 >>>>>>> Icarus-v6.4.1
         repport = {
@@ -3063,6 +3129,7 @@ class Icarus(TraderClass):
 =======
 >>>>>>> Icarus-v7.2.10
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.rsi_ok': vars_map.get('rsi_ok'),
@@ -3109,10 +3176,22 @@ class Icarus(TraderClass):
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
 >>>>>>> Icarus-v7.2.10
+=======
+            f'{key}.will_bounce': vars_map.get('will_bounce'),
+            f'{key}.roc_positive': vars_map.get('roc_positive'),
+            f'{key}.roc_bounce': vars_map.get('roc_bounce'),
+            f'{key}.bellow_keltner': vars_map.get('bellow_keltner'),
+            f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
+            f'{key}.last_roc_peak_date': vars_map.get('last_roc_peak_date'),
+            f'{key}.last_roc_peak': vars_map.get('last_roc_peak'),
+            f'{key}.last_roc_min_date': vars_map.get('last_roc_min_date'),
+            f'{key}.last_roc_min': vars_map.get('last_roc_min'),
+>>>>>>> Icarus-v7.2.12
             f'{key}.min_close_date': vars_map.get('min_close_date'),
             f'{key}.min_close': vars_map.get('min_close'),
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
             f'{key}.min_keltner': vars_map.get('min_keltner'),
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> Icarus-v7.10
 =======
@@ -3136,6 +3215,8 @@ class Icarus(TraderClass):
             f'{key}.high[-1]': high[-1] if high is not None else None,
             f'{key}.low[-1]': low[-1] if low is not None else None,
 =======
+=======
+>>>>>>> Icarus-v7.2.12
             f'{key}.closes[-1]': closes[-1],
             f'{key}.closes[-2]': closes[-2],
             f'{key}.closes[-3]': closes[-3],
@@ -3145,6 +3226,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.macd[-3]': macd[-3] if macd is not None else None,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3159,12 +3241,18 @@ class Icarus(TraderClass):
 =======
 =======
 >>>>>>> Icarus-v7.2.10
+=======
+            f'{key}.roc[-1]': roc[-1] if roc is not None else None,
+            f'{key}.roc[-2]': roc[-2] if roc is not None else None,
+            f'{key}.roc[-3]': roc[-3] if roc is not None else None,
+>>>>>>> Icarus-v7.2.12
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.signal[-2]': signal[-2] if signal is not None else None,
             f'{key}.signal[-3]': signal[-3] if signal is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
             f'{key}.keltner_low[-2]': keltner_low[-2] if keltner_low is not None else None,
             f'{key}.keltner_low[-3]': keltner_low[-3] if keltner_low is not None else None
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> Icarus-v7.10
 =======
@@ -3176,6 +3264,8 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.13
 =======
 >>>>>>> Icarus-v7.2.10
+=======
+>>>>>>> Icarus-v7.2.12
         }
         return can_buy_indicator, repport
 
@@ -3585,6 +3675,7 @@ class Icarus(TraderClass):
 =======
     
         def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
+<<<<<<< HEAD
             def is_bollinger_reached(vars_map: Map) -> bool:
                 bollinger = marketprice.get_bollingerbands()
                 bollinger_high = list(bollinger.get(Map.high))
@@ -3593,6 +3684,45 @@ class Icarus(TraderClass):
                 bollinger_low.reverse()
                 bollinger_reached = (closes[-1] >= bollinger_high[-1]) or (closes[-1] <= bollinger_low[-1])
                 return bollinger_reached
+=======
+            def is_buy_period() -> bool:
+                buy_time_rounded = _MF.round_time(buy_time, period)
+                first_open_time = buy_time_rounded + period
+                open_time = marketprice.get_time()
+                return open_time < first_open_time
+            """
+            def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
+                # RSI
+                rsi = list(marketprice.get_rsis())
+                rsi.reverse()
+                rsi_reached = rsi[-1] > rsi_trigger
+                return rsi_reached
+            """
+
+            def is_histogram_dropping(vars_map: Map) -> bool:
+                # MACD
+                macd_map = marketprice.get_macd()
+                histogram = list(macd_map.get(Map.histogram))
+                histogram.reverse()
+                histogram_dropping = histogram[-1] < 0
+                return histogram_dropping
+
+            def are_macd_signal_negatives(vars_map: Map) -> bool:
+                macd_map = marketprice.get_macd()
+                macd = list(macd_map.get(Map.macd))
+                macd.reverse()
+                signal = list(macd_map.get(Map.signal))
+                signal.reverse()
+                macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
+                return macd_signal_negatives
+
+            def is_tangent_macd_dropping(vars_map: Map) -> bool:
+                macd_map = marketprice.get_macd()
+                macd = list(macd_map.get(Map.macd))
+                macd.reverse()
+                tangent_macd_dropping = macd[-1] <= macd[-2]
+                return tangent_macd_dropping
+>>>>>>> Icarus-v7.2.12
 
             vars_map = Map()
             can_sell = False
@@ -3600,7 +3730,11 @@ class Icarus(TraderClass):
             closes = list(marketprice.get_closes())
             closes.reverse()
             # Check
+<<<<<<< HEAD
             can_sell = is_bollinger_reached(vars_map)
+=======
+            can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+>>>>>>> Icarus-v7.2.12
             return can_sell
 
         def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
