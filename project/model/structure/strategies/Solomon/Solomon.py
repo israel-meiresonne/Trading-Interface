@@ -1,24 +1,30 @@
 import time
+<<<<<<< HEAD
 from typing import Callable, List
 
 import numpy as np
 import pandas as pd
+=======
+from typing import List
 
-from config.Config import Config
-from model.structure.Broker import Broker
+>>>>>>> Noah-v1
+
 from model.structure.database.ModelFeature import ModelFeature as _MF
 from model.structure.strategies.Strategy import Strategy
+<<<<<<< HEAD
 from model.tools.FileManager import FileManager
 from model.tools.HandTrade import HandTrade
 from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
+=======
+>>>>>>> Noah-v1
 from model.tools.MyJson import MyJson
-from model.tools.Order import Order
 from model.tools.Pair import Pair
 from model.tools.Price import Price
 
 
 class Solomon(Strategy):
+<<<<<<< HEAD
     PREFIX_ID =                 'solomon_'
     _SLEEP_TRADE =              30
     _MAX_POSITION =             10
@@ -48,6 +54,10 @@ class Solomon(Strategy):
     BUY_CASE_WAVE =             'WAVE'
     BUY_CASE_LONG =             'LONG_RISE'
     SELECTED_PAIRS_FILE_PATH =  'content/storage/Strategy/Solomon/pairs/tradable.csv'
+=======
+    PREFIX_ID =             'solomon_'
+    KELTER_SUPPORT =        None
+>>>>>>> Noah-v1
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— SETTER/GETTER DOWN
@@ -75,6 +85,7 @@ class Solomon(Strategy):
             time.sleep(sleep_time)
 
     def _stalk_market(self) -> List[Pair]:
+<<<<<<< HEAD
         broker = self.get_broker()
         stalk_pairs = self._get_no_hold_pairs()
         r_asset = self.get_wallet().get_initial().get_asset()
@@ -309,6 +320,15 @@ class Solomon(Strategy):
                 self._move_closed_position(pair)
             self._print_buy_sell_conditions(pd.DataFrame(buy_reports), self.can_buy) if len(buy_reports) > 0 else None
             self._print_buy_sell_conditions(pd.DataFrame(sell_reports), self.can_sell) if len(sell_reports) > 0 else None
+=======
+        pass
+
+    # ••• STALK UP
+    # ••• TRADE DOWN
+
+    def trade(self) -> int:
+        pass
+>>>>>>> Noah-v1
 
     # ——————————————————————————————————————————— TRADE UP
     # ——————————————————————————————————————————— OTHERS SELF DOWN
@@ -325,6 +345,7 @@ class Solomon(Strategy):
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
+<<<<<<< HEAD
     @classmethod
     def _can_buy_sell_set_headers(cls, caller_callback: Callable, func_and_params: list[dict]) -> dict:
         """
@@ -1895,6 +1916,8 @@ class Solomon(Strategy):
             path = storage_strategy_dir_path + f'{class_name}/pairs/tradable.csv'
         return path
 
+=======
+>>>>>>> Noah-v1
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
@@ -1904,4 +1927,7 @@ class Solomon(Strategy):
 
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC UP
     # ——————————————————————————————————————————— STATIC FUNCTION UP ——————————————————————————————————————————————————
+<<<<<<< HEAD
     
+=======
+>>>>>>> Noah-v1
