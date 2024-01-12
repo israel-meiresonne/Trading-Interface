@@ -99,8 +99,8 @@ class BinanceFakeAPI(BinanceAPI):
         --------
         return: Map
             Market history's date interval
-            Map[Map.start]: {int}   # history's start date in second
-            Map[Map.end]:   {int}   # history's end date in second
+            Map[Map.start]: {int|None}   # history's start date in second
+            Map[Map.end]:   {int|None}   # history's end date in second
         """
         def valid_time(unix_time: int) -> bool:
             date = _MF.catch_exception(_MF.unix_to_date, BinanceFakeAPI.__name__, repport=True, **{'time': unix_time})
@@ -123,17 +123,17 @@ class BinanceFakeAPI(BinanceAPI):
 
         times = Map(get_history_times())
         start_time = times.get(Map.start)
-        start_time =  start_time if (start_time is not None) and valid_time(start_time) else 1
+        start_time =  start_time if (start_time is not None) and valid_time(start_time) else None
         end_time = times.get(Map.end)
-        end_time =  end_time if (end_time is not None) and valid_time(end_time) else _MF.get_timestamp()
-        if start_time >= end_time:
+        end_time =  end_time if (end_time is not None) and valid_time(end_time) else None
+        if(start_time is not None) and (end_time is not None) and (start_time >= end_time):
             raise ValueError(f"The end_time must be strictly greater than the start_time, instead '{start_time} >= {end_time}'")
         times.put(start_time, Map.start)
         times.put(end_time, Map.end)
         return times
 
-    @staticmethod
-    def load_market_histories(merged_to_period: Dict[str, List[int]]) -> None:
+    @classmethod
+    def load_market_histories(cls, merged_to_period: Dict[str, List[int]]) -> None:
         """
         To load multiple market histories
 
@@ -143,16 +143,16 @@ class BinanceFakeAPI(BinanceAPI):
             Couple of merged pair and period to load
             merged_to_period[merged_pair{str}]: List[period{int}]
         """
-        _cls = BinanceFakeAPI
-        histories = _cls._get_market_histories()
+        histories = cls._get_market_histories()
         missings = {}
         # Check params
         for merged_pair, periods in merged_to_period.items():
-            _cls.check_merged_pair(merged_pair)
+            cls.check_merged_pair(merged_pair)
             merged_pair = merged_pair.upper()
             for period in periods:
-                _cls.check_period(period)
+                cls.check_period(period)
                 history = histories.get(merged_pair, period)
+                # history = _cls._get_market_history(merged_pair, period)
                 if history is None:
                     if merged_pair not in missings:
                         missings[merged_pair] = []
@@ -160,14 +160,15 @@ class BinanceFakeAPI(BinanceAPI):
         # Load
         for merged_pair, periods in missings.items():
             for period in periods:
-                history = _cls._load_market_history(merged_pair, period)
-                histories.put(history, merged_pair, period)
+                history = cls._load_market_history(merged_pair, period)
+                # histories.put(history, merged_pair, period)
+                cls._put_market_history(history, merged_pair, period)
         if len(missings) > 0:
-            _cls._fixe_market_history_time()
-            _cls._check_market_histories()
+            cls._fixe_market_history_time()
+            cls._check_market_histories()
 
-    @staticmethod
-    def _load_market_history(merged_pair: str, period: int) -> np.ndarray:
+    @classmethod
+    def _load_market_history(cls, merged_pair: str, period: int) -> np.ndarray:
         """
         To load a market history
 
@@ -183,28 +184,25 @@ class BinanceFakeAPI(BinanceAPI):
         return: np.ndarray
             Market history of the given Pair for the given period
         """
-        def filter_time(history: np.ndarray, period: int) -> np.ndarray:
-            times = _cls.get_history_times()
-            start_time = times.get(Map.start)
-            end_time = times.get(Map.end)
-            sub_history = history[(history[:,0] >= start_time*1000) & (history[:,0] <= end_time*1000)]
-            if sub_history.shape[0] == 0:
-                open_time = _MF.round_time(end_time, period) * 1000
-                close_time = open_time + (period*1000) - 1
-                sub_history = np.ones((1, history.shape[1]))
-                sub_history[0,0] = open_time
-                sub_history[0,6] = close_time
-            return sub_history
-
-        _cls = BinanceFakeAPI
         broker_name = BinanceAPI.__name__.replace('API', '')
-        pair = Pair(_cls.symbol_to_pair(merged_pair))
+        pair = Pair(cls.symbol_to_pair(merged_pair))
         history = MarketPrice.load_marketprice(broker_name, pair, period, active_path=True).to_numpy()
-        # Select times
-        history = filter_time(history=history, period=period)
         # Complete missing period
-        history = _cls._duplicate_missing_rows(period, history)
+        history = cls._duplicate_missing_rows(period, history)
         return history
+
+    @classmethod
+    def _put_market_history(cls, history: np.ndarray, merged_pair: str, period: int)  -> None:
+        """
+        To put market history in collection of histories
+        """
+        cls.check_merged_pair(merged_pair)
+        cls.check_period(period)
+        if not isinstance(history, np.ndarray):
+            raise TypeError(f"The market history must be of type '{np.ndarray}', instead '{type(history)}'")
+        histories = cls._get_market_histories()
+        merged_pair = merged_pair.upper()
+        histories.put(history, merged_pair, period)
 
     @staticmethod
     def _get_market_histories() -> Map:
@@ -223,7 +221,8 @@ class BinanceFakeAPI(BinanceAPI):
             _cls._HISTORIES = Map()
         return _cls._HISTORIES
 
-    def _set_market_history(merged_pair: str, period: int, update: bool, market_history: np.ndarray = None) -> None:
+    @classmethod
+    def _set_market_history(cls, merged_pair: str, period: int, update: bool, market_history: np.ndarray = None) -> None:
         """
         To set market history
         NOTE: funnction will stop if update=True and market_history=None
@@ -246,18 +245,17 @@ class BinanceFakeAPI(BinanceAPI):
             If update=True and stage != Config.STAGE_2
         """
         def request_history(merged_pair: str, period: int) -> np.ndarray:
-            period_str = _cls.convert_interval(period)
-            response = _cls._socket_market_history(False, _cls.RQ_KLINES, Map({
+            period_str = cls.convert_interval(period)
+            response = cls._socket_market_history(False, cls.RQ_KLINES, Map({
                 Map.symbol: merged_pair,
                 Map.interval: period_str,
-                Map.limit: _cls.CONSTRAINT_KLINES_MAX_PERIOD
+                Map.limit: cls.CONSTRAINT_KLINES_MAX_PERIOD
             }))
             content = response.get_content()
             market_history = np.array(content)
             return market_history
 
-        _cls = BinanceFakeAPI
-        stage = _cls._get_stage()
+        stage = cls._get_stage()
         if update and (stage != Config.STAGE_2):
             raise ValueError(f"Can update market history only in stage '{Config.STAGE_2}', instead stage='{stage}'")
         if update and (market_history is None):
@@ -265,17 +263,19 @@ class BinanceFakeAPI(BinanceAPI):
         if (market_history is not None) and (not isinstance(market_history, np.ndarray)):
             raise TypeError(f"The new market history must be of type '{np.ndarray}', instead type='{type(market_history)}'")
         merged_pair = merged_pair.upper()
-        histories = _cls._get_market_histories()
+        # histories = cls._get_market_histories()
         if stage == Config.STAGE_1:
-            market_history = _cls._load_market_history(merged_pair, period)
-            histories.put(market_history, merged_pair, period)
+            market_history = cls._load_market_history(merged_pair, period)
+            # histories.put(market_history, merged_pair, period)
+            cls._put_market_history(market_history, merged_pair, period)
             # Fixe size
-            _cls._fixe_market_history_time()
+            cls._fixe_market_history_time()
             # Check histories
-            _cls._check_market_histories()
+            cls._check_market_histories()
         elif stage == Config.STAGE_2:
             market_history = request_history(merged_pair, period) if market_history is None else market_history.copy()
-            histories.put(market_history, merged_pair, period)
+            # histories.put(market_history, merged_pair, period)
+            cls._put_market_history(market_history, merged_pair, period)
         else:
             raise Exception(f"This stage '{stage}' is not supported")
 
@@ -303,8 +303,8 @@ class BinanceFakeAPI(BinanceAPI):
         if history is None:
             _cls._set_market_history(merged_pair, period, update=False)
             history = histories.get(merged_pair, period)
-        if history is None:
-            raise Exception(f"The market history must be set before to access (pair='{merged_pair}', period='{period}'")
+        # if history is None:
+        #     raise Exception(f"The market history must be set before to access (pair='{merged_pair}', period='{period}'")
         return history
 
     @staticmethod
@@ -949,41 +949,66 @@ class BinanceFakeAPI(BinanceAPI):
                 history = complete(period_milli, history, n_missings, missing_idxs)
         return history
 
-    @staticmethod
-    def _fixe_market_history_time() -> None:
+    @classmethod
+    def _fixe_market_history_time(cls) -> None:
         """
         To add rows in market histories to make them start at the same open time
         """
-        def get_older_open_time(histories: Map) -> int:
+        def get_older_open_time(histories: Map, max_period: int) -> int:
             older_time = None
-            max_period = None
-            for merged_pair, histories_dict in histories.get_map().items():
-                for period, history in histories_dict.items():
-                    is_older = (older_time is None) or (history[0,0] < older_time)
-                    older_time = history[0,0] if is_older else older_time
-                    max_period = period if (max_period is None) or (period > max_period) else max_period
+            start_time = cls.get_history_times().get(Map.start)
+            if start_time is not None:
+                older_time = start_time*1000
+            else:
+                for merged_pair, histories_dict in histories.get_map().items():
+                    for period, history in histories_dict.items():
+                        is_older = (older_time is None) or (history[0,0] < older_time)
+                        older_time = history[0,0] if is_older else older_time
+                        # max_period = period if (max_period is None) or (period > max_period) else max_period
             older_time = _MF.round_time(older_time, max_period*1000)
             return older_time
+        
+        def get_max_period(histories: Map) -> int:
+            max_periods = []
+            for merged_pair, histories_dict in histories.get_map().items():
+                max_period = max(list(histories_dict.keys()))
+                max_periods.append(max_period)
+            return max(max_periods)
+        
+        def add_older_rows(histories: Map, older_open_time: int) -> None:
+            for merged_pair, histories_dict in histories.get_map().items():
+                for period, history in histories_dict.items():
+                    hist_enought_older = history[0,0] <= older_open_time
+                    if not hist_enought_older:
+                        period_milli = int(period * 1000)
+                        base_row = history[0]
+                        new_rows = []
+                        while base_row[0] > older_open_time:
+                            new_row = base_row.copy()
+                            new_row[0] = base_row[0] - period_milli
+                            new_row[6] = base_row[6] - period_milli
+                            new_rows.insert(0, new_row)
+                            base_row = new_row
+                        new_history = np.insert(history, 0, new_rows, axis=0)
+                    else:
+                        new_history = history[history[:,0] >= older_open_time]
+                    cls._put_market_history(new_history, merged_pair, period)
 
-        _cls = BinanceFakeAPI
-        histories = _cls._get_market_histories()
-        older_open_time = get_older_open_time(histories)
-        # Resize histories
-        for merged_pair, histories_dict in histories.get_map().items():
-            for period, history in histories_dict.items():
-                correct_start = history[0,0] == older_open_time
-                if not correct_start:
-                    period_milli = int(period * 1000)
-                    base_row = history[0]
-                    new_rows = []
-                    while base_row[0] > older_open_time:
-                        new_row = base_row.copy()
-                        new_row[0] = base_row[0] - period_milli
-                        new_row[6] = base_row[6] - period_milli
-                        new_rows.insert(0, new_row)
-                        base_row = new_row
-                    history = np.insert(history, 0, new_rows, axis=0)
-                    histories.put(history, merged_pair, period)
+        def limit_newest_rows(histories: Map, max_period: int) -> None:
+            times = cls.get_history_times()
+            end_time = times.get(Map.end)
+            if end_time is not None:
+                newest_time = _MF.round_time(end_time*1000, max_period*1000)
+                for merged_pair, histories_dict in histories.get_map().items():
+                    for period, history in histories_dict.items():
+                        sub_history = history[history[:,0] <= newest_time]
+                        cls._put_market_history(sub_history, merged_pair, period)
+
+        histories = cls._get_market_histories()
+        max_period = get_max_period(histories)
+        older_open_time = get_older_open_time(histories, max_period)
+        add_older_rows(histories, older_open_time)
+        limit_newest_rows(histories, max_period)
 
     @staticmethod
     def _check_market_histories() -> None:
