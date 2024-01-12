@@ -55,6 +55,7 @@ class Icarus(TraderClass):
     _ROI_FLOOR_FIXE = 0.002
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # _ROI_STEP = 0.005
 =======
     MARKETPRICE_BUY_BIG_PERIOD = 60*60*6
@@ -64,6 +65,9 @@ class Icarus(TraderClass):
     _PREDICTOR_N_PERIOD = 100
 =======
     _PREDICTOR_PERIOD = 60 * 15
+=======
+    _PREDICTOR_PERIOD = 60 * 30
+>>>>>>> Icarus-v4.3.c
     _PREDICTOR_N_PERIOD = 1000
 >>>>>>> Icarus-v4.3.b
     _MIN_ROI_PREDICTED = 2/100
