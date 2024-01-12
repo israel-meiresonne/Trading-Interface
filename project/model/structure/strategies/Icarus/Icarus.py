@@ -857,7 +857,13 @@ class Icarus(TraderClass):
         def is_price_above_prev_high(vars_map: Map) -> bool:
             # Check
             price_change_2 = price_change(-2)
+<<<<<<< HEAD
             price_above_prev_high = (price_change_2 < 0) and (highs[-1] >= highs[-2])
+=======
+            price_change_3 = price_change(-3)
+            price_change_1 = price_change(-1)
+            price_switch_up = (price_change_3 < 0) and (price_change_2 > 0) and (price_change_1 >= abs(price_change_3))
+>>>>>>> Icarus-v11.4.9
             # Put
 <<<<<<< HEAD
             vars_map.put(price_above_prev_high, 'price_above_prev_high')
@@ -865,6 +871,7 @@ class Icarus(TraderClass):
             return price_above_prev_high
 =======
             vars_map.put(price_switch_up, 'price_switch_up')
+            vars_map.put(price_change_1, 'price_change_1')
             vars_map.put(price_change_2, 'price_change_2')
             vars_map.put(price_change_3, 'price_change_3')
             return price_switch_up
