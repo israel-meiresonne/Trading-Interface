@@ -1266,7 +1266,14 @@ class Icarus(TraderClass):
         def is_price_switch_up(vars_map: Map) -> bool:
 >>>>>>> Icarus-v11.1.1
             # Check
+<<<<<<< HEAD
             histogram_switch_positive = (histogram[-1] > 0) and (histogram[-2] < 0)
+=======
+            price_change_1 = price_change(-1, opens, closes)
+            price_change_2 = price_change(-2, opens, closes)
+            min_price_change_1 = price_change(-1, min_opens, min_closes)
+            price_switch_up = (price_change_1 > abs(price_change_2)) and (min_price_change_1 > 0)
+>>>>>>> Icarus-v13.4.2.2
             # Put
 <<<<<<< HEAD
             vars_map.put(histogram_switch_positive, 'histogram_switch_positive')
