@@ -105,6 +105,7 @@ class Genesis(Strategy):
         period_strs = {period: broker.period_to_str(period) for period in [period_1min]}
         # Params
         now_index = -1
+        k_keltner_middle_1min = f'keltner_middle_{period_strs[period_1min]}[-1]'
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -130,7 +131,8 @@ class Genesis(Strategy):
             and cls.is_supertrend_rising(**func_and_params[3][Map.param])
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
-        return can_buy, report
+        buy_limit = vars_map.get(Map.value, k_keltner_middle_1min)
+        return can_buy, report, buy_limit
 
     @classmethod
     def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map) -> tuple[bool, dict]:
@@ -260,11 +262,14 @@ class Genesis(Strategy):
         period_1min = Broker.PERIOD_1MIN
         marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
         if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
-            can_buy, buy_condition = cls.can_buy(broker, pair, marketprices)
+            can_buy, buy_condition, buy_limit = cls.can_buy(broker, pair, marketprices)
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
-                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.close)
+                trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_LIMIT, limit=buy_limit)
+            elif (trade is not None) and (not can_buy):
+                cls._backtest_update_trade(trade, Map.buy, Order.STATUS_CANCELED)
+                trade = None
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             can_sell, sell_condition = cls.can_sell(broker, pair, marketprices)
             sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
