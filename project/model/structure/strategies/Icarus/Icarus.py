@@ -2837,6 +2837,16 @@ class Icarus(TraderClass):
             return macd_bounce
 >>>>>>> Icarus-v7.6
 
+        def is_tangent_rsi_positive(vars_map: Map) -> bool:
+            rsi = list(child_marketprice.get_rsis())
+            rsi.reverse()
+            # Check
+            tangent_rsi_positive = rsi[-1] > rsi[-2]
+            # Put
+            vars_map.put(tangent_rsi_positive, 'tangent_rsi_positive')
+            vars_map.put(rsi, Map.rsi)
+            return tangent_rsi_positive
+
         vars_map = Map()
 <<<<<<< HEAD
         # Child
@@ -2845,6 +2855,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
         closes = list(child_marketprice.get_closes())
         closes.reverse()
+<<<<<<< HEAD
         highs = list(child_marketprice.get_highs())
         highs.reverse()
         opens = list(child_marketprice.get_opens())
@@ -2903,6 +2914,13 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
             and is_min_close_bellow_min_keltner_middle(vars_map)
 >>>>>>> Icarus-v13.1.4
+=======
+        # 
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
+            and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
+            and is_tangent_rsi_positive(vars_map)
+>>>>>>> Icarus-v8.1.15
         # Repport
         macd = vars_map.get(Map.macd)
         signal = vars_map.get(Map.signal)
@@ -2957,6 +2975,7 @@ class Icarus(TraderClass):
         min_edited_histogram = vars_map.get('min_edited_histogram')
         supertrend = vars_map.get(Map.supertrend)
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v13.4.2
 =======
         histogram = vars_map.get(Map.histogram)
@@ -2964,6 +2983,9 @@ class Icarus(TraderClass):
         min_psar = vars_map.get('min_psar')
         min_supertrend = vars_map.get('min_supertrend')
 >>>>>>> Icarus-v13.5.1.1.2
+=======
+        rsi = vars_map.get(Map.rsi)
+>>>>>>> Icarus-v8.1.15
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -3396,8 +3418,13 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v8.1.12
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
             f'{key}.high_bellow_keltner_high': vars_map.get('high_bellow_keltner_high'),
+=======
+            f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
+            f'{key}.tangent_rsi_positive': vars_map.get('tangent_rsi_positive'),
+>>>>>>> Icarus-v8.1.15
 
             f'{key}.macd_min_date': vars_map.get('macd_min_date'),
             f'{key}.last_min_macd': vars_map.get('last_min_macd'),
@@ -3530,6 +3557,7 @@ class Icarus(TraderClass):
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
             f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.13
 =======
 >>>>>>> Icarus-v7.2.10
@@ -3540,6 +3568,10 @@ class Icarus(TraderClass):
             f'{key}.rsi[-2]': rsi[-2] if rsi is not None else None,
             f'{key}.rsi[-3]': rsi[-3] if rsi is not None else None
 >>>>>>> Icarus-v7.2.8
+=======
+            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None
+>>>>>>> Icarus-v8.1.15
         }
         return can_buy_indicator, repport
 

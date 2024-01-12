@@ -246,8 +246,13 @@ class IcarusStalker(StalkerClass):
             f'{key}.roc_bounce': None,
             f'{key}.close_bellow_keltner_high': None,
             f'{key}.closes_above_low_keltner': None,
+<<<<<<< HEAD
             f'{key}.high_bellow_keltner_high': None,
 >>>>>>> Icarus-v8.1.13
+=======
+            f'{key}.big_supertrend_rising': None,
+            f'{key}.tangent_rsi_positive': None,
+>>>>>>> Icarus-v8.1.15
 
             f'{key}.price_change_1': None,
             f'{key}.price_change_2': None,
@@ -548,6 +553,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.supertrend[-1]': None,
             f'{key}.keltner_high[-1]': None,
             f'{key}.keltner_low[-1]': None,
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.13
 =======
             f'{key}.keltner_low[-3]': None,
@@ -556,6 +562,10 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v7.2.12
 =======
 >>>>>>> Icarus-v7.2.8
+=======
+            f'{key}.supertrend[-1]': None,
+            f'{key}.rsi[-1]': None
+>>>>>>> Icarus-v8.1.15
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__
