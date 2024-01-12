@@ -967,6 +967,15 @@ class Icarus(TraderClass):
             vars_map.put(macd, Map.macd)
             return tangent_macd_negative
 
+        def is_macd_dropping(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            macd_dropping = macd[-1] <= macd[-2]
+            vars_map.put(macd, 'macd')
+            vars_map.put(macd_dropping, 'macd_dropping')
+            return macd_dropping
+
         vars_map = Map()
 =======
         def is_rsi_dropping() -> bool:
@@ -1027,6 +1036,7 @@ class Icarus(TraderClass):
         # marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
 >>>>>>> Icarus-v13.1.4
         # Check
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1312,6 +1322,13 @@ class Icarus(TraderClass):
 =======
         can_sell = is_rsi_dropping() if is_buy_period() else (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
         # can_sell = (not is_buy_period()) and (is_macd_dropping() or is_psar_dropping() or is_supertrend_dropping())
+=======
+        if not is_buy_period():
+            if is_macd_dropping(vars_map):
+                can_sell = True
+            else:
+                can_sell = is_rsi_ok(70, vars_map) if is_ema_rising(vars_map) else is_rsi_ok(50, vars_map)
+>>>>>>> Icarus-v6.2
         return can_sell
 >>>>>>> Icarus-v5.12
 
