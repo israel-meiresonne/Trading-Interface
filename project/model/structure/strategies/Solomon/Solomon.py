@@ -505,6 +505,7 @@ class Solomon(Strategy):
 <<<<<<< HEAD
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
         FEE_MULTIPLE =      2.5
+<<<<<<< HEAD
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
 <<<<<<< HEAD
@@ -513,6 +514,8 @@ class Solomon(Strategy):
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
         # FEE_MULTIPLE =      2.5
         FEE_MULTIPLE =      1
+=======
+>>>>>>> Solomon-v5.4.4.6.1
         SMT_DEEP_TRIGGER =  10/100
         SMT_RISE_CEILING =  50/100
         SMT_RISE_INCREASE = 0.1/100
