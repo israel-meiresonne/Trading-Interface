@@ -268,7 +268,64 @@ class Icarus(TraderClass):
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
+<<<<<<< HEAD
         def is_histogram_negative(vars_map: Map) -> bool:
+=======
+        def are_macd_signal_negatives(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            macd_signal_negatives = (macd[-1] < 0) or (signal[-1] < 0)
+            return macd_signal_negatives
+
+        def is_tangent_macd_dropping(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            tangent_macd_dropping = macd[-1] <= macd[-2]
+            return tangent_macd_dropping
+
+        def is_roi_positive(vars_map: Map) -> bool:
+            return roi > 0
+
+        def is_ema_bellow_ema200(vars_map: Map) -> bool:
+            ema = list(marketprice_6h.get_ema())
+            ema.reverse()
+            marketprice_6h.reset_collections()
+            ema_200 = list(marketprice_6h.get_ema(cls.EMA_N_PERIOD))
+            ema_200.reverse()
+            # Check
+            ema_bellow_ema200 = ema[-1] <= ema_200[-1]
+            return ema_bellow_ema200
+
+        def is_tangent_macd_5min_dropping(vars_map: Map) -> bool:
+            macd_map = marketprice_5min.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            tangent_macd_5min_dropping = macd[-1] <= macd[-2]
+            return tangent_macd_5min_dropping
+        
+        def can_sell_with_macd_5min(vars_map: Map) -> bool:
+            return is_roi_positive(vars_map) and is_ema_bellow_ema200(vars_map) and is_tangent_macd_5min_dropping(vars_map)
+        """
+
+        def is_buy_period(vars_map: Map) -> bool:
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, period)
+            open_time = marketprice.get_time()
+            # Check
+            its_buy_period = open_time == buy_period
+            # Put
+            vars_map.put(its_buy_period, 'its_buy_period')
+            vars_map.put(_MF.unix_to_date(open_time), 'open_time')
+            vars_map.put(_MF.unix_to_date(buy_time), 'buy_time')
+            vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
+            return its_buy_period
+
+        def is_histogram_dropping(vars_map: Map) -> bool:
+>>>>>>> Icarus-v10
             macd_map = marketprice.get_macd()
             histogram = list(macd_map.get(Map.histogram))
             histogram.reverse()
