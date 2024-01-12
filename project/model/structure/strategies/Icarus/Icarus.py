@@ -2057,9 +2057,12 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Icarus-v7.2.10
 =======
+=======
+>>>>>>> Icarus-v7.2.5
         def is_bellow_keltner(vars_map: Map) -> bool:
             kc = child_marketprice.get_keltnerchannel()
             kc_high = list(kc.get(Map.high))
@@ -2068,9 +2071,12 @@ class Icarus(TraderClass):
             vars_map.put(bellow_keltner, 'bellow_keltner')
             return bellow_keltner
 
+<<<<<<< HEAD
         def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
             roc = list(marketprice.get_roc(cls.ROC_WINDOW))
 =======
+=======
+>>>>>>> Icarus-v7.2.5
         def is_roc_positive(vars_map: Map) -> bool:
             roc = list(child_marketprice.get_roc(cls.ROC_WINDOW))
 >>>>>>> Icarus-v7.2.4
@@ -2096,6 +2102,7 @@ class Icarus(TraderClass):
             vars_map.put(roc, 'roc')
             return roc_bounce
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> Icarus-v7.2.12
@@ -2165,6 +2172,8 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.12
 =======
 >>>>>>> Icarus-v7.2.4
+=======
+>>>>>>> Icarus-v7.2.5
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -3005,6 +3014,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3111,6 +3121,10 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) and is_roc_positive(vars_map) and is_roc_bounce(vars_map)
 >>>>>>> Icarus-v7.2.4
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) \
+            and is_roc_positive(vars_map) and is_roc_bounce(vars_map) and is_bellow_keltner(vars_map)
+>>>>>>> Icarus-v7.2.5
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
