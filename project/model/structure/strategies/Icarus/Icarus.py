@@ -3100,6 +3100,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3225,6 +3226,9 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and is_macd_bounce(vars_map)
 >>>>>>> Icarus-v7.6
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_roc_positive(vars_map, big_marketprice)
+>>>>>>> Icarus-v7.7.1
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
