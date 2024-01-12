@@ -2164,7 +2164,8 @@ class Icarus(TraderClass):
         psar_rising = now_psar_trend == MarketPrice.PSAR_RISING
         psar_switch_up = psar_rising and (prev_psar_trend == MarketPrice.PSAR_DROPPING)
         # can_buy_indicator = macd_rising and ((psar_switch_up and supertrend_rising) or (supertrend_switch_up and psar_rising))
-        can_buy_indicator = ema_rising and rsi_rising and macd_rising and (supertrend_rising and psar_rising)
+        # can_buy_indicator = ema_rising and rsi_rising and macd_rising and (supertrend_rising and psar_rising)
+        can_buy_indicator = ema_rising and macd_rising and (supertrend_rising and psar_rising)
         # Repport
         key = cls._can_buy_indicator.__name__
         repport = {
