@@ -2145,6 +2145,7 @@ class Icarus(TraderClass):
             roc.reverse()
             roc_positive = roc[-1] > 0
             vars_map.put(roc_positive, 'roc_positive')
+            vars_map.put(roc, 'roc')
             return roc_positive
 
         def is_roc_bounce(vars_map: Map, marketprice: MarketPrice) -> bool:
@@ -3013,6 +3014,7 @@ class Icarus(TraderClass):
         # 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_buy_indicator = is_macd_switch_up(vars_map) and is_big_macd_rising(vars_map) \
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and is_big_macd_rising(vars_map) \
@@ -3021,6 +3023,10 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
 >>>>>>> Icarus-v8.3.3
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and is_tangent_macd_positive(vars_map) and will_bounce_macd(vars_map) and is_big_macd_rising(vars_map) \
+            and is_roc_positive(vars_map, big_marketprice) \
+>>>>>>> Icarus-v8.3.4
             and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map) \
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3156,6 +3162,10 @@ class Icarus(TraderClass):
 =======
 >>>>>>> Icarus-v8.3.2
             f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
+<<<<<<< HEAD
+=======
+            f'{key}.roc_positive': vars_map.get('roc_positive'),
+>>>>>>> Icarus-v8.3.4
             f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
@@ -3172,6 +3182,7 @@ class Icarus(TraderClass):
             f'{key}.price_change_1': vars_map.get('price_change_1'),
             f'{key}.price_change_2': vars_map.get('price_change_2'),
 
+<<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.mean_candle_change_60_mean_positive_candle': vars_map.get('mean_candle_change_60_mean_positive_candle'),
             
@@ -3232,6 +3243,8 @@ class Icarus(TraderClass):
             f'{key}.rsi_above_peak_peak_date': vars_map.get('rsi_above_peak_peak_date'),
             f'{key}.rsi_above_peak_rsi_peak': vars_map.get('rsi_above_peak_rsi_peak'),
 =======
+=======
+>>>>>>> Icarus-v8.3.4
             f'{key}.min_close_date': vars_map.get('min_close_date'),
             f'{key}.min_close': vars_map.get('min_close'),
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
