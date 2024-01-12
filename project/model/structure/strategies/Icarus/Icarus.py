@@ -2209,6 +2209,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.13
 =======
 
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.2
 =======
         def is_bellow_keltner(vars_map: Map) -> bool:
@@ -2232,6 +2233,19 @@ class Icarus(TraderClass):
 
 >>>>>>> Icarus-v7.2.8
         def will_market_bounce(vars_map: Map) -> bool:
+=======
+        def is_big_keltner_low_above_ema(vars_map: Map) -> bool:
+            ema = list(big_marketprice.get_ema(n_period=cls.EMA_N_PERIOD))
+            ema.reverse()
+            keltner = big_marketprice.get_keltnerchannel()
+            keltner_low = list(keltner.get(Map.low))
+            keltner_low.reverse()
+            big_keltner_low_above_ema = keltner_low[-1] > ema[-1]
+            vars_map.put(big_keltner_low_above_ema, 'big_keltner_low_above_ema')
+            return big_keltner_low_above_ema
+
+        def will_bounce_macd(vars_map: Map) -> bool:
+>>>>>>> Icarus-v8.1.12
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
                 macd_df = pd.DataFrame({Map.macd: macd, Map.histogram: histogram})
@@ -3101,6 +3115,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3229,6 +3244,13 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and is_roc_positive(vars_map, big_marketprice)
 >>>>>>> Icarus-v7.7.1
+=======
+        # 
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_bounce_macd(vars_map) \
+            and is_big_keltner_low_above_ema(vars_map) and is_big_macd_rising(vars_map) \
+            and is_roc_positive(vars_map, big_marketprice) and is_roc_bounce(vars_map, big_marketprice) \
+            and is_price_bellow_keltner(vars_map) and is_price_above_low_keltner(vars_map) and is_big_supertrend_rising(vars_map)
+>>>>>>> Icarus-v8.1.12
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
@@ -3295,6 +3317,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.rsi_ok': vars_map.get('rsi_ok'),
             f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
 >>>>>>> Icarus-v6.1
@@ -3327,6 +3350,14 @@ class Icarus(TraderClass):
             f'{key}.edited_macd_switch_up': vars_map.get('edited_macd_switch_up'),
             f'{key}.rsi_reached': vars_map.get('rsi_reached'),
             f'{key}.will_bounce': vars_map.get('will_bounce'),
+=======
+            f'{key}.will_macd_bounce': vars_map.get('will_macd_bounce'),
+            f'{key}.big_keltner_low_above_ema': vars_map.get('big_keltner_low_above_ema'),
+            f'{key}.big_macd_rising': vars_map.get('big_macd_rising'),
+            f'{key}.roc_positive': vars_map.get('roc_positive'),
+            f'{key}.roc_bounce': vars_map.get('roc_bounce'),
+            f'{key}.close_bellow_keltner_high': vars_map.get('close_bellow_keltner_high'),
+>>>>>>> Icarus-v8.1.12
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
             f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
             f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
