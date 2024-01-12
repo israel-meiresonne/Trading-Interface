@@ -318,6 +318,7 @@ class Icarus(TraderClass):
     @classmethod
     def _can_sell_indicator(cls, marketprice: MarketPrice, datas: dict = None) -> Tuple[bool, dict]:
 <<<<<<< HEAD
+<<<<<<< HEAD
         def get_marketprice(period: int) -> MarketPrice:
             return datas[period]
 
@@ -342,6 +343,58 @@ class Icarus(TraderClass):
             # Get
             if place_max_drop_limit:
                 stop_limit_price = cls._get_stop_limit_price(buy_price, max_roi)
+=======
+        ROI_TRIGGER = 0.2/100
+        def get_marketprice(period: int) -> MarketPrice:
+            return datas[period]
+
+        def is_1min_red_sequence_above_green_candle(vars_map: Map) -> bool:
+            def get_last_green_candle_index(candles: np.ndarray, candle_swings: List[int]) -> int:
+                green_index = None
+                i = candles.shape[0] - 1
+                while i > 0:
+                    if candles[i] > 0:
+                        green_index = i
+                        break
+                    i = candle_swings[i][0]
+                    i -= 1
+                return green_index
+
+            def get_last_red_sequence_index(candles: np.ndarray, candle_swings: List[int]) -> int:
+                red_sequence_index = None
+                i = candles.shape[0] - 1
+                while i > 0:
+                    if candles[i] < 0:
+                        red_sequence_index = candle_swings[i][0]
+                        break
+                    i = candle_swings[i][0]
+                    i -= 1
+                return red_sequence_index
+
+            _1min_candles = np.array(_1min_closes) - np.array(_1min_opens)
+            zeros = np.zeros(_1min_candles.shape[0], dtype=int)
+            candle_swings = _MF.group_swings(_1min_candles, zeros)
+            # Get index
+            green_index = get_last_green_candle_index(_1min_candles, candle_swings)
+            red_start_index = get_last_red_sequence_index(_1min_candles, candle_swings)
+            red_end_index = candle_swings[red_start_index][1]
+            # Get times
+            buy_time = max(cls.get_buy_times(pair))
+            buy_period = _MF.round_time(buy_time, marketprice_1min.get_period_time())
+            green_time = _1min_open_times[green_index]
+            red_time = _1min_open_times[red_start_index]
+            now_period = _1min_open_times[-1]
+            # Price
+            red_sequence = _1min_candles[red_start_index:red_end_index+1]
+            n_negative = sum([1 for v in red_sequence if v < 0])
+            n_sequence = len(red_sequence)
+            if n_negative != n_sequence:
+                raise Exception(f"Red sequence must contain negative value only, instead neg='{n_negative}' & size='{n_sequence}'")
+            sum_red_sequence = sum(red_sequence)
+            # Check
+            _1min_red_sequence_above_green_candle = (green_time >= buy_period) and (green_time != now_period) and (_1min_candles[-2] < 0)\
+                and (green_time < red_time) and (_1min_candles[green_index] <= abs(sum_red_sequence))
+>>>>>>> Icarus-v13.4
             # Put
             vars_map.put(place_max_drop_limit, 'place_max_drop_limit')
             vars_map.put(stop_limit_price, 'stop_limit_price')
@@ -544,6 +597,12 @@ class Icarus(TraderClass):
             vars_map.put(min_roi_reached, 'min_roi_reached')
             return min_roi_reached
 
+        def is_roi_above_trigger(vars_map: Map) -> bool:
+            roi_above_trigger = roi >= ROI_TRIGGER
+            # Put
+            vars_map.put(roi_above_trigger, 'roi_above_trigger')
+            return roi_above_trigger
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -597,6 +656,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -630,6 +690,9 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.3.1
         can_place_max_drop_limit(vars_map)
 >>>>>>> Icarus-v13.3
+=======
+        can_sell = is_roi_above_trigger(vars_map) and is_1min_red_sequence_above_green_candle(vars_map)
+>>>>>>> Icarus-v13.4
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
@@ -642,6 +705,7 @@ class Icarus(TraderClass):
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -678,7 +742,15 @@ class Icarus(TraderClass):
             f'{key}.buy_time': vars_map.get('buy_time'),
             f'{key}.buy_period': vars_map.get('buy_period'),
 =======
+=======
+            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
+>>>>>>> Icarus-v13.4
             f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
+            
+            f'{key}.ROI_TRIGGER': ROI_TRIGGER,
+            f'{key}.roi': roi,
+            f'{key}.max_roi': max_roi,
+
             f'{key}.red_sequence_above_green_buy_period': vars_map.get('red_sequence_above_green_buy_period'),
             f'{key}.red_sequence_above_green_green_date': vars_map.get('red_sequence_above_green_green_date'),
             f'{key}.red_sequence_above_green_green_candle': vars_map.get('red_sequence_above_green_green_candle'),
