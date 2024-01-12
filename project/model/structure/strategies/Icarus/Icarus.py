@@ -84,8 +84,12 @@ class Icarus(TraderClass):
 =======
     _PREDICTOR_N_PERIOD = 1000
     _MIN_ROI_PREDICTED = 1/100
+<<<<<<< HEAD
     _PREDICTION_FILLING_RATE = 80/100
 >>>>>>> Icarus-v2.1.2.2
+=======
+    _PREDICTION_FILLING_RATE = 55/100
+>>>>>>> Icarus-v2.1.2.2.1
 
     def __init__(self, params: Map):
         super().__init__(params)
