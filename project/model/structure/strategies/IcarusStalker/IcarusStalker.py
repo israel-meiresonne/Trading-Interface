@@ -398,6 +398,7 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v8.3.3
 
             f'{key}.closes[-1]': None,
+<<<<<<< HEAD
             f'{key}.opens[-1]': None,
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -411,6 +412,9 @@ class IcarusStalker(StalkerClass):
             f'{key}.big_closes[-1]': None
 >>>>>>> Icarus-v11.1.1
 =======
+=======
+            f'{key}.highs[-1]': None,
+>>>>>>> Icarus-v8.3.9
             f'{key}.big_closes[-1]': None,
             f'{key}.macd[-1]': None,
             f'{key}.signal[-1]': None,

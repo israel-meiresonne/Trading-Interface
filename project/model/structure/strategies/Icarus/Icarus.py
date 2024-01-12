@@ -2160,6 +2160,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Icarus-v7.2.10
 =======
@@ -2178,6 +2179,16 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
             vars_map.put(bellow_keltner, 'bellow_keltner')
+=======
+        def is_price_bellow_keltner(vars_map: Map) -> bool:
+            keltner = child_marketprice.get_keltnerchannel(original_version=True)
+            keltner_high = list(keltner.get(Map.high))
+            keltner_high.reverse()
+            bellow_keltner = (closes[-1] < keltner_high[-1]) and (highs[-2] < keltner_high[-2])
+            # Put
+            vars_map.put(bellow_keltner, 'close_bellow_keltner_high')
+            vars_map.put(keltner_high, 'keltner_high')
+>>>>>>> Icarus-v8.3.9
             return bellow_keltner
 
 <<<<<<< HEAD
@@ -3010,6 +3021,7 @@ class Icarus(TraderClass):
 
         vars_map = Map()
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Child
         period = child_marketprice.get_period_time()
         pair = child_marketprice.get_pair()
@@ -3078,6 +3090,14 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.1.4
 =======
 =======
+=======
+        # Child
+        closes = list(child_marketprice.get_closes())
+        closes.reverse()
+        highs = list(child_marketprice.get_highs())
+        highs.reverse()
+        # Big
+>>>>>>> Icarus-v8.3.9
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
 >>>>>>> Icarus-v8.1.21
@@ -3329,6 +3349,7 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v8.3.3
 
             f'{key}.closes[-1]': closes[-1],
+<<<<<<< HEAD
             f'{key}.opens[-1]': opens[-1],
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3342,6 +3363,9 @@ class Icarus(TraderClass):
             f'{key}.big_closes[-1]': big_closes[-1]
 >>>>>>> Icarus-v11.1.1
 =======
+=======
+            f'{key}.highs[-1]': highs[-1],
+>>>>>>> Icarus-v8.3.9
             f'{key}.big_closes[-1]': big_closes[-1],
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
