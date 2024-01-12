@@ -275,6 +275,7 @@ class Icarus(TraderClass):
             return datas[period]
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         def is_histogram_negative(vars_map: Map) -> bool:
 =======
         def are_macd_signal_negatives(vars_map: Map) -> bool:
@@ -437,6 +438,17 @@ class Icarus(TraderClass):
             vars_map.put(histogram, 'macd_5min_histogram')
             return macd_5min_historgram_negative
 >>>>>>> Icarus-v11.1.4
+=======
+        def is_min_tangent_rsi_negative(vars_map: Map) -> None:
+            rsi = list(marketprice_1min.get_rsis())
+            rsi.reverse()
+            # Check
+            min_tangent_rsi_negative = rsi[-1] < rsi[-2]
+            # Put
+            vars_map.put(min_tangent_rsi_negative, 'min_tangent_rsi_negative')
+            vars_map.put(rsi, 'min_rsi')
+            return min_tangent_rsi_negative
+>>>>>>> Icarus-v11.4.5
 
         vars_map = Map()
         can_sell = False
@@ -469,6 +481,7 @@ class Icarus(TraderClass):
         _1min_open_times = list(marketprice_1min.get_times())
         _1min_open_times.reverse()
         # MarketPrice Xmin
+<<<<<<< HEAD
         marketprice_6h = get_marketprice(cls.MARKETPRICE_BUY_BIG_PERIOD)
         # Check
         can_sell = is_histogram_negative(vars_map)
@@ -565,6 +578,20 @@ class Icarus(TraderClass):
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
             f'{key}.macd_histogram_negative': vars_map.get('macd_histogram_negative'),
             f'{key}.edited_macd_histogram_negative': vars_map.get('edited_macd_histogram_negative'),
+=======
+        marketprice_1min = datas[cls.get_min_period()]
+        marketprice_5min = datas[cls.MARKETPRICE_BUY_LITTLE_PERIOD]
+        marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
+        # Check
+        can_sell = is_roi_above_trigger(vars_map) and is_min_tangent_rsi_negative(vars_map)
+        # Repport
+        min_rsi = vars_map.get('min_rsi')
+        key = cls._can_buy_indicator.__name__
+        repport = {
+            f'{key}._can_sell_indicator': can_sell,
+            f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
+            f'{key}.min_tangent_rsi_negative': vars_map.get('min_tangent_rsi_negative'),
+>>>>>>> Icarus-v11.4.5
 
             f'{key}.roi_trigger': ROI_TRIGGER,
             f'{key}.max_roi': max_roi,
@@ -572,6 +599,7 @@ class Icarus(TraderClass):
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
+<<<<<<< HEAD
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.edited_histogram[-1]': edited_histogram[-1] if edited_histogram is not None else None
 >>>>>>> Icarus-v11.1.13
@@ -590,6 +618,10 @@ class Icarus(TraderClass):
             f'{key}.macd_5min_histogram[-1]': macd_5min_histogram[-1] if macd_5min_histogram is not None else None,
             f'{key}.macd_5min_histogram[-2]': macd_5min_histogram[-2] if macd_5min_histogram is not None else None
 >>>>>>> Icarus-v11.1.4
+=======
+            f'{key}.min_rsi[-1]': min_rsi[-1] if min_rsi is not None else None,
+            f'{key}.min_rsi[-2]': min_rsi[-2] if min_rsi is not None else None
+>>>>>>> Icarus-v11.4.5
         }
         return can_sell, repport
 
