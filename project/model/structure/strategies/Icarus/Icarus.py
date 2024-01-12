@@ -922,6 +922,18 @@ class Icarus(TraderClass):
             vars_map.put(macd, 'min_macd')
             return tangent_min_macd_positive
 
+        def is_edited_min_macd_histogram_positive(vars_map: Map) -> bool:
+            min_marketprice.reset_collections()
+            macd_map = min_marketprice.get_macd(**cls.MACD_PARAMS_1)
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            edited_min_macd_histogram_positive = histogram[-1] > 0
+            # Put
+            vars_map.put(edited_min_macd_histogram_positive, 'edited_min_macd_histogram_positive')
+            vars_map.put(histogram, 'min_edited_histogram')
+            return edited_min_macd_histogram_positive
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -963,6 +975,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_buy_indicator = is_histogram_switch_positive(vars_map)
 =======
         can_buy_indicator = is_price_switch_up(vars_map) or is_price_above_prev_high(vars_map)
@@ -988,6 +1001,12 @@ class Icarus(TraderClass):
         min_macd_signal = vars_map.get('min_macd_signal')
         min_macd = vars_map.get('min_macd')
 >>>>>>> Icarus-v11.3.2
+=======
+        can_buy_indicator = (is_price_switch_up(vars_map) or is_price_change_1_above_2(vars_map))\
+            and is_edited_min_macd_histogram_positive(vars_map)
+        # Repport
+        min_edited_histogram = vars_map.get('min_edited_histogram')
+>>>>>>> Icarus-v11.3.3
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -1016,9 +1035,13 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v11.1.5
 =======
             f'{key}.price_change_1_above_2': vars_map.get('price_change_1_above_2'),
+<<<<<<< HEAD
             f'{key}.min_macd_signal_peak_nearest_than_min': vars_map.get('min_macd_signal_peak_nearest_than_min'),
             f'{key}.tangent_min_macd_positive': vars_map.get('tangent_min_macd_positive'),
 >>>>>>> Icarus-v11.3.2
+=======
+            f'{key}.edited_min_macd_histogram_positive': vars_map.get('edited_min_macd_histogram_positive'),
+>>>>>>> Icarus-v11.3.3
 
             f'{key}.switch_up_price_change_2': vars_map.get('switch_up_price_change_2'),
             f'{key}.switch_up_price_change_3': vars_map.get('switch_up_price_change_3'),
@@ -1032,6 +1055,7 @@ class Icarus(TraderClass):
 
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1056,6 +1080,10 @@ class Icarus(TraderClass):
             f'{key}.min_macd[-1]': min_macd[-1] if min_macd is not None else None,
             f'{key}.min_macd[-2]': min_macd[-2] if min_macd is not None else None
 >>>>>>> Icarus-v11.3.2
+=======
+            f'{key}.big_closes[-1]': big_closes[-1],
+            f'{key}.min_edited_histogram[-1]': min_edited_histogram[-1] if min_edited_histogram is not None else None,
+>>>>>>> Icarus-v11.3.3
         }
         return can_buy_indicator, repport
 
