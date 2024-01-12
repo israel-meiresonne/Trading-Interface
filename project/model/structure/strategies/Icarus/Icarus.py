@@ -828,6 +828,7 @@ class Icarus(TraderClass):
             vars_map.put(price_change_3, 'price_change_3')
             return price_switch_up
 
+<<<<<<< HEAD
         def is_macd_histogram_positive(vars_map: Map) -> bool:
             child_marketprice.reset_collections()
             macd_map = child_marketprice.get_macd()
@@ -861,6 +862,16 @@ class Icarus(TraderClass):
             vars_map.put(close_3_bellow_keltner_middle_3, f'close_3_bellow_keltner_middle_3')
             vars_map.put(keltner_middle, 'keltner_middle')
             return close_3_bellow_keltner_middle_3
+=======
+        def is_close_above_high_2(vars_map: Map) -> bool:
+            # Check
+            price_change_2 = price_change(-2)
+            close_above_high_2 = (price_change_2 < 0) and (closes[-1] >= highs[-2])
+            # Put
+            vars_map.put(close_above_high_2, 'close_above_high_2')
+            vars_map.put(price_change_2, 'close_above_high_2_price_change_2')
+            return close_above_high_2
+>>>>>>> Icarus-v11.1.5
 
         vars_map = Map()
         # Child
@@ -872,6 +883,7 @@ class Icarus(TraderClass):
         highs.reverse()
         opens = list(child_marketprice.get_opens())
         opens.reverse()
+<<<<<<< HEAD
 <<<<<<< HEAD
         open_times = list(child_marketprice.get_times())
         open_times.reverse()
@@ -887,16 +899,24 @@ class Icarus(TraderClass):
         highs = list(child_marketprice.get_highs())
         highs.reverse()
 >>>>>>> Icarus-v11.1.1
+=======
+        highs = list(child_marketprice.get_highs())
+        highs.reverse()
+>>>>>>> Icarus-v11.1.5
         # Big
         big_closes = list(big_marketprice.get_closes())
         big_closes.reverse()
         # Check
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_buy_indicator = is_histogram_switch_positive(vars_map)
 =======
         can_buy_indicator = is_price_switch_up(vars_map) or is_price_above_prev_high(vars_map)
 >>>>>>> Icarus-v11.1.1
+=======
+        can_buy_indicator = is_price_switch_up(vars_map) or is_close_above_high_2(vars_map)
+>>>>>>> Icarus-v11.1.5
         # Repport
         histogram = vars_map.get(Map.histogram)
 =======
@@ -923,22 +943,33 @@ class Icarus(TraderClass):
 =======
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.price_above_prev_high': vars_map.get('price_above_prev_high'),
 =======
             f'{key}.macd_histogram_positive': vars_map.get('macd_histogram_positive'),
             f'{key}.little_edited_macd_histogram_positive': vars_map.get('little_edited_macd_histogram_positive'),
             f'{key}.close_3_bellow_keltner_middle_3': vars_map.get('close_3_bellow_keltner_middle_3'),
 >>>>>>> Icarus-v11.1.13
+=======
+            f'{key}.close_above_high_2': vars_map.get('close_above_high_2'),
+>>>>>>> Icarus-v11.1.5
 
             f'{key}.switch_up_price_change_2': vars_map.get('switch_up_price_change_2'),
             f'{key}.switch_up_price_change_3': vars_map.get('switch_up_price_change_3'),
 
             f'{key}.above_prev_high_price_change_2': vars_map.get('above_prev_high_price_change_2'),
 
+            f'{key}.close_above_high_2_price_change_2': vars_map.get('close_above_high_2_price_change_2'),
+
             f'{key}.closes[-1]': closes[-1],
             f'{key}.opens[-1]': opens[-1],
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.highs[-1]': highs[-1],
+=======
+            f'{key}.highs[-1]': highs[-1],
+            f'{key}.highs[-2]': highs[-2],
+>>>>>>> Icarus-v11.1.5
             f'{key}.big_closes[-1]': big_closes[-1]
 >>>>>>> Icarus-v11.1.1
 =======

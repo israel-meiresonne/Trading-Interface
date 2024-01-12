@@ -171,6 +171,7 @@ class IcarusStalker(StalkerClass):
 =======
             f'{key}.price_switch_up': None,
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.price_above_prev_high': None,
 =======
             f'{key}.macd_histogram_positive': None,
@@ -178,16 +179,26 @@ class IcarusStalker(StalkerClass):
             f'{key}.edited_macd_histogram_positive': None,
             f'{key}.close_3_bellow_keltner_middle_3': None,
 >>>>>>> Icarus-v11.1.13
+=======
+            f'{key}.close_above_high_2': None,
+>>>>>>> Icarus-v11.1.5
 
             f'{key}.switch_up_price_change_2': None,
             f'{key}.switch_up_price_change_3': None,
 
             f'{key}.above_prev_high_price_change_2': None,
 
+            f'{key}.close_above_high_2_price_change_2': None,
+
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.highs[-1]': None,
+=======
+            f'{key}.highs[-1]': None,
+            f'{key}.highs[-2]': None,
+>>>>>>> Icarus-v11.1.5
             f'{key}.big_closes[-1]': None
 >>>>>>> Icarus-v11.1.1
 =======
