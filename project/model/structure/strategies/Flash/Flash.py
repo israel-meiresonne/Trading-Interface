@@ -90,6 +90,7 @@ class Flash(Icarus):
             vars_map.put(big_macd_historgram_positive, 'big_macd_historgram_positive')
             return big_macd_historgram_positive
 
+<<<<<<< HEAD
         def have_not_bought_in_macd(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
@@ -114,6 +115,22 @@ class Flash(Icarus):
             vars_map.put(_MF.unix_to_date(macd_starttime), 'macd_starttime')
             vars_map.put(_MF.unix_to_date(macd_endtime), 'macd_endtime')
             return not_bought_in_macd
+=======
+        def is_big_keltner_above_big_ema(vars_map: Map) -> bool:
+            big_marketprice.reset_collections()
+            keltner = big_marketprice.get_keltnerchannel()
+            keltner_middle = list(keltner.get(Map.middle))
+            keltner_middle.reverse()
+            ema = list(big_marketprice.get_ema(n_period=cls.EMA_N_PERIOD))
+            ema.reverse()
+            # Check
+            big_keltner_above_big_ema = keltner_middle[-1] > ema[-1]
+            # Put
+            vars_map.put(big_keltner_above_big_ema, 'big_keltner_above_big_ema')
+            vars_map.put(keltner_middle, 'big_keltner_middle')
+            vars_map.put(ema, 'big_ema')
+            return big_keltner_above_big_ema
+>>>>>>> Flash-v2.6.1
 
         vars_map = Map()
         pair = child_marketprice.get_pair()
@@ -121,6 +138,7 @@ class Flash(Icarus):
         closes = list(child_marketprice.get_closes())
         closes.reverse()
         # Check
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         can_buy_indicator = is_close_above_keltner(vars_map) and is_prev_high_bellow_keltner(vars_map) \
@@ -138,6 +156,15 @@ class Flash(Icarus):
         big_keltner_high2_5 = vars_map.get('big_2.5_keltner_high')
         keltner_high1_0 = vars_map.get('big_1_keltner_high')
         big_highs = vars_map.get('big_highs')
+=======
+        can_buy_indicator = is_close_above_big_keltner(vars_map) \
+            and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map,  child_marketprice, repport=True) \
+                and is_big_keltner_above_big_ema(vars_map)
+        # Repport
+        big_keltner_high2_5 = vars_map.get('big_keltner_high2_5')
+        big_keltner_middle = vars_map.get('big_keltner_middle')
+        big_ema = vars_map.get('big_ema')
+>>>>>>> Flash-v2.6.1
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -146,6 +173,7 @@ class Flash(Icarus):
             f'{key}.prev_high_bellow_keltner': vars_map.get('prev_high_bellow_keltner'),
             f'{key}.macd_historgram_positive': vars_map.get('macd_historgram_positive'),
             f'{key}.big_macd_historgram_positive': vars_map.get('big_macd_historgram_positive'),
+<<<<<<< HEAD
             f'{key}.not_bought_in_macd': vars_map.get('not_bought_in_macd'),
             f'{key}.macd_starttime': vars_map.get('macd_starttime'),
             f'{key}.macd_endtime': vars_map.get('macd_endtime'),
@@ -156,6 +184,13 @@ class Flash(Icarus):
             f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
             f'{key}.big_1_keltner_high[-1]': keltner_high1_0[-1] if keltner_high1_0 is not None else None,
             f'{key}.big_1_keltner_high[-2]': keltner_high1_0[-2] if keltner_high1_0 is not None else None
+=======
+            f'{key}.big_keltner_above_big_ema': vars_map.get('big_keltner_above_big_ema'),
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.big_keltner_high2_5[-1]': big_keltner_high2_5[-1] if big_keltner_high2_5 is not None else None,
+            f'{key}.big_keltner_middle[-1]': big_keltner_middle[-1] if big_keltner_middle is not None else None,
+            f'{key}.big_ema[-1]': big_ema[-1] if big_ema is not None else None
+>>>>>>> Flash-v2.6.1
         }
         return can_buy_indicator, repport
 
