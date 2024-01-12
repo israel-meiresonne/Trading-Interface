@@ -1,4 +1,5 @@
 import time
+<<<<<<< HEAD
 from typing import Callable, List
 
 import pandas as pd
@@ -12,12 +13,27 @@ from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Order import Order
+=======
+from typing import List
+from model.structure.Broker import Broker
+
+
+from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.structure.strategies.Strategy import Strategy
+from model.tools.Map import Map
+from model.tools.MyJson import MyJson
+>>>>>>> Solomon-v5.4.4.2.2
 from model.tools.Pair import Pair
 
 
 class Genesis(Strategy):
+<<<<<<< HEAD
     PREFIX_ID =         'genesis_'
     KELTER_SUPPORT =    None
+=======
+    PREFIX_ID =             'genesis_'
+    KELTER_SUPPORT =        None
+>>>>>>> Solomon-v5.4.4.2.2
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STALK DOWN
@@ -43,6 +59,7 @@ class Genesis(Strategy):
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST DOWN
 
     @classmethod
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
@@ -339,6 +356,10 @@ class Genesis(Strategy):
         else:
             raise Exception(f"Behavior not implemeted for this stage '{stage}'")
         return market_trend_df
+=======
+    def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
+        pass
+>>>>>>> Solomon-v5.4.4.2.2
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
     # ––––––––––––––––––––––––––––––––––––––––––– STATIC DOWN

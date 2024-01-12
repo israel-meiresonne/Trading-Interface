@@ -1,4 +1,5 @@
 pair
+<<<<<<< HEAD
 aion/usdt
 akro/usdt
 algo/usdt
@@ -11,6 +12,32 @@ ardr/usdt
 arpa/usdt
 ata/usdt
 atom/usdt
+=======
+aca/usdt
+ach/usdt
+adx/usdt
+agld/usdt
+aion/usdt
+akro/usdt
+alcx/usdt
+algo/usdt
+alice/usdt
+alpaca/usdt
+alpha/usdt
+alpine/usdt
+anc/usdt
+ankr/usdt
+ant/usdt
+any/usdt
+api3/usdt
+ar/usdt
+ardr/usdt
+arpa/usdt
+astr/usdt
+ata/usdt
+atom/usdt
+auction/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 audio/usdt
 auto/usdt
 ava/usdt
@@ -20,17 +47,36 @@ badger/usdt
 band/usdt
 beam/usdt
 bel/usdt
+<<<<<<< HEAD
 blz/usdt
+=======
+beta/usdt
+bico/usdt
+blz/usdt
+bnx/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 bond/usdt
 btcst/usdt
 burger/usdt
 bzrx/usdt
+<<<<<<< HEAD
 celo/usdt
 celr/usdt
 cfx/usdt
 chr/usdt
 chz/usdt
 ckb/usdt
+=======
+c98/usdt
+celo/usdt
+celr/usdt
+cfx/usdt
+chess/usdt
+chr/usdt
+chz/usdt
+ckb/usdt
+clv/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 cocos/usdt
 cos/usdt
 coti/usdt
@@ -39,38 +85,79 @@ ctk/usdt
 ctsi/usdt
 ctxc/usdt
 cvc/usdt
+<<<<<<< HEAD
 data/usdt
 dego/usdt
 dent/usdt
+=======
+cvp/usdt
+cvx/usdt
+dar/usdt
+data/usdt
+dego/usdt
+dent/usdt
+dexe/usdt
+df/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 dia/usdt
 dnt/usdt
 dock/usdt
 dodo/usdt
 drep/usdt
 dusk/usdt
+<<<<<<< HEAD
 egld/usdt
 enj/usdt
 eps/usdt
 erd/usdt
 ern/usdt
 fet/usdt
+=======
+dydx/usdt
+egld/usdt
+elf/usdt
+enj/usdt
+ens/usdt
+eps/usdt
+erd/usdt
+ern/usdt
+farm/usdt
+fet/usdt
+fida/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 fio/usdt
 firo/usdt
 fis/usdt
 flm/usdt
+<<<<<<< HEAD
 forth/usdt
 ftm/usdt
+=======
+flux/usdt
+for/usdt
+forth/usdt
+front/usdt
+ftm/usdt
+fxs/usdt
+gala/usdt
+glmr/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 grt/usdt
 gtc/usdt
 gto/usdt
 gxs/usdt
 hard/usdt
 hbar/usdt
+<<<<<<< HEAD
+=======
+high/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 hive/usdt
 hnt/usdt
 hot/usdt
 icp/usdt
 icx/usdt
+<<<<<<< HEAD
 inj/usdt
 iotx/usdt
 iris/usdt
@@ -79,6 +166,24 @@ kmd/usdt
 knc/usdt
 lina/usdt
 lit/usdt
+=======
+idex/usdt
+imx/usdt
+inj/usdt
+iotx/usdt
+iris/usdt
+jasmy/usdt
+joe/usdt
+keep/usdt
+key/usdt
+kmd/usdt
+knc/usdt
+kp3r/usdt
+lazio/usdt
+lina/usdt
+lit/usdt
+loka/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 lpt/usdt
 lrc/usdt
 lto/usdt
@@ -87,10 +192,21 @@ mana/usdt
 mask/usdt
 matic/usdt
 mbl/usdt
+<<<<<<< HEAD
 mdt/usdt
 mft/usdt
 mith/usdt
 mln/usdt
+=======
+mbox/usdt
+mc/usdt
+mdt/usdt
+mft/usdt
+mina/usdt
+mith/usdt
+mln/usdt
+movr/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 mtl/usdt
 nano/usdt
 nbs/usdt
@@ -105,6 +221,7 @@ ogn/usdt
 om/usdt
 omg/usdt
 one/usdt
+<<<<<<< HEAD
 orn/usdt
 oxt/usdt
 perl/usdt
@@ -118,16 +235,56 @@ ramp/usdt
 reef/usdt
 ren/usdt
 rlc/usdt
+=======
+ooki/usdt
+orn/usdt
+oxt/usdt
+people/usdt
+perl/usdt
+perp/usdt
+pha/usdt
+pla/usdt
+pnt/usdt
+pols/usdt
+poly/usdt
+pond/usdt
+porto/usdt
+powr/usdt
+pyr/usdt
+qi/usdt
+qnt/usdt
+qtum/usdt
+quick/usdt
+rad/usdt
+ramp/usdt
+rare/usdt
+ray/usdt
+reef/usdt
+ren/usdt
+req/usdt
+rgt/usdt
+rlc/usdt
+rndr/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 rose/usdt
 rune/usdt
 rvn/usdt
 sand/usdt
+<<<<<<< HEAD
+=======
+santos/usdt
+scrt/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 sfp/usdt
 shib/usdt
 skl/usdt
 slp/usdt
 snx/usdt
 sol/usdt
+<<<<<<< HEAD
+=======
+spell/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 srm/usdt
 stmx/usdt
 storj/usdt
@@ -137,6 +294,11 @@ strat/usdt
 stx/usdt
 super/usdt
 sushi/usdt
+<<<<<<< HEAD
+=======
+sys/usdt
+t/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 tct/usdt
 theta/usdt
 tko/usdt
@@ -145,10 +307,15 @@ torn/usdt
 trb/usdt
 troy/usdt
 tru/usdt
+<<<<<<< HEAD
+=======
+tvk/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 twt/usdt
 uma/usdt
 unfi/usdt
 utk/usdt
+<<<<<<< HEAD
 vite/usdt
 vtho/usdt
 wan/usdt
@@ -159,4 +326,25 @@ wtc/usdt
 xtz/usdt
 xvg/usdt
 xvs/usdt
+=======
+ven/usdt
+vgx/usdt
+vidt/usdt
+vite/usdt
+voxel/usdt
+vtho/usdt
+wan/usdt
+waves/usdt
+waxp/usdt
+win/usdt
+wing/usdt
+woo/usdt
+wtc/usdt
+xec/usdt
+xno/usdt
+xtz/usdt
+xvg/usdt
+xvs/usdt
+ygg/usdt
+>>>>>>> Solomon-v5.4.4.2.2
 zen/usdt

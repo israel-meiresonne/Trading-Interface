@@ -181,6 +181,7 @@ class Controller:
         self.quit()
 
     # ——————————————————————————————————————————— FUNCTION MENU DOWN ——————————————————————————————————————————————————
+<<<<<<< HEAD
 
     def menu_wrap(self, quit_message: str, to_wrap_menu: dict) -> None:
         end = False
@@ -403,6 +404,64 @@ class Controller:
             elif callable(option):
                 end = repport_error(view, option)
             else:
+=======
+
+    def menu_wrap(self, quit_message: str, to_wrap_menu: dict) -> None:
+        end = False
+        while end != True:
+            self.menu(to_wrap_menu)
+            end = self.ask_confirmation(quit_message)
+
+    def menu(self, menu: dict) -> None:
+        def repport_error(view: View, callback: Callable, **kwargs) -> None:
+            returned = None
+            try:
+                returned = callback(**kwargs)
+            except Exception as e:
+                from model.structure.Bot import Bot
+                Bot.save_error(e, Controller.__name__)
+                view.output(f"⛔️ Fatal Error raised: {e}", richs=[view.S_BOLD, view.C_RED])
+            return returned
+        def push_header(separator: str, menu_name: str) -> str:
+            if not self.exist_menu_var(menu_header_key):
+                self.add_menu_var(menu_header_key, menu_name)
+            else:
+                menu_header = self.get_menu_var(menu_header_key)
+                new_menu_header = f'{menu_header}{separator}{menu_name}'
+                self.delete_menu_var(menu_header_key)
+                self.add_menu_var(menu_header_key, new_menu_header)
+            return self.get_menu_var(menu_header_key)
+        def remove_menu(separator: str) -> None:
+            menu_header = self.get_menu_var(menu_header_key)
+            new_menu_header = f'{separator}'.join(menu_header.split(separator)[:-1])
+            self.delete_menu_var(menu_header_key)
+            self.add_menu_var(menu_header_key, new_menu_header) if len(new_menu_header) > 0 else None
+        def ouput_menu_path(view: View, separator: str, menu_header: str) -> None:
+            menu_header_split = menu_header.split(separator)
+            menu_header_split[-1] = view.B_LIGHT_GREEN + menu_header_split[-1]
+            new_menu_header = separator.join(menu_header_split)
+            view.output(new_menu_header, richs=[view.B_LIGHT_GRAY, view.C_BLACK])
+        view = self._get_view()
+        menu_header_key = self.MENUS_VAR_HEADER
+        end = False
+        separator = self.MENUS_HEADER_SEPARATOR
+        menu_name = menu[Map.menu]
+        menu_path = push_header(separator, menu_name)
+        options = {
+            Map.cancel: lambda : self.CANCEL,
+            **menu[Map.option]
+            }
+        options_keys = list(options.keys())
+        while (end != True) and (end != self.CANCEL):
+            ouput_menu_path(view, separator, menu_path)
+            key = options_keys[view.menu(menu_name, options_keys)]
+            option = options[key]
+            if type(option) == dict:
+                repport_error(view, self.menu, **{'menu': option})
+            elif callable(option):
+                end = repport_error(view, option)
+            else:
+>>>>>>> Solomon-v5.4.4.2.2
                 raise Exception(f"Unkwon option '{option}(type={type(option)})'")
         remove_menu(separator)
 

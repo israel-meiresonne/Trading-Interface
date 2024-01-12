@@ -38,12 +38,20 @@ class Strategy(Hand, ABC):
             raise Exception(f"Can't update max position when attribut Strategy.pair is set")
         super().set_max_position(max_position)
 
+<<<<<<< HEAD
     def get_tradable_pairs(self) -> List[Pair]:
+=======
+    def get_broker_pairs(self) -> List[Pair]:
+>>>>>>> Solomon-v5.4.4.2.2
         pair = self.get_pair()
         if pair is not None:
             pairs = [pair]
         else:
+<<<<<<< HEAD
             pairs = super().get_tradable_pairs()
+=======
+            pairs = super().get_broker_pairs()
+>>>>>>> Solomon-v5.4.4.2.2
         return pairs
 
     def _set_pair(self, pair: Pair) -> None:

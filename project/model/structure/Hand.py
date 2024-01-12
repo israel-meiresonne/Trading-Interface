@@ -71,7 +71,10 @@ class Hand(MyJson):
         self.__backup =                 None
         self.__backup_time =            None
         self.__broker_pairs =           None
+<<<<<<< HEAD
         self._tradable_pairs =          None
+=======
+>>>>>>> Solomon-v5.4.4.2.2
         self._set_id()
         self._set_settime()
         self._set_wallet(capital)
@@ -738,7 +741,10 @@ class Hand(MyJson):
         _MF.check_type(broker_pairs, list)
         [_MF.check_type(pair, Pair) for pair in broker_pairs]
         self.__broker_pairs = broker_pairs
+<<<<<<< HEAD
         self._reset_tradable_pairs()
+=======
+>>>>>>> Solomon-v5.4.4.2.2
         
     def reset_broker_pairs(self) -> None:
         self.__broker_pairs = None
@@ -755,12 +761,21 @@ class Hand(MyJson):
         broker_pairs = self.__broker_pairs
         if broker_pairs is None:
             broker_class = self.get_broker_class()
+<<<<<<< HEAD
             r_asset = self.get_wallet().get_initial().get_asset()
             broker_pairs = MarketPrice.get_spot_pairs(broker_class, r_asset)
             self._set_broker_pairs(broker_pairs)
         return broker_pairs
 
     def _get_no_hold_pairs(self) -> List[Pair]:
+=======
+            fiat_asset = self.get_wallet().get_initial().get_asset()
+            broker_pairs = MarketPrice.get_spot_pairs(broker_class, fiat_asset)
+            self._set_broker_pairs(broker_pairs)
+        return broker_pairs
+
+    def _get_stalk_pairs(self) -> List[Pair]:
+>>>>>>> Solomon-v5.4.4.2.2
         """
         To get list of pair to stalk
 
@@ -769,6 +784,7 @@ class Hand(MyJson):
         return: List[Pair]
             List of pair to stalk
         """
+<<<<<<< HEAD
         tradable_pairs = self.get_tradable_pairs()
         pair_positions = list(self.get_positions().keys())
         return [tradable_pair for tradable_pair in tradable_pairs if tradable_pair.__str__() not in pair_positions]
@@ -789,6 +805,11 @@ class Hand(MyJson):
         if tradable_pairs is None:
             self._tradable_pairs = tradable_pairs = self.get_broker_pairs()
         return tradable_pairs
+=======
+        spot_pairs = self.get_broker_pairs()
+        pair_positions = list(self.get_positions().keys())
+        return [spot_pair for spot_pair in spot_pairs if spot_pair.__str__() not in pair_positions]
+>>>>>>> Solomon-v5.4.4.2.2
 
     # ——————————————————————————————————————————— FUNCTION SETTER/GETTER UP ———————————————————————————————————————————
     # ——————————————————————————————————————————— FUNCTION SELF DOWN ——————————————————————————————————————————————————
@@ -1141,7 +1162,11 @@ class Hand(MyJson):
             fields = list(rows[0].keys())
             FileManager.write_csv(file_path, fields, rows, overwrite=False, make_dir=True)
 
+<<<<<<< HEAD
         stalk_pairs = self._get_no_hold_pairs()
+=======
+        stalk_pairs = self._get_stalk_pairs()
+>>>>>>> Solomon-v5.4.4.2.2
         marketprices = Map()
         conditions = self._get_stalk_functions()
         selected_pairs = []
@@ -1416,8 +1441,14 @@ class Hand(MyJson):
             rows = analyse.to_dict('records')
             fields = list(rows[0].keys())
             FileManager.write_csv(file_path, fields, rows, overwrite=True, make_dir=True)
+<<<<<<< HEAD
         broker = self.get_broker()
         r_asset = self.get_wallet().get_initial().get_asset()
+=======
+
+        broker = self.get_broker()
+        r_asset = Asset('USDT')
+>>>>>>> Solomon-v5.4.4.2.2
         pair_streams = list(broker.get_streams().keys())
         pairs = [pair_stream for pair_stream in pair_streams if pair_stream.get_right() == r_asset]
         periods = self._MARKET_ANALYSE_TREND_PERIODS
@@ -1917,7 +1948,10 @@ class Hand(MyJson):
     def _set_market_trend(cls, period: int, market_trend_df: pd.DataFrame) -> pd.DataFrame:
         _MF.check_type(period, int)
         _MF.check_type(market_trend_df, pd.DataFrame)
+<<<<<<< HEAD
         market_trend_df.insert(0, Map.time, market_trend_df.index)
+=======
+>>>>>>> Solomon-v5.4.4.2.2
         cls.get_stack().put(market_trend_df, cls.K_MARKET_TRENDS, period)
 
     @classmethod
@@ -1932,6 +1966,10 @@ class Hand(MyJson):
                 market_trend_file = f"content/storage/MarketPrice/histories/stock/market_trend/supertrend/{period}.csv"
                 project_dir = FileManager.get_project_directory()
                 market_trend_df = pd.read_csv(project_dir + market_trend_file, index_col=0)
+<<<<<<< HEAD
+=======
+                market_trend_df.insert(0, Map.time, market_trend_df.index)
+>>>>>>> Solomon-v5.4.4.2.2
                 cls._set_market_trend(period, market_trend_df)
         elif stage in [Config.STAGE_2, Config.STAGE_3]:
             pass

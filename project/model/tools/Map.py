@@ -84,14 +84,20 @@ class Map(MyJson):
     turn = "turn"
     file = "file"
     column = "column"
+<<<<<<< HEAD
     row = "row"
+=======
+>>>>>>> Solomon-v5.4.4.2.2
     content = "content"
     offset = "offset"
     size = "size"
     event = "event"
+<<<<<<< HEAD
     median = "median"
     next = "next"
     check = "check"
+=======
+>>>>>>> Solomon-v5.4.4.2.2
     # Binance
     test_mode = "test_mode"
     # BinanceAPI

@@ -1,4 +1,5 @@
 import time
+<<<<<<< HEAD
 from typing import Callable, List, Tuple
 
 import pandas as pd
@@ -12,12 +13,23 @@ from model.tools.Map import Map
 from model.tools.MarketPrice import MarketPrice
 from model.tools.MyJson import MyJson
 from model.tools.Order import Order
+=======
+from typing import List
+
+
+from model.structure.database.ModelFeature import ModelFeature as _MF
+from model.structure.strategies.Strategy import Strategy
+from model.tools.MyJson import MyJson
+>>>>>>> Solomon-v5.4.4.2.2
 from model.tools.Pair import Pair
 
 
 class Noah(Strategy):
     PREFIX_ID =             'noah_'
+<<<<<<< HEAD
     KELTNER_MULTIPLE_1 =    1
+=======
+>>>>>>> Solomon-v5.4.4.2.2
     KELTER_SUPPORT =        None
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
@@ -30,6 +42,7 @@ class Noah(Strategy):
             time.sleep(sleep_time)
 
     def _stalk_market(self) -> List[Pair]:
+<<<<<<< HEAD
         def write(rows: List[dict], condition: Callable) -> None:
             file_path = self.get_path_file_stalk(condition)
             fields = list(rows[0].keys())
@@ -65,10 +78,14 @@ class Noah(Strategy):
                     break
         write(repports, self._can_buy)
         return bought_pairs
+=======
+        pass
+>>>>>>> Solomon-v5.4.4.2.2
 
     # ••• STALK UP
     # ••• TRADE DOWN
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     def _trade_inner(self) -> None:
         pass
@@ -197,11 +214,16 @@ class Noah(Strategy):
             price = keltner[-1]
         return price
 >>>>>>> Noah-v1
+=======
+    def _trade_inner(self) -> None:
+        pass
+>>>>>>> Solomon-v5.4.4.2.2
 
     # ••• TRADE UP
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— STATIC FUNCTION DOWN ————————————————————————————————————————————————
 
+<<<<<<< HEAD
     @classmethod
     def get_path_file_keltner_support(cls) -> str:
         return f'content/storage/Strategy/{cls.__name__}/indicators/keltner_supports.csv'
@@ -216,6 +238,8 @@ class Noah(Strategy):
             cls.KELTER_SUPPORT = df = df.set_index(Map.id)
         return df
 
+=======
+>>>>>>> Solomon-v5.4.4.2.2
     @staticmethod
     def json_instantiate(object_dic: dict) -> object:
         _class_token = MyJson.get_class_name_token()
