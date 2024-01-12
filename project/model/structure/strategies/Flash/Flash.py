@@ -1,6 +1,6 @@
 from typing import Tuple
-import numpy as np
 
+import numpy as np
 import pandas as pd
 
 from model.structure.Broker import Broker
@@ -54,6 +54,7 @@ class Flash(Icarus):
             vars_map.put(psar, 'edited_psar')
             return edited_psar_dropping
 
+<<<<<<< HEAD
         vars_map = Map()
         # Close
         closes = list(marketprice.get_closes())
@@ -62,6 +63,8 @@ class Flash(Icarus):
 <<<<<<< HEAD
 >>>>>>> Flash-v3.1
 =======
+=======
+>>>>>>> Flash-v3.1.2
         def is_tangent_rsi_dropping(vars_map: Map) -> bool:
             rsi = list(marketprice.get_rsis())
             rsi.reverse()
@@ -69,6 +72,9 @@ class Flash(Icarus):
             return tangent_rsi_dropping
 
         vars_map = Map()
+        # Close
+        closes = list(marketprice.get_closes())
+        closes.reverse()
         can_sell = is_tangent_macd_dropping(vars_map) or is_tangent_rsi_dropping(vars_map) or is_edited_psar_dropping(vars_map)
 >>>>>>> Flash-v3.1.1
         return can_sell
@@ -149,6 +155,7 @@ class Flash(Icarus):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         def have_not_bought_in_macd(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
@@ -216,6 +223,8 @@ class Flash(Icarus):
             return rsi_rising
 >>>>>>> Flash-v2.6.6
 =======
+=======
+>>>>>>> Flash-v3.1.2
         def is_edited_psar_rising(vars_map: Map) -> bool:
             psar = list(child_marketprice.get_psar(step=cls.PSAR_STEP))
             psar.reverse()
@@ -296,7 +305,19 @@ class Flash(Icarus):
             vars_map.put(big_psar_rising, 'big_psar_rising')
             vars_map.put(psar, 'big_psar')
             return big_psar_rising
+<<<<<<< HEAD
 >>>>>>> Flash-v3.1
+=======
+
+        def is_rsi_rising(vars_map: Map) -> bool:
+            rsi = list(child_marketprice.get_rsis())
+            rsi.reverse()
+            rsi_rising = rsi[-1] > rsi[-2]
+            # Put
+            vars_map.put(rsi_rising, 'rsi_rising')
+            vars_map.put(rsi, Map.rsi)
+            return rsi_rising
+>>>>>>> Flash-v3.1.2
 
         vars_map = Map()
         pair = child_marketprice.get_pair()
@@ -399,7 +420,11 @@ class Flash(Icarus):
         can_buy_indicator = is_zero_ratio_bellow_limit(vars_map) and is_close_above_big_keltner(vars_map) \
             and is_big_macd_historgram_positive(vars_map) and is_macd_historgram_positive(vars_map, child_marketprice, repport=True) \
                 and is_edited_psar_rising(vars_map) and have_not_bought_edited_psar(vars_map) and is_big_supertrend_rising(vars_map) \
+<<<<<<< HEAD
                     and is_supertrend_rising(vars_map) and is_big_psar_rising(vars_map)
+=======
+                    and is_supertrend_rising(vars_map) and is_big_psar_rising(vars_map) and is_rsi_rising(vars_map)
+>>>>>>> Flash-v3.1.2
         # Repport
         l_volumes = vars_map.get('l_volumes')
         big_supertrend = vars_map.get('big_supertrend')
@@ -407,6 +432,10 @@ class Flash(Icarus):
         edited_psar = vars_map.get('edited_psar')
         supertrend = vars_map.get(Map.supertrend)
         big_psar = vars_map.get('big_psar')
+<<<<<<< HEAD
+=======
+        rsi = vars_map.get(Map.rsi)
+>>>>>>> Flash-v3.1.2
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -419,6 +448,7 @@ class Flash(Icarus):
             f'{key}.big_supertrend_rising': vars_map.get('big_supertrend_rising'),
             f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.big_psar_rising': vars_map.get('big_psar_rising'),
+            f'{key}.rsi_rising': vars_map.get('rsi_rising'),
             f'{key}.zero_ratio': vars_map.get('zero_ratio'),
             f'{key}.n_zero': vars_map.get('n_zero'),
             f'{key}.zero_n_period': vars_map.get('zero_n_period'),
@@ -432,14 +462,20 @@ class Flash(Icarus):
             f'{key}.edited_psar[-1]': edited_psar[-1] if edited_psar is not None else None,
             f'{key}.big_supertrend[-1]': big_supertrend[-1] if big_supertrend is not None else None,
             f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+<<<<<<< HEAD
             f'{key}.big_psar[-1]': big_psar[-1] if big_psar is not None else None
 >>>>>>> Flash-v3.1
+=======
+            f'{key}.big_psar[-1]': big_psar[-1] if big_psar is not None else None,
+            f'{key}.rsi[-1]': rsi[-1] if rsi is not None else None
+>>>>>>> Flash-v3.1.2
         }
         return can_buy_indicator, repport
 
     @classmethod
     def backtest_trade_history(cls, pair: Pair, period: int, broker: Broker)  -> pd.DataFrame:
         import sys
+
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.structure.Bot import Bot
 
