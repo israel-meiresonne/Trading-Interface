@@ -2028,6 +2028,9 @@ class Icarus(TraderClass):
 =======
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Icarus-v7.2.10
         def is_closes_above_low_keltner(vars_map: Map) -> bool:
             open_times = list(child_marketprice.get_times())
             open_times.reverse()
@@ -2066,6 +2069,7 @@ class Icarus(TraderClass):
             vars_map.put(histogram, Map.histogram)
             return closes_above_low_keltner
 
+<<<<<<< HEAD
         """
 =======
 >>>>>>> Icarus-v7.13
@@ -2081,6 +2085,8 @@ class Icarus(TraderClass):
             return bellow_keltner
 
 >>>>>>> Icarus-v7.2.1
+=======
+>>>>>>> Icarus-v7.2.10
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -2917,6 +2923,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3003,12 +3010,15 @@ class Icarus(TraderClass):
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) and is_bellow_keltner(vars_map)
 >>>>>>> Icarus-v7.2.1
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) and is_closes_above_low_keltner(vars_map)
+>>>>>>> Icarus-v7.2.10
         # Repport
-        ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
         rsi = vars_map.get(Map.rsi)
         macd = vars_map.get(Map.macd)
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         histogram_list = vars_map.get('histogram_list')
@@ -3025,10 +3035,15 @@ class Icarus(TraderClass):
         keltner_high = vars_map.get('keltner_high')
         keltner_low = vars_map.get('keltner_low')
 >>>>>>> Icarus-v7.13
+=======
+        signal = vars_map.get(Map.signal)
+        keltner_low = vars_map.get('keltner_low')
+>>>>>>> Icarus-v7.2.10
         key = Icarus._can_buy_indicator.__name__
 >>>>>>> Icarus-v6.4.1
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.ema_rising': ema_rising,
@@ -3045,6 +3060,8 @@ class Icarus(TraderClass):
             f'{key}.histogram_rising': vars_map.get('histogram_rising'),
 <<<<<<< HEAD
             f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
+=======
+>>>>>>> Icarus-v7.2.10
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -3080,20 +3097,23 @@ class Icarus(TraderClass):
             f'{key}.edited_macd_switch_up': vars_map.get('edited_macd_switch_up'),
             f'{key}.rsi_reached': vars_map.get('rsi_reached'),
             f'{key}.will_bounce': vars_map.get('will_bounce'),
-            f'{key}.macd_min_index': vars_map.get('macd_min_index'),
-            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
-            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
-            f'{key}.macd_peak_index': vars_map.get('macd_peak_index'),
+            f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
             f'{key}.macd_peak_date': vars_map.get('macd_peak_date'),
             f'{key}.last_peak_macd': vars_map.get('last_peak_macd'),
+<<<<<<< HEAD
 >>>>>>> Icarus-v6.7
 =======
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
             f'{key}.closes_above_low_keltner': vars_map.get('closes_above_low_keltner'),
+=======
+            f'{key}.macd_min_date': vars_map.get('macd_min_date'),
+            f'{key}.last_min_macd': vars_map.get('last_min_macd'),
+>>>>>>> Icarus-v7.2.10
             f'{key}.min_close_date': vars_map.get('min_close_date'),
             f'{key}.min_close': vars_map.get('min_close'),
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
             f'{key}.min_keltner': vars_map.get('min_keltner'),
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.10
 =======
             f'{key}.macd_bellow_bull_peak': vars_map.get('macd_bellow_bull_peak'),
@@ -3115,11 +3135,17 @@ class Icarus(TraderClass):
             f'{key}.closes[-1]': closes[-1],
             f'{key}.high[-1]': high[-1] if high is not None else None,
             f'{key}.low[-1]': low[-1] if low is not None else None,
+=======
+            f'{key}.closes[-1]': closes[-1],
+            f'{key}.closes[-2]': closes[-2],
+            f'{key}.closes[-3]': closes[-3],
+>>>>>>> Icarus-v7.2.10
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
 <<<<<<< HEAD
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.macd[-3]': macd[-3] if macd is not None else None,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.histogram_list[-1]': histogram_list[-1] if len(histogram_list) >= 1 else None,
@@ -3131,12 +3157,15 @@ class Icarus(TraderClass):
             f'{key}.rsi[-3]': rsi[-3] if rsi is not None else None
 >>>>>>> Icarus-v6.7.1
 =======
+=======
+>>>>>>> Icarus-v7.2.10
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
             f'{key}.signal[-2]': signal[-2] if signal is not None else None,
             f'{key}.signal[-3]': signal[-3] if signal is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
             f'{key}.keltner_low[-2]': keltner_low[-2] if keltner_low is not None else None,
             f'{key}.keltner_low[-3]': keltner_low[-3] if keltner_low is not None else None
+<<<<<<< HEAD
 >>>>>>> Icarus-v7.10
 =======
             f'{key}.signal[-1]': signal[-1] if signal is not None else None,
@@ -3145,6 +3174,8 @@ class Icarus(TraderClass):
             f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
             f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
 >>>>>>> Icarus-v7.13
+=======
+>>>>>>> Icarus-v7.2.10
         }
         return can_buy_indicator, repport
 
