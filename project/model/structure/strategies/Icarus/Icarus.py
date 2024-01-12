@@ -543,6 +543,10 @@ class Icarus(TraderClass):
     
     def _can_sell_indicator(self, marketprice: MarketPrice) ->  bool:
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+        """
+>>>>>>> Icarus-v6.8
         def is_buy_period() -> bool:
             period = self.get_period()
             buy_time = int(self.get_buy_order().get_execution_time() / 1000)
@@ -556,6 +560,7 @@ class Icarus(TraderClass):
 =======
             return open_time < first_open_time
 
+<<<<<<< HEAD
         def is_supertrend_dropping() -> bool:
             supertrend = list(marketprice.get_super_trend())
             supertrend.reverse()
@@ -569,6 +574,17 @@ class Icarus(TraderClass):
             return psar_trend == MarketPrice.PSAR_DROPPING
         
         def is_macd_dropping() -> bool:
+=======
+        def is_rsi_reached(rsi_trigger: float, vars_map: Map) -> bool:
+            # RSI
+            rsi = list(marketprice.get_rsis())
+            rsi.reverse()
+            rsi_reached = rsi[-1] > rsi_trigger
+            return rsi_reached
+
+        def is_histogram_dropping(vars_map: Map) -> bool:
+            # MACD
+>>>>>>> Icarus-v6.8
             macd_map = marketprice.get_macd()
             macd = list(macd_map.get(Map.macd))
             macd.reverse()
@@ -730,6 +746,16 @@ class Icarus(TraderClass):
             macd.reverse()
             tangent_macd_dropping = macd[-1] <= macd[-2]
             return tangent_macd_dropping
+        """
+
+        def is_bollinger_reached(vars_map: Map) -> bool:
+            bollinger = marketprice.get_bollingerbands()
+            bollinger_high = list(bollinger.get(Map.high))
+            bollinger_high.reverse()
+            bollinger_low = list(bollinger.get(Map.low))
+            bollinger_low.reverse()
+            bollinger_reached = (closes[-1] >= bollinger_high[-1]) or (closes[-1] <= bollinger_low[-1])
+            return bollinger_reached
 
         def is_roi_positive(vars_map: Map) -> bool:
             return roi > 0
@@ -994,6 +1020,7 @@ class Icarus(TraderClass):
 
 >>>>>>> Icarus-v5.12
         can_sell = False
+<<<<<<< HEAD
         # Vars
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1338,6 +1365,14 @@ class Icarus(TraderClass):
             else:
                 can_sell = is_rsi_ok(70, vars_map) if is_ema_rising(vars_map) else is_rsi_ok(50, vars_map)
 >>>>>>> Icarus-v6.2
+=======
+        # Close
+        closes = list(marketprice.get_closes())
+        closes.reverse()
+        # Check
+        # can_sell = (not is_buy_period()) and (is_histogram_dropping(vars_map) or (are_macd_signal_negatives(vars_map) and is_tangent_macd_dropping(vars_map)))
+        can_sell = is_bollinger_reached(vars_map)
+>>>>>>> Icarus-v6.8
         return can_sell
 >>>>>>> Icarus-v5.12
 
@@ -3020,6 +3055,7 @@ class Icarus(TraderClass):
         from model.API.brokers.Binance.BinanceAPI import BinanceAPI
         from model.structure.Bot import Bot
         import sys
+<<<<<<< HEAD
 
         def get_exec_price(marketprice: MarketPrice, exec_type: str) -> float:
             if marketprice.get_period_time() != cls.get_min_period():
@@ -3157,6 +3193,43 @@ class Icarus(TraderClass):
 =======
                     cls.get_min_period(): min_marketprice
 >>>>>>> Icarus-v10.1.1
+=======
+    
+        def can_sell_indicator(marketprice: MarketPrice, buy_time: int) ->  bool:
+            def is_bollinger_reached(vars_map: Map) -> bool:
+                bollinger = marketprice.get_bollingerbands()
+                bollinger_high = list(bollinger.get(Map.high))
+                bollinger_high.reverse()
+                bollinger_low = list(bollinger.get(Map.low))
+                bollinger_low.reverse()
+                bollinger_reached = (closes[-1] >= bollinger_high[-1]) or (closes[-1] <= bollinger_low[-1])
+                return bollinger_reached
+
+            vars_map = Map()
+            can_sell = False
+            # Close
+            closes = list(marketprice.get_closes())
+            closes.reverse()
+            # Check
+            can_sell = is_bollinger_reached(vars_map)
+            return can_sell
+
+        def trade_history(pair: Pair, period: int)  -> pd.DataFrame:
+            buy_repports = []
+            n_period = broker.get_max_n_period()
+            fees = broker.get_trade_fee(pair)
+            taker_fee_rate = fees.get(Map.taker)
+            buy_sell_fee = ((1+taker_fee_rate)**2 - 1)
+            pair_merged = pair.format(Pair.FORMAT_MERGED)
+            str_period = BinanceAPI.convert_interval(period)
+            trades = None
+            trade = {}
+            market_params = {
+                Map.broker: broker,
+                Map.pair: pair,
+                Map.period: period,
+                'n_period': n_period
+>>>>>>> Icarus-v6.8
                 }
             # Try buy/sell
             if not has_position:
