@@ -22,6 +22,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # _RSI_BUY_TRIGGER = 25
     # _RSI_SELL_TRIGGER = 30
     # _RSI_STEP = 10
@@ -40,6 +41,9 @@ class Icarus(TraderClass):
     _MAX_ROI_DROP_RATE = 50/100
     _MAX_LOSS = -3/100
 >>>>>>> Icarus-v13.4.1
+=======
+    _MAX_LOSS = -0.5/100
+>>>>>>> Icarus-v13.4.2.3
     _ROI_FLOOR_FIXE = 0.002
 <<<<<<< HEAD
     # _ROI_STEP = 0.005
@@ -186,6 +190,7 @@ class Icarus(TraderClass):
         return self.__floor_secure_order
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _new_secure_order(self, bkr: Broker, mkt_prc: MarketPrice) -> Order:
         if not self._has_position():
             raise Exception("Strategy must have position to generate secure Order")
@@ -241,6 +246,11 @@ class Icarus(TraderClass):
         return secure_price
 >>>>>>> Icarus-test
 
+=======
+    # ——————————————————————————————————————————— FUNCTION ROI FLOOR UP ————————————————————————————————————————————————
+    # ——————————————————————————————————————————— FUNCTION SECURE ORDER DOWN ———————————————————————————————————————————
+
+>>>>>>> Icarus-v13.4.2.3
     def get_buy_unix(self) -> int:
         if not self._has_position():
             raise Exception("Strategy must have position to get buy unix time")
@@ -1054,8 +1064,11 @@ class Icarus(TraderClass):
             self._buy(executions)
             self._secure_position(executions)
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.save_move(market_price)
 =======
+=======
+>>>>>>> Icarus-v13.4.2.3
         # Save
         var_param = vars().copy()
         del var_param['self']
@@ -2110,6 +2123,7 @@ class Icarus(TraderClass):
                 # Stop Limit Order
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 new_sell_stop_limit_price = sell_repport[Map.stopPrice]
                 if new_sell_stop_limit_price is not None:
                     sell_stop_limit_price = None if 'sell_stop_limit_price' not in vars() else sell_stop_limit_price
@@ -2156,16 +2170,28 @@ class Icarus(TraderClass):
                     sell_time = min_marketprice.get_time()
                     # exec_price = get_exec_price(min_marketprice, sell_type)
 >>>>>>> Icarus-v13.4.1
+=======
+                sell_stop_limit_price = trade['buy_price'] * (1+cls._MAX_LOSS)
+                stop_limit_reached = min_lows[-1] <= sell_stop_limit_price
+                if can_sell or stop_limit_reached:
+                    # Prepare
+                    sell_time = min_marketprice.get_time()
+                    # exec_price = get_exec_price(min_marketprice, sell_type)
+>>>>>>> Icarus-v13.4.2.3
                     if can_sell and stop_limit_reached:
                         exec_price = max(sell_stop_limit_price, get_exec_price(min_marketprice, sell_type))
                     else:
                         exec_price = sell_stop_limit_price if stop_limit_reached else get_exec_price(min_marketprice, sell_type)
                     sell_stop_limit_price = None
 <<<<<<< HEAD
+<<<<<<< HEAD
                     stop_limit_fee = taker_fee_rate + maker_fee_rate
 >>>>>>> Icarus-v13.3
 =======
 >>>>>>> Icarus-v13.4.1
+=======
+                    stop_limit_fees = taker_fee_rate + maker_fee_rate
+>>>>>>> Icarus-v13.4.2.3
                     # Put
                     trade['sell_time'] = sell_time
                     trade['sell_date'] = _MF.unix_to_date(sell_time)
@@ -2186,7 +2212,11 @@ class Icarus(TraderClass):
                     trade['min_sum_roi'] = None
                     trade['max_sum_roi'] = None
                     trade['final_roi'] = None
+<<<<<<< HEAD
                     trade[Map.fee] = stop_limit_fee if stop_limit_reached else buy_sell_fee
+=======
+                    trade[Map.fee] = stop_limit_fees if stop_limit_reached else buy_sell_fee
+>>>>>>> Icarus-v13.4.2.3
                     trade['sum_fee'] = None
                     trade['sum_roi_no_fee'] = None
                     trade['start_price'] = None
