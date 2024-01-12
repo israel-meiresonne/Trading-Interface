@@ -630,6 +630,44 @@ class Icarus(TraderClass):
             vars_map.put(roi_above_trigger, 'roi_above_trigger')
             return roi_above_trigger
 
+        def is_supertrend_switch_down(vars_map: Map) -> bool:
+            supertrend = list(marketprice.get_super_trend())
+            supertrend.reverse()
+            # Check
+            supertrend_rising_2 = MarketPrice.get_super_trend_trend(closes, supertrend, -2) == MarketPrice.SUPERTREND_RISING
+            supertrend_dropping_1 = MarketPrice.get_super_trend_trend(closes, supertrend, -1) == MarketPrice.SUPERTREND_DROPPING
+            supertrend_switch_down = supertrend_dropping_1 and supertrend_rising_2
+            # Put
+            vars_map.put(supertrend_switch_down, 'supertrend_switch_down')
+            vars_map.put(supertrend_dropping_1, 'supertrend_dropping_1')
+            vars_map.put(supertrend_rising_2, 'supertrend_rising_2')
+            vars_map.put(supertrend, Map.supertrend)
+            return supertrend_switch_down
+
+        def is_psar_switch_down(vars_map: Map) -> bool:
+            psar = list(marketprice.get_psar())
+            psar.reverse()
+            # Check
+            psar_rising_2 = MarketPrice.get_psar_trend(closes, psar, -2) == MarketPrice.PSAR_RISING
+            psar_dropping_1 = MarketPrice.get_psar_trend(closes, psar, -1) == MarketPrice.PSAR_DROPPING
+            psar_switch_down = psar_rising_2 and psar_dropping_1
+            # Put
+            vars_map.put(psar_switch_down, 'psar_switch_down')
+            vars_map.put(psar_dropping_1, 'psar_dropping_1')
+            vars_map.put(psar_rising_2, 'psar_rising_2')
+            vars_map.put(psar, Map.psar)
+            return psar_switch_down
+
+        def is_min_tangent_rsi_negative(vars_map: Map) -> None:
+            rsi = list(marketprice_1min.get_rsis())
+            rsi.reverse()
+            # Check
+            min_tangent_rsi_negative = rsi[-1] < rsi[-2]
+            # Put
+            vars_map.put(min_tangent_rsi_negative, 'min_tangent_rsi_negative')
+            vars_map.put(rsi, 'min_rsi')
+            return min_tangent_rsi_negative
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -687,6 +725,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -727,6 +766,13 @@ class Icarus(TraderClass):
 =======
         can_place_max_drop_limit(vars_map)
 >>>>>>> Icarus-v13.4.1
+=======
+        can_sell = (is_roi_above_trigger(vars_map) and is_1min_red_sequence_above_green_candle(vars_map))\
+            or (
+                (is_supertrend_switch_down(vars_map) or is_psar_switch_down(vars_map))\
+                    and is_min_tangent_rsi_negative(vars_map)
+            )
+>>>>>>> Icarus-v13.4.2
         # Repport
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
@@ -737,6 +783,9 @@ class Icarus(TraderClass):
         histogram = vars_map.get(Map.histogram)
 >>>>>>> Icarus-v11.1.10
         key = cls._can_buy_indicator.__name__
+        supertrend = vars_map.get(Map.supertrend)
+        psar = vars_map.get(Map.psar)
+        min_rsi = vars_map.get('min_rsi')
         repport = {
             f'{key}._can_sell_indicator': can_sell,
 <<<<<<< HEAD
@@ -780,7 +829,13 @@ class Icarus(TraderClass):
             f'{key}.roi_above_trigger': vars_map.get('roi_above_trigger'),
 >>>>>>> Icarus-v13.4
             f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
+<<<<<<< HEAD
             f'{key}.place_max_drop_limit': vars_map.get('place_max_drop_limit'),
+=======
+            f'{key}.supertrend_switch_down': vars_map.get('supertrend_switch_down'),
+            f'{key}.psar_switch_down': vars_map.get('psar_switch_down'),
+            f'{key}.min_tangent_rsi_negative': vars_map.get('min_tangent_rsi_negative'),
+>>>>>>> Icarus-v13.4.2
             
             f'{key}.ROI_TRIGGER': ROI_TRIGGER,
             f'{key}.roi': roi,
@@ -808,7 +863,14 @@ class Icarus(TraderClass):
 
             Map.price: vars_map.get('stop_limit_price'),
 
+            f'{key}.supertrend_dropping_1': vars_map.get('supertrend_dropping_1'),
+            f'{key}.supertrend_rising_2': vars_map.get('supertrend_rising_2'),
+
+            f'{key}.psar_dropping_1': vars_map.get('psar_dropping_1'),
+            f'{key}.psar_rising_2': vars_map.get('psar_rising_2'),
+
             f'{key}.closes[-1]': closes[-1],
+<<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
@@ -894,6 +956,15 @@ class Icarus(TraderClass):
             f'{key}.1min_lows[-1]': _1min_lows[-1],
             f'{key}.1min_lows[-2]': _1min_lows[-2]
 >>>>>>> Icarus-v13.2
+=======
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+            f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
+            f'{key}.psar[-1]': psar[-1] if psar is not None else None,
+            f'{key}.psar[-2]': psar[-2] if psar is not None else None,
+            f'{key}.min_rsi[-1]': min_rsi[-1] if min_rsi is not None else None,
+            f'{key}.min_rsi[-2]': min_rsi[-2] if min_rsi is not None else None
+>>>>>>> Icarus-v13.4.2
         }
         return can_sell, repport
 
@@ -1357,6 +1428,16 @@ class Icarus(TraderClass):
             vars_map.put(mean_positive_candle, 'mean_candle_change_60_mean_positive_candle')
             return mean_candle_change_60_above_trigger
 
+        def is_supertrend_rising(vars_map: Map) -> bool:
+            supertrend = list(child_marketprice.get_super_trend())
+            supertrend.reverse()
+            # Check
+            supertrend_rising = MarketPrice.get_super_trend_trend(closes, supertrend, -1) == MarketPrice.SUPERTREND_RISING
+            # Put
+            vars_map.put(supertrend_rising, 'supertrend_rising')
+            vars_map.put(supertrend, Map.supertrend)
+            return supertrend_rising
+
         vars_map = Map()
         # Child
         period = child_marketprice.get_period_time()
@@ -1417,6 +1498,7 @@ class Icarus(TraderClass):
         # big_closes.reverse()
         # Check
         can_buy_indicator = is_price_switch_up(vars_map) and is_mean_candle_change_60_above_trigger(vars_map)\
+<<<<<<< HEAD
             and is_min_close_bellow_min_keltner_middle(vars_map)
 >>>>>>> Icarus-v13.1.4
         # Repport
@@ -1452,6 +1534,12 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v11.4.4
         min_edited_histogram = vars_map.get('min_edited_histogram')
 >>>>>>> Icarus-v11.3.3
+=======
+            and is_supertrend_rising(vars_map) and is_min_close_bellow_min_keltner_middle(vars_map)
+        # Repport
+        min_keltner_middle = vars_map.get('min_keltner_middle')
+        supertrend = vars_map.get(Map.supertrend)
+>>>>>>> Icarus-v13.4.2
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}.can_buy_indicator': can_buy_indicator,
@@ -1461,6 +1549,7 @@ class Icarus(TraderClass):
 =======
             f'{key}.price_switch_up': vars_map.get('price_switch_up'),
             f'{key}.mean_candle_change_60_above_trigger': vars_map.get('mean_candle_change_60_above_trigger'),
+            f'{key}.supertrend_rising': vars_map.get('supertrend_rising'),
             f'{key}.min_close_bellow_min_keltner_middle': vars_map.get('min_close_bellow_min_keltner_middle'),
 
             f'{key}.price_change_1': vars_map.get('price_change_1'),
@@ -1474,6 +1563,7 @@ class Icarus(TraderClass):
             f'{key}.opens[-1]': opens[-1],
             f'{key}.min_closes[-1]': min_closes[-1],
             f'{key}.min_opens[-1]': min_opens[-1],
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.big_closes[-1]': big_closes[-1],
@@ -1567,6 +1657,10 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v11.4.4
 =======
             # f'{key}.big_closes[-1]': big_closes[-1],
+=======
+            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+            f'{key}.supertrend[-2]': supertrend[-2] if supertrend is not None else None,
+>>>>>>> Icarus-v13.4.2
             f'{key}.min_keltner_middle[-1]': min_keltner_middle[-1] if min_keltner_middle is not None else None
 >>>>>>> Icarus-v13.1.4
         }

@@ -195,6 +195,7 @@ class IcarusStalker(StalkerClass):
 =======
             f'{key}.price_switch_up': None,
             f'{key}.mean_candle_change_60_above_trigger': None,
+            f'{key}.supertrend_rising': None,
             f'{key}.min_close_bellow_min_keltner_middle': None,
 
             f'{key}.price_change_1': None,
@@ -208,6 +209,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,
             f'{key}.min_opens[-1]': None,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.big_closes[-1]': None,
@@ -303,6 +305,10 @@ class IcarusStalker(StalkerClass):
 >>>>>>> Icarus-v11.4.4
 =======
             # f'{key}.big_closes[-1]': None,
+=======
+            f'{key}.supertrend[-1]': None,
+            f'{key}.supertrend[-2]': None,
+>>>>>>> Icarus-v13.4.2
             f'{key}.min_keltner_middle[-1]': None
 >>>>>>> Icarus-v13.1.4
         }
