@@ -43,6 +43,7 @@ class Solomon(Strategy):
     KELTNER_PARAMS_2 =          {'multiple': 0.25}
     K_BUY_SELL_CONDITION =      'K_BUY_SELL_CONDITION'
     K_EDITED_MARKET_TRENDS =    'K_EDITED_MARKET_TRENDS'
+<<<<<<< HEAD
     COMPARATORS =               ['==', '>', '<', '<=', '>=']
     KELTNER_ZONE_H_INF =        'HIGH_INFINITY'
     KELTNER_ZONE_M_H =          'MIDDLE_HIGH'
@@ -58,6 +59,10 @@ class Solomon(Strategy):
     PREFIX_ID =             'solomon_'
     KELTER_SUPPORT =        None
 >>>>>>> Noah-v1
+=======
+    MAX_LOSS_RATE =             -1/100
+    MAX_PROFIT_RATE =           1/100
+>>>>>>> Solomon-v2.0.2.2
 
     # ——————————————————————————————————————————— SELF FUNCTION DOWN ——————————————————————————————————————————————————
     # ——————————————————————————————————————————— SETTER/GETTER DOWN
@@ -394,6 +399,7 @@ class Solomon(Strategy):
         return report
 
     @classmethod
+<<<<<<< HEAD
     def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, datas: dict) -> tuple[bool, dict, dict]:
         FEE_MULTIPLE =      1
         SMT_DEEP_TRIGGER =  10/100
@@ -521,6 +527,17 @@ class Solomon(Strategy):
         TRIGGE_KELTNER =        2/100
         KELTNER_RANGE_RATE =    1/4
 >>>>>>> Solomon-v2.0.1.1
+=======
+    def can_buy(cls, broker: Broker, pair: Pair, marketprices: Map, params: dict) -> tuple[bool, dict, float]:
+        TRIGGE_KELTNER =            2/100
+        KELTNER_RANGE_RATE =        1/8
+        MEAN_MARKET_TREND_WINDOW =  5
+        MEAN_MARKET_TREND_TRIGGER = 20/100
+        def is_last_roi_positive(vars_map: Map, roi: float) -> bool:
+            last_roi_positive = roi > 0
+            vars_map.put(last_roi_positive, Map.condition,  f'is_last_roi_positive')
+            return last_roi_positive
+>>>>>>> Solomon-v2.0.2.2
         vars_map = Map()
         period_1min =   Broker.PERIOD_1MIN
         period_5min =   Broker.PERIOD_5MIN
@@ -544,8 +561,30 @@ class Solomon(Strategy):
         # Params
         now_index =     -1
         prev_index_2 =  -2
+<<<<<<< HEAD
         prev_index_3 =  -3
         prev_index_4 =  -4
+=======
+        compare_1 =     '<='
+        now_time =      marketprice_1min_pd[Map.time].iloc[-1]
+        # Params
+        last_sell_time =    params[Map.time]
+        last_sell_date =    _MF.unix_to_date(last_sell_time)
+        last_sell_roi =     params[Map.roi]
+        buy_price =         marketprice_1min_pd[Map.close].iloc[-1]
+        fees =              broker.get_trade_fee(pair)
+        maker_fee =         fees.get(Map.maker)
+        taker_fee =         fees.get(Map.taker)
+        max_loss_price, max_loss_rate = cls._max_sell_price(buy_price, cls.MAX_LOSS_RATE, taker_fee, maker_fee)
+        # Add value
+        vars_map.put(taker_fee,         Map.value, 'taker_fee')
+        vars_map.put(maker_fee,         Map.value, 'maker_fee')
+        vars_map.put(buy_price,         Map.value, 'buy_price')
+        vars_map.put(max_loss_price,    Map.value, 'max_loss_price')
+        vars_map.put(max_loss_rate,     Map.value, 'max_loss_rate')
+        vars_map.put(last_sell_date,    Map.value, 'last_sell_date')
+        vars_map.put(last_sell_roi,     Map.value, 'last_sell_roi')
+>>>>>>> Solomon-v2.0.2.2
         # Add price
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],   Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],   Map.value, f'open_{period_strs[period_1min]}[-2]')
@@ -558,6 +597,7 @@ class Solomon(Strategy):
         # Set header
         this_func = cls.can_buy
         func_and_params = [
+<<<<<<< HEAD
             # {Map.callback: cls.is_tangent_ema_positive,         Map.param: dict()},
             {Map.callback: cls.is_market_trend_deep_and_rise,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, fall_ceiling_rate=SMT_RISE_CEILING, increase_rate=SMT_RISE_INCREASE, last_buy_time=last_buy_time, is_int_round=False)},
             {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, index=now_index, trigger_keltner=keltner_trigger, keltner_params=cls.KELTNER_PARAMS_0)},
@@ -567,6 +607,21 @@ class Solomon(Strategy):
             {Map.callback: cls.compare_emas,                    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index, comparator='>=', ema_params_1=cls.EMA_PARAMS_1, ema_params_2=cls.EMA_PARAMS_2)},
             {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=prev_index_2)},
             {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1h, marketprices=marketprices, index=now_index)}
+=======
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, is_int_round=True, window=MEAN_MARKET_TREND_WINDOW)},
+            {Map.callback: cls.is_last_min_market_trend_bellow,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, trigger=MEAN_MARKET_TREND_TRIGGER, is_int_round=True, window=MEAN_MARKET_TREND_WINDOW)},
+            {Map.callback: cls.is_tangent_market_trend_positive,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, is_int_round=False)},
+            {Map.callback: cls.is_last_min_market_trend_bellow,     Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, trigger=MEAN_MARKET_TREND_TRIGGER, is_int_round=True)},
+            {Map.callback: cls.is_keltner_roi_above_trigger,        Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, trigge_keltner=TRIGGE_KELTNER, index=prev_index_2)},
+            {Map.callback: cls.is_compare_price_and_keltner_line,   Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, compare=compare_1, price_line=Map.low, keltner_line=Map.low, index=prev_index_2)},
+            {Map.callback: cls.is_close_bellow_keltner_range,       Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, rate=KELTNER_RANGE_RATE, index=now_index)},
+            {Map.callback: is_last_roi_positive,                    Map.param: dict(vars_map=vars_map, roi=last_sell_roi)},
+            {Map.callback: cls.are_times_in_same_psar,              Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_1min, marketprices=marketprices, old_time=last_sell_time, new_time=now_time, psar_params={})},
+            {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, psar_params={})},
+            {Map.callback: cls.is_psar_rising,                      Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index, psar_params={})},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,                Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)}
+>>>>>>> Solomon-v2.0.2.2
         ]
         # FUNC_TO_PARAMS[get_callback_id(buy_case)] = [
         #     # compare_trigger_and_market_trend
@@ -604,6 +659,7 @@ class Solomon(Strategy):
         # k_risk_level =      f'potential_profit_{risk_period_str}[{risk_index}]_risk_level'
         # k_keltner_zone =    f'potential_profit_{risk_period_str}[{risk_index}]_keltner_zone'
         # Check
+<<<<<<< HEAD
         buy_case_value = cls.BUY_CASE_LONG
         can_buy = cls.is_market_trend_deep_and_rise(**func_and_params[0][Map.param]) \
             and cls.is_keltner_roi_above_trigger(**func_and_params[1][Map.param]) \
@@ -999,6 +1055,42 @@ class Solomon(Strategy):
             period_5min,
             period_1h
         ]
+=======
+        can_buy = cls.is_tangent_market_trend_positive(**func_and_params[0][Map.param]) \
+            and cls.is_last_min_market_trend_bellow(**func_and_params[1][Map.param]) \
+            and cls.is_tangent_market_trend_positive(**func_and_params[2][Map.param]) \
+            and cls.is_last_min_market_trend_bellow(**func_and_params[3][Map.param]) \
+            and cls.is_keltner_roi_above_trigger(**func_and_params[4][Map.param]) \
+            and cls.is_compare_price_and_keltner_line(**func_and_params[5][Map.param]) \
+            and cls.is_close_bellow_keltner_range(**func_and_params[6][Map.param]) \
+            and ((is_last_roi_positive(**func_and_params[7][Map.param])) or (not cls.are_times_in_same_psar(**func_and_params[8][Map.param]))) \
+            and cls.is_psar_rising(**func_and_params[9][Map.param]) \
+            and cls.is_psar_rising(**func_and_params[10][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[11][Map.param]) \
+            and cls.is_supertrend_rising(**func_and_params[12][Map.param])
+        # Report
+        report = cls._can_buy_sell_new_report(this_func, header_dict, can_buy, vars_map)
+        return can_buy, report, max_loss_price
+
+    @classmethod
+    def _max_sell_price(cls, buy_price: float, max_rate: float, buy_fee_rate: float, sell_fee_rate: float) -> tuple[float, float]:
+        sell_price = buy_price * (1 + (max_rate + buy_fee_rate + sell_fee_rate))
+        roi = _MF.progress_rate(sell_price, buy_price)
+        return sell_price, roi
+
+    @classmethod
+    def can_sell(cls, broker: Broker, pair: Pair, marketprices: Map, params: dict) -> tuple[bool, dict, str, dict]:
+        def is_roi_positive(vars_map: Map, roi: float) -> bool:
+            # Check
+            roi_positive = roi >= 0
+            # Put
+            vars_map.put(roi_positive, Map.condition, f'is_roi_positive')
+            return roi_positive
+        vars_map = Map()
+        period_1min =   Broker.PERIOD_1MIN
+        period_5min =   Broker.PERIOD_5MIN
+        period_15min =  Broker.PERIOD_15MIN
+>>>>>>> Solomon-v2.0.2.2
         marketprice_1min = cls._marketprice(broker, pair, period_1min, marketprices)
         marketprice_1min_pd = marketprice_1min.to_pd()
         period_strs = {period: broker.period_to_str(period) for period in periods}
@@ -1014,24 +1106,62 @@ class Solomon(Strategy):
         trade_fees = buy_fee_rate + maker_fee
         # Params
         now_index = -1
+<<<<<<< HEAD
         k_base_can_stop = 'can_stop_losses'
         k_base_can_take = 'can_take_profit'
         k_stop_price = f'{k_base_can_stop}_stop_price'
         k_limit_price = f'{k_base_can_take}_limit_price'
         now_close = marketprice_1min_pd[Map.close].iloc[-1]
         # Add price
+=======
+        # Max Prices
+        limit_price =   None
+        stop_price =    None
+        sell_key =      None
+        position_roi =  params[Map.roi]
+        buy_price =     params[Map.buy]
+        buy_fee_rate =  params[Map.fee]
+        fees =          broker.get_trade_fee(pair)
+        maker_fee =     fees.get(Map.maker)
+        taker_fee =     fees.get(Map.taker)
+        max_loss_price, max_loss_rate =     cls._max_sell_price(buy_price, cls.MAX_LOSS_RATE, buy_fee_rate, maker_fee)
+        max_profit_price, max_profit_rate = cls._max_sell_price(buy_price, cls.MAX_PROFIT_RATE, buy_fee_rate, taker_fee)
+        # Add value
+        vars_map.put(position_roi,      Map.value, 'position_roi')
+        vars_map.put(taker_fee,         Map.value, 'taker_fee')
+        vars_map.put(maker_fee,         Map.value, 'maker_fee')
+        vars_map.put(buy_price,         Map.value, 'buy_price')
+        vars_map.put(max_loss_price,    Map.value, 'max_loss_price')
+        vars_map.put(max_loss_rate,     Map.value, 'max_loss_rate')
+        vars_map.put(max_profit_price,  Map.value, 'max_profit_price')
+        vars_map.put(max_profit_rate,   Map.value, 'max_profit_rate')
+        #
+>>>>>>> Solomon-v2.0.2.2
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-1],    Map.value, f'open_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.open].iloc[-2],    Map.value, f'open_{period_strs[period_1min]}[-2]')
         vars_map.put(marketprice_1min_pd[Map.low].iloc[-1],     Map.value, f'low_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.low].iloc[-2],     Map.value, f'low_{period_strs[period_1min]}[-2]')
         vars_map.put(marketprice_1min_pd[Map.high].iloc[-1],    Map.value, f'high_{period_strs[period_1min]}[-1]')
         vars_map.put(marketprice_1min_pd[Map.high].iloc[-2],    Map.value, f'high_{period_strs[period_1min]}[-2]')
+<<<<<<< HEAD
         vars_map.put(now_close,                                 Map.value, f'close_{period_strs[period_1min]}[-1]')
+=======
+        vars_map.put(marketprice_1min_pd[Map.close].iloc[-1],   Map.value, f'close_{period_strs[period_1min]}[-1]')
+>>>>>>> Solomon-v2.0.2.2
         vars_map.put(marketprice_1min_pd[Map.close].iloc[-2],   Map.value, f'close_{period_strs[period_1min]}[-2]')
         # Set header
         this_func = cls.can_sell
         func_and_params = [
+<<<<<<< HEAD
             {Map.callback: has_market_trend_reach_max_drop, Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index, buy_time=buy_time, is_int_round=False)}
+=======
+            {Map.callback: cls.is_roi_compare_trigger,          Map.param: dict(vars_map=vars_map, compare='>=', roi=position_roi, trigger=max_profit_rate)},
+            {Map.callback: cls.is_psar_rising,                  Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, index=now_index)},
+            {Map.callback: cls.is_supertrend_rising,            Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_15min, marketprices=marketprices, index=now_index)},
+            {Map.callback: is_roi_positive,                     Map.param: dict(vars_map=vars_map, roi=position_roi)},
+            {Map.callback: cls.is_keltner_roi_above_trigger,    Map.param: dict(vars_map=vars_map, broker=broker, pair=pair, period=period_5min, marketprices=marketprices, trigge_keltner=0, index=now_index)}
+>>>>>>> Solomon-v2.0.2.2
         ]
         # FUNC_TO_PARAMS[get_callback_id(has_market_trend_rose)] = [
         #     # sell_rate
@@ -1039,6 +1169,7 @@ class Solomon(Strategy):
         # ]
         header_dict = cls._can_buy_sell_set_headers(this_func, func_and_params)
         # Check
+<<<<<<< HEAD
         # vars_map.put(buy_case, Map.value, f'buy_case')
         can_sell = False
         sell_price = None
@@ -1046,6 +1177,24 @@ class Solomon(Strategy):
         # Report
         report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
         return can_sell, report, sell_price
+=======
+        can_sell = cls.is_roi_compare_trigger(**func_and_params[0][Map.param]) \
+            or (not cls.is_psar_rising(**func_and_params[1][Map.param])) \
+            or (not cls.is_supertrend_rising(**func_and_params[2][Map.param])) \
+            or (not cls.is_supertrend_rising(**func_and_params[3][Map.param]))
+        if (not can_sell):
+            if is_roi_positive(**func_and_params[4][Map.param]):
+                sell_key = Map.limit
+                cls.is_keltner_roi_above_trigger(**func_and_params[5][Map.param])
+                limit_price = vars_map.get(Map.value, f'keltner_middle_{period_strs[period_1min]}[-1]')
+            else:
+                sell_key = Map.stop
+                stop_price = max_loss_price
+        # Report
+        report = cls._can_buy_sell_new_report(this_func, header_dict, can_sell, vars_map)
+        sell_prices = {Map.limit: limit_price, Map.stop: stop_price}
+        return can_sell, report, sell_key, sell_prices
+>>>>>>> Solomon-v2.0.2.2
 
     @classmethod
     def is_psar_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, psar_params: dict = {}) -> bool:
@@ -1068,6 +1217,52 @@ class Solomon(Strategy):
         vars_map.put(psars[-2],     Map.value,      f'psar_{period_str}{param_str}[-2]')
         vars_map.put(psars[index],  Map.value,      f'psar_{period_str}{param_str}[{index}]')
         return is_rising
+
+    @classmethod
+    def are_times_in_same_psar(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, old_time: int, new_time: int, psar_params: dict = {}) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        marketprice.reset_collections()
+        marketprice_pd = marketprice.to_pd()
+        closes = marketprice_pd[Map.close]
+        open_times = marketprice_pd[Map.time]
+        psars = list(marketprice.get_psar(**psar_params))
+        psars.reverse()
+        # Init
+        psar_start_time =   None
+        psar_end_time =     None
+        old_date =          None
+        new_date =          None
+        psar_start_date =   None
+        psar_end_date =     None
+        # Dates
+        groups = _MF.group_swings(psars, closes)
+        old_sub_times = open_times[open_times <= old_time]
+        if old_sub_times.shape[0] > 0:
+            old_index =         old_sub_times.index[-1]
+            psar_start_index =  groups[old_index][0]
+            psar_end_index =    groups[old_index][1]
+            psar_start_time =   open_times[psar_start_index]
+            psar_end_time =     open_times[psar_end_index]
+            old_date =          _MF.unix_to_date(old_time)
+            new_date =          _MF.unix_to_date(new_time)
+            psar_start_date =   _MF.unix_to_date(psar_start_time)
+            psar_end_date =     _MF.unix_to_date(psar_end_time)
+            # Check
+            time_in_same_psar = psar_start_time <= new_time <= psar_end_time
+        else:
+            time_in_same_psar = False
+        # Put
+        param_str = cls.param_to_str(psar_params)
+        param_str = '_' + param_str if len(param_str) > 0 else ''
+        vars_map.put(time_in_same_psar, Map.condition,  f'are_times_in_same_psar_{period_str}{param_str}')
+        vars_map.put(psars[-1],         Map.value,      f'are_time_in_same_psar_psar_{period_str}{param_str}[-1]')
+        vars_map.put(psars[-2],         Map.value,      f'are_time_in_same_psar_psar_{period_str}{param_str}[-2]')
+        vars_map.put(old_date,          Map.value,      f'are_time_in_same_psar_old_date_{period_str}{param_str}')
+        vars_map.put(new_date,          Map.value,      f'are_time_in_same_psar_new_date_{period_str}{param_str}')
+        vars_map.put(psar_start_date,   Map.value,      f'are_time_in_same_psar_start_date_{period_str}{param_str}')
+        vars_map.put(psar_end_date,     Map.value,      f'are_time_in_same_psar_end_date_{period_str}{param_str}')
+        return time_in_same_psar
 
     @classmethod
     def is_supertrend_rising(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int) -> bool:
@@ -1322,15 +1517,23 @@ class Solomon(Strategy):
         return tangent_positive
 
     @classmethod
+<<<<<<< HEAD
     def is_market_trend_deep_and_rise(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, index: int, fall_ceiling_rate: float, increase_rate: float, last_buy_time: int, is_int_round: bool = False, window: int = None) -> bool:
         period_str = broker.period_to_str(period)
         marketprice = cls._marketprice(broker, pair, period, marketprices)
         rounded_last_buy_time = _MF.round_time(last_buy_time, period)
         # Set trend
+=======
+    def is_tangent_market_trend_compare_zero(cls, vars_map: Map, broker: Broker, pair: Pair, period: int, marketprices: Map, compare: str, index: int, is_int_round: bool, window: int = None) -> bool:
+        period_str = broker.period_to_str(period)
+        marketprice = cls._marketprice(broker, pair, period, marketprices)
+        # Set mean
+>>>>>>> Solomon-v2.0.2.2
         market_trend_df = cls.get_edited_market_trend(period, is_int_round, window)
         k_rise_rate, k_edited_rise_rate, edited_diff_rise_rate = cls.get_edited_market_trend_keys(is_int_round, window)
         k_market_date = 'market_date'
         # Get values
+<<<<<<< HEAD
         open_times = list(marketprice.get_times())
         open_times.reverse()
         index_time = open_times[index]
@@ -1809,6 +2012,38 @@ class Solomon(Strategy):
         vars_map.put(macd_histogram[index],                 Map.value,      f'{k_base}_macd_histogram[{index}]')
         vars_map.put(macd_histogram[prev_index],            Map.value,      f'{k_base}_macd_histogram[{prev_index}]')
         return macd_from_negative
+=======
+        now_time = marketprice.get_time()
+        now_date = _MF.unix_to_date(now_time)
+        sub_mean_market_trend_df = market_trend_df[market_trend_df.index <= now_time]
+        prev_index = index - 1
+        now_trend_date = sub_mean_market_trend_df[k_market_date].iloc[index]
+        prev_trend_date = sub_mean_market_trend_df[k_market_date].iloc[prev_index]
+        # Check
+        now_rise_rate = sub_mean_market_trend_df[k_edited_rise_rate].iloc[index]
+        prev_rise_rate = sub_mean_market_trend_df[k_edited_rise_rate].iloc[prev_index]
+        tangent_positive = eval(f'{now_rise_rate*100} {compare} {prev_rise_rate*100}')
+        # Report
+        vars_map.put(tangent_positive,  Map.condition,  f'tangent_market_trend_{compare}_0_{period_str}_{window}[{index}]')
+        vars_map.put(is_int_round,      Map.value,      f'tangent_market_trend_{compare}_0_is_int_round_{period_str}_{window}[{index}]')
+        vars_map.put(now_date,          Map.value,      f'tangent_market_trend_{compare}_0_now_date_{period_str}_{window}[{index}]')
+        vars_map.put(now_trend_date,    Map.value,      f'tangent_market_trend_{compare}_0_now_trend_date_{period_str}_{window}[{index}]')
+        vars_map.put(prev_trend_date,   Map.value,      f'tangent_market_trend_{compare}_0_prev_trend_date_{period_str}_{window}[{prev_index}]')
+        vars_map.put(now_rise_rate,     Map.value,      f'tangent_market_trend_{compare}_0_now_rise_rate_{period_str}_{window}[{index}]')
+        vars_map.put(prev_rise_rate,    Map.value,      f'tangent_market_trend_{compare}_0_prev_rise_rate_{period_str}_{window}[{prev_index}]')
+        return tangent_positive
+
+    @classmethod
+    def is_roi_compare_trigger(cls, vars_map: Map, compare: str, roi: float, trigger: float) -> bool:
+        # Check
+        roi_compare_trigger = eval(f'{roi} {compare} {trigger}')
+        # Report
+        vars_map.put(roi_compare_trigger,   Map.condition, f'is_roi_compare_trigger_{compare}')
+        vars_map.put(roi,                   Map.value,     f'is_roi_compare_trigger_{compare}_roi')
+        vars_map.put(trigger,               Map.value,     f'is_roi_compare_trigger_{compare}_trigger')
+        vars_map.put(compare,               Map.value,     f'is_roi_compare_trigger_{compare}_compare')
+        return roi_compare_trigger
+>>>>>>> Solomon-v2.0.2.2
 
     @classmethod
     def param_to_str(cls, params: dict) -> str:
@@ -1820,6 +2055,7 @@ class Solomon(Strategy):
 
     @classmethod
     def _backtest_loop_inner(cls, broker: Broker, marketprices: Map, pair: Pair, trades: list[dict], trade: dict, buy_conditions: list, sell_conditions: list) -> None:
+<<<<<<< HEAD
         def is_order_set(side: str) -> bool:
             return trade[side] is not None
         period_1min = Broker.PERIOD_1MIN
@@ -1828,10 +2064,21 @@ class Solomon(Strategy):
             buy_datas = {}
             buy_datas[Map.buy] = trades[-1][Map.buy][Map.time] if len(trades) > 0 else None
             can_buy, buy_condition, buy_case = cls.can_buy(broker, pair, marketprices, buy_datas)
+=======
+        period_1min = Broker.PERIOD_1MIN
+        marketprice = cls._marketprice(broker, pair, period_1min, marketprices)
+        if (trade is None) or (trade[Map.buy][Map.status] != Order.STATUS_COMPLETED):
+            last_trade = trades[-1] if len(trades) > 0 else None
+            buy_params = {}
+            buy_params[Map.time] =  last_trade[Map.sell][Map.time] if last_trade is not None else 0
+            buy_params[Map.roi] =   last_trade[Map.roi]() if last_trade is not None else 123
+            can_buy, buy_condition, max_loss_price = cls.can_buy(broker, pair, marketprices, buy_params)
+>>>>>>> Solomon-v2.0.2.2
             buy_condition = cls._backtest_condition_add_prefix(buy_condition, pair, marketprice)
             buy_conditions.append(buy_condition)
             if can_buy:
                 trade = cls._backtest_new_trade(broker, marketprices, pair, Order.TYPE_MARKET, exec_type=Map.open)
+<<<<<<< HEAD
                 trade[Map.condition] = buy_case
         elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
             sell_datas = trade[Map.condition]
@@ -1846,6 +2093,29 @@ class Solomon(Strategy):
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
             elif sell_price is not None:
                 cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_price)
+=======
+                cls._backtest_execute_trade(broker, marketprices, trade)
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_STOP_LIMIT, limit=max_loss_price, stop=max_loss_price)
+        elif trade[Map.buy][Map.status] == Order.STATUS_COMPLETED:
+            close_price = marketprice.get_close()
+            sell_params = {}
+            sell_params[Map.fee] = buy_fee =    trade[Map.buy][Map.fee]
+            sell_params[Map.buy] = buy_price =  trade[Map.buy][Map.execution]
+            sell_params[Map.roi] =              _MF.progress_rate(close_price, buy_price) - buy_fee
+            can_sell, sell_condition, sell_key, sell_prices = cls.can_sell(broker, pair, marketprices, sell_params)
+            sell_condition = cls._backtest_condition_add_prefix(sell_condition, pair, marketprice)
+            sell_conditions.append(sell_condition)
+            cls._backtest_update_trade(trade, Map.sell, Order.STATUS_CANCELED) if trade[Map.sell] is not None else None
+            if (sell_key == Map.limit):
+                sell_limit = sell_prices[sell_key]
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_LIMIT, limit=sell_limit)
+            elif (sell_key == Map.stop):
+                sell_stop = sell_prices[sell_key]
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_STOP_LIMIT, limit=sell_stop, stop=sell_stop)
+            cls._backtest_execute_trade(broker, marketprices, trade) if trade[Map.sell] is not None else None
+            if can_sell and ((trade[Map.sell] is None) or (trade[Map.sell][Map.status] != Order.STATUS_COMPLETED)):
+                cls._backtest_trade_set_sell_order(broker, marketprices, trade, Order.TYPE_MARKET, exec_type=Map.close)
+>>>>>>> Solomon-v2.0.2.2
         return trade
 
     # ––––––––––––––––––––––––––––––––––––––––––– BACKTEST UP
