@@ -2023,6 +2023,7 @@ class Icarus(TraderClass):
             vars_map.put(macd_switch_up, 'edited_macd_switch_up')
             return macd_switch_up
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> Icarus-v6.1
 =======
 
@@ -2067,6 +2068,9 @@ class Icarus(TraderClass):
         """
 =======
 >>>>>>> Icarus-v7.13
+=======
+
+>>>>>>> Icarus-v7.2
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -2429,6 +2433,7 @@ class Icarus(TraderClass):
             vars_map.put(macd_min_date, 'macd_min_date')
             vars_map.put(macd_peak_date, 'macd_peak_date')
             return will_bounce
+<<<<<<< HEAD
 
         def is_bellow_keltner(vars_map: Map) -> bool:
             keltner_map = child_marketprice.get_keltnerchannel()
@@ -2519,6 +2524,8 @@ class Icarus(TraderClass):
             return lows_above_low_keltner
 
         """
+=======
+>>>>>>> Icarus-v7.2
 
         def is_macd_switch_up(vars_map: Map) -> bool:
             # MACD
@@ -2973,11 +2980,15 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v6.7.1
 =======
         # can_buy_indicator = is_ema_rising(vars_map) and is_macd_negative(vars_map) and is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+<<<<<<< HEAD
         can_buy_indicator = is_ema_rising(vars_map) and is_macd_switch_up(vars_map)
 >>>>>>> Icarus-v7.1
 =======
         can_buy_indicator = is_macd_switch_up(vars_map) and is_closes_above_low_keltner(vars_map)
 >>>>>>> Icarus-v7.10
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map)
+>>>>>>> Icarus-v7.2
         # Repport
         ema = vars_map.get('ema')
         histogram = vars_map.get(Map.histogram)
