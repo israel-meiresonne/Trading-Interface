@@ -20,12 +20,17 @@ from model.tools.Price import Price
 
 class Icarus(TraderClass):
 <<<<<<< HEAD
+<<<<<<< HEAD
     # _RSI_BUY_TRIGGER = 25
     # _RSI_SELL_TRIGGER = 30
     # _RSI_STEP = 10
     _MAX_LOSS = -0.01
 =======
     _MAX_LOSS = -0.4/100
+=======
+    _MIN_ROI_TRIGGER = -0.2/100
+    _MAX_LOSS = -0.8/100
+>>>>>>> Icarus-v13.3.1
     _MAX_ROI_DROP_TRIGGER = 1/100
     _MAX_ROI_DROP_RATE = 50/100
 >>>>>>> Icarus-v13.3
@@ -533,6 +538,12 @@ class Icarus(TraderClass):
             return _1min_now_period_above_buy_period
 >>>>>>> Icarus-v13.2
 
+        def is_min_roi_reached(vars_map: Map) -> bool:
+            min_roi_reached = roi <= cls._MIN_ROI_TRIGGER
+            # Put
+            vars_map.put(min_roi_reached, 'min_roi_reached')
+            return min_roi_reached
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -585,6 +596,7 @@ class Icarus(TraderClass):
         # Check
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         can_sell = is_histogram_negative(vars_map)
 =======
         open_times = list(marketprice.get_times())
@@ -613,6 +625,9 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v13.2
 =======
         can_sell = is_1min_red_sequence_above_green_candle(vars_map)
+=======
+        can_sell = is_1min_red_sequence_above_green_candle(vars_map) or is_min_roi_reached(vars_map)
+>>>>>>> Icarus-v13.3.1
         can_place_max_drop_limit(vars_map)
 >>>>>>> Icarus-v13.3
         # Repport
@@ -627,6 +642,7 @@ class Icarus(TraderClass):
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -661,7 +677,19 @@ class Icarus(TraderClass):
             f'{key}.open_time': vars_map.get('open_time'),
             f'{key}.buy_time': vars_map.get('buy_time'),
             f'{key}.buy_period': vars_map.get('buy_period'),
+=======
+            f'{key}.red_sequence_above_green_candle': vars_map.get('red_sequence_above_green_candle'),
+            f'{key}.red_sequence_above_green_buy_period': vars_map.get('red_sequence_above_green_buy_period'),
+            f'{key}.red_sequence_above_green_green_date': vars_map.get('red_sequence_above_green_green_date'),
+            f'{key}.red_sequence_above_green_green_candle': vars_map.get('red_sequence_above_green_green_candle'),
+            f'{key}.red_sequence_above_green_start_red_date': vars_map.get('red_sequence_above_green_start_red_date'),
+            f'{key}.red_sequence_above_green_end_red_date': vars_map.get('red_sequence_above_green_end_red_date'),
+            f'{key}.red_sequence_above_green_sum_red_sequence': vars_map.get('red_sequence_above_green_sum_red_sequence'),
+            f'{key}.red_sequence_above_green_sequence_size': vars_map.get('red_sequence_above_green_sequence_size'),
+            f'{key}.min_roi_reached': vars_map.get('min_roi_reached'),
+>>>>>>> Icarus-v13.3.1
 
+            f'{key}.MIN_ROI_TRIGGER': cls._MIN_ROI_TRIGGER,
             f'{key}.MAX_ROI_DROP_TRIGGER': cls._MAX_ROI_DROP_TRIGGER,
             f'{key}.MAX_ROI_DROP_RATE': cls._MAX_ROI_DROP_RATE,
             f'{key}.buy_price': buy_price,
@@ -1792,7 +1820,7 @@ class Icarus(TraderClass):
                 max_roi_position = high_roi if (max_roi_position is None) or high_roi > max_roi_position else max_roi_position
                 # Can sell params
                 can_sell_params = {
-                    Map.roi: _MF.progress_rate(get_exec_price(min_marketprice, sell_type), trade['buy_price']),
+                    Map.roi: _MF.progress_rate(get_exec_price(min_marketprice, sell_type), trade['buy_price']) - taker_fee_rate,
                     Map.maximum: max_roi_position,
                     Map.buy: trade['buy_price'],
                     cls.MARKETPRICE_BUY_BIG_PERIOD: big_marketprice,
