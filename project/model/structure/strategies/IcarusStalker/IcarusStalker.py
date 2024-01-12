@@ -254,6 +254,7 @@ class IcarusStalker(StalkerClass):
             f'{key}.prev_histogram_dropping': None,
             f'{key}.macd_switch_up': None,
 <<<<<<< HEAD
+<<<<<<< HEAD
             f'{key}.rsi_ok': None,
             f'{key}.rsi_trigger': None,
 >>>>>>> Icarus-v6.1
@@ -448,6 +449,33 @@ class IcarusStalker(StalkerClass):
             f'{key}.keltner_low[-2]': None,
             f'{key}.keltner_low[-3]': None
 >>>>>>> Icarus-v7.10
+=======
+            f'{key}.macd_bellow_bull_peak': None,
+            f'{key}.lows_above_low_keltner': None,
+            f'{key}.close_bellow_keltner': None,
+
+            f'{key}.macd_bull_peak_iterval_start': None,
+            f'{key}.macd_bull_peak_iterval_end': None,
+            f'{key}.global_macd_bull_peak_date': None,
+            f'{key}.global_macd_bull_peak': None,
+            f'{key}.local_macd_bull_peak': None,
+
+            f'{key}.min_low_date': None,
+            f'{key}.min_low': None,
+            f'{key}.min_keltner_date': None,
+            f'{key}.min_keltner': None,
+
+            f'{key}.closes[-1]': None,
+            f'{key}.high[-1]': None,
+            f'{key}.low[-1]': None,
+            f'{key}.histogram[-1]': None,
+            f'{key}.macd[-1]': None,
+            f'{key}.signal[-1]': None,
+            f'{key}.ema[-1]': None,
+            f'{key}.supertrend[-1]': None,
+            f'{key}.keltner_high[-1]': None,
+            f'{key}.keltner_low[-1]': None,
+>>>>>>> Icarus-v7.13
         }
         # Repport
         key = self.CHILD_STRATEGY.can_buy.__name__

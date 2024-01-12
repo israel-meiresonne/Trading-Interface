@@ -1987,6 +1987,7 @@ class Icarus(TraderClass):
             vars_map.put(macd_negative, 'macd_negative')
             return macd_negative
 
+<<<<<<< HEAD
         def is_macd_histogram_rising(vars_map: Map) -> bool:
 >>>>>>> Icarus-v6.7
             macd_map = child_marketprice.get_macd()
@@ -2064,6 +2065,8 @@ class Icarus(TraderClass):
             return closes_above_low_keltner
 
         """
+=======
+>>>>>>> Icarus-v7.13
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -2416,6 +2419,133 @@ class Icarus(TraderClass):
             vars_map.put(histogram_list, 'histogram_list')
             return histogram_rising
 
+        def is_macd_switch_up(vars_map: Map) -> bool:
+            # MACD
+            macd_map = child_marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            histogram_rising = (histogram[-2] > 0) and (histogram[-1] > 0)
+            prev_histogram_dropping = histogram[-3] < 0
+            macd_switch_up = histogram_rising and prev_histogram_dropping
+            # Put
+            vars_map.put(histogram, 'histogram')
+            vars_map.put(histogram_rising, 'histogram_rising')
+            vars_map.put(prev_histogram_dropping, 'prev_histogram_dropping')
+            vars_map.put(macd_switch_up, 'macd_switch_up')
+            return macd_switch_up
+
+        def is_bellow_keltner(vars_map: Map) -> bool:
+            keltner_map = child_marketprice.get_keltnerchannel()
+            keltner_high = list(keltner_map.get(Map.high))
+            keltner_high.reverse()
+            bellow_keltner = closes[-1] < keltner_high[-1]
+            vars_map.put(bellow_keltner, 'close_bellow_keltner')
+            vars_map.put(keltner_high, 'keltner_high')
+            return bellow_keltner
+
+        def is_lows_above_low_keltner(vars_map: Map) -> bool:
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            lows = list(child_marketprice.get_lows())
+            lows.reverse()
+            keltner_low = list(child_marketprice.get_keltnerchannel().get(Map.low))
+            keltner_low.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            macd.reverse()
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            last_min_index = MarketPrice.last_extremum_index(macd, signal, -1, excludes=[])
+            macd_swing = _MF.group_swings(macd, signal)
+            interval = macd_swing[last_min_index]
+            sub_open_times = open_times[interval[0]:interval[1]+1]
+            # Min Close
+            sub_lows = lows[interval[0]:interval[1]+1]
+            min_low = min(sub_lows)
+            min_low_open_time = sub_open_times[sub_lows.index(min_low)]
+            # Min Keltner
+            sub_keltner_low = keltner_low[interval[0]:interval[1]+1]
+            min_keltner = min(sub_keltner_low)
+            min_keltner_open_time = sub_open_times[sub_keltner_low.index(min_keltner)]
+            # Check
+            lows_above_low_keltner = min_low > min_keltner
+            # Put
+            vars_map.put(lows_above_low_keltner, 'lows_above_low_keltner')
+            vars_map.put(_MF.unix_to_date(min_low_open_time), 'min_low_date')
+            vars_map.put(min_low, 'min_low')
+            vars_map.put(_MF.unix_to_date(min_keltner_open_time), 'min_keltner_date')
+            vars_map.put(min_keltner, 'min_keltner')
+            vars_map.put(keltner_low, 'keltner_low')
+            vars_map.put(macd, Map.macd)
+            vars_map.put(signal, Map.signal)
+            vars_map.put(histogram, Map.histogram)
+            return lows_above_low_keltner
+
+        def is_macd_bellow_bull_peak(vars_map: Map) -> bool:
+            def macd_bull_peak_index(closes: list, highs: list, lows: list, macd: list, signal: list, ema: list, supertrend: list) -> Tuple[int, dict]:
+                all_df = pd.DataFrame({Map.close: closes, Map.high: highs, Map.low: lows, Map.macd: macd, Map.signal: signal, Map.ema: ema, Map.supertrend: supertrend})
+                all_df['mean_h_l'] = (all_df[Map.high] + all_df[Map.low])/2
+                now_index = all_df.shape[0] - 1
+                # Swing
+                supertrend_swings = _MF.group_swings(all_df['mean_h_l'].to_list(), supertrend)
+                ema_swings = _MF.group_swings(highs, ema)
+                interval_start_index = min([supertrend_swings[now_index][0], ema_swings[now_index][0]])
+                interval_end_index = max([supertrend_swings[now_index][1], ema_swings[now_index][1]])
+                # peak
+                interval_df = all_df.loc[interval_start_index:interval_end_index+1]
+                peak_macd = interval_df[Map.macd][interval_df[Map.macd] > interval_df[Map.signal]].max()
+                peak_macd_index = interval_df[interval_df[Map.macd] == peak_macd].index[-1]
+                # Repport
+                repport = {
+                    Map.start: interval_start_index,
+                    Map.end: interval_end_index
+                }
+                return peak_macd_index, repport
+
+            open_times = list(child_marketprice.get_times())
+            open_times.reverse()
+            closes = list(child_marketprice.get_closes())
+            closes.reverse()
+            highs = list(child_marketprice.get_highs())
+            highs.reverse()
+            lows = list(child_marketprice.get_lows())
+            lows.reverse()
+            macd_map = child_marketprice.get_macd()
+            macd = list(macd_map.get(Map.macd))
+            signal = list(macd_map.get(Map.signal))
+            signal.reverse()
+            macd.reverse()
+            ema = list(child_marketprice.get_ema(n_period=cls.EMA_N_PERIOD))
+            ema.reverse()
+            supertrend = list(child_marketprice.get_super_trend())
+            supertrend.reverse()
+            # Global Peak
+            macd_peak_index, repport = macd_bull_peak_index(closes=closes, highs=highs, lows=lows, macd=macd, signal=signal, ema=ema, supertrend=supertrend)
+            global_macd_peak = macd[macd_peak_index]
+            # Local peak
+            now_index = len(macd) - 1
+            macd_swings = _MF.group_swings(macd, signal)
+            sub_macd = macd[macd_swings[now_index][0]:macd_swings[now_index][1]+1]
+            local_macd_peak = max(sub_macd)
+            # Check
+            macd_bellow_bull_peak = local_macd_peak < global_macd_peak
+            # Put
+            vars_map.put(macd_bellow_bull_peak, 'macd_bellow_bull_peak')
+            vars_map.put(_MF.unix_to_date(open_times[repport[Map.start]]), 'macd_bull_peak_iterval_start')
+            vars_map.put(_MF.unix_to_date(open_times[repport[Map.end]]), 'macd_bull_peak_iterval_end')
+            vars_map.put(_MF.unix_to_date(open_times[macd_peak_index]), 'global_macd_bull_peak_date')
+            vars_map.put(global_macd_peak, 'global_macd_bull_peak')
+            vars_map.put(local_macd_peak, 'local_macd_bull_peak')
+            vars_map.put(highs, Map.high)
+            vars_map.put(lows, Map.low)
+            vars_map.put(macd, Map.macd)
+            vars_map.put(signal, Map.signal)
+            vars_map.put(ema, Map.ema)
+            vars_map.put(supertrend, Map.supertrend)
+            return macd_bellow_bull_peak
+
         vars_map = Map()
 <<<<<<< HEAD
         # Child
@@ -2706,6 +2836,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -2750,6 +2881,9 @@ class Icarus(TraderClass):
             rsi_trigger = 50
             can_buy_indicator = is_macd_switch_up(vars_map) and is_rsi_ok(rsi_trigger, vars_map)
 >>>>>>> Icarus-v6.1
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and ((is_lows_above_low_keltner(vars_map) or is_bellow_keltner(vars_map)) and is_macd_bellow_bull_peak(vars_map))
+>>>>>>> Icarus-v7.13
         # Repport
         key = cls._can_buy_indicator.__name__
 =======
@@ -2782,11 +2916,21 @@ class Icarus(TraderClass):
         rsi = vars_map.get(Map.rsi)
         macd = vars_map.get(Map.macd)
 <<<<<<< HEAD
+<<<<<<< HEAD
         histogram_list = vars_map.get('histogram_list')
 =======
         signal = vars_map.get(Map.signal)
         keltner_low = vars_map.get('keltner_low')
 >>>>>>> Icarus-v7.10
+=======
+        high = vars_map.get(Map.high)
+        low = vars_map.get(Map.low)
+        signal = vars_map.get(Map.signal)
+        ema = vars_map.get(Map.ema)
+        supertrend = vars_map.get(Map.supertrend)
+        keltner_high = vars_map.get('keltner_high')
+        keltner_low = vars_map.get('keltner_low')
+>>>>>>> Icarus-v7.13
         key = Icarus._can_buy_indicator.__name__
 >>>>>>> Icarus-v6.4.1
         repport = {
@@ -2808,6 +2952,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
             f'{key}.prev_histogram_dropping': vars_map.get('prev_histogram_dropping'),
             f'{key}.macd_switch_up': vars_map.get('macd_switch_up'),
+<<<<<<< HEAD
 <<<<<<< HEAD
             f'{key}.rsi_ok': vars_map.get('rsi_ok'),
             f'{key}.rsi_trigger': vars_map.get('rsi_trigger'),
@@ -2856,13 +3001,29 @@ class Icarus(TraderClass):
             f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
             f'{key}.min_keltner': vars_map.get('min_keltner'),
 >>>>>>> Icarus-v7.10
+=======
+            f'{key}.macd_bellow_bull_peak': vars_map.get('macd_bellow_bull_peak'),
+            f'{key}.lows_above_low_keltner': vars_map.get('lows_above_low_keltner'),
+            f'{key}.close_bellow_keltner': vars_map.get('close_bellow_keltner'),
+
+            f'{key}.macd_bull_peak_iterval_start': vars_map.get('macd_bull_peak_iterval_start'),
+            f'{key}.macd_bull_peak_iterval_end': vars_map.get('macd_bull_peak_iterval_end'),
+            f'{key}.global_macd_bull_peak_date': vars_map.get('global_macd_bull_peak_date'),
+            f'{key}.global_macd_bull_peak': vars_map.get('global_macd_bull_peak'),
+            f'{key}.local_macd_bull_peak': vars_map.get('local_macd_bull_peak'),
+
+            f'{key}.min_low_date': vars_map.get('min_low_date'),
+            f'{key}.min_low': vars_map.get('min_low'),
+            f'{key}.min_keltner_date': vars_map.get('min_keltner_date'),
+            f'{key}.min_keltner': vars_map.get('min_keltner'),
+
+>>>>>>> Icarus-v7.13
             f'{key}.closes[-1]': closes[-1],
-            f'{key}.closes[-2]': closes[-2],
-            f'{key}.closes[-3]': closes[-3],
+            f'{key}.high[-1]': high[-1] if high is not None else None,
+            f'{key}.low[-1]': low[-1] if low is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
-            f'{key}.histogram[-2]': histogram[-2] if histogram is not None else None,
-            f'{key}.histogram[-3]': histogram[-3] if histogram is not None else None,
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
+<<<<<<< HEAD
             f'{key}.macd[-2]': macd[-2] if macd is not None else None,
             f'{key}.macd[-3]': macd[-3] if macd is not None else None,
 <<<<<<< HEAD
@@ -2883,6 +3044,13 @@ class Icarus(TraderClass):
             f'{key}.keltner_low[-2]': keltner_low[-2] if keltner_low is not None else None,
             f'{key}.keltner_low[-3]': keltner_low[-3] if keltner_low is not None else None
 >>>>>>> Icarus-v7.10
+=======
+            f'{key}.signal[-1]': signal[-1] if signal is not None else None,
+            f'{key}.ema[-1]': ema[-1] if ema is not None else None,
+            f'{key}.supertrend[-1]': supertrend[-1] if supertrend is not None else None,
+            f'{key}.keltner_high[-1]': keltner_high[-1] if keltner_high is not None else None,
+            f'{key}.keltner_low[-1]': keltner_low[-1] if keltner_low is not None else None,
+>>>>>>> Icarus-v7.13
         }
         return can_buy_indicator, repport
 
