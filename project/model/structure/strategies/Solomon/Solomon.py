@@ -1272,10 +1272,10 @@ class Solomon(Strategy):
                     not cls.is_macd_line_positive(**func_and_params[4][Map.param]) \
                     and cls.is_macd_line_positive(**func_and_params[5][Map.param])
                 )
-                # or (
-                #     not cls.is_macd_line_positive(**func_and_params[6][Map.param]) \
-                #     and cls.is_macd_line_positive(**func_and_params[7][Map.param])
-                # )
+                or (
+                    not cls.is_macd_line_positive(**func_and_params[6][Map.param]) \
+                    and cls.is_macd_line_positive(**func_and_params[7][Map.param])
+                )
             )
 >>>>>>> Solomon-v5.4.4.2.2
         # Report
