@@ -383,6 +383,17 @@ class Icarus(TraderClass):
             vars_map.put(_MF.unix_to_date(buy_period), 'buy_period')
             return its_buy_period
 
+        def is_macd_histogram_negative(vars_map: Map) -> bool:
+            macd_map = marketprice.get_macd()
+            histogram = list(macd_map.get(Map.histogram))
+            histogram.reverse()
+            # Check
+            macd_histogram_negative = histogram[-1] < 0
+            # Put
+            vars_map.put(macd_histogram_negative, 'macd_histogram_negative')
+            vars_map.put(histogram, Map.histogram)
+            return macd_histogram_negative
+
         vars_map = Map()
         can_sell = False
         # Vars
@@ -425,6 +436,7 @@ class Icarus(TraderClass):
         marketprice_6h = datas[cls.MARKETPRICE_BUY_BIG_PERIOD]
         # Check
 <<<<<<< HEAD
+<<<<<<< HEAD
         if have_bought_macd_in_positive(vars_map):
             can_sell = is_tangent_1min_macd_historgram_negative(vars_map)
         else:
@@ -440,6 +452,11 @@ class Icarus(TraderClass):
         macd = vars_map.get(Map.macd)
         histogram = vars_map.get(Map.histogram)
         macd_1min = vars_map.get('macd_1min')
+=======
+        can_sell = is_max_roi_above_trigger(vars_map) or is_macd_histogram_negative(vars_map)
+        # Repport
+        histogram = vars_map.get(Map.histogram)
+>>>>>>> Icarus-v11.1.10
         key = cls._can_buy_indicator.__name__
         repport = {
             f'{key}._can_sell_indicator': can_sell,
@@ -457,9 +474,13 @@ class Icarus(TraderClass):
             f'{key}.histogram_dropping': vars_map.get('histogram_dropping'),
 =======
             f'{key}.max_roi_above_trigger': vars_map.get('max_roi_above_trigger'),
+<<<<<<< HEAD
             f'{key}.its_buy_period': vars_map.get('its_buy_period'),
             f'{key}.price_switch_down': vars_map.get('price_switch_down'),
 >>>>>>> Icarus-v11.1.1
+=======
+            f'{key}.macd_histogram_negative': vars_map.get('macd_histogram_negative'),
+>>>>>>> Icarus-v11.1.10
 
             f'{key}.open_time': vars_map.get('open_time'),
             f'{key}.buy_time': vars_map.get('buy_time'),
@@ -474,6 +495,7 @@ class Icarus(TraderClass):
             f'{key}.buy_period': vars_map.get('buy_period'),
 
             f'{key}.closes[-1]': closes[-1],
+<<<<<<< HEAD
             f'{key}.macd[-1]': macd[-1] if macd is not None else None,
             f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None,
 <<<<<<< HEAD
@@ -482,6 +504,10 @@ class Icarus(TraderClass):
 =======
             f'{key}.macd_1min[-1]': macd_1min[-1] if macd_1min is not None else None
 >>>>>>> Icarus-v10.1.1
+=======
+            f'{key}.opens[-1]': opens[-1],
+            f'{key}.histogram[-1]': histogram[-1] if histogram is not None else None
+>>>>>>> Icarus-v11.1.10
         }
         return can_sell, repport
 
