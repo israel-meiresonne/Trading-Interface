@@ -142,6 +142,7 @@ class IcarusStalker(StalkerClass):
     def _eligible(self, market_price: MarketPrice, broker: Broker = None) -> Tuple[bool, dict]:
         pair = market_price.get_pair()
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Big
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -175,6 +176,10 @@ class IcarusStalker(StalkerClass):
 =======
         child_ok, child_datas = self.CHILD_STRATEGY.can_buy(market_price, min_marketprice)
 >>>>>>> Icarus-v13.1.4
+=======
+        minute_marketprice = MarketPrice.marketprice(broker, pair, period=60, n_period=10)
+        child_ok, child_datas = Icarus.can_buy(market_price, minute_marketprice)
+>>>>>>> Icarus-v6.4.1
         eligible = child_ok
 =======
         child_period = self.get_strategy_params().get(Map.period)
@@ -193,6 +198,7 @@ class IcarusStalker(StalkerClass):
         key = self._eligible.__name__
         repport = {
             f'{key}.child_time': _MF.unix_to_date(market_price.get_time()),
+            f'{key}.minute_time': _MF.unix_to_date(minute_marketprice.get_time()),
             f'{key}.pair': pair,
             f'{key}.eligible': eligible,
             f'{key}.child_ok': child_ok,
@@ -244,9 +250,15 @@ class IcarusStalker(StalkerClass):
             f'{key}.histogram_rising': None,
             f'{key}.prev_histogram_dropping': None,
             f'{key}.macd_switch_up': None,
+<<<<<<< HEAD
             f'{key}.rsi_ok': None,
             f'{key}.rsi_trigger': None,
 >>>>>>> Icarus-v6.1
+=======
+            f'{key}.histogram_rising': None,
+            f'{key}.minute_open_time': None,
+            f'{key}.stored_histogram': None,
+>>>>>>> Icarus-v6.4.1
             f'{key}.closes[-1]': None,
             f'{key}.opens[-1]': None,
             f'{key}.min_closes[-1]': None,
@@ -400,6 +412,7 @@ class IcarusStalker(StalkerClass):
         key = self._eligible.__name__
         canvas = {
             f'{key}.child_time': None,
+            f'{key}.minute_time': None,
             f'{key}.pair': None,
             f'{key}.eligible': None,
             f'{key}.child_ok': None,
