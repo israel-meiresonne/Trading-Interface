@@ -2056,6 +2056,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Icarus-v7.2.10
 =======
@@ -2069,6 +2070,10 @@ class Icarus(TraderClass):
 
         def is_roc_positive(vars_map: Map, marketprice: MarketPrice) -> bool:
             roc = list(marketprice.get_roc(cls.ROC_WINDOW))
+=======
+        def is_roc_positive(vars_map: Map) -> bool:
+            roc = list(child_marketprice.get_roc(cls.ROC_WINDOW))
+>>>>>>> Icarus-v7.2.4
             roc.reverse()
             roc_positive = roc[-1] > 0
             vars_map.put(roc_positive, 'roc_positive')
@@ -2091,6 +2096,7 @@ class Icarus(TraderClass):
             vars_map.put(roc, 'roc')
             return roc_bounce
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> Icarus-v7.2.12
         def is_closes_above_low_keltner(vars_map: Map) -> bool:
@@ -2157,6 +2163,8 @@ class Icarus(TraderClass):
 >>>>>>> Icarus-v7.2.10
 =======
 >>>>>>> Icarus-v7.2.12
+=======
+>>>>>>> Icarus-v7.2.4
         def will_market_bounce(vars_map: Map) -> bool:
             def macd_last_minimum_index(macd: list, histogram: list) -> int:
                 neg_macd_indexes = []
@@ -2996,6 +3004,7 @@ class Icarus(TraderClass):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Supertrend
         supertrend = list(child_marketprice.get_super_trend())
         supertrend.reverse()
@@ -3099,6 +3108,9 @@ class Icarus(TraderClass):
 =======
                 and is_bellow_keltner(vars_map) and is_lows_above_low_keltner(vars_map)
 >>>>>>> Icarus-v7.2.14
+=======
+        can_buy_indicator = is_macd_switch_up(vars_map) and will_market_bounce(vars_map) and is_roc_positive(vars_map) and is_roc_bounce(vars_map)
+>>>>>>> Icarus-v7.2.4
         # Repport
         histogram = vars_map.get(Map.histogram)
         edited_histogram = vars_map.get('edited_histogram')
